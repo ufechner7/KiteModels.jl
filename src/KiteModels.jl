@@ -82,6 +82,9 @@ State of the kite power system. Parameters:
 - T: Vector type, e.g. MVector{3, SimFloat}
 - P: number of points of the system, segments+1
 
+Normally a user of this package will not have to access any of the members of this type directly,
+use the input and output functions instead.
+
 $(TYPEDFIELDS)
 """
 @with_kw mutable struct KPS3{S, T, P}
@@ -191,6 +194,11 @@ end
 # Calculate the air densisity as function of height
 calc_rho(s, height) = s.set.rho_0 * exp(-height / 8550.0)
 
+"""
+    @enum ProfileLaw EXP=1 LOG=2 EXPLOG=3
+
+Enumeration to describe the wind profile low that is used.
+"""
 @enum ProfileLaw EXP=1 LOG=2 EXPLOG=3
 
 # Calculate the wind speed at a given height and reference height.
@@ -319,7 +327,7 @@ function calc_set_cl_cd(s, vec_c, v_app)
 end
 
 """
-    function residual!(res, yd, y::MVector{S, SimFloat}, s, time) where S
+    residual!(res, yd, y::MVector{S, SimFloat}, s, time) where S
 
     N-point tether model, one point kite at the top:
     Inputs:
@@ -375,9 +383,16 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s, time) where S
     nothing
 end
 
-# Setter for the reel-out speed. Must be called every 50 ms (before each simulation).
-# It also updates the tether length, therefore it must be called even if v_reelout has
-# not changed.
+
+"""
+    set_v_reel_out(s, v_reel_out, t_0, period_time = 1.0 / s.set.sample_freq)
+
+Setter for the reel-out speed. Must be called on every timestep (before each simulation).
+It also updates the tether length, therefore it must be called even if v_reelout has
+not changed.
+
+- t_0 the start time of the next timestep relative to the start of the simulation [s]
+"""
 function set_v_reel_out(s, v_reel_out, t_0, period_time = 1.0 / s.set.sample_freq)
     s.l_tether += 0.5 * (v_reel_out + s.last_v_reel_out) * period_time
     s.last_v_reel_out = s.v_reel_out
@@ -385,13 +400,23 @@ function set_v_reel_out(s, v_reel_out, t_0, period_time = 1.0 / s.set.sample_fre
     s.t_0 = t_0
 end
 
-# Setter depower and the steering model inputs. Valid range for steering: -1.0 .. 1.0.
-# Valid range for depower: 0 .. 1.0
+
+"""
+    set_depower_steering(s::KPS3, depower, steering)
+
+Setter for the depower and steering model inputs. 
+- valid range for steering: -1.0 .. 1.0.  
+- valid range for depower: 0 .. 1.0
+
+This function sets the variables s.depower, s.steering and s.alpha_depower. 
+
+It takes the depower offset c0 and the dependency of the steering sensitivity from
+the depower settings into account.
+"""
 function set_depower_steering(s::KPS3, depower, steering)
-    s.steering = steering
     s.depower  = depower
     s.alpha_depower = calc_alpha_depower(s.kcu, depower) * (s.set.alpha_d_max / 31.0)
-    # s.steering = (steering - set.c0) / (1.0 + set.k_ds * (s.alpha_depower / deg2rad(set.alpha_d_max)))
+    s.steering = (steering - s.set.c0) / (1.0 + s.set.k_ds * (s.alpha_depower / deg2rad(s.set.alpha_d_max)))
     nothing
 end
 
@@ -400,26 +425,64 @@ function set_beta_psi(s, beta, psi)
     s.psi  = psi
 end
 
-# Setter for the tether reel-out lenght (at zero force).
+"""
+    set_l_tether(s, l_tether)
+
+Setter for the tether reel-out lenght (at zero force). During real-time simulations
+use the function [`set_v_reel_out`](@ref) instead.
+"""
 function set_l_tether(s, l_tether) s.l_tether = l_tether end
 
-# Getter for the tether reel-out lenght (at zero force).
+"""
+    get_l_tether(s)
+
+Getter for the tether reel-out lenght (at zero force).
+"""
 function get_l_tether(s) s.l_tether end
 
-# Return the absolute value of the force at the winch as calculated during the last simulation. 
+"""
+    get_force(s)
+
+Return the absolute value of the force at the winch as calculated during the last timestep. 
+"""
 function get_force(s) norm(s.last_force) end
 
-# Return an array of the scalar spring forces of all tether segements.
-# Input: The vector pos of the positions of the point masses that belong to the tether.
+
+"""
+    get_spring_forces(s, pos)
+
+Returns an array of the scalar spring forces of all tether segements.
+
+Input: The vector pos of the positions of the point masses that belong to the tether.    
+"""
 function get_spring_forces(s, pos)
-    forces = zeros(SimFloat, set.segments)
-    for i in 1:set.segments
+    forces = zeros(SimFloat, s.set.segments)
+    for i in 1:s.set.segments
         forces[i] =  s.c_spring * (norm(pos[i+1] - pos[i]) - s.length)
     end
     forces
 end
 
+"""
+    get_lift_drag(s)
+
+Returns a tuple of the scalar lift and drag forces. 
+
+**Example:**  
+
+    lift, drag = get_lift_drag(kps)
+"""
 function get_lift_drag(s) return (norm(s.lift_force), norm(s.drag_force)) end
+
+"""
+    get_lod(s)
+
+Returns the lift-over-drag ratio.
+"""
+function get_lod(s)
+    lift, drag = get_lift_drag(s)
+    return lift / drag
+end
 
 # Return the vector of the wind velocity at the height of the kite.
 function get_v_wind(s) s.v_wind end
@@ -438,11 +501,6 @@ function set_v_wind_ground(s, height, v_wind_gnd=s.set.v_wind, wind_dir=0.0)
     nothing
 end
 
-function get_lod(s)
-    lift, drag = get_lift_drag(s)
-    return lift / drag
-end
-
 function tether_length(s, pos)
     length = 0.0
     for i in 1:s.set.segments
@@ -458,7 +516,7 @@ function calc_pre_tension(s)
         av_force += forces[i]
     end
     av_force /= s.set.segments
-    res=av_force/set.c_spring
+    res = av_force/s.set.c_spring
     if res < 0.0 res = 0.0 end
     if isnan(res) res = 0.0 end
     return res + 1.0
@@ -541,6 +599,6 @@ function find_steady_state(s, prn=false)
     res
 end
 
-precompile(find_steady_state, (KPS3{SimFloat, KVec3},))   
+precompile(find_steady_state, (KPS3{SimFloat, KVec3, 7},))   
 
 end
