@@ -21,10 +21,10 @@ If you are using Windows, it is suggested to install git and bash, too. This is 
 
 ## Provides
 
-The type KPS3 with the **residual!** function for a DAE solver, representing the model. 
+The type **KPS3** with the **residual!** function for a DAE solver, representing the model. 
 
-Additional functions to provide inputs and outputs of the model on each time step. Per time step the residual! function is called as many times as needed to find the solution at the end
-of the time step.
+Additional functions to provide inputs and outputs of the model on each time step. Per time step the **residual!** function is called as many times as needed to find the solution at the end
+of the time step. The formulas are based on basic physics and aerodynamics and can be quite simple because a differential algebraic notation is used.
 
 
 Click on **Functions** on the left to see the exported functions.
