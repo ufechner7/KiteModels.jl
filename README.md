@@ -2,8 +2,8 @@
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://ufechner7.github.io/KiteModels.jl/stable)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://ufechner7.github.io/KiteModels.jl/dev)
-[![Build Status](https://github.com/ufechner7/KitePodSimulator.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/ufechner7/KiteModels.jl/actions/workflows/CI.yml?query=branch%3Amain)
-[![Coverage](https://codecov.io/gh/ufechner7/KitePodSimulator.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/ufechner7/KiteModels.jl)
+[![Build Status](https://github.com/ufechner7/KiteModels.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/ufechner7/KiteModels.jl/actions/workflows/CI.yml?query=branch%3Amain)
+[![Coverage](https://codecov.io/gh/ufechner7/KiteModels.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/ufechner7/KiteModels.jl)
 
 ## Kite power system models, consisting of tether and kite
 
@@ -24,5 +24,8 @@ These models are described in detail in [Dynamic Model of a Pumping Kite Power S
 
 ## See also
 - [Research Fechner](https://research.tudelft.nl/en/publications/?search=Uwe+Fechner&pageSize=50&ordering=rating&descending=true) for the scientic background of this code
+- The application [KiteViewer](https://github.com/ufechner7/KiteViewer)
 - the package [KiteUtils](https://github.com/ufechner7/KiteUtils.jl)
 - the package [KitePodSimulator](https://github.com/ufechner7/KitePodSimulator.jl)
+
+Author: Uwe Fechner (uwe.fechner.msc@gmail.com)
