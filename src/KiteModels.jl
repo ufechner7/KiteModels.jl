@@ -31,7 +31,7 @@ Scientific background: http://arxiv.org/abs/1406.6218 =#
 
 module KiteModels
 
-using Dierckx, StaticArrays, LinearAlgebra, Parameters, NLsolve
+using Dierckx, StaticArrays, LinearAlgebra, Parameters, NLsolve, DocStringExtensions
 using KiteUtils, KitePodSimulator
 
 export KPS3, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                              # constants and types
@@ -46,8 +46,26 @@ const G_EARTH = 9.81                # gravitational acceleration
 const BRIDLE_DRAG = 1.1             # should probably be removed
 
 # Type definitions
+"""
+    const SimFloat = Float64
+
+This type is used for all real variables, used in the Simulation. Possible alternatives: Float32, Double64, Dual
+Other types than Float64 or Float32 do require support of Julia types by the solver. 
+"""
 const SimFloat = Float64
+
+"""
+   const KVec3    = MVector{3, SimFloat}
+
+Basic 3-dimensional vector, stack allocated, mutable.
+"""
 const KVec3    = MVector{3, SimFloat}
+
+"""
+   const SVec3    = SVector{3, SimFloat}
+
+Basic 3-dimensional vector, stack allocated, immutable.
+"""
 const SVec3    = SVector{3, SimFloat}  
 
 # the following two definitions speed up the function residual! from 940ns to 540ns
@@ -62,14 +80,19 @@ State of the kite power system. Parameters:
 - S: Scalar type, e.g. SimFloat
 - T: Vector type, e.g. MVector{3, SimFloat}
 - P: number of points of the system, segments+1
+
+$(TYPEDFIELDS)
 """
 @with_kw mutable struct KPS3{S, T, P}
     set::Settings = se()
     kcu::KCU = KCU()
     calc_cl = Spline1D(se().alpha_cl, se().cl_list)
-    calc_cd = Spline1D(se().alpha_cd, se().cd_list)    
-    v_wind::T =           zeros(S, 3)    # wind vector at the height of the kite
-    v_wind_gnd::T =       zeros(S, 3)    # wind vector at reference height
+    calc_cd = Spline1D(se().alpha_cd, se().cd_list)   
+    "wind vector at the height of the kite" 
+    v_wind::T =           zeros(S, 3)
+    "wind vector at reference height" 
+    v_wind_gnd::T =       zeros(S, 3)
+    "wind vector used for the calculation of the tether drag"
     v_wind_tether::T =    zeros(S, 3)
     v_apparent::T =       zeros(S, 3)
     v_app_perp::T =       zeros(S, 3)
@@ -92,29 +115,38 @@ State of the kite power system. Parameters:
     res1::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     res2::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     pos::SVector{P, KVec3} = zeros(SVector{P, KVec3})
-    seg_area::S =         zero(S)   # area of one tether segment
+    "area of one tether segment"
+    seg_area::S =         zero(S) 
     bridle_area::S =      zero(S)
-    c_spring::S =         zero(S)   # depends on lenght of tether segement
+    "spring constant, depending on the length of the tether segment"
+    c_spring::S =         zero(S)
     length::S =           0.0
-    damping::S =          zero(S)   # depends on lenght of tether segement
+    "damping factor, depending on the length of the tether segment"
+    damping::S =          zero(S)
     area::S =             zero(S)
     last_v_app_norm_tether::S = zero(S)
+    "lift coefficient of the kite, depending on the angle of attack"
     param_cl::S =         0.2
+    "drag coefficient of the kite, depending on the angle of attack"
     param_cd::S =         1.0
     v_app_norm::S =       zero(S)
     cor_steering::S =     zero(S)
     psi::S =              zero(S)
-    beta::S =             1.22      # elevation angle in radian; initial value about 70 degrees
+    "elevation angle in radian; initial value about 70 degrees"
+    beta::S =             1.22
     last_alpha::S =        0.1
     alpha_depower::S =     0.0
-    t_0::S =               0.0      # relative start time of the current time interval
+    "relative start time of the current time interval"
+    t_0::S =               0.0
     v_reel_out::S =        0.0
     last_v_reel_out::S =   0.0
     l_tether::S =          0.0
     rho::S =               0.0
     depower::S =           0.0
     steering::S =          0.0
+    "initial masses of the point masses"
     initial_masses::MVector{P, SimFloat} = ones(P)
+    "current masses, depending on the total tether length"
     masses::MVector{P, SimFloat}         = ones(P)
 end
 
