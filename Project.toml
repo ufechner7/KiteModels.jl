@@ -6,6 +6,8 @@ version = "0.1.0"
 [deps]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 Dierckx = "39dd38d3-220a-591b-8e3c-4c3a8c710a94"
+DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 KitePodSimulator = "558fcde3-b420-4fcf-b6fa-fc874c7e75b7"
 KiteUtils = "90980105-b163-44e5-ba9f-8b1c83bb0533"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
