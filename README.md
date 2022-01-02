@@ -15,3 +15,14 @@ When combined with an controller for the turn rate it can be used to simulate a 
 This model assumes the kite to consist of four point masses. It reacts much more realistically than the one point model.
 
 ## Tether
+The tether is modeled as point masses, connected by spring-damper elements. Aerodynamic drag is modelled realistically. When reeling out or in the unstreched length of the spring-damper elements
+is varied. This does not translate into physics directly, but it avoids adding point masses at run-time, which would be even worse because it would introduce discontinuities. When using
+Dyneema or simular high strenght materials for the tether the resulting system is very stiff which is a challenge for the solver.
+
+## Further reading
+These models are described in detail in [Dynamic Model of a Pumping Kite Power System](http://arxiv.org/abs/1406.6218).
+
+## See also
+- [Research Fechner](https://research.tudelft.nl/en/publications/?search=Uwe+Fechner&pageSize=50&ordering=rating&descending=true) for the scientic background of this code
+- the package [KiteUtils](https://github.com/ufechner7/KiteUtils.jl)
+- the package [KitePodSimulator](https://github.com/ufechner7/KitePodSimulator.jl)
