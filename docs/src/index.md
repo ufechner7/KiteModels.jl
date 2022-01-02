@@ -4,7 +4,7 @@ CurrentModule = KiteModels
 
 # KiteModels
 
-Documentation for [KitePodSimulator](https://github.com/ufechner7/KiteModels.jl).
+Documentation for the package [KiteModels](https://github.com/ufechner7/KiteModels.jl).
 
 ## Background
 
@@ -20,6 +20,11 @@ at the Julia prompt.
 If you are using Windows, it is suggested to install git and bash, too. This is explained for example here: [Julia on Windows](https://github.com/ufechner7/KiteViewer/blob/main/doc/Windows.md) .
 
 ## Provides
+
+The type KPS3 with the **residual!** function for a DAE solver, representing the model. 
+
+Additional functions to provide inputs and outputs of the model on each time step. Per time step the residual! function is called as many times as needed to find the solution at the end
+of the time step.
 
 
 Click on **Functions** on the left to see the exported functions.

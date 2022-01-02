@@ -78,15 +78,20 @@ const calc_cd = Spline1D(se().alpha_cd, se().cd_list)
 
 State of the kite power system. Parameters:
 - S: Scalar type, e.g. SimFloat
+  In the documentation mentioned as Any, but when used in this module it is always SimFloat and not Any.
 - T: Vector type, e.g. MVector{3, SimFloat}
 - P: number of points of the system, segments+1
 
 $(TYPEDFIELDS)
 """
 @with_kw mutable struct KPS3{S, T, P}
+    "Reference to the settings struct"
     set::Settings = se()
+    "Reference to the KCU struct (Kite Control Unit, type from the module KitePodSimulor"
     kcu::KCU = KCU()
+    "Function for calculation the lift coefficent, using a spline based on the provided value pairs."
     calc_cl = Spline1D(se().alpha_cl, se().cl_list)
+    "Function for calculation the drag coefficent, using a spline based on the provided value pairs."
     calc_cd = Spline1D(se().alpha_cd, se().cd_list)   
     "wind vector at the height of the kite" 
     v_wind::T =           zeros(S, 3)
@@ -94,6 +99,7 @@ $(TYPEDFIELDS)
     v_wind_gnd::T =       zeros(S, 3)
     "wind vector used for the calculation of the tether drag"
     v_wind_tether::T =    zeros(S, 3)
+    "apparent wind vector at the kite"
     v_apparent::T =       zeros(S, 3)
     v_app_perp::T =       zeros(S, 3)
     drag_force::T =       zeros(S, 3)
@@ -312,13 +318,21 @@ function calc_set_cl_cd(s, vec_c, v_app)
     set_cl_cd(s, alpha)
 end
 
-# N-point tether model:
-# Inputs:
-# State vector state_y   = pos1, pos2, ..., posn, vel1, vel2, ..., veln
-# Derivative   der_yd    = vel1, vel2, ..., veln, acc1, acc2, ..., accn
-# Output:
-# Residual     res = res1, res2 = pos1,  ..., vel1, ...
-function residual!(res, yd, y::MVector{S, SimFloat}, p, time) where S
+"""
+    function residual!(res, yd, y::MVector{S, SimFloat}, s, time) where S
+
+    N-point tether model, one point kite at the top:
+    Inputs:
+    State vector y   = pos1, pos2, ..., posn, vel1, vel2, ..., veln
+    Derivative   yd  = vel1, vel2, ..., veln, acc1, acc2, ..., accn
+    Output:
+    Residual     res = res1, res2 = pos1,  ..., vel1, ...
+
+    Struct with work variables: s of type KPS3
+    The parameter S is the dimension of the state vector.
+    N = S/6, each point is represented by two 3 element vectors.
+"""
+function residual!(res, yd, y::MVector{S, SimFloat}, s, time) where S
     # unpack the vectors y and yd
     part = reshape(SVector{S}(y),  Size(3, div(S,6), 2))
     partd = reshape(SVector{S}(yd),  Size(3, div(S,6), 2))
@@ -330,7 +344,6 @@ function residual!(res, yd, y::MVector{S, SimFloat}, p, time) where S
     veld = SVector{div(S,6)+1}(if i==1 SVector(0.0,0,0) else SVector(veld1[:,i-1]) end for i in 1:div(S,6)+1)
 
     # update parameters
-    s = p
     s.pos_kite .= pos[div(S,6)+1]
     s.v_kite   .= vel[div(S,6)+1]
     delta_t = time - s.t_0

@@ -2,4 +2,7 @@
 CurrentModule = KiteModels
 ```
 
+```@docs
+residual!
+```
 
