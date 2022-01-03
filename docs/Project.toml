@@ -3,3 +3,9 @@ Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 KiteModels = "b94af626-7959-4878-9336-2adc27959007"
 KitePodSimulator = "558fcde3-b420-4fcf-b6fa-fc874c7e75b7"
 KiteUtils = "90980105-b163-44e5-ba9f-8b1c83bb0533"
+
+[compat]
+julia = "1.6,1.7"
+KitePodSimulator = "0.2.0"
+KiteUtils = "0.2.5"
+Documenter = "0.27"
