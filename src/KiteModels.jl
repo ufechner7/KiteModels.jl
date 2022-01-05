@@ -80,6 +80,12 @@ All kite models must inherit from this type. All methods that are defined on thi
 with all kite models. All exported methods must work on this type. 
 """
 abstract type AbstractKiteModel end
+
+"""
+    const AKM = AbstractKiteModel
+
+Short alias for the AbstractKiteModel. 
+"""
 const AKM = AbstractKiteModel
 
 include("KPS4.jl")

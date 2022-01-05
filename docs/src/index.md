@@ -21,7 +21,8 @@ If you are using Windows, it is suggested to install git and bash, too. This is 
 
 ## Provides
 
-The type [`KPS3`](@ref) with the [`residual!`](@ref) function for a DAE solver, representing the model. 
+The type [`AbstractKiteModel`](@ref) with the implementation [`KPS3`](@ref) and the [`residual!`](@ref) function for a DAE solver, representing the model. Other kite models can be added
+inside or outside of this package by implementing the non-generic methods required for an AbstractKiteModel.
 
 Additional functions to provide inputs and outputs of the model on each time step. Per time step the [`residual!`](@ref) function is called as many times as needed to find the solution at the end
 of the time step. The formulas are based on basic physics and aerodynamics and can be quite simple because a differential algebraic notation is used.
