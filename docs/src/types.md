@@ -11,6 +11,7 @@ KVec3
 SVec3
 ProfileLaw
 AbstractKiteModel
+AKM
 ```
 
 ## Struct KPS3
