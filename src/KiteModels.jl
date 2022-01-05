@@ -73,11 +73,19 @@ const SVec3    = SVector{3, SimFloat}
 const calc_cl = Spline1D(se().alpha_cl, se().cl_list)
 const calc_cd = Spline1D(se().alpha_cd, se().cd_list)  
 
+"""
+    abstract type AbstractKiteModel
+
+All kite models must inherit from this type. All methods that are defined on this type must work
+with all kite models. All exported methods must work on this type. 
+"""
 abstract type AbstractKiteModel end
 const AKM = AbstractKiteModel
 
+include("KPS4.jl")
+
 """
-    mutable struct KPS3{S, T, P}
+    mutable struct KPS3{S, T, P} <: AbstractKiteModel
 
 State of the kite power system. Parameters:
 - S: Scalar type, e.g. SimFloat
@@ -330,7 +338,7 @@ function calc_set_cl_cd(s, vec_c, v_app)
 end
 
 """
-    residual!(res, yd, y::MVector{S, SimFloat}, s, time) where S
+    residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
 
     N-point tether model, one point kite at the top:
     Inputs:
@@ -388,7 +396,7 @@ end
 
 
 """
-    set_v_reel_out(s, v_reel_out, t_0, period_time = 1.0 / s.set.sample_freq)
+    set_v_reel_out(s::AKM, v_reel_out, t_0, period_time = 1.0 / s.set.sample_freq)
 
 Setter for the reel-out speed. Must be called on every timestep (before each simulation).
 It also updates the tether length, therefore it must be called even if v_reelout has
@@ -429,7 +437,7 @@ function set_beta_psi(s::AKM, beta, psi)
 end
 
 """
-    set_l_tether(s, l_tether)
+    set_l_tether(s::AKM, l_tether)
 
 Setter for the tether reel-out lenght (at zero force). During real-time simulations
 use the function [`set_v_reel_out`](@ref) instead.
@@ -437,14 +445,14 @@ use the function [`set_v_reel_out`](@ref) instead.
 function set_l_tether(s::AKM, l_tether) s.l_tether = l_tether end
 
 """
-    get_l_tether(s)
+    get_l_tether(s::AKM)
 
 Getter for the tether reel-out lenght (at zero force).
 """
 function get_l_tether(s::AKM) s.l_tether end
 
 """
-    get_force(s)
+    get_force(s::AKM)
 
 Return the absolute value of the force at the winch as calculated during the last timestep. 
 """
@@ -452,7 +460,7 @@ function get_force(s::AKM) norm(s.last_force) end
 
 
 """
-    get_spring_forces(s, pos)
+    get_spring_forces(s::AKM, pos)
 
 Returns an array of the scalar spring forces of all tether segements.
 
@@ -467,7 +475,7 @@ function get_spring_forces(s::AKM, pos)
 end
 
 """
-    get_lift_drag(s)
+    get_lift_drag(s::AKM)
 
 Returns a tuple of the scalar lift and drag forces. 
 
@@ -478,7 +486,7 @@ Returns a tuple of the scalar lift and drag forces.
 function get_lift_drag(s::AKM) return (norm(s.lift_force), norm(s.drag_force)) end
 
 """
-    get_lod(s)
+    get_lod(s::AKM)
 
 Returns the lift-over-drag ratio.
 """

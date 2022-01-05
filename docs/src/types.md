@@ -10,6 +10,7 @@ SimFloat
 KVec3
 SVec3
 ProfileLaw
+AbstractKiteModel
 ```
 
 ## Struct KPS3
