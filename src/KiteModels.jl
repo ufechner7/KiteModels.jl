@@ -73,6 +73,9 @@ const SVec3    = SVector{3, SimFloat}
 const calc_cl = Spline1D(se().alpha_cl, se().cl_list)
 const calc_cd = Spline1D(se().alpha_cd, se().cd_list)  
 
+abstract type AbstractKiteModel end
+const AKM = AbstractKiteModel
+
 """
     mutable struct KPS3{S, T, P}
 
@@ -87,7 +90,7 @@ use the input and output functions instead.
 
 $(TYPEDFIELDS)
 """
-@with_kw mutable struct KPS3{S, T, P}
+@with_kw mutable struct KPS3{S, T, P} <: AbstractKiteModel
     "Reference to the settings struct"
     set::Settings = se()
     "Reference to the KCU struct (Kite Control Unit, type from the module KitePodSimulor"
@@ -160,7 +163,7 @@ $(TYPEDFIELDS)
 end
 
 # TODO: completely initialize, even if the project has changed
-function clear(s)
+function clear(s::KPS3)
     s.t_0 = 0.0                              # relative start time of the current time interval
     s.v_reel_out = 0.0
     s.last_v_reel_out = 0.0
@@ -192,7 +195,7 @@ function KPS3(kcu::KCU)
 end
 
 # Calculate the air densisity as function of height
-calc_rho(s, height) = s.set.rho_0 * exp(-height / 8550.0)
+calc_rho(s::AKM, height) = s.set.rho_0 * exp(-height / 8550.0)
 
 """
     @enum ProfileLaw EXP=1 LOG=2 EXPLOG=3
@@ -216,7 +219,7 @@ function calc_wind_factor(s, height, profile_law=s.set.profile_law)
 end
 
 # calculate the drag of one tether segment
-function calc_drag(s, v_segment, unit_vector, rho, last_tether_drag, v_app_perp, area)
+function calc_drag(s::KPS3, v_segment, unit_vector, rho, last_tether_drag, v_app_perp, area)
     s.v_apparent .= s.v_wind_tether - v_segment
     v_app_norm = norm(s.v_apparent)
     v_app_perp .= s.v_apparent .- dot(s.v_apparent, unit_vector) .* unit_vector
@@ -229,7 +232,7 @@ end
 #     paramCD:      drag coefficient (function of power settings)
 #     paramCL:      lift coefficient (function of power settings)
 #     rel_steering: value between -1.0 and +1.0
-function calc_aero_forces(s, pos_kite, v_kite, rho, rel_steering)
+function calc_aero_forces(s::KPS3, pos_kite, v_kite, rho, rel_steering)
     s.v_apparent    .= s.v_wind - v_kite
     s.v_app_norm     = norm(s.v_apparent)
     s.drag_force    .= s.v_apparent ./ s.v_app_norm
@@ -246,7 +249,7 @@ end
 
 # Calculate the vector res1, that depends on the velocity and the acceleration.
 # The drag force of each segment is distributed equaly on both particles.
-function calc_res(s, pos1, pos2, vel1, vel2, mass, veld, result, i)
+function calc_res(s::KPS3, pos1, pos2, vel1, vel2, mass, veld, result, i)
     s.segment .= pos1 - pos2
     height = (pos1[3] + pos2[3]) * 0.5
     rho = calc_rho(s, height)               # calculate the air density
@@ -283,7 +286,7 @@ end
 
 # Calculate the vector res1 using a vector expression, and calculate res2 using a loop
 # that iterates over all tether segments. 
-function loop(s, pos, vel, posd, veld, res1, res2)
+function loop(s::KPS3, pos, vel, posd, veld, res1, res2)
     s.masses               .= s.length / (s.set.l_tether / s.set.segments) .* s.initial_masses
     s.masses[s.set.segments+1]   += (s.set.mass + s.set.kcu_mass)
     res1[1] .= pos[1]
@@ -340,7 +343,7 @@ end
     The parameter S is the dimension of the state vector.
     N = S/6, each point is represented by two 3 element vectors.
 """
-function residual!(res, yd, y::MVector{S, SimFloat}, s, time) where S
+function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
     # unpack the vectors y and yd
     part = reshape(SVector{S}(y),  Size(3, div(S,6), 2))
     partd = reshape(SVector{S}(yd),  Size(3, div(S,6), 2))
@@ -393,7 +396,7 @@ not changed.
 
 - t_0 the start time of the next timestep relative to the start of the simulation [s]
 """
-function set_v_reel_out(s, v_reel_out, t_0, period_time = 1.0 / s.set.sample_freq)
+function set_v_reel_out(s::AKM, v_reel_out, t_0, period_time = 1.0 / s.set.sample_freq)
     s.l_tether += 0.5 * (v_reel_out + s.last_v_reel_out) * period_time
     s.last_v_reel_out = s.v_reel_out
     s.v_reel_out = v_reel_out
@@ -420,7 +423,7 @@ function set_depower_steering(s::KPS3, depower, steering)
     nothing
 end
 
-function set_beta_psi(s, beta, psi)
+function set_beta_psi(s::AKM, beta, psi)
     s.beta = beta
     s.psi  = psi
 end
@@ -431,21 +434,21 @@ end
 Setter for the tether reel-out lenght (at zero force). During real-time simulations
 use the function [`set_v_reel_out`](@ref) instead.
 """
-function set_l_tether(s, l_tether) s.l_tether = l_tether end
+function set_l_tether(s::AKM, l_tether) s.l_tether = l_tether end
 
 """
     get_l_tether(s)
 
 Getter for the tether reel-out lenght (at zero force).
 """
-function get_l_tether(s) s.l_tether end
+function get_l_tether(s::AKM) s.l_tether end
 
 """
     get_force(s)
 
 Return the absolute value of the force at the winch as calculated during the last timestep. 
 """
-function get_force(s) norm(s.last_force) end
+function get_force(s::AKM) norm(s.last_force) end
 
 
 """
@@ -455,7 +458,7 @@ Returns an array of the scalar spring forces of all tether segements.
 
 Input: The vector pos of the positions of the point masses that belong to the tether.    
 """
-function get_spring_forces(s, pos)
+function get_spring_forces(s::AKM, pos)
     forces = zeros(SimFloat, s.set.segments)
     for i in 1:s.set.segments
         forces[i] =  s.c_spring * (norm(pos[i+1] - pos[i]) - s.length)
@@ -472,25 +475,25 @@ Returns a tuple of the scalar lift and drag forces.
 
     lift, drag = get_lift_drag(kps)
 """
-function get_lift_drag(s) return (norm(s.lift_force), norm(s.drag_force)) end
+function get_lift_drag(s::AKM) return (norm(s.lift_force), norm(s.drag_force)) end
 
 """
     get_lod(s)
 
 Returns the lift-over-drag ratio.
 """
-function get_lod(s)
+function get_lod(s::AKM)
     lift, drag = get_lift_drag(s)
     return lift / drag
 end
 
 # Return the vector of the wind velocity at the height of the kite.
-function get_v_wind(s) s.v_wind end
+function get_v_wind(s::AKM) s.v_wind end
 
 # Set the vector of the wind-velocity at the height of the kite. As parameter the height,
 # the ground wind speed and the wind direction are needed.
 # Must be called every 50 ms.
-function set_v_wind_ground(s, height, v_wind_gnd=s.set.v_wind, wind_dir=0.0)
+function set_v_wind_ground(s::AKM, height, v_wind_gnd=s.set.v_wind, wind_dir=0.0)
     if height < 6.0
         height = 6.0
     end
@@ -501,7 +504,7 @@ function set_v_wind_ground(s, height, v_wind_gnd=s.set.v_wind, wind_dir=0.0)
     nothing
 end
 
-function tether_length(s, pos)
+function tether_length(s::AKM, pos)
     length = 0.0
     for i in 1:s.set.segments
         length += norm(pos[i+1] - pos[i])
@@ -509,7 +512,7 @@ function tether_length(s, pos)
     return length
 end
 
-function calc_pre_tension(s)
+function calc_pre_tension(s::AKM)
     forces = get_spring_forces(s, s.pos)
     av_force = 0.0
     for i in 1:s.set.segments
