@@ -4,7 +4,7 @@ authors = ["Uwe Fechner <fechner@aenarete.eu> and contributors"]
 version = "0.1.1"
 
 [deps]
-
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 Dierckx = "39dd38d3-220a-591b-8e3c-4c3a8c710a94"
 DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 KitePodSimulator = "558fcde3-b420-4fcf-b6fa-fc874c7e75b7"
@@ -15,19 +15,19 @@ Parameters = "d96e819e-fc66-5662-9728-84c9c7592b0a"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
-julia = "1.6,1.7"
-KitePodSimulator = "0.2.0, 0.2.1"
-KiteUtils = "0.2.5, 0.2.6"
+BenchmarkTools = "1.2"
 Dierckx = "0.5.1"
 DocStringExtensions = "0.8"
+KitePodSimulator = "0.2.0, 0.2.1, 0.2.2"
+KiteUtils = "0.2.5, 0.2.6, 0.3.0"
 NLsolve = "4.5"
 Parameters = "0.12.3"
 StaticArrays = "=1.2.5, 1.3.1"
-BenchmarkTools = "1.2"
+julia = "1.6, 1.7"
 
 [extras]
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test","BenchmarkTools"]
+test = ["Test", "BenchmarkTools"]
