@@ -30,4 +30,8 @@ get_lod
 residual!
 ```
 
-## Conversion functions
+## Environment
+```@docs
+calc_rho
+calc_wind_factor
+```

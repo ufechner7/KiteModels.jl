@@ -208,17 +208,27 @@ function KPS3(kcu::KCU)
     return s
 end
 
-# Calculate the air densisity as function of height
-calc_rho(s::AKM, height) = s.set.rho_0 * exp(-height / 8550.0)
+"""
+    calc_rho(s, height)
+
+Calculate the air densisity as function of height.
+"""
+function calc_rho(s::AKM, height)
+    s.set.rho_0 * exp(-height / 8550.0)
+end
 
 """
-    @enum ProfileLaw EXP=1 LOG=2 EXPLOG=3
+    ProfileLaw
 
 Enumeration to describe the wind profile low that is used.
 """
 @enum ProfileLaw EXP=1 LOG=2 EXPLOG=3
 
-# Calculate the wind speed at a given height and reference height.
+"""
+    calc_wind_factor(s, height, profile_law=s.set.profile_law)
+
+Calculate the relative wind speed at a given height and reference height.
+"""
 function calc_wind_factor(s, height, profile_law=s.set.profile_law)
     if profile_law == EXP
         return (height / s.set.h_ref)^s.set.alpha
