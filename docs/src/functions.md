@@ -35,3 +35,10 @@ residual!
 calc_rho
 calc_wind_factor
 ```
+
+## Helper functions
+```@docs
+clear
+calc_drag
+calc_set_cl_cd
+```

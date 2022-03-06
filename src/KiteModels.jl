@@ -35,7 +35,7 @@ using Dierckx, StaticArrays, LinearAlgebra, Parameters, NLsolve, DocStringExtens
 using KiteUtils, KitePodSimulator
 
 export KPS3, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                              # constants and types
-export calc_rho, calc_wind_factor, calc_drag, calc_set_cl_cd, clear, residual!          # functions
+export calc_rho, calc_wind_factor, calc_drag, calc_set_cl_cd, clear, residual!          # environment and helper functions
 export set_v_reel_out, set_depower_steering                                             # setters  
 export get_force, get_lod                                                               # getters
 
@@ -176,13 +176,16 @@ $(TYPEDFIELDS)
     masses::MVector{P, SimFloat}         = ones(P)
 end
 
-# TODO: completely initialize, even if the project has changed
+"""
+    clear(s::KPS3)
+
+Initialize the kite power model.
+"""
 function clear(s::KPS3)
     s.t_0 = 0.0                              # relative start time of the current time interval
     s.v_reel_out = 0.0
     s.last_v_reel_out = 0.0
     s.area = s.set.area
-    # self.sync_speed = 0.0
     s.v_wind        .= [s.set.v_wind, 0, 0]    # wind vector at the height of the kite
     s.v_wind_gnd    .= [s.set.v_wind, 0, 0]    # wind vector at reference height
     s.v_wind_tether .= [s.set.v_wind, 0, 0]
@@ -190,6 +193,7 @@ function clear(s::KPS3)
     s.l_tether = s.set.l_tether
     s.length = s.l_tether / s.set.segments
     s.pos_kite, s.v_kite = zeros(SimFloat, 3), zeros(SimFloat, 3)
+    # density_per_meter = s.set.rho_tether * π * s.set.d_tether^2
     s.initial_masses .= ones(s.set.segments+1) * 0.011 * s.set.l_tether / s.set.segments # Dyneema: 1.1 kg/ 100m
     s.rho = s.set.rho_0
     s.c_spring = s.set.c_spring / s.length
@@ -213,9 +217,7 @@ end
 
 Calculate the air densisity as function of height.
 """
-function calc_rho(s::AKM, height)
-    s.set.rho_0 * exp(-height / 8550.0)
-end
+function calc_rho(s::AKM, height) s.set.rho_0 * exp(-height / 8550.0) end
 
 """
     ProfileLaw
@@ -242,7 +244,12 @@ function calc_wind_factor(s, height, profile_law=s.set.profile_law)
     end
 end
 
-# calculate the drag of one tether segment
+"""
+    calc_drag(s::KPS3, v_segment, unit_vector, rho, last_tether_drag, v_app_perp, area)
+
+Calculate the drag of one tether segment, result stored in parameter last_tether_drag.
+Return the norm of the apparent wind velocity.
+"""
 function calc_drag(s::KPS3, v_segment, unit_vector, rho, last_tether_drag, v_app_perp, area)
     s.v_apparent .= s.v_wind_tether - v_segment
     v_app_norm = norm(s.v_apparent)
@@ -344,9 +351,14 @@ function calc_alpha(v_app, vec_z)
     π/2.0 - acos(-dot(v_app, vec_z) / norm(v_app))
 end
 
-# Calculate the lift over drag ratio as a function of the direction vector of the last tether
-# segment, the current depower setting and the apparent wind speed.
-# Set the calculated CL and CD values. 
+
+"""
+    calc_set_cl_cd(s, vec_c, v_app)
+
+Calculate the lift over drag ratio as a function of the direction vector of the last tether
+segment, the current depower setting and the apparent wind speed.
+Set the calculated CL and CD values in the struct s. 
+"""
 function calc_set_cl_cd(s, vec_c, v_app)
     s.vec_z .= normalize(vec_c)
     alpha = calc_alpha(v_app, s.vec_z) - s.alpha_depower
@@ -363,9 +375,11 @@ end
     Output:
     Residual     res = res1, res2 = pos1,  ..., vel1, ...
 
-    Struct with work variables: s of type KPS3
-    The parameter S is the dimension of the state vector.
-    N = S/6, each point is represented by two 3 element vectors.
+    Additional parameters:
+    s: Struct with work variables, type KPS3
+    S: The dimension of the state vector
+The number of the point masses of the model N = S/6, the state of each point 
+is represented by two 3 element vectors.
 """
 function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
     # unpack the vectors y and yd
@@ -611,7 +625,6 @@ function find_steady_state(s, prn=false)
     # helper function for the steady state finder
     function test_initial_condition!(F, x::Vector)
         y0, yd0 = init(state, x)
-        # residual!((res, yd0, y0, [0.0], 0.0) -> residual!(res, yd0, y0, [0.0], 0.0, state))
         residual!(res, yd0, y0, state, 0.0)
         for i in 1:s.set.segments
             F[i] = res[1 + 3*(i-1) + 3*s.set.segments]
