@@ -57,9 +57,23 @@ tether:
     rho_tether:  724.0     # density of Dyneema           [kg/m³]
 
 environment:
-    v_wind: 9.51     # wind speed at reference height       [m/s]
-    h_ref:  6.0      # reference height for the wind speed    [m]
-    rho_0:  1.225    # air density at the ground          [kg/m³]
-    alpha:  0.08163  # exponent of the wind profile law
-    z0:     0.0002   # surface roughness                      [m]
-    profile_law: 3   # 1=EXP, 2=LOG, 3=EXPLOG
+    v_wind: 9.51             # wind speed at reference height          [m/s]
+    v_wind_ref: [9.51, 0.0]  # wind speed vector at reference height   [m/s]
+    temp_ref: 15.0           # temperature at reference height         [°C]
+    height_gnd: 0.0          # height of groundstation above see level [m]
+    h_ref:  6.0              # reference height for the wind speed     [m]
+
+    rho_0:  1.225            # air density at the ground or zero       [kg/m³]
+    alpha:  0.08163          # exponent of the wind profile law
+    z0:     0.0002           # surface roughness                       [m]
+    profile_law: 3           # 1=EXP, 2=LOG, 3=EXPLOG
+    # the following parameters are for calculating the turbulent wind field using the Mann model
+    use_turbulence: 0.0      # turbulence intensity relative to Cabau, NL
+    v_wind_gnds: [3.483, 5.324, 8.163] # wind speeds at ref height for calculating the turbulent wind field [m/s]
+    avg_height: 200.0        # average height during reel out          [m]
+    rel_turbs:   [0.342, 0.465, 0.583] # relative turbulence at the v_wind_gnds
+    i_ref: 0.14              # is the expected value of the turbulence intensity at 15 m/s.
+    v_ref: 42.9              # five times the average wind speed in m/s at hub height over the full year    [m/s]
+                             # Cabau: 8.5863 m/s * 5.0 = 42.9 m/s
+    height_step: 2.0         # use a grid with 2m resolution in z direction                                 [m]
+    grid_step:   2.0         # grid resolution in x and y direction                                         [m]               

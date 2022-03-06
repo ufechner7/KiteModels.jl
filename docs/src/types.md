@@ -18,7 +18,7 @@ AKM
 ```@docs
 KPS3
 ```
-This file stores the state of the one point model. Only in unit tests
+This struct stores the state of the one point model. Only in unit tests
 it is allowed to access the members directly, otherwise use the input
 and output functions.
 
