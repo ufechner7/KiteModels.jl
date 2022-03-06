@@ -266,6 +266,14 @@ z= nothing
     # println("lift force: $(norm(my_state.lift_force)) N")
 end
 
+@testset "test_find_steady_state" begin
+   res1, res2 = find_steady_state(kps) 
+   @test norm(res2) < 1e-5 # velocity and acceleration must be near zero
+   pre_tension = KiteModels.calc_pre_tension(kps)
+   @test pre_tension > 1.0001
+   @test pre_tension < 1.01
+end
+
 function run_benchmarks()
     println("\ncalc_rho:")
     show(@benchmark calc_rho(height) setup=(height=1.0 + rand() * 200.0))
