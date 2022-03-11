@@ -18,6 +18,7 @@ makedocs(;
         "Types" => "types.md",
         "Functions" => "functions.md",
         "Parameters" => "parameters.md",
+        "Examples" => "examples.md",
     ],
 )
 

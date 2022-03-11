@@ -618,7 +618,13 @@ function init(s, X; output=false)
     return reduce(vcat, state_y0), reduce(vcat, yd0)
 end
 
-function find_steady_state(s, prn=false)
+"""
+    find_steady_state(s::KPS3, prn=false)
+
+Find an initial equilibrium, based on the inital parameters
+l_tether, elevation and v_reel_out.
+"""
+function find_steady_state(s::KPS3, prn=false)
     res = zeros(MVector{6*s.set.segments, SimFloat})
     state = s
 

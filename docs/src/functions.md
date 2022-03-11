@@ -39,6 +39,7 @@ calc_wind_factor
 ## Helper functions
 ```@docs
 clear
+find_steady_state
 calc_drag
 calc_set_cl_cd
 ```
