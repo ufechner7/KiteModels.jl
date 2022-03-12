@@ -37,7 +37,7 @@ using KiteUtils, KitePodSimulator
 export KPS3, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                                        # constants and types
 export calc_rho, calc_wind_factor, calc_drag, calc_set_cl_cd, clear, find_steady_state, residual! # environment and helper functions
 export set_v_reel_out, set_depower_steering                                                       # setters
-export get_force, get_lod                                                                         # getters
+export get_force, get_lod, get_l_tether, get_force                                                # getters
 
 set_zero_subnormals(true)         # required to avoid drastic slow down on Intel CPUs when numbers become very small
 
@@ -157,9 +157,10 @@ $(TYPEDFIELDS)
     param_cd::S =         1.0
     v_app_norm::S =       zero(S)
     cor_steering::S =     zero(S)
+    "azimuth angle in radian; inital value is zero"
     psi::S =              zero(S)
     "elevation angle in radian; initial value about 70 degrees"
-    beta::S =             1.22
+    beta::S =             deg2rad(se().elevation)
     last_alpha::S =        0.1
     alpha_depower::S =     0.0
     "relative start time of the current time interval"
@@ -193,6 +194,7 @@ function clear(s::KPS3)
     s.l_tether = s.set.l_tether
     s.length = s.l_tether / s.set.segments
     s.pos_kite, s.v_kite = zeros(SimFloat, 3), zeros(SimFloat, 3)
+    s.beta = deg2rad(s.set.elevation)
     # density_per_meter = s.set.rho_tether * π * s.set.d_tether^2
     s.initial_masses .= ones(s.set.segments+1) * 0.011 * s.set.l_tether / s.set.segments # Dyneema: 1.1 kg/ 100m
     s.rho = s.set.rho_0
@@ -459,11 +461,6 @@ function set_depower_steering(s::KPS3, depower, steering)
     s.alpha_depower = calc_alpha_depower(s.kcu, depower) * (s.set.alpha_d_max / 31.0)
     s.steering = (steering - s.set.c0) / (1.0 + s.set.k_ds * (s.alpha_depower / deg2rad(s.set.alpha_d_max)))
     nothing
-end
-
-function set_beta_psi(s::AKM, beta, psi)
-    s.beta = beta
-    s.psi  = psi
 end
 
 """

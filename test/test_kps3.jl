@@ -272,6 +272,8 @@ end
    pre_tension = KiteModels.calc_pre_tension(kps)
    @test pre_tension > 1.0001
    @test pre_tension < 1.01
+   @test get_l_tether(kps) ≈ 392.0           # initial, unstreched tether lenght
+   @test get_force(kps) ≈ 276.25776695110034 # inital force at the winch [N]
 end
 
 function run_benchmarks()
