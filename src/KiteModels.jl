@@ -581,11 +581,10 @@ function init(s, X; output=false)
         radius =  -i * s.set.l_tether / s.set.segments
         elevation = s.set.elevation
         sin_el, cos_el = sin(elevation / 180.0 * π), cos(elevation / 180.0 * π)
-        radius1 = radius
         if i==0
             pos[i+1] .= SVec3(0.0, DELTA, 0.0)
         else
-            pos[i+1] .= SVec3(-cos_el * radius1+X[i], DELTA, -sin_el * radius1+X[s.set.segments+i])
+            pos[i+1] .= SVec3(-cos_el * radius+X[i], DELTA, -sin_el * radius+X[s.set.segments+i])
         end
         vel[i+1] .= SVec3(DELTA, DELTA, DELTA)
         acc[i+1] .= SVec3(DELTA, DELTA, DELTA)
@@ -628,12 +627,11 @@ l_tether, elevation and v_reel_out.
 """
 function find_steady_state(s::KPS3, prn=false)
     res = zeros(MVector{6*s.set.segments, SimFloat})
-    state = s
 
     # helper function for the steady state finder
     function test_initial_condition!(F, x::Vector)
-        y0, yd0 = init(state, x)
-        residual!(res, yd0, y0, state, 0.0)
+        y0, yd0 = init(s, x)
+        residual!(res, yd0, y0, s, 0.0)
         for i in 1:s.set.segments
             F[i] = res[1 + 3*(i-1) + 3*s.set.segments]
             F[i+s.set.segments] = res[3 + 3*(i-1) + 3*s.set.segments]
@@ -643,8 +641,7 @@ function find_steady_state(s::KPS3, prn=false)
     if prn println("\nStarted function test_nlsolve...") end
     results = nlsolve(test_initial_condition!, zeros(SimFloat, 2*s.set.segments))
     if prn println("\nresult: $results") end
-    res = init(s, results.zero; output=false)
-    res
+    init(s, results.zero; output=false)
 end
 
 precompile(find_steady_state, (KPS3{SimFloat, KVec3, 7},))   
