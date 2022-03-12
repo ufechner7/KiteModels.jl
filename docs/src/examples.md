@@ -42,3 +42,5 @@ using Plots
 plot(x,z, xlabel="x [m]", ylabel="z [m]", legend=false)
 plot!(x, z, seriestype = :scatter)
 ```
+### Inital State
+![Initial State](initial_state.png)
