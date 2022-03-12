@@ -37,7 +37,7 @@ using KiteUtils, KitePodSimulator
 export KPS3, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                                        # constants and types
 export calc_rho, calc_wind_factor, calc_drag, calc_set_cl_cd, clear, find_steady_state, residual! # environment and helper functions
 export set_v_reel_out, set_depower_steering                                                       # setters
-export get_force, get_lod, get_l_tether, get_force                                                # getters
+export get_force, get_lift_drag, get_lod, get_l_tether, get_v_wind                                # getters
 
 set_zero_subnormals(true)         # required to avoid drastic slow down on Intel CPUs when numbers become very small
 

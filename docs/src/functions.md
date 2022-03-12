@@ -23,6 +23,7 @@ get_force
 get_spring_forces
 get_lift_drag
 get_lod
+get_v_wind
 ```
 
 ## Callback function for the DAE solver
