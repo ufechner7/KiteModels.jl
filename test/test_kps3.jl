@@ -268,18 +268,18 @@ end
 
 @testset "test_find_steady_state" begin
    res1, res2 = find_steady_state(kps) 
-   @test norm(res2) < 1e-5                   # velocity and acceleration must be near zero
+   @test norm(res2) < 1e-5                            # velocity and acceleration must be near zero
    pre_tension = KiteModels.calc_pre_tension(kps)
    @test pre_tension > 1.0001
    @test pre_tension < 1.01
    @test unstretched_length(kps) ≈ 392.0              # initial, unstreched tether lenght
    @test tether_length(kps) ≈ 392.1861381318156 # real, streched tether length
-   @test get_force(kps) ≈ 276.25776695110034    # initial force at the winch [N]
-   lift, drag = get_lift_drag(kps)
-   @test lift ≈ 443.63303000106197              # initial lift force of the kite [N]
-   @test drag ≈ 94.25223134952152               # initial drag force of the kite [N]
-   @test get_lod(kps) ≈ 4.706870316479931       # initlal lift-over-drag
-   @test norm(get_v_wind(kps)) ≈ 9.107670173739065 # inital wind speed at the height of the kite [m/s]
+   @test winch_force(kps) ≈ 276.25776695110034        # initial force at the winch [N]
+   lift, drag = lift_drag(kps)
+   @test lift ≈ 443.63303000106197                    # initial lift force of the kite [N]
+   @test drag ≈ 94.25223134952152                     # initial drag force of the kite [N]
+   @test lift_over_drag(kps) ≈ 4.706870316479931      # initlal lift-over-drag
+   @test norm(v_wind_kite(kps)) ≈ 9.107670173739065   # inital wind speed at the height of the kite [m/s]
 end
 
 function run_benchmarks()

@@ -37,9 +37,9 @@ using KiteUtils, KitePodSimulator
 export KPS3, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                                        # constants and types
 export calc_rho, calc_wind_factor, calc_drag, calc_set_cl_cd, clear, find_steady_state, residual! # environment and helper functions
 export set_v_reel_out, set_depower_steering                                                       # setters
-export get_force, get_lift_drag, get_lod, unstretched_length, tether_length, get_v_wind           # getters
+export winch_force, lift_drag, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
 
-set_zero_subnormals(true)         # required to avoid drastic slow down on Intel CPUs when numbers become very small
+set_zero_subnormals(true)           # required to avoid drastic slow down on Intel CPUs when numbers become very small
 
 # Constants
 const G_EARTH = 9.81                # gravitational acceleration
@@ -249,7 +249,7 @@ end
 """
     calc_drag(s::KPS3, v_segment, unit_vector, rho, last_tether_drag, v_app_perp, area)
 
-Calculate the drag of one tether segment, result stored in parameter last_tether_drag.
+Calculate the drag of one tether segment, result stored in parameter `last_tether_drag`.
 Return the norm of the apparent wind velocity.
 """
 function calc_drag(s::KPS3, v_segment, unit_vector, rho, last_tether_drag, v_app_perp, area)
@@ -464,14 +464,6 @@ function set_depower_steering(s::KPS3, depower, steering)
 end
 
 """
-    set_unstretched_length(s::AKM, l_tether)
-
-Setter for the tether reel-out lenght (at zero force). During real-time simulations
-use the function [`set_v_reel_out`](@ref) instead.
-"""
-function set_unstretched_length(s::AKM, l_tether) s.l_tether = l_tether end
-
-"""
     unstretched_length(s::AKM)
 
 Getter for the unstretched tether reel-out lenght (at zero force).
@@ -479,51 +471,54 @@ Getter for the unstretched tether reel-out lenght (at zero force).
 function unstretched_length(s::AKM) s.l_tether end
 
 """
-    get_force(s::AKM)
+    winch_force(s::AKM)
 
 Return the absolute value of the force at the winch as calculated during the last timestep. 
 """
-function get_force(s::AKM) norm(s.last_force) end
+function winch_force(s::AKM) norm(s.last_force) end
 
 
 """
-    get_spring_forces(s::AKM, pos)
+    spring_forces(s::AKM)
 
-Returns an array of the scalar spring forces of all tether segements.
-
-Input: The vector pos of the positions of the point masses that belong to the tether.    
+Return an array of the scalar spring forces of all tether segements.
 """
-function get_spring_forces(s::AKM, pos)
+function spring_forces(s::AKM)
     forces = zeros(SimFloat, s.set.segments)
     for i in 1:s.set.segments
-        forces[i] =  s.c_spring * (norm(pos[i+1] - pos[i]) - s.length)
+        forces[i] =  s.c_spring * (norm(s.pos[i+1] - s.pos[i]) - s.length)
     end
     forces
 end
 
 """
-    get_lift_drag(s::AKM)
+    lift_drag(s::AKM)
 
-Returns a tuple of the scalar lift and drag forces. 
+Return a tuple of the scalar lift and drag forces. 
 
 **Example:**  
 
-    lift, drag = get_lift_drag(kps)
+    lift, drag = lift_drag(kps)
 """
-function get_lift_drag(s::AKM) return (norm(s.lift_force), norm(s.drag_force)) end
+function lift_drag(s::AKM) return (norm(s.lift_force), norm(s.drag_force)) end
 
 """
-    get_lod(s::AKM)
+    lift_over_drag(s::AKM)
 
-Returns the lift-over-drag ratio.
+Return the lift-over-drag ratio.
 """
-function get_lod(s::AKM)
-    lift, drag = get_lift_drag(s)
+function lift_over_drag(s::AKM)
+    lift, drag = lift_drag(s)
     return lift / drag
 end
 
 # Return the vector of the wind velocity at the height of the kite.
-function get_v_wind(s::AKM) s.v_wind end
+"""
+    v_wind_kite(s::AKM)
+
+Return the vector of the wind speed at the height of the kite.
+"""
+function v_wind_kite(s::AKM) s.v_wind end
 
 # Set the vector of the wind-velocity at the height of the kite. As parameter the height,
 # the ground wind speed and the wind direction are needed.
@@ -553,7 +548,7 @@ function tether_length(s::AKM)
 end
 
 function calc_pre_tension(s::AKM)
-    forces = get_spring_forces(s, s.pos)
+    forces = spring_forces(s)
     av_force = 0.0
     for i in 1:s.set.segments
         av_force += forces[i]
@@ -594,7 +589,7 @@ function init(s, X; output=false)
     end
 
     if output
-        forces = get_spring_forces(s, pos)
+        forces = spring_forces(s)
         println("Winch force: $(norm(forces[1])) N"); 
     end
     
@@ -608,7 +603,7 @@ function init(s, X; output=false)
         yd0[s.set.segments+i-1]      .= acc[i]  # Initial state vector derivative
     end
     set_v_wind_ground(s, pos[s.set.segments+1][3])
-    set_unstretched_length(s, s.set.l_tether)
+    s.l_tether = s.set.l_tether
     set_v_reel_out(s, s.set.v_reel_out, 0.0)
     if output
         print("y0: ")
@@ -623,7 +618,7 @@ end
     find_steady_state(s::KPS3, prn=false)
 
 Find an initial equilibrium, based on the inital parameters
-l_tether, elevation and v_reel_out.
+`l_tether`, elevation and `v_reel_out`.
 """
 function find_steady_state(s::KPS3, prn=false)
     res = zeros(MVector{6*s.set.segments, SimFloat})

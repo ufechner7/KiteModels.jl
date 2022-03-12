@@ -12,7 +12,6 @@ const s = KPS3(KCU())
 ## Input functions
 ```@docs
 set_v_reel_out
-set_unstretched_length
 set_depower_steering
 ```
 
@@ -20,11 +19,11 @@ set_depower_steering
 ```@docs
 unstretched_length
 tether_length
-get_force
-get_spring_forces
-get_lift_drag
-get_lod
-get_v_wind
+winch_force
+spring_forces
+lift_drag
+lift_over_drag
+v_wind_kite
 ```
 
 ## Callback function for the DAE solver
