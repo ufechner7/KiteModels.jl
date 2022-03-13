@@ -173,9 +173,9 @@ $(TYPEDFIELDS)
     depower::S =           0.0
     steering::S =          0.0
     "initial masses of the point masses"
-    initial_masses::MVector{P, SimFloat} = ones(P)
+    initial_masses::MVector{P, S} = ones(P)
     "current masses, depending on the total tether length"
-    masses::MVector{P, SimFloat}         = ones(P)
+    masses::MVector{P, S}         = ones(P)
 end
 
 """
