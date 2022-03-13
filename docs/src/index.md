@@ -6,9 +6,6 @@ CurrentModule = KiteModels
 
 Documentation for the package [KiteModels](https://github.com/ufechner7/KiteModels.jl).
 
-## Background
-
-
 ## Installation
 
 Download [Julia 1.6](http://www.julialang.org) or later, if you haven't already. You can add KiteModels from  Julia's package manager, by typing 

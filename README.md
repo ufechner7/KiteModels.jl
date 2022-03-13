@@ -28,7 +28,7 @@ These models are described in detail in [Dynamic Model of a Pumping Kite Power S
 - the package [KiteUtils](https://github.com/ufechner7/KiteUtils.jl)
 - the package [KitePodSimulator](https://github.com/ufechner7/KitePodSimulator.jl)
 
-**Documentation** [Stable Version](https://ufechner7.github.io/KiteModels.jl/stable)
+**Documentation** [Stable Version](https://ufechner7.github.io/KiteModels.jl/stable) --- [Development Version](https://ufechner7.github.io/KiteModels.jl/stable)
 
 
 Author: Uwe Fechner (uwe.fechner.msc@gmail.com)
