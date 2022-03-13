@@ -38,6 +38,7 @@ export KPS3, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                      
 export calc_rho, calc_wind_factor, calc_drag, calc_set_cl_cd, clear, find_steady_state, residual! # environment and helper functions
 export set_v_reel_out, set_depower_steering                                                       # setters
 export winch_force, lift_drag, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
+export spring_forces
 
 set_zero_subnormals(true)           # required to avoid drastic slow down on Intel CPUs when numbers become very small
 
@@ -431,7 +432,7 @@ end
     set_v_reel_out(s::AKM, v_reel_out, t_0, period_time = 1.0 / s.set.sample_freq)
 
 Setter for the reel-out speed. Must be called on every timestep (before each simulation).
-It also updates the tether length, therefore it must be called even if v_reelout has
+It also updates the tether length, therefore it must be called even if `v_reel_out` has
 not changed.
 
 - t_0 the start time of the next timestep relative to the start of the simulation [s]
@@ -512,7 +513,6 @@ function lift_over_drag(s::AKM)
     return lift / drag
 end
 
-# Return the vector of the wind velocity at the height of the kite.
 """
     v_wind_kite(s::AKM)
 
@@ -520,9 +520,13 @@ Return the vector of the wind speed at the height of the kite.
 """
 function v_wind_kite(s::AKM) s.v_wind end
 
-# Set the vector of the wind-velocity at the height of the kite. As parameter the height,
-# the ground wind speed and the wind direction are needed.
-# Must be called every 50 ms.
+"""
+    set_v_wind_ground(s::AKM, height, v_wind_gnd=s.set.v_wind, wind_dir=0.0)
+
+Set the vector of the wind-velocity at the height of the kite. As parameter the height,
+the ground wind speed and the wind direction are needed.
+Must be called every at each timestep.
+"""
 function set_v_wind_ground(s::AKM, height, v_wind_gnd=s.set.v_wind, wind_dir=0.0)
     if height < 6.0
         height = 6.0

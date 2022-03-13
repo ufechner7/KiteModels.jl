@@ -13,6 +13,7 @@ const s = KPS3(KCU())
 ```@docs
 set_v_reel_out
 set_depower_steering
+set_v_wind_ground
 ```
 
 ## Output functions
