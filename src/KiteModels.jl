@@ -565,8 +565,13 @@ function calc_pre_tension(s::AKM)
     return res + 1.0
 end
 
-# Calculate the initial conditions y0, yd0 and sw0. Tether with the given elevation angle,
-# particle zero fixed at origin. """
+# Calculate the initial conditions y0 and yd0. Tether with the given elevation angle,
+# particle zero fixed at origin. 
+# Parameters:
+# x: vector of deviations of the tether particle positions from a straight line in x and z
+# length(x) == 2*SEGMENTS
+# Returns:
+# res, a single vector consisting of the elements of y0 and yd0
 function init(s, X; output=false)
     pos = zeros(SVector{s.set.segments+1, KVec3})
     vel = zeros(SVector{s.set.segments+1, KVec3})
