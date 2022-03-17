@@ -29,6 +29,9 @@ calculated, depending on reel-out speed, depower and steering settings.
 
 Scientific background: http://arxiv.org/abs/1406.6218 =#
 
+# TODO:
+# update KiteUtils.jl
+
 module KiteModels
 
 using Dierckx, StaticArrays, LinearAlgebra, Parameters, NLsolve, DocStringExtensions
@@ -565,8 +568,8 @@ function calc_pre_tension(s::AKM)
     return res + 1.0
 end
 
-# Calculate the initial conditions y0 and yd0. Tether with the given elevation angle,
-# particle zero fixed at origin. 
+# Calculate the initial conditions y0 and yd0. Tether with the initial elevation angle
+# se().elevation, particle zero fixed at origin.
 # Parameters:
 # x: vector of deviations of the tether particle positions from a straight line in x and z
 # length(x) == 2*SEGMENTS
