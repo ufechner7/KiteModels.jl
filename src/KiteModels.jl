@@ -303,9 +303,9 @@ function calc_res(s::KPS3, pos1, pos2, vel1, vel2, mass, veld, result, i)
     end
     s.seg_area = norm1 * s.set.d_tether/1000.0
     s.last_v_app_norm_tether = calc_drag(s, s.av_vel, s.unit_vector, rho, s.last_tether_drag, s.v_app_perp, s.seg_area)
-    
     s.force .= s.spring_force + 0.5 * s.last_tether_drag
-    if i == s.set.segments+1
+
+    if i == s.set.segments+1 # add the drag of the bridle lines
         s.bridle_area =  s.set.l_bridle * s.set.d_line/1000.0
         s.last_v_app_norm_tether = calc_drag(s, s.av_vel, s.unit_vector, rho, s.last_tether_drag, s.v_app_perp, s.bridle_area)
         s.force .+= s.last_tether_drag  
@@ -314,6 +314,7 @@ function calc_res(s::KPS3, pos1, pos2, vel1, vel2, mass, veld, result, i)
     s.total_forces .= s.force + s.last_force
     s.last_force .= 0.5 * s.last_tether_drag - s.spring_force
     s.acc .= s.total_forces ./ mass # create the vector of the spring acceleration
+    # result .= veld - (s.acc + SVector(0,0, -G_EARTH)) # Python code, wrong
     result .= veld - (SVector(0, 0, -G_EARTH) - s.acc)
     nothing
 end
@@ -459,7 +460,7 @@ the depower settings into account.
 """
 function set_depower_steering(s::KPS3, depower, steering)
     s.depower  = depower
-    s.alpha_depower = calc_alpha_depower(s.kcu, depower) * (s.set.alpha_d_max / 31.0)
+    s.alpha_depower = calc_alpha_depower(s.kcu, depower)
     s.steering = (steering - s.set.c0) / (1.0 + s.set.k_ds * (s.alpha_depower / deg2rad(s.set.alpha_d_max)))
     nothing
 end
