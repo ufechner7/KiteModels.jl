@@ -35,7 +35,7 @@ Scientific background: http://arxiv.org/abs/1406.6218 =#
 module KiteModels
 
 using Dierckx, StaticArrays, LinearAlgebra, Parameters, NLsolve, DocStringExtensions
-using KiteUtils, KitePodSimulator
+using KiteUtils, KitePodModels
 
 export KPS3, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                                        # constants and types
 export calc_rho, calc_wind_factor, calc_drag, calc_set_cl_cd, clear, find_steady_state, residual! # environment and helper functions

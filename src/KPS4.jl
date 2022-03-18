@@ -28,7 +28,7 @@ use the input and output functions instead.
 
 $(TYPEDFIELDS)
 """
-@with_kw mutable struct KPS3{S, T, P} <: AbstractKiteModel
+@with_kw mutable struct KPS4{S, T, P} <: AbstractKiteModel
     "Reference to the settings struct"
     set::Settings = se()
     "Reference to the KCU struct (Kite Control Unit, type from the module KitePodSimulor"
@@ -99,4 +99,35 @@ $(TYPEDFIELDS)
     initial_masses::MVector{P, S} = ones(P)
     "current masses, depending on the total tether length"
     masses::MVector{P, S}         = ones(P)
+end
+
+
+function assemble_springs(s)
+    println(SPRINGS_INPUT)
+    for j in range(1, size(SPRINGS_INPUT)[1])
+        println(j)
+        if j == 1 # if spring == tether
+            for i in range(1, s.set.segments)
+                println(i)
+    #           k = E_DYNEEMA * (D_TETHER/2.0)**2 * math.pi  / L_0  # Spring stiffness for this spring [N/m]
+    #           c = DAMPING                     # Damping coefficient [Ns/m]
+            end
+        end
+    end
+    # for j in xrange(SPRINGS_INPUT.shape[0]):
+    #     if (j == 0 or SPRINGS_INPUT.ndim == 1) and not PLATE:      # if spring == tether
+    #         # build the tether segments
+    #         for i in range(SEGMENTS):
+    #             if i <= SEGMENTS:
+    #                 k = E_DYNEEMA * (D_TETHER/2.0)**2 * math.pi  / L_0  # Spring stiffness for this spring [N/m]
+    #                 c = DAMPING                     # Damping coefficient [Ns/m]
+    #                 SPRINGS[i,:] = np.array([i, i+1, L_0, k, c])   # Fill the SPRINGS
+    #                 # print SPRINGS                
+    #                 # sys.exit()
+    #                 m_ind0 = SPRINGS[i, 0]          # index in pos for mass
+    #                 m_ind1 = SPRINGS[i, 1]          # index in pos for mass
+    #                 # Fill the mass vector
+    #                 if MODEL != 'KPS3':
+    #                     MASSES[int(m_ind0)] += 0.5 * L_0 * M_DYNEEMA * (D_TETHER/2.0)**2 * math.pi
+    #                     MASSES[int(m_ind1)] += 0.5 * L_0 * M_DYNEEMA * (D_TETHER/2.0)**2 * math.pi
 end

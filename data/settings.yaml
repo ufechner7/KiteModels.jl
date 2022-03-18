@@ -18,13 +18,15 @@ steering:
     c2_cor:   0.93         # correction factor one point model
     k_ds:     1.5          # influence of the depower angle on the steering sensitivity
     delta_st: 0.02         # steering increment (when pressing RIGHT)
+    max_steering: 16.83    # max. steering angle of the side planes for four point model [degrees]
 
 depower:
     alpha_d_max:    31.0   # max depower angle                            [deg]
     depower_offset: 23.6   # at rel_depower=0.236 the kite is fully powered [%]
-    
+
 kite:
     model: "data/kite.obj" # 3D model of the kite
+    physical_model: "KPS4" # name of the kite model to use (KPS3 or KPS4)
     mass:  6.2             # kite mass incl. sensor unit [kg]
     area: 10.18            # projected kite area         [m²]
     rel_side_area: 30.6    # relative side area           [%]
@@ -33,7 +35,15 @@ kite:
     cl_list:   [   0.0,    0.5,   0.0,  0.08, 0.125,  0.15,  0.2,  1.0,  1.0,  0.0,  -0.5,   0.0]
     alpha_cd:  [-180.0, -170.0, -140.0, -90.0, -20.0, 0.0, 20.0, 90.0, 140.0, 170.0, 180.0]
     cd_list:   [   0.5,    0.5,    0.5,   1.0,   0.2, 0.1,  0.2,  1.0,   0.5,   0.5,   0.5]
-    
+
+kps4:
+    width:         2.23     # width of the kite                      [m]
+    alpha_zero:    4.0      # should be 5                      [degrees]
+    alpha_ztip:   10.0      #                                  [degrees]
+    m_k:           0.2      # relative nose distance; increasing m_k increases C2 of the turn-rate law
+    rel_nose_mass: 0.47     # relative nose mass
+    rel_top_mass:  0.4      # mass of the top particle relative to the sum of top and side particles
+
 bridle:
     d_line:    2.5         # bridle line diameter                  [mm]
     l_bridle: 33.4         # sum of the lengths of the bridle lines [m]
