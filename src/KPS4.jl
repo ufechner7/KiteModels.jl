@@ -1,6 +1,19 @@
 # implementation of a four point kite model
 # to be included from KiteModels.jl
 
+# Array of connections of bridlepoints.
+# First point, second point, unstressed length.
+const SPRINGS_INPUT = [0.    1.  150.
+                       1.    2.   -1.
+                       2.    3.   -1.
+                       3.    4.   -1.
+                       3.    5.   -1.
+                       4.    1.   -1.
+                       5.    1.   -1.
+                       4.    5.   -1.
+                       4.    2.   -1.
+                       5.    2.   -1.]
+
 """
     mutable struct KPS4{S, T, P} <: AbstractKiteModel
 
