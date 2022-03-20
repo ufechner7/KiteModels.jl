@@ -193,10 +193,10 @@ end
 function init_springs(s)
     l_0     = s.set.l_tether / s.set.segments 
     particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k)
-    for j in range(1, size(SPRINGS_INPUT)[1])
+    for j in 1:size(SPRINGS_INPUT)[1]
         # build the tether segments
         if j == 1
-            for i in range(1, s.set.segments)
+            for i in 1:s.set.segments
                 k = s.set.e_tether * (s.set.d_tether/2000.0)^2 * pi  / l_0  # Spring stiffness for this spring [N/m]
                 c = s.set.damping/l_0                                       # Damping coefficient [Ns/m]
                 s.springs[i] = SP(i, i+1, l_0, k, c)
