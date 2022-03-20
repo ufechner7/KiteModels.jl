@@ -140,3 +140,8 @@ end
         @test all(res[i,:] .≈ kps4.forces[i])
     end
 end
+
+println("\ncalc_particle_forces:")
+@benchmark KiteModels.calc_particle_forces(kps4, pos1, pos2, vel1, vel2, v_wind_tether, spring, stiffnes_factor, segments, d_tether, rho, i) setup=(pos1 = KVec3(1.0, 2.0, 3.0);  
+                                        pos2 = KVec3(2.0, 3.0, 4.0); vel1 = KVec3(3.0, 4.0, 5.0); vel2 = KVec3(4.0, 5.0, 6.0); v_wind_tether=KVec3(8.0, 0.1, 0.0); spring=kps4.springs[1];
+                                        stiffnes_factor = 0.5; segments=6.0; d_tether=se().d_tether/1000.0; rho=kps4.set.rho_0; i=1)

@@ -116,6 +116,9 @@ $(TYPEDFIELDS)
     "current masses, depending on the total tether length"
     masses::MVector{P, S}         = zeros(P)
     springs::MVector{Q, SP}       = zeros(SP, Q)
+    rel_vel::T =           zeros(S, 3)
+    half_drag_force::T =   zeros(S, 3)
+    forces::SVector{P, KVec3} = zeros(SVector{P, KVec3})
 end
 
 function clear(s::KPS4)
@@ -133,6 +136,9 @@ function clear(s::KPS4)
     s.beta = deg2rad(s.set.elevation)
     init_masses(s)
     init_springs(s)
+    for i in 1:se().segments + KiteModels.KITE_POINTS + 1 
+        s.forces[i] .= zeros(3)
+    end
     s.rho = s.set.rho_0
     s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
     s.calc_cd = Spline1D(s.set.alpha_cd, s.set.cd_list) 
@@ -240,20 +246,43 @@ Calculate the drag force of the tether segment, defined by the parameters pos1, 
 and distribute it equally on the two particles, that are attached to the segment.
 The result is stored in the array s.forces. 
 """
-function calc_particle_forces(s, pos1, pos2, vel1, vel2, v_wind_tether, spring, forces, stiffnes_factor, segments, d_tether, i)
-    p_1 = spring.p1     # Index of point nr. 1
-    p_2 = spring.p2     # Index of point nr. 2
+function calc_particle_forces(s, pos1, pos2, vel1, vel2, v_wind_tether, spring, stiffnes_factor, segments, d_tether, rho, i)
     l_0 = spring.length # Unstressed length
     k = spring.c_spring * stiffnes_factor       # Spring constant
     c = spring.damping  # Damping coefficient    
     s.segment .= pos1 - pos2
-    rel_vel = vel1 - vel2
+    s.rel_vel .= vel1 - vel2
     s.av_vel .= 0.5 * (vel1 + vel2)
     norm1 = norm(s.segment)
-    unit_vector = s.segment / norm1
+    s.unit_vector .= s.segment / norm1
+
     k1 = 0.25 * k # compression stiffness kite segments
     k2 = 0.1 * k  # compression stiffness tether segments
-    spring_vel   = dot(unit_vector, rel_vel)
+    c1 = 6.0 * c  # damping kite segments
+    spring_vel   = dot(s.unit_vector, s.rel_vel)
+    if (norm1 - l_0) > 0.0
+        if i > segments  # kite springs
+             s.spring_force .= (k *  (norm1 - l_0) + (c1 * spring_vel)) * s.unit_vector
+        else
+             s.spring_force .= (k *  (norm1 - l_0) + (c * spring_vel)) * s.unit_vector
+        end
+    elseif i > segments # kite spring
+        s.spring_force .= (k1 *  (norm1 - l_0) + (c * spring_vel)) * s.unit_vector
+    else
+        s.spring_force .= (k2 *  (norm1 - l_0) + (c * spring_vel)) * s.unit_vector
+    end
+
+    s.v_apparent .= v_wind_tether - s.av_vel
+    # TODO: check why d_brindle is not used !!!
+    area = norm1 * d_tether
+    s.v_app_perp .= s.v_apparent - dot(s.v_apparent, s.unit_vector) * s.unit_vector
+    # TODO check the factors 0.25 !!!
+    factor = -0.25 * rho * s.set.cd_tether * norm(s.v_app_perp) * area
+    s.half_drag_force .= s.v_app_perp * factor
+
+    s.forces[spring.p1] .+= s.half_drag_force + s.spring_force
+    s.forces[spring.p2] .+= s.half_drag_force - s.spring_force
+    nothing
 end
 
 # def calcParticleForces_(pos1, pos2, vel1, vel2, v_wind_tether, spring, forces, stiffnes_factor, segments, \
