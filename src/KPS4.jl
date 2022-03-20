@@ -220,7 +220,7 @@ end
 function init_masses(s)
     s.masses = zeros(s.set.segments+KITE_POINTS+1)
     l_0 = s.set.l_tether / s.set.segments 
-    for i in range(1, s.set.segments)
+    for i in 1:s.set.segments
         s.masses[i]   += 0.5 * l_0 * s.set.rho_tether * (s.set.d_tether/2000.0)^2 * pi
         s.masses[i+1] += 0.5 * l_0 * s.set.rho_tether * (s.set.d_tether/2000.0)^2 * pi
     end
