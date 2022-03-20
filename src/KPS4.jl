@@ -1,5 +1,7 @@
 # implementation of a four point kite model
-# to be included from KiteModels.jl
+# included from KiteModels.jl
+
+# TODO: finish calculation of initial masses
 
 # Array of connections of bridlepoints.
 # First point, second point, unstressed length.
@@ -13,6 +15,24 @@ const SPRINGS_INPUT = [0.    1.  150.
                        4.    5.   -1.
                        4.    2.   -1.
                        5.    2.   -1.]
+
+# struct, defining the phyical parameters of one spring
+@with_kw struct Spring{I, S}
+    p1::I = 1         # number of the first point
+    p2::I = 2         # number of the second point
+    length::S = 1.0   # current unstressed spring length
+    c_spring::S = 1.0 # spring constant [N/m]
+    damping::S  = 0.1 # damping coefficent [Ns/m]
+end
+
+const SP = Spring{Int16, Float64}
+const KITE_POINTS = 4
+const KITE_SPRINGS = 9
+const PRE_STRESS  = 0.9998   # Multiplier for the initial spring lengths.
+
+function zero(::Type{SP})
+    SP(0,0,0,0,0)
+end
 
 """
     mutable struct KPS4{S, T, P} <: AbstractKiteModel
@@ -28,7 +48,7 @@ use the input and output functions instead.
 
 $(TYPEDFIELDS)
 """
-@with_kw mutable struct KPS4{S, T, P} <: AbstractKiteModel
+@with_kw mutable struct KPS4{S, T, P, Q, SP} <: AbstractKiteModel
     "Reference to the settings struct"
     set::Settings = se()
     "Reference to the KCU struct (Kite Control Unit, type from the module KitePodSimulor"
@@ -68,11 +88,7 @@ $(TYPEDFIELDS)
     "area of one tether segment"
     seg_area::S =         zero(S) 
     bridle_area::S =      zero(S)
-    "spring constant, depending on the length of the tether segment"
-    c_spring::S =         zero(S)
     length::S =           0.0
-    "damping factor, depending on the length of the tether segment"
-    damping::S =          zero(S)
     area::S =             zero(S)
     last_v_app_norm_tether::S = zero(S)
     "lift coefficient of the kite, depending on the angle of attack"
@@ -98,36 +114,174 @@ $(TYPEDFIELDS)
     "initial masses of the point masses"
     initial_masses::MVector{P, S} = ones(P)
     "current masses, depending on the total tether length"
-    masses::MVector{P, S}         = ones(P)
+    masses::MVector{P, S}         = zeros(P)
+    springs::MVector{Q, SP}       = zeros(SP, Q)
 end
 
+function clear(s::KPS4)
+    s.t_0 = 0.0                              # relative start time of the current time interval
+    s.v_reel_out = 0.0
+    s.last_v_reel_out = 0.0
+    s.area = s.set.area
+    s.v_wind        .= [s.set.v_wind, 0, 0]    # wind vector at the height of the kite
+    s.v_wind_gnd    .= [s.set.v_wind, 0, 0]    # wind vector at reference height
+    s.v_wind_tether .= [s.set.v_wind, 0, 0]
+    s.v_apparent    .= [s.set.v_wind, 0, 0]
+    s.l_tether = s.set.l_tether
+    s.length = s.l_tether / s.set.segments
+    s.pos_kite, s.v_kite = zeros(SimFloat, 3), zeros(SimFloat, 3)
+    s.beta = deg2rad(s.set.elevation)
+    init_masses(s)
+    init_springs(s)
+    s.rho = s.set.rho_0
+    s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
+    s.calc_cd = Spline1D(s.set.alpha_cd, s.set.cd_list) 
+end
 
-function assemble_springs(s)
-    println(SPRINGS_INPUT)
+function KPS4(kcu::KCU)
+    s = KPS4{SimFloat, KVec3, kcu.set.segments+KITE_POINTS+1, kcu.set.segments+KITE_SPRINGS, SP}()
+    s.set = kcu.set
+    s.kcu = kcu
+    s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
+    s.calc_cd = Spline1D(s.set.alpha_cd, s.set.cd_list)       
+    clear(s)
+    return s
+end
+
+""" 
+Calculate the initial orientation of the kite based on the last tether segment and
+the apparent wind speed.
+
+Parameters:
+vec_c: (pos_n-2) - (pos_n-1) n: number of particles without the three kite particles
+                                that do not belong to the main thether (P1, P2 and P3).
+Returns:
+x, y, z:  the unit vectors of the kite reference frame in the ENU reference frame
+"""
+function initial_kite_ref_frame(vec_c, v_app)
+    z = normalize(vec_c)
+    y = normalize(cross(v_app, vec_c))
+    x = normalize(cross(y, vec_c))
+    return (x, y, z)    
+end
+
+""" 
+Calculate the initial positions of the particels representing 
+a 4-point kite, connected to a kite control unit (KCU). 
+"""
+function get_particles(height_k, height_b, width, m_k)
+    vec_c    = [-15., 0., -25.98076211]
+    v_app    = [10.4855, 0, -3.08324]
+    pos_pod  = [ 75., 0., 129.90381057]
+
+    # inclination angle of the kite; beta = atan2(-pos_kite[2], pos_kite[1]) ???
+    beta = pi/2.0
+    x, y, z = initial_kite_ref_frame(vec_c, v_app)
+
+    h_kx = height_k * cos(beta); # print 'h_kx: ', h_kx
+    h_kz = height_k * sin(beta); # print 'h_kz: ', h_kz
+    h_bx = height_b * cos(beta)
+    h_bz = height_b * sin(beta)
+    pos_kite = pos_pod - (h_kz + h_bz) * z + (h_kx + h_bx) * x
+    pos3 = pos_kite + h_kz * z + 0.5 * width * y + h_kx * x
+    pos1 = pos_kite + h_kz * z + (h_kx + width * m_k) * x
+    pos4 = pos_kite + h_kz * z - 0.5 * width * y + h_kx * x
+    pos0 = pos_kite + (h_kz + h_bz) * z + (h_kx + h_bx) * x
+    [zeros(3), pos0, pos1, pos_kite, pos3, pos4]
+end
+
+function init_springs(s)
+    l_0     = s.set.l_tether / s.set.segments 
+    particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k)
     for j in range(1, size(SPRINGS_INPUT)[1])
-        println(j)
-        if j == 1 # if spring == tether
+        # build the tether segments
+        if j == 1
             for i in range(1, s.set.segments)
-                println(i)
-    #           k = E_DYNEEMA * (D_TETHER/2.0)**2 * math.pi  / L_0  # Spring stiffness for this spring [N/m]
-    #           c = DAMPING                     # Damping coefficient [Ns/m]
+                k = s.set.e_tether * (s.set.d_tether/2000.0)^2 * pi  / l_0  # Spring stiffness for this spring [N/m]
+                c = s.set.damping/l_0                                       # Damping coefficient [Ns/m]
+                s.springs[i] = SP(i, i+1, l_0, k, c)
+            end
+        # build the bridle segments
+        else
+            p0, p1 = SPRINGS_INPUT[j, 1]+1, SPRINGS_INPUT[j, 2]+1 # point 0 and 1
+            if SPRINGS_INPUT[j, 3] == -1
+                l_0 = norm(particles[Int(p1)] - particles[Int(p0)]) * PRE_STRESS
+                k = s.set.e_tether * (s.set.d_line/2000.0)^2 * pi / l_0
+                p0 += s.set.segments - 1 # correct the index for the start and end particles of the bridle
+                p1 += s.set.segments - 1
+                c = s.set.damping/ l_0
+                s.springs[j+s.set.segments-1] = SP(Int(p0), Int(p1), l_0, k, c)
             end
         end
     end
-    # for j in xrange(SPRINGS_INPUT.shape[0]):
-    #     if (j == 0 or SPRINGS_INPUT.ndim == 1) and not PLATE:      # if spring == tether
-    #         # build the tether segments
-    #         for i in range(SEGMENTS):
-    #             if i <= SEGMENTS:
-    #                 k = E_DYNEEMA * (D_TETHER/2.0)**2 * math.pi  / L_0  # Spring stiffness for this spring [N/m]
-    #                 c = DAMPING                     # Damping coefficient [Ns/m]
-    #                 SPRINGS[i,:] = np.array([i, i+1, L_0, k, c])   # Fill the SPRINGS
-    #                 # print SPRINGS                
-    #                 # sys.exit()
-    #                 m_ind0 = SPRINGS[i, 0]          # index in pos for mass
-    #                 m_ind1 = SPRINGS[i, 1]          # index in pos for mass
-    #                 # Fill the mass vector
-    #                 if MODEL != 'KPS3':
-    #                     MASSES[int(m_ind0)] += 0.5 * L_0 * M_DYNEEMA * (D_TETHER/2.0)**2 * math.pi
-    #                     MASSES[int(m_ind1)] += 0.5 * L_0 * M_DYNEEMA * (D_TETHER/2.0)**2 * math.pi
+    s.springs
 end
+
+function init_masses(s)
+    s.masses = zeros(s.set.segments+KITE_POINTS+1)
+    l_0 = s.set.l_tether / s.set.segments 
+    for i in range(1, s.set.segments)
+        s.masses[i]   += 0.5 * l_0 * s.set.rho_tether * (s.set.d_tether/2000.0)^2 * pi
+        s.masses[i+1] += 0.5 * l_0 * s.set.rho_tether * (s.set.d_tether/2000.0)^2 * pi
+    end
+    s.masses[s.set.segments+1] += s.set.kcu_mass
+    k2 = s.set.rel_top_mass * (1.0 - s.set.rel_nose_mass)
+    k3 = 0.5 * (1.0 - s.set.rel_top_mass) * (1.0 - s.set.rel_nose_mass)
+    k4 = 0.5 * (1.0 - s.set.rel_top_mass) * (1.0 - s.set.rel_nose_mass)
+    s.masses[s.set.segments+2] += s.set.rel_nose_mass * s.set.mass
+    s.masses[s.set.segments+3] += k2 * s.set.mass
+    s.masses[s.set.segments+4] += k3 * s.set.mass
+    s.masses[s.set.segments+5] += k4 * s.set.mass  
+    s.masses 
+end
+
+""" 
+Calculate the drag force of the tether segment, defined by the parameters pos1, pos2, vel1 and vel2
+and distribute it equally on the two particles, that are attached to the segment.
+The result is stored in the array s.forces. 
+"""
+function calc_particle_forces(s, pos1, pos2, vel1, vel2, v_wind_tether, spring, forces, stiffnes_factor, segments, d_tether, i)
+    p_1 = spring.p1     # Index of point nr. 1
+    p_2 = spring.p2     # Index of point nr. 2
+    l_0 = spring.length # Unstressed length
+    k = spring.c_spring * stiffnes_factor       # Spring constant
+    c = spring.damping  # Damping coefficient    
+    s.segment .= pos1 - pos2
+    rel_vel = vel1 - vel2
+    s.av_vel .= 0.5 * (vel1 + vel2)
+    norm1 = norm(s.segment)
+    unit_vector = s.segment / norm1
+    k1 = 0.25 * k # compression stiffness kite segments
+    k2 = 0.1 * k  # compression stiffness tether segments
+    spring_vel   = dot(unit_vector, rel_vel)
+end
+
+# def calcParticleForces_(pos1, pos2, vel1, vel2, v_wind_tether, spring, forces, stiffnes_factor, segments, \
+#                        d_tether, i):
+#     p_1 = int_(spring[0])     # Index of point nr. 1
+#     p_2 = int_(spring[1])     # Index of point nr. 2
+#     l_0 = spring[2]     # Unstressed length
+#     k = spring[3] * stiffnes_factor       # Spring constant
+#     c = spring[4]       # Damping coefficient
+#     segment = pos1 - pos2
+#     rel_vel = vel1 - vel2
+#     av_vel = 0.5 * (vel1 + vel2)
+#     norm1 = la.norm(segment)
+#     unit_vector = segment / norm1
+#     k1 = 0.25 * k # compression stiffness kite segments
+#     k2 = 0.1 * k # compression stiffness tether segments
+#     spring_vel   = la.dot(unit_vector, rel_vel)
+#     if (norm1 - l_0) > 0.0:
+#         spring_force = (k *  (norm1 - l_0) + (c * spring_vel)) * unit_vector
+#     elif i >= segments: # kite spring
+#         spring_force = (k1 *  (norm1 - l_0) + (c * spring_vel)) * unit_vector
+#     else:
+#         spring_force = (k2 *  (norm1 - l_0) + (c * spring_vel)) * unit_vector
+#     # Aerodynamic damping for particles of the tether and kite
+#     v_apparent = v_wind_tether - av_vel
+#     area = norm1 * d_tether
+#     v_app_perp = v_apparent - la.dot(v_apparent, unit_vector) *unit_vector
+#     half_drag_force = -0.25 * 1.25 * C_D_TETHER * la.norm(v_app_perp) * area * v_app_perp
+
+#     forces[p_1] += half_drag_force + spring_force
+#     forces[p_2] += half_drag_force - spring_force

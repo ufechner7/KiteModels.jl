@@ -36,8 +36,9 @@ module KiteModels
 
 using Dierckx, StaticArrays, LinearAlgebra, Parameters, NLsolve, DocStringExtensions
 using KiteUtils, KitePodModels
+import Base.zero
 
-export KPS3, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                                        # constants and types
+export KPS3, KPS4, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                                  # constants and types
 export calc_rho, calc_wind_factor, calc_drag, calc_set_cl_cd, clear, find_steady_state, residual! # environment and helper functions
 export set_v_reel_out, set_depower_steering                                                       # setters
 export winch_force, lift_drag, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters

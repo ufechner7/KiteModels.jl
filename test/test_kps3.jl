@@ -1,6 +1,6 @@
 using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils
 
-using KiteModels, KitePodSimulator
+using KiteModels, KitePodModels
 
 const SEGMENTS = se().segments
 if ! @isdefined kcu
@@ -19,7 +19,6 @@ function set_defaults()
     kps.set.damping =  2 * 473.0
     kps.set.alpha = 1.0/7
     kps.set.c_s = 0.6
-    
 end
 
 function init_392()

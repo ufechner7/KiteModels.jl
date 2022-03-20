@@ -8,7 +8,7 @@ system:
     fixed_font: ""                 # name or filepath+filename of alternative fixed pitch font
 
 initial:
-    l_tether: 392.0        # initial tether length       [m]
+    l_tether: 150.0        # initial tether length       [m]
     elevation: 70.7        # initial elevation angle   [deg]
     v_reel_out: 0.0        # initial reel out speed    [m/s]
 
@@ -27,7 +27,7 @@ depower:
 kite:
     model: "data/kite.obj" # 3D model of the kite
     physical_model: "KPS4" # name of the kite model to use (KPS3 or KPS4)
-    mass:  6.2             # kite mass incl. sensor unit [kg]
+    mass:  6.21            # kite mass incl. sensor unit [kg]
     area: 10.18            # projected kite area         [m²]
     rel_side_area: 30.6    # relative side area           [%]
     height: 2.23           # height of the kite           [m]
@@ -37,7 +37,7 @@ kite:
     cd_list:   [   0.5,    0.5,    0.5,   1.0,   0.2, 0.1,  0.2,  1.0,   0.5,   0.5,   0.5]
 
 kps4:
-    width:         2.23     # width of the kite                      [m]
+    width:         4.9622   # width of the kite                      [m]
     alpha_zero:    4.0      # should be 5                      [degrees]
     alpha_ztip:   10.0      #                                  [degrees]
     m_k:           0.2      # relative nose distance; increasing m_k increases C2 of the turn-rate law
@@ -65,6 +65,8 @@ tether:
     damping: 473.0         # unit damping coefficient        [Ns]
     c_spring: 614600.0     # unit spring constant coefficient [N]
     rho_tether:  724.0     # density of Dyneema           [kg/m³]
+    e_tether: 55000000000.0 # axial tensile modulus of Dyneema (M.B. Ruppert) [Pa]
+                           # SK75: 109 to 132 GPa according to datasheet
 
 environment:
     v_wind: 9.51             # wind speed at reference height          [m/s]
