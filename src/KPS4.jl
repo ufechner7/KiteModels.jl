@@ -251,7 +251,7 @@ function calc_particle_forces(s, pos1, pos2, vel1, vel2, v_wind_tether, spring, 
     k = spring.c_spring * stiffnes_factor       # Spring constant
     c = spring.damping  # Damping coefficient    
     s.segment .= pos1 - pos2
-    s.rel_vel .= vel1 - vel2
+    rel_vel = vel1 - vel2
     s.av_vel .= 0.5 * (vel1 + vel2)
     norm1 = norm(s.segment)
     s.unit_vector .= s.segment / norm1
@@ -259,7 +259,7 @@ function calc_particle_forces(s, pos1, pos2, vel1, vel2, v_wind_tether, spring, 
     k1 = 0.25 * k # compression stiffness kite segments
     k2 = 0.1 * k  # compression stiffness tether segments
     c1 = 6.0 * c  # damping kite segments
-    spring_vel   = dot(s.unit_vector, s.rel_vel)
+    spring_vel   = dot(s.unit_vector, rel_vel)
     if (norm1 - l_0) > 0.0
         if i > segments  # kite springs
              s.spring_force .= (k *  (norm1 - l_0) + (c1 * spring_vel)) * s.unit_vector
@@ -277,8 +277,7 @@ function calc_particle_forces(s, pos1, pos2, vel1, vel2, v_wind_tether, spring, 
     area = norm1 * d_tether
     s.v_app_perp .= s.v_apparent - dot(s.v_apparent, s.unit_vector) * s.unit_vector
     # TODO check the factors 0.25 !!!
-    factor = -0.25 * rho * s.set.cd_tether * norm(s.v_app_perp) * area
-    s.half_drag_force .= s.v_app_perp * factor
+    s.half_drag_force .= (-0.25 * rho * s.set.cd_tether * norm(s.v_app_perp) * area) * s.v_app_perp 
 
     s.forces[spring.p1] .+= s.half_drag_force + s.spring_force
     s.forces[spring.p2] .+= s.half_drag_force - s.spring_force

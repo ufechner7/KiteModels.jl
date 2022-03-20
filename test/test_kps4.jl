@@ -110,20 +110,22 @@ end
 end
 
 @testset "calc_particle_forces  " begin
-    pos1 = [1.0, 2.0, 3.0]
-    pos2 = [2.0, 3.0, 4.0]
-    vel1 = [3.0, 4.0, 5.0]
-    vel2 = [4.0, 5.0, 6.0]
+    pos1 = KVec3(1.0, 2.0, 3.0)
+    pos2 = KVec3(2.0, 3.0, 4.0)
+    vel1 = KVec3(3.0, 4.0, 5.0)
+    vel2 = KVec3(4.0, 5.0, 6.0)
     rho = kps4.set.rho_0
     for i in 1:se().segments + KiteModels.KITE_POINTS + 1 
         kps4.forces[i] .= zeros(3)
     end
+    bytes = 0
     for i in 1:length(kps4.springs)
         spring = kps4.springs[i]
         stiffnes_factor = 0.5
-        v_wind_tether = [8.0, 0.1, 0.0]
-        KiteModels.calc_particle_forces(kps4, pos1, pos2, vel1, vel2, v_wind_tether, spring, stiffnes_factor, se().segments, se().d_tether/1000.0, rho, i)
+        v_wind_tether = KVec3(8.0, 0.1, 0.0)
+        bytes += @allocated KiteModels.calc_particle_forces(kps4, pos1, pos2, vel1, vel2, v_wind_tether, spring, stiffnes_factor, se().segments, se().d_tether/1000.0, rho, i)
     end
+    @test bytes == 0
     # Python output
     res=[[ 18550.4729309395152086  18550.6132232745367219  18550.6305627766196267]
          [    -0.1986161147506209      0.0819685552924057      0.1166475594582153]
