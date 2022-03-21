@@ -7,6 +7,13 @@ if ! @isdefined kcu
     const kcu = KCU()
     const kps = KPS3(kcu)
 end
+res1 = zeros(SVector{SEGMENTS+1, KiteModels.KVec3})
+res2 = deepcopy(res1)
+if ! @isdefined res3
+    const res3 = reduce(vcat, vcat(res1, res2))
+end
+
+@testset verbose = true "KPS3 tests...." begin
 
 function set_defaults()
     KiteModels.clear(kps)
@@ -221,12 +228,6 @@ end
     @test isapprox(my_state.param_cd, 0.125342896308, atol=1e-4)
 end
 
-res1 = zeros(SVector{SEGMENTS+1, KiteModels.KVec3})
-res2 = deepcopy(res1)
-if ! @isdefined res3
-    const res3 = reduce(vcat, vcat(res1, res2))
-end
-
 function test_initial_condition(params::Vector)
     my_state = kps
     y0, yd0 = KiteModels.init(my_state, params)
@@ -238,7 +239,7 @@ res = nothing
 x= nothing
 z= nothing
 @testset "test_initial_residual" begin
-    global res, x, z
+    # global res, x, z
     init_392()
     initial_x =  [-1.52505,  -3.67761,  -5.51761,  -6.08916,  -4.41371,  0.902124,  0.366393,  0.909132,  1.27537,  1.1538,  0.300657,  -1.51768]
     res = test_initial_condition(initial_x)
@@ -364,3 +365,4 @@ end
 # old: residual!(res, yd0, y0, [0.0], 0.0)
 # new: residual!(res, yd0, y0, [0.0], 0.0, state) 35ms to 155ms
 # ((res, yd, y::MVector{S, SimFloat}, p, t) -> res1(res, yd, y::MVector{S, SimFloat}, p, t, state))
+end

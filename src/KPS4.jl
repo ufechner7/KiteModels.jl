@@ -26,7 +26,7 @@ const SPRINGS_INPUT = [0.    1.  150.
 end
 
 const SP = Spring{Int16, Float64}
-const KITE_POINTS = 4
+const KITE_PARTICLES = 4
 const KITE_SPRINGS = 9
 const PRE_STRESS  = 0.9998   # Multiplier for the initial spring lengths.
 
@@ -136,7 +136,7 @@ function clear(s::KPS4)
     s.beta = deg2rad(s.set.elevation)
     init_masses(s)
     init_springs(s)
-    for i in 1:se().segments + KiteModels.KITE_POINTS + 1 
+    for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1 
         s.forces[i] .= zeros(3)
     end
     s.rho = s.set.rho_0
@@ -145,7 +145,7 @@ function clear(s::KPS4)
 end
 
 function KPS4(kcu::KCU)
-    s = KPS4{SimFloat, KVec3, kcu.set.segments+KITE_POINTS+1, kcu.set.segments+KITE_SPRINGS, SP}()
+    s = KPS4{SimFloat, KVec3, kcu.set.segments+KITE_PARTICLES+1, kcu.set.segments+KITE_SPRINGS, SP}()
     s.set = kcu.set
     s.kcu = kcu
     s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
@@ -224,7 +224,7 @@ function init_springs(s)
 end
 
 function init_masses(s)
-    s.masses = zeros(s.set.segments+KITE_POINTS+1)
+    s.masses = zeros(s.set.segments+KITE_PARTICLES+1)
     l_0 = s.set.l_tether / s.set.segments 
     for i in 1:s.set.segments
         s.masses[i]   += 0.5 * l_0 * s.set.rho_tether * (s.set.d_tether/2000.0)^2 * pi
@@ -240,6 +240,37 @@ function init_masses(s)
     s.masses[s.set.segments+5] += k4 * s.set.mass  
     s.masses 
 end
+
+# Calculate the initial conditions y0 and yd0. Tether with the initial elevation angle
+# se().elevation, particle zero fixed at origin.
+function init(s::KPS4)
+    delta = 1e-6
+    pos = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
+    vel = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
+    acc = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
+    sin_el, cos_el = sin(s.set.elevation / 180.0 * pi), cos(s.set.elevation / 180.0 * pi)
+end
+#     for i in range(SEGMENTS + 1):
+#         radius = - i * L_0
+#         if i == 0:
+#             pos.append(np.array([-cos_el * radius, delta, -sin_el * radius]))
+#             vel.append(np.array([delta, delta, delta]))
+#         else:
+#             pos.append(np.array([-cos_el * radius, delta, -sin_el * radius]))
+#             if i < SEGMENTS:
+#                 vel.append(np.array([delta, delta, 0]))
+#             else:
+#                 vel.append(np.array([delta, delta, 0))
+#         acc.append(np.array([delta, delta, -9.81]))
+#     pos_array, vel_array = np.array(pos, order='C'), np.array(vel, order='C')
+
+#     # kite particles (pos and vel)
+#     for i in range(KITE_PARTICLES):
+#         pos_array = np.vstack((pos_array, (PARTICLES[i+2]))) # Initial state vector
+#     # kite particles (vel and acc)
+#     for i in range(KITE_PARTICLES):
+#         vel_array = np.vstack((vel_array, (np.array([delta, delta, delta])))) # Initial state vector
+#     return pos_array, vel_array
 
 """ 
 Calculate the drag force of the tether segment, defined by the parameters pos1, pos2, vel1 and vel2
@@ -284,32 +315,26 @@ function calc_particle_forces(s, pos1, pos2, vel1, vel2, v_wind_tether, spring, 
     nothing
 end
 
-# def calcParticleForces_(pos1, pos2, vel1, vel2, v_wind_tether, spring, forces, stiffnes_factor, segments, \
-#                        d_tether, i):
-#     p_1 = int_(spring[0])     # Index of point nr. 1
-#     p_2 = int_(spring[1])     # Index of point nr. 2
-#     l_0 = spring[2]     # Unstressed length
-#     k = spring[3] * stiffnes_factor       # Spring constant
-#     c = spring[4]       # Damping coefficient
-#     segment = pos1 - pos2
-#     rel_vel = vel1 - vel2
-#     av_vel = 0.5 * (vel1 + vel2)
-#     norm1 = la.norm(segment)
-#     unit_vector = segment / norm1
-#     k1 = 0.25 * k # compression stiffness kite segments
-#     k2 = 0.1 * k # compression stiffness tether segments
-#     spring_vel   = la.dot(unit_vector, rel_vel)
-#     if (norm1 - l_0) > 0.0:
-#         spring_force = (k *  (norm1 - l_0) + (c * spring_vel)) * unit_vector
-#     elif i >= segments: # kite spring
-#         spring_force = (k1 *  (norm1 - l_0) + (c * spring_vel)) * unit_vector
-#     else:
-#         spring_force = (k2 *  (norm1 - l_0) + (c * spring_vel)) * unit_vector
-#     # Aerodynamic damping for particles of the tether and kite
-#     v_apparent = v_wind_tether - av_vel
-#     area = norm1 * d_tether
-#     v_app_perp = v_apparent - la.dot(v_apparent, unit_vector) *unit_vector
-#     half_drag_force = -0.25 * 1.25 * C_D_TETHER * la.norm(v_app_perp) * area * v_app_perp
+"""
+Calculate the forces, acting on all particles.
+v_wind_tether: out parameter
+forces:        out parameter
+"""
+function innerLoop2(s, pos, vel, v_wind_gnd, v_wind_tether, forces, stiffnes_factor, segments, d_tether)
+    for i in 1:length(s.springs)
+        p_1 = s.springs.p1  # First point nr.
+        p_2 = s.springs.p2  # Second point nr.
+        height = 0.5 * (pos[p_1][3] + pos[p_2][3])
+        println(height)
+    end
+end
 
-#     forces[p_1] += half_drag_force + spring_force
-#     forces[p_2] += half_drag_force - spring_force
+
+#         rho = RHO_0 * math.exp(-height / 8550.0)
+#         v_wind_tether[0] = calcWindHeight(v_wind_gnd[0], height)
+#         v_wind_tether[1] = calcWindHeight(v_wind_gnd[1], height)
+#         v_wind_tether[2] = calcWindHeight(v_wind_gnd[2], height)
+#         # print "height, v_wind_tether: ", height, v_wind_tether
+#         calcParticleForces_(pos[p_1], pos[p_2], vel[p_1], vel[p_2], v_wind_tether, SPRINGS[i], forces, \
+#                            stiffnes_factor, segments, d_tether, rho, i)
+
