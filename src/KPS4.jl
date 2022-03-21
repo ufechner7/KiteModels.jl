@@ -250,7 +250,7 @@ function init(s::KPS4)
     vel = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
     sin_el, cos_el = sin(s.set.elevation / 180.0 * pi), cos(s.set.elevation / 180.0 * pi)
     for i in 1:s.set.segments+1
-        radius = -i * (s.set.l_tether/s.set.segments)
+        radius = -(i-1) * (s.set.l_tether/s.set.segments)
         pos[i] .= [-cos_el * radius, delta, -sin_el * radius]
         if i == 1
             vel[i] .= [delta, delta, delta]
