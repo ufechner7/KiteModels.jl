@@ -147,6 +147,8 @@ end
 
 @testset "init                  " begin
     pos, vel = KiteModels.init(kps4)
+    println(pos)
+    println(vel)
 end
 
 end

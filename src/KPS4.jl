@@ -245,32 +245,25 @@ end
 # se().elevation, particle zero fixed at origin.
 function init(s::KPS4)
     delta = 1e-6
+    particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k)
     pos = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
     vel = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
-    acc = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
     sin_el, cos_el = sin(s.set.elevation / 180.0 * pi), cos(s.set.elevation / 180.0 * pi)
+    for i in 1:s.set.segments+1
+        radius = -i * (s.set.l_tether/s.set.segments)
+        pos[i] .= [-cos_el * radius, delta, -sin_el * radius]
+        if i == 1
+            vel[i] .= [delta, delta, delta]
+        else
+            vel[i] .= [delta, delta, 0]
+        end
+    end
+    for i in 1:KITE_PARTICLES
+        pos[s.set.segments+1+i] .= particles[i+2]
+        vel[s.set.segments+1+i] .= [delta, delta, delta]
+    end
+    pos, vel
 end
-#     for i in range(SEGMENTS + 1):
-#         radius = - i * L_0
-#         if i == 0:
-#             pos.append(np.array([-cos_el * radius, delta, -sin_el * radius]))
-#             vel.append(np.array([delta, delta, delta]))
-#         else:
-#             pos.append(np.array([-cos_el * radius, delta, -sin_el * radius]))
-#             if i < SEGMENTS:
-#                 vel.append(np.array([delta, delta, 0]))
-#             else:
-#                 vel.append(np.array([delta, delta, 0))
-#         acc.append(np.array([delta, delta, -9.81]))
-#     pos_array, vel_array = np.array(pos, order='C'), np.array(vel, order='C')
-
-#     # kite particles (pos and vel)
-#     for i in range(KITE_PARTICLES):
-#         pos_array = np.vstack((pos_array, (PARTICLES[i+2]))) # Initial state vector
-#     # kite particles (vel and acc)
-#     for i in range(KITE_PARTICLES):
-#         vel_array = np.vstack((vel_array, (np.array([delta, delta, delta])))) # Initial state vector
-#     return pos_array, vel_array
 
 """ 
 Calculate the drag force of the tether segment, defined by the parameters pos1, pos2, vel1 and vel2
