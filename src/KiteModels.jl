@@ -196,6 +196,7 @@ function clear(s::KPS3)
     s.v_wind_gnd    .= [s.set.v_wind, 0, 0]    # wind vector at reference height
     s.v_wind_tether .= [s.set.v_wind, 0, 0]
     s.v_apparent    .= [s.set.v_wind, 0, 0]
+    s.alpha_depower = 0.0
     s.l_tether = s.set.l_tether
     s.length = s.l_tether / s.set.segments
     s.pos_kite, s.v_kite = zeros(SimFloat, 3), zeros(SimFloat, 3)
@@ -339,7 +340,7 @@ function loop(s::KPS3, pos, vel, posd, veld, res1, res2)
     nothing
 end
 
-# Calculate the lift and drag coefficient as a function of the relative depower setting.
+# Calculate the lift and drag coefficient as a function of the angle of attack alpha.
 function set_cl_cd(s, alpha)   
     angle =  alpha * 180.0 / π
     if angle > 180.0
