@@ -29,9 +29,6 @@ calculated, depending on reel-out speed, depower and steering settings.
 
 Scientific background: http://arxiv.org/abs/1406.6218 =#
 
-# TODO:
-# update KiteUtils.jl
-
 module KiteModels
 
 using Dierckx, StaticArrays, LinearAlgebra, Parameters, NLsolve, DocStringExtensions
@@ -239,7 +236,7 @@ Enumeration to describe the wind profile low that is used.
 
 Calculate the relative wind speed at a given height and reference height.
 """
-function calc_wind_factor(s, height, profile_law=s.set.profile_law)
+@inline function calc_wind_factor(s, height, profile_law=s.set.profile_law)
     if typeof(profile_law) != ProfileLaw
         profile_law = ProfileLaw(profile_law)
     end
