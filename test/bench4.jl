@@ -8,7 +8,7 @@ if ! @isdefined kps4
     const kps4 = KPS4(kcu)
 end
 
-msg=""
+msg = String[]
 @testset verbose = true "KPS4 benchmarking...." begin
 
 function set_defaults()
@@ -90,8 +90,16 @@ t = @benchmark KiteModels.calc_particle_forces(kps4, pos1, pos2, vel1, vel2, v_w
                                         pos2 = KVec3(2.0, 3.0, 4.0); vel1 = KVec3(3.0, 4.0, 5.0); vel2 = KVec3(4.0, 5.0, 6.0); v_wind_tether=KVec3(8.0, 0.1, 0.0); spring=kps4.springs[1];
                                         stiffnes_factor = 0.5; segments=6.0; d_tether=se().d_tether/1000.0; rho=kps4.set.rho_0; i=rand(1:se().segments + KiteModels.KITE_PARTICLES + 1))
 @test t.memory == 0
-global msg = "Mean time calc_particle_forces: $(round(mean(t.times), digits=1)) ns"
+global msg
+push!(msg, ("Mean time calc_particle_forces: $(round(mean(t.times), digits=1)) ns"))
+
+pos, vel = KiteModels.init(kps4)
+t = @benchmark KiteModels.inner_loop2(kps4, pos, vel, v_wind_gnd, stiffnes_factor, segments, d_tether) setup=(kps4.set.elevation = 60.0; kps4.set.profile_law = 1;
+                                      kps4.set.alpha = 1.0/7.0; pos = $pos; vel=$vel;
+                                      v_wind_gnd = KVec3(7.0, 0.1, 0.0); stiffnes_factor = 0.5; segments = kps4.set.segments; d_tether = kps4.set.d_tether/1000.0)
+push!(msg, ("Mean time inner_loop2: $(round(mean(t.times), digits=1)) ns; memory: $(t.memory)"))
 
 end
-println(msg)
+println(msg[1])
+println(msg[2])
 

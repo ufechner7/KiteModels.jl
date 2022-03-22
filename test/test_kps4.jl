@@ -148,7 +148,7 @@ end
 
 @testset "init                  " begin
     init_150()
-    kps4.set.elevation=60.0
+    kps4.set.elevation = 60.0
     pos, vel = KiteModels.init(kps4)
     pos1 = [[  -0.                    0.000001             -0.                ]
             [  12.5000000000000036    0.000001             21.6506350946109656]
@@ -163,6 +163,36 @@ end
             [  77.4500000002498865   -2.4810999999999996  134.1473350483994693]]
     for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1
         @test all(pos1[i,:] .≈ pos[i])
+    end
+end
+
+@testset "inner_loop2           " begin
+    kps4.set.alpha = 1.0/7.0
+    init_150()
+    kps4.set.elevation = 60.0
+    kps4.set.profile_law = Int(EXP)
+    for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1 
+        kps4.forces[i] .= zeros(3)
+    end
+    pos, vel = KiteModels.init(kps4)
+    v_wind_gnd = KVec3(7.0, 0.1, 0.0)
+    stiffnes_factor = 0.5
+    segments = kps4.set.segments
+    d_tether = kps4.set.d_tether/1000.0
+    KiteModels.inner_loop2(kps4, pos, vel, v_wind_gnd, stiffnes_factor, segments, d_tether)
+    forces =  [[ -1.1039795506035208  -0.0210281466470539   0.6374018106640786]
+               [ -2.6112444243501161  -0.0497374193345597   1.5075837513184493]
+               [ -3.2469329482256093  -0.0618458809786162   1.8746176116987205]
+               [ -3.6500726231166869  -0.0695247045888339   2.1073704115748102]
+               [ -3.9578038144544192  -0.0753862315039757   2.2850390976806585]
+               [ -4.2101657193446407  -0.0801931096212583   2.4307403112207719]
+               [-36.5076651709692399  -0.0567130032327103 -65.4202414843858833]
+               [-31.8997735210856632  -0.0144731948993382  20.0026639693058534]
+               [ 39.0565328469252862  -0.0092205388684263  47.4026845127173857]
+               [  9.7854297156670409  84.4721933009509485   0.5027899265154456]
+               [  9.7877962918810688 -84.5072746928884726   0.5210774922270867]]
+    for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1
+        @test all(forces[i,:] .≈ kps4.forces[i])
     end
 end
 

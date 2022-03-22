@@ -240,14 +240,17 @@ Enumeration to describe the wind profile low that is used.
 Calculate the relative wind speed at a given height and reference height.
 """
 function calc_wind_factor(s, height, profile_law=s.set.profile_law)
+    if typeof(profile_law) != ProfileLaw
+        profile_law = ProfileLaw(profile_law)
+    end
     if profile_law == EXP
-        return (height / s.set.h_ref)^s.set.alpha
+        return exp(s.set.alpha * log(height/s.set.h_ref))
     elseif profile_law == LOG
         return log(height / s.set.z0) / log(s.set.h_ref / s.set.z0)
     else
         K = 1.0
         log1 = log(height / s.set.z0) / log(s.set.h_ref / s.set.z0)
-        exp1 = (height / s.set.h_ref)^s.set.alpha
+        exp1 = exp(s.set.alpha * log(height/s.set.h_ref))
         return log1 +  K * (log1 - exp1)
     end
 end

@@ -308,26 +308,60 @@ function calc_particle_forces(s, pos1, pos2, vel1, vel2, v_wind_tether, spring, 
     nothing
 end
 
+function fastlog2(x::Float32)::Float32
+    y = Float32(reinterpret(Int32, x))
+    y *= 1.1920928955078125f-7
+    y - 126.94269504f0
+end
+function fastlog2(x::Float64)::Float32
+   fastlog2(Float32(x))
+end
+
+# https://github.com/etheory/fastapprox/blob/master/fastapprox/src/fastexp.h
+function fastpow2(x::Float32)::Float32
+    clipp = x < -126.0f0 ? -126.0f0 : x
+    clipp = min(126f0, max(-126f0, x))
+    reinterpret(Float32, UInt32((1 << 23) * (clipp + 126.94269504f0)))
+end
+function fastpow2(x::Float64)::Float32
+   fastpow2(Float32(x))
+end
+
+# https://github.com/etheory/fastapprox/blob/master/fastapprox/src/fastpow.h
+function fastpow(x::Real, y::Real)::Real
+    fastpow2(y * fastlog2(x))
+end
+
 """
 Calculate the forces, acting on all particles.
 v_wind_tether: out parameter
 forces:        out parameter
 """
-function innerLoop2(s, pos, vel, v_wind_gnd, v_wind_tether, forces, stiffnes_factor, segments, d_tether)
+function inner_loop2(s, pos, vel, v_wind_gnd, stiffnes_factor, segments, d_tether)
     for i in 1:length(s.springs)
-        p_1 = s.springs.p1  # First point nr.
-        p_2 = s.springs.p2  # Second point nr.
-        height = 0.5 * (pos[p_1][3] + pos[p_2][3])
-        println(height)
+        p1 = s.springs[i].p1  # First point nr.
+        p2 = s.springs[i].p2  # Second point nr.
+        height = 0.5 * (pos[p1][3] + pos[p2][3])
+        rho = calc_rho(s, height)
+        s.v_wind_tether .= calc_wind_factor(s, height) * v_wind_gnd
+        calc_particle_forces(s, pos[p1], pos[p2], vel[p1], vel[p2], s.v_wind_tether, s.springs[i], stiffnes_factor, segments, d_tether, rho, i)
     end
+    nothing
 end
 
 
-#         rho = RHO_0 * math.exp(-height / 8550.0)
-#         v_wind_tether[0] = calcWindHeight(v_wind_gnd[0], height)
-#         v_wind_tether[1] = calcWindHeight(v_wind_gnd[1], height)
-#         v_wind_tether[2] = calcWindHeight(v_wind_gnd[2], height)
-#         # print "height, v_wind_tether: ", height, v_wind_tether
-#         calcParticleForces_(pos[p_1], pos[p_2], vel[p_1], vel[p_2], v_wind_tether, SPRINGS[i], forces, \
-#                            stiffnes_factor, segments, d_tether, rho, i)
-
+# 10.8253175473 [ 7.6157172338514298  0.1087959604835919  0.                ] rho:  1.22344998567
+# 32.4759526419 [ 8.9098622531401439  0.1272837464734306  0.                ] rho:  1.22035583831
+# 54.1265877365 [ 9.584372147186901  0.13691960210267   0.               ] rho:  1.21726951615
+# 75.7772228311 [ 10.0563204069071457   0.1436617200986735   0.                ] rho:  1.21419099942
+# 97.4278579257 [ 10.4239223873841915   0.1489131769626313   0.                ] rho:  1.21112026835
+# 119.07849302 [ 10.7270719657425531   0.1532438852248936   0.                ] rho:  1.20805730327
+# 132.273682808 [ 10.8893312909974842   0.1555618755856784   0.                ] rho:  1.20619434991
+# 135.361063374 [ 10.9252827098939669   0.1560754672841995   0.                ] rho:  1.20575887521
+# 135.112953374 [ 10.9224196754786398   0.156034566792552    0.                ] rho:  1.20579386529
+# 135.112953374 [ 10.9224196754786398   0.156034566792552    0.                ] rho:  1.20579386529
+# 132.025572808 [ 10.8864110184737015   0.1555201574067672   0.                ] rho:  1.20622935263
+# 132.025572808 [ 10.8864110184737015   0.1555201574067672   0.                ] rho:  1.20622935263
+# 134.147335048 [ 10.9112339696715832   0.1558747709953083   0.                ] rho:  1.2059300527
+# 134.395445048 [ 10.9141146433112723   0.1559159234758753   0.                ] rho:  1.20589505867
+# 134.395445048 [ 10.9141146433112723   0.1559159234758753   0.                ] rho:  1.20589505867
