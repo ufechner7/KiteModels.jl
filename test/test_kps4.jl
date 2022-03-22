@@ -166,7 +166,7 @@ end
     end
 end
 
-@testset "inner_loop2           " begin
+@testset "inner_loop            " begin
     kps4.set.alpha = 1.0/7.0
     init_150()
     kps4.set.elevation = 60.0
@@ -179,7 +179,7 @@ end
     stiffnes_factor = 0.5
     segments = kps4.set.segments
     d_tether = kps4.set.d_tether/1000.0
-    KiteModels.inner_loop2(kps4, pos, vel, v_wind_gnd, stiffnes_factor, segments, d_tether)
+    KiteModels.inner_loop(kps4, pos, vel, v_wind_gnd, stiffnes_factor, segments, d_tether)
     forces =  [[ -1.1039795506035208  -0.0210281466470539   0.6374018106640786]
                [ -2.6112444243501161  -0.0497374193345597   1.5075837513184493]
                [ -3.2469329482256093  -0.0618458809786162   1.8746176116987205]

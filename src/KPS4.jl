@@ -1,8 +1,6 @@
 # implementation of a four point kite model
 # included from KiteModels.jl
 
-# TODO: finish calculation of initial masses
-
 # Array of connections of bridlepoints.
 # First point, second point, unstressed length.
 const SPRINGS_INPUT = [0.    1.  150.
@@ -35,14 +33,15 @@ function zero(::Type{SP})
 end
 
 """
-    mutable struct KPS4{S, T, P} <: AbstractKiteModel
+    mutable struct KPS4{S, T, P, Q, SP} <: AbstractKiteModel
 
 State of the kite power system, using a 4 point kite model. Parameters:
 - S: Scalar type, e.g. SimFloat
   In the documentation mentioned as Any, but when used in this module it is always SimFloat and not Any.
 - T: Vector type, e.g. MVector{3, SimFloat}
 - P: number of points of the system, segments+1
-
+- Q: number of springs in the system, P-1
+- SP: struct type, describing a spring
 Normally a user of this package will not have to access any of the members of this type directly,
 use the input and output functions instead.
 
@@ -313,7 +312,7 @@ Calculate the forces, acting on all particles.
 v_wind_tether: out parameter
 forces:        out parameter
 """
-function inner_loop2(s, pos, vel, v_wind_gnd, stiffnes_factor, segments, d_tether)
+function inner_loop(s, pos, vel, v_wind_gnd, stiffnes_factor, segments, d_tether)
     for i in 1:length(s.springs)
         p1 = s.springs[i].p1  # First point nr.
         p2 = s.springs[i].p2  # Second point nr.
@@ -323,4 +322,46 @@ function inner_loop2(s, pos, vel, v_wind_gnd, stiffnes_factor, segments, d_tethe
         calc_particle_forces(s, pos[p1], pos[p2], vel[p1], vel[p2], s.springs[i], stiffnes_factor, segments, d_tether, rho, i)
     end
     nothing
+end
+
+"""
+pos0, pos3, pos4: position of the kite particles P0, P3, and P4
+v2, v3, v4:       velocity of the kite particles P2, P3, and P4
+rho:              air density [kg/m^3]
+rel_depower:      value between  0.0 and  1.0
+rel_steering:     value between -1.0 and +1.0
+"""
+function calc_aero_forces(s::KPS4, vel, v_wind, rho, alpha_depower, rel_steering)
+    DRAG_CORR = 1.0
+    pos2, pos3, pos4 = s.pos[SEGMENTS+2], s.pos[SEGMENTS+3], s.pos[SEGMENTS+4]
+    v2, v3, v4 = vel[SEGMENTS+2], vel[SEGMENTS+3], vel[SEGMENTS+4]
+    va_2, va_3, va_4 = v_wind - v2, v_wind - v3, v_wind - v4
+    pos_centre = 0.5 * (pos3 + pos4)
+    #     # print pos_centre
+    delta = pos2 - pos_centre
+    z = -normalize(delta)
+    y = normalize(pos3 - pos4)
+    x = cross(y, z)
+    va_xz2 = va_2 - dot(va_2, y) * y
+    va_xy3 = va_3 - dot(va_3, z) * z
+    va_xy4 = va_4 - dot(va_4, z) * z
+
+    alpha_2 = (pi - acos(dot(normalize(va_xz2), x)) - alpha_depower) * 360.0 / pi + s.set.alpha_zero
+    alpha_3 = (pi - acos(dot(normalize(va_xy3), x)) - rel_steering * KS) * 360.0 / pi + s.set.alpha_ztip
+    alpha_4 = (pi - acos(dot(normalize(va_xy4), x)) + rel_steering * KS) * 360.0 / pi + s.set.alpha_ztip
+
+    CL2, CD2 = calc_cl(alpha_2), DRAG_CORR * calc_cd(alpha_2)
+    CL3, CD3 = calc_cl(alpha_3), DRAG_CORR * calc_cd(alpha_3)
+    CL4, CD4 = calc_cl(alpha_4), DRAG_CORR * calc_cd(alpha_4)
+
+    L2 = -0.5 * rho * (norm(va_xz2))^2 * s.set.area * CL2 * normalize(cross(va_2, y))
+#     # print rho, AREA, L2
+    L3 = -0.5 * rho * (norm(va_xy3))^2 * s.set.area * s.set.rel_side_area * CL3 * normalize(cross(va_3, z))
+    L4 = -0.5 * rho * (norm(va_xy4))^2 * s.set.area * s.set.rel_side_area * CL4 * normalize(cross(z, va_4))
+    D2 = -0.5 * K * rho * norm(va_2) * s.set.area * CD2 * va_2
+    D3 = -0.5 * K * rho * norm(va_3) * s.set.area * s.set.rel_side_area * CD3 * va_3
+    D4 = -0.5 * K * rho * norm(va_4) * s.set.area * s.set.rel_side_area * CD4 * va_4
+    s.forces[SEGMENTS + 2] += (L2 + D2)
+    s.forces[SEGMENTS + 3] += (L3 + D3)
+    s.forces[SEGMENTS + 4] += (L4 + D4)
 end

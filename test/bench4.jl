@@ -94,10 +94,10 @@ global msg
 push!(msg, ("Mean time calc_particle_forces: $(round(mean(t.times), digits=1)) ns"))
 
 pos, vel = KiteModels.init(kps4)
-t = @benchmark KiteModels.inner_loop2(kps4, pos, vel, v_wind_gnd, stiffnes_factor, segments, d_tether) setup=(kps4.set.elevation = 60.0; kps4.set.profile_law = 1;
+t = @benchmark KiteModels.inner_loop(kps4, pos, vel, v_wind_gnd, stiffnes_factor, segments, d_tether) setup=(kps4.set.elevation = 60.0; kps4.set.profile_law = 1;
                                       kps4.set.alpha = 1.0/7.0; pos = $pos; vel=$vel;
                                       v_wind_gnd = KVec3(7.0, 0.1, 0.0); stiffnes_factor = 0.5; segments = kps4.set.segments; d_tether = kps4.set.d_tether/1000.0)
-push!(msg, ("Mean time inner_loop2: $(round(mean(t.times), digits=1)) ns"))
+push!(msg, ("Mean time inner_loop: $(round(mean(t.times), digits=1)) ns"))
 @test t.memory == 0
 
 end

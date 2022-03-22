@@ -198,8 +198,9 @@ function clear(s::KPS3)
     s.length = s.l_tether / s.set.segments
     s.pos_kite, s.v_kite = zeros(SimFloat, 3), zeros(SimFloat, 3)
     s.beta = deg2rad(s.set.elevation)
-    # density_per_meter = s.set.rho_tether * π * s.set.d_tether^2
-    s.initial_masses .= ones(s.set.segments+1) * 0.011 * s.set.l_tether / s.set.segments # Dyneema: 1.1 kg/ 100m
+    mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
+    mass_per_meter = 0.011
+    s.initial_masses .= ones(s.set.segments+1) * mass_per_meter * s.set.l_tether / s.set.segments # Dyneema: 1.1 kg/ 100m
     s.rho = s.set.rho_0
     s.c_spring = s.set.c_spring / s.length
     s.damping  = s.set.damping / s.length
