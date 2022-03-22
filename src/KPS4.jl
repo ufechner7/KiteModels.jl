@@ -27,6 +27,8 @@ const SP = Spring{Int16, Float64}
 const KITE_PARTICLES = 4
 const KITE_SPRINGS = 9
 const PRE_STRESS  = 0.9998   # Multiplier for the initial spring lengths.
+const KS = deg2rad(16.565 * 1.064 * 0.875 * 1.033 * 0.9757 * 1.083)  # max steering
+const DRAG_CORR = 0.93       # correction of the drag for the 4-point model
 
 function zero(::Type{SP})
     SP(0,0,0,0,0)
@@ -269,7 +271,7 @@ Calculate the drag force of the tether segment, defined by the parameters pos1, 
 and distribute it equally on the two particles, that are attached to the segment.
 The result is stored in the array s.forces. 
 """
-function calc_particle_forces(s, pos1, pos2, vel1, vel2, spring, stiffnes_factor, segments, d_tether, rho, i)
+@inline function calc_particle_forces(s, pos1, pos2, vel1, vel2, spring, stiffnes_factor, segments, d_tether, rho, i)
     l_0 = spring.length # Unstressed length
     k = spring.c_spring * stiffnes_factor       # Spring constant
     c = spring.damping  # Damping coefficient    
@@ -302,8 +304,8 @@ function calc_particle_forces(s, pos1, pos2, vel1, vel2, spring, stiffnes_factor
     # TODO check the factors 0.25 !!!
     s.half_drag_force .= (-0.25 * rho * s.set.cd_tether * norm(s.v_app_perp) * area) * s.v_app_perp 
 
-    s.forces[spring.p1] .+= s.half_drag_force + s.spring_force
-    s.forces[spring.p2] .+= s.half_drag_force - s.spring_force
+    @inbounds s.forces[spring.p1] .+= s.half_drag_force + s.spring_force
+    @inbounds s.forces[spring.p2] .+= s.half_drag_force - s.spring_force
     nothing
 end
 
@@ -331,13 +333,12 @@ rho:              air density [kg/m^3]
 rel_depower:      value between  0.0 and  1.0
 rel_steering:     value between -1.0 and +1.0
 """
-function calc_aero_forces(s::KPS4, vel, v_wind, rho, alpha_depower, rel_steering)
-    DRAG_CORR = 1.0
-    pos2, pos3, pos4 = s.pos[SEGMENTS+2], s.pos[SEGMENTS+3], s.pos[SEGMENTS+4]
-    v2, v3, v4 = vel[SEGMENTS+2], vel[SEGMENTS+3], vel[SEGMENTS+4]
-    va_2, va_3, va_4 = v_wind - v2, v_wind - v3, v_wind - v4
+function calc_aero_forces(s::KPS4, vel, rho, alpha_depower, rel_steering)
+    K = 1 - s.set.rel_side_area # correction factor for the drag
+    pos2, pos3, pos4 = s.pos[s.set.segments+2], s.pos[s.set.segments+3], s.pos[s.set.segments+4]
+    v2, v3, v4 = vel[s.set.segments+2], vel[s.set.segments+3], vel[s.set.segments+4]
+    va_2, va_3, va_4 = s.v_wind - v2, s.v_wind - v3, s.v_wind - v4
     pos_centre = 0.5 * (pos3 + pos4)
-    #     # print pos_centre
     delta = pos2 - pos_centre
     z = -normalize(delta)
     y = normalize(pos3 - pos4)
@@ -355,13 +356,12 @@ function calc_aero_forces(s::KPS4, vel, v_wind, rho, alpha_depower, rel_steering
     CL4, CD4 = calc_cl(alpha_4), DRAG_CORR * calc_cd(alpha_4)
 
     L2 = -0.5 * rho * (norm(va_xz2))^2 * s.set.area * CL2 * normalize(cross(va_2, y))
-#     # print rho, AREA, L2
     L3 = -0.5 * rho * (norm(va_xy3))^2 * s.set.area * s.set.rel_side_area * CL3 * normalize(cross(va_3, z))
     L4 = -0.5 * rho * (norm(va_xy4))^2 * s.set.area * s.set.rel_side_area * CL4 * normalize(cross(z, va_4))
     D2 = -0.5 * K * rho * norm(va_2) * s.set.area * CD2 * va_2
     D3 = -0.5 * K * rho * norm(va_3) * s.set.area * s.set.rel_side_area * CD3 * va_3
     D4 = -0.5 * K * rho * norm(va_4) * s.set.area * s.set.rel_side_area * CD4 * va_4
-    s.forces[SEGMENTS + 2] += (L2 + D2)
-    s.forces[SEGMENTS + 3] += (L3 + D3)
-    s.forces[SEGMENTS + 4] += (L4 + D4)
+    s.forces[s.set.segments + 2] .+= (L2 + D2)
+    s.forces[s.set.segments + 3] .+= (L3 + D3)
+    s.forces[s.set.segments + 4] .+= (L4 + D4)
 end

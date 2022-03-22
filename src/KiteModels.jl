@@ -223,7 +223,7 @@ end
 
 Calculate the air densisity as function of height.
 """
-function calc_rho(s::AKM, height) s.set.rho_0 * exp(-height / 8550.0) end
+@inline function calc_rho(s::AKM, height) s.set.rho_0 * exp(-height / 8550.0) end
 
 """
     ProfileLaw

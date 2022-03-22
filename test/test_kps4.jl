@@ -196,4 +196,18 @@ end
     end
 end
 
+@testset "calc_aero_forces      " begin
+    pos, vel = KiteModels.init(kps4)
+    # kps4.pos .= pos
+    rho = 1.25
+    kps4.v_wind_gnd .= KVec3(8.0, 0.2, 0.0)
+    alpha_depower = 0.1
+    rel_steering = -0.1
+    kps4.set.alpha_zero = 5.0
+    for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1 
+        kps4.forces[i] .= zeros(3)
+    end
+    KiteModels.calc_aero_forces(kps4, vel, rho, alpha_depower, rel_steering)
+end
+
 end
