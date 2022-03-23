@@ -123,16 +123,25 @@ $(TYPEDFIELDS)
     v_wind_tether::T =    zeros(S, 3)
     "apparent wind vector at the kite"
     v_apparent::T =       zeros(S, 3)
+    "vector, perpendicular to v_apparent; output of calc_drag"
     v_app_perp::T =       zeros(S, 3)
+    "drag force of kite and bridle; output of calc_aero_forces"
     drag_force::T =       zeros(S, 3)
+    "lift force of the kite; output of calc_aero_forces"
     lift_force::T =       zeros(S, 3)
+    "steering force acting on the kite; output of calc_aero_forces"
     steering_force::T =   zeros(S, 3)
     last_force::T =       zeros(S, 3)
+    "spring force of the current tether segment, output of calc_res"
     spring_force::T =     zeros(S, 3)
     total_forces::T =     zeros(S, 3)
+    "sum of spring and drag forces acting on the current segment, output of calc_res"
     force::T =            zeros(S, 3)
+    "unit vector in the direction of the current tether segment, output of calc_res"
     unit_vector::T =      zeros(S, 3)
+    "average velocity of the current tether segment, output of calc_res"
     av_vel::T =           zeros(S, 3)
+    "y-vector of the kite fixed referense frame, output of calc_aero_forces"
     kite_y::T =           zeros(S, 3)
     segment::T =          zeros(S, 3)
     last_tether_drag::T = zeros(S, 3)
@@ -434,7 +443,6 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
     nothing
 end
 
-
 """
     set_v_reel_out(s::AKM, v_reel_out, t_0, period_time = 1.0 / s.set.sample_freq)
 
@@ -450,7 +458,6 @@ function set_v_reel_out(s::AKM, v_reel_out, t_0, period_time = 1.0 / s.set.sampl
     s.v_reel_out = v_reel_out
     s.t_0 = t_0
 end
-
 
 """
     set_depower_steering(s::KPS3, depower, steering)
@@ -484,7 +491,6 @@ function unstretched_length(s::AKM) s.l_tether end
 Return the absolute value of the force at the winch as calculated during the last timestep. 
 """
 function winch_force(s::AKM) norm(s.last_force) end
-
 
 """
     spring_forces(s::AKM)
