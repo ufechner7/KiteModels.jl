@@ -327,7 +327,7 @@ function inner_loop(s, pos, vel, v_wind_gnd, stiffnes_factor, segments, d_tether
 end
 
 """
-pos0, pos3, pos4: position of the kite particles P0, P3, and P4
+pos2, pos3, pos4: position of the kite particles P2, P3, and P4
 v2, v3, v4:       velocity of the kite particles P2, P3, and P4
 rho:              air density [kg/m^3]
 rel_depower:      value between  0.0 and  1.0
