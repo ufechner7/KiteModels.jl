@@ -97,10 +97,31 @@ pos, vel = KiteModels.init(kps4)
 t = @benchmark KiteModels.inner_loop(kps4, pos, vel, v_wind_gnd, stiffnes_factor, segments, d_tether) setup=(kps4.set.elevation = 60.0; kps4.set.profile_law = 1;
                                       kps4.set.alpha = 1.0/7.0; pos = $pos; vel=$vel;
                                       v_wind_gnd = KVec3(7.0, 0.1, 0.0); stiffnes_factor = 0.5; segments = kps4.set.segments; d_tether = kps4.set.d_tether/1000.0)
-push!(msg, ("Mean time inner_loop: $(round(mean(t.times), digits=1)) ns"))
+push!(msg, ("Mean time inner_loop:          $(round(mean(t.times), digits=1)) ns"))
+@test t.memory == 0
+
+kps4.set.alpha = 1.0/7.0
+init_150()
+kps4.set.elevation = 60.0
+kps4.set.profile_law = Int(EXP)
+for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1 
+    kps4.forces[i] .= zeros(3)
+end
+pos, vel = KiteModels.init(kps4)
+rho = 1.25
+kps4.v_wind .= KVec3(8.0, 0.2, 0.0)
+alpha_depower = 0.1
+rel_steering = -0.1
+kps4.set.alpha_zero = 5.0
+for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1 
+    kps4.forces[i] .= zeros(3)
+end
+t = @benchmark KiteModels.calc_aero_forces($kps4, $pos, $vel, $rho, $alpha_depower, $rel_steering)
+push!(msg, ("Mean time calc_aero_forces:    $(round(mean(t.times), digits=1)) ns"))
 @test t.memory == 0
 
 end
-println(msg[1])
-println(msg[2])
+for i in 1:length(msg)
+    println(msg[i])
+end
 
