@@ -333,11 +333,15 @@ rho:              air density [kg/m^3]
 rel_depower:      value between  0.0 and  1.0
 rel_steering:     value between -1.0 and +1.0
 """
-function calc_aero_forces(s::KPS4, vel, rho, alpha_depower, rel_steering)
-    K = 1 - s.set.rel_side_area # correction factor for the drag
-    pos2, pos3, pos4 = s.pos[s.set.segments+2], s.pos[s.set.segments+3], s.pos[s.set.segments+4]
-    v2, v3, v4 = vel[s.set.segments+2], vel[s.set.segments+3], vel[s.set.segments+4]
+function calc_aero_forces(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
+    rel_side_area = s.set.rel_side_area/100.0 # defined in percent
+    K = 1 - rel_side_area # correction factor for the drag
+    pos2, pos3, pos4 = pos[s.set.segments+3], pos[s.set.segments+4], pos[s.set.segments+5]
+    v2, v3, v4 = vel[s.set.segments+3], vel[s.set.segments+4], vel[s.set.segments+5]
     va_2, va_3, va_4 = s.v_wind - v2, s.v_wind - v3, s.v_wind - v4
+    println("va_2, va_3, va_4: $(va_2), $(va_3), $(va_4)")
+    # [ 7.9999989999999999  0.199999           -0.000001          ] [ 7.9999989999999999  0.199999           -0.000001          ] [ 7.9999989999999999  0.199999           -0.000001          ]
+
     pos_centre = 0.5 * (pos3 + pos4)
     delta = pos2 - pos_centre
     z = -normalize(delta)
@@ -356,12 +360,12 @@ function calc_aero_forces(s::KPS4, vel, rho, alpha_depower, rel_steering)
     CL4, CD4 = calc_cl(alpha_4), DRAG_CORR * calc_cd(alpha_4)
 
     L2 = -0.5 * rho * (norm(va_xz2))^2 * s.set.area * CL2 * normalize(cross(va_2, y))
-    L3 = -0.5 * rho * (norm(va_xy3))^2 * s.set.area * s.set.rel_side_area * CL3 * normalize(cross(va_3, z))
-    L4 = -0.5 * rho * (norm(va_xy4))^2 * s.set.area * s.set.rel_side_area * CL4 * normalize(cross(z, va_4))
+    L3 = -0.5 * rho * (norm(va_xy3))^2 * s.set.area * rel_side_area * CL3 * normalize(cross(va_3, z))
+    L4 = -0.5 * rho * (norm(va_xy4))^2 * s.set.area * rel_side_area * CL4 * normalize(cross(z, va_4))
     D2 = -0.5 * K * rho * norm(va_2) * s.set.area * CD2 * va_2
-    D3 = -0.5 * K * rho * norm(va_3) * s.set.area * s.set.rel_side_area * CD3 * va_3
-    D4 = -0.5 * K * rho * norm(va_4) * s.set.area * s.set.rel_side_area * CD4 * va_4
-    s.forces[s.set.segments + 2] .+= (L2 + D2)
-    s.forces[s.set.segments + 3] .+= (L3 + D3)
-    s.forces[s.set.segments + 4] .+= (L4 + D4)
+    D3 = -0.5 * K * rho * norm(va_3) * s.set.area * rel_side_area * CD3 * va_3
+    D4 = -0.5 * K * rho * norm(va_4) * s.set.area * rel_side_area * CD4 * va_4
+    s.forces[s.set.segments + 3] .+= (L2 + D2)
+    s.forces[s.set.segments + 4] .+= (L3 + D3)
+    s.forces[s.set.segments + 5] .+= (L4 + D4)
 end

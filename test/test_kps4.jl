@@ -39,8 +39,8 @@ function init_150()
     KiteModels.clear(kps4)
     kps4.set.l_tether = 150.0
     kps4.set.elevation = 70.0
-    kps4.set.area = 10.0
-    kps4.set.rel_side_area = 50.0
+    kps4.set.area = 10.18
+    kps4.set.rel_side_area = 30.6
     kps4.set.v_wind = 9.1
     kps4.set.mass = 6.21
     kps4.set.c_s = 0.6
@@ -197,17 +197,37 @@ end
 end
 
 @testset "calc_aero_forces      " begin
+    kps4.set.alpha = 1.0/7.0
+    init_150()
+    kps4.set.elevation = 60.0
+    kps4.set.profile_law = Int(EXP)
+    for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1 
+        kps4.forces[i] .= zeros(3)
+    end
     pos, vel = KiteModels.init(kps4)
-    # kps4.pos .= pos
     rho = 1.25
-    kps4.v_wind_gnd .= KVec3(8.0, 0.2, 0.0)
+    kps4.v_wind .= KVec3(8.0, 0.2, 0.0)
     alpha_depower = 0.1
     rel_steering = -0.1
     kps4.set.alpha_zero = 5.0
     for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1 
         kps4.forces[i] .= zeros(3)
     end
-    KiteModels.calc_aero_forces(kps4, vel, rho, alpha_depower, rel_steering)
+    KiteModels.calc_aero_forces(kps4, pos, vel, rho, alpha_depower, rel_steering)
+    forces = [[   0.                    0.                    0.                ]
+              [   0.                    0.                    0.                ]
+              [   0.                    0.                    0.                ]
+              [   0.                    0.                    0.                ]
+              [   0.                    0.                    0.                ]
+              [   0.                    0.                    0.                ]
+              [   0.                    0.                    0.                ]
+              [   0.                    0.                    0.                ]
+              [-179.1688872511660122   -4.4791993800719236 -308.8002807236504736]
+              [ -11.5996366068210843  -82.7996046395915926   -1.1901722621694235]
+              [ -11.3939179308052196   53.1539392663951702    0.7708381078373823]]
+    for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1
+        @test all(forces[i,:] .≈ kps4.forces[i])
+    end
 end
 
 end
