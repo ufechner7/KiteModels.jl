@@ -97,14 +97,8 @@ $(TYPEDFIELDS)
     v_wind_tether::T =    zeros(S, 3)
     "apparent wind vector at the kite"
     v_apparent::T =       zeros(S, 3)
-    "vector, perpendicular to v_apparent; output of calc_drag"
-    v_app_perp::T =       zeros(S, 3)
     "spring force of the current tether segment, output of calc_particle_forces"
     spring_force::T =     zeros(S, 3)
-    "unit vector in the direction of the current tether segment, output of calc_particle_forces"
-    unit_vector::T =      zeros(S, 3)
-    "average velocity of the current tether segment, output of calc_particle_forces"
-    av_vel::T =           zeros(S, 3)
     segment::T =          zeros(S, 3)
     last_tether_drag::T = zeros(S, 3)
     acc::T =              zeros(S, 3)     
@@ -304,32 +298,32 @@ The result is stored in the array s.forces.
     c = spring.damping  # Damping coefficient    
     s.segment .= pos1 - pos2
     rel_vel = vel1 - vel2
-    s.av_vel .= 0.5 * (vel1 + vel2)
+    av_vel = 0.5 * (vel1 + vel2)
     norm1 = norm(s.segment)
-    s.unit_vector .= s.segment / norm1
+    unit_vector = s.segment / norm1
 
     k1 = 0.25 * k # compression stiffness kite segments
     k2 = 0.1 * k  # compression stiffness tether segments
     c1 = 6.0 * c  # damping kite segments
-    spring_vel   = dot(s.unit_vector, rel_vel)
+    spring_vel   = dot(unit_vector, rel_vel)
     if (norm1 - l_0) > 0.0
         if i > segments  # kite springs
-             s.spring_force .= (k *  (norm1 - l_0) + (c1 * spring_vel)) * s.unit_vector
+             s.spring_force .= (k *  (norm1 - l_0) + (c1 * spring_vel)) * unit_vector
         else
-             s.spring_force .= (k *  (norm1 - l_0) + (c * spring_vel)) * s.unit_vector
+             s.spring_force .= (k *  (norm1 - l_0) + (c * spring_vel)) * unit_vector
         end
     elseif i > segments # kite spring
-        s.spring_force .= (k1 *  (norm1 - l_0) + (c * spring_vel)) * s.unit_vector
+        s.spring_force .= (k1 *  (norm1 - l_0) + (c * spring_vel)) * unit_vector
     else
-        s.spring_force .= (k2 *  (norm1 - l_0) + (c * spring_vel)) * s.unit_vector
+        s.spring_force .= (k2 *  (norm1 - l_0) + (c * spring_vel)) * unit_vector
     end
 
-    s.v_apparent .= s.v_wind_tether - s.av_vel
+    s.v_apparent .= s.v_wind_tether - av_vel
     # TODO: check why d_brindle is not used !!!
     area = norm1 * d_tether
-    s.v_app_perp .= s.v_apparent - dot(s.v_apparent, s.unit_vector) * s.unit_vector
+    v_app_perp = s.v_apparent - dot(s.v_apparent, unit_vector) * unit_vector
     # TODO check the factors 0.25 !!!
-    s.half_drag_force .= (-0.25 * rho * s.set.cd_tether * norm(s.v_app_perp) * area) * s.v_app_perp 
+    s.half_drag_force .= (-0.25 * rho * s.set.cd_tether * norm(v_app_perp) * area) * v_app_perp 
 
     @inbounds s.forces[spring.p1] .+= s.half_drag_force + s.spring_force
     @inbounds s.forces[spring.p2] .+= s.half_drag_force - s.spring_force
