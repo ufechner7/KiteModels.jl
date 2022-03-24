@@ -100,19 +100,13 @@ $(TYPEDFIELDS)
     "spring force of the current tether segment, output of calc_particle_forces"
     spring_force::T =     zeros(S, 3)
     segment::T =          zeros(S, 3)
-    last_tether_drag::T = zeros(S, 3)
     acc::T =              zeros(S, 3)     
-    vec_z::T =            zeros(S, 3)
     pos_kite::T =         zeros(S, 3)
     v_kite::T =           zeros(S, 3)        
     res1::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     res2::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     pos::SVector{P, KVec3} = zeros(SVector{P, KVec3})
-    "area of one tether segment"
-    seg_area::S =         zero(S) 
-    bridle_area::S =      zero(S)
     length::S =           0.0
-    area::S =             zero(S)
     last_v_app_norm_tether::S = zero(S)
     "lift coefficient of the kite, depending on the angle of attack"
     param_cl::S =         0.2
@@ -148,7 +142,6 @@ function clear(s::KPS4)
     s.t_0 = 0.0                              # relative start time of the current time interval
     s.v_reel_out = 0.0
     s.last_v_reel_out = 0.0
-    s.area = s.set.area
     s.v_wind        .= [s.set.v_wind, 0, 0]    # wind vector at the height of the kite
     s.v_wind_gnd    .= [s.set.v_wind, 0, 0]    # wind vector at reference height
     s.v_wind_tether .= [s.set.v_wind, 0, 0]
