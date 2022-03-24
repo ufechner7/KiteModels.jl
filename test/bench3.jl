@@ -1,8 +1,9 @@
 using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils
-
 using KiteModels, KitePodModels
 
-const SEGMENTS = se().segments
+if ! @isdefined SEGMENTS
+    const SEGMENTS = se().segments
+end
 if ! @isdefined kcu
     const kcu = KCU()
     const kps = KPS3(kcu)
