@@ -1,6 +1,6 @@
 #= MIT License
 
-Copyright (c) 2020, 2021 Uwe Fechner
+Copyright (c) 2020, 2021, 2022 Uwe Fechner
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -28,6 +28,9 @@ The spring constant and the damping decrease with the segment length. The aerody
 calculated, depending on reel-out speed, depower and steering settings. 
 
 Scientific background: http://arxiv.org/abs/1406.6218 =#
+
+# implementation of a one point kite model
+# included from KiteModels.jl
 
 """
     mutable struct KPS3{S, T, P} <: AbstractKiteModel

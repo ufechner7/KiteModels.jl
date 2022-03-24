@@ -1,3 +1,34 @@
+#= MIT License
+
+Copyright (c) 2020, 2021, 2022 Uwe Fechner
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. =#
+
+#= Model of a kite-power system in implicit form: residual = f(y, yd)
+
+This model implements a 3D mass-spring system with reel-out. It uses five tether segments (the number can be
+configured in the file data/settings.yaml). The kite is modelled as additional mass at the end of the tether.
+The spring constant and the damping decrease with the segment length. The aerodynamic kite forces are
+calculated, depending on reel-out speed, depower and steering settings. 
+
+Scientific background: http://arxiv.org/abs/1406.6218 =#
+
 # implementation of a four point kite model
 # included from KiteModels.jl
 
@@ -66,17 +97,14 @@ $(TYPEDFIELDS)
     v_wind_tether::T =    zeros(S, 3)
     "apparent wind vector at the kite"
     v_apparent::T =       zeros(S, 3)
+    "vector, perpendicular to v_apparent; output of calc_drag"
     v_app_perp::T =       zeros(S, 3)
-    drag_force::T =       zeros(S, 3)
-    lift_force::T =       zeros(S, 3)
-    steering_force::T =   zeros(S, 3)
-    last_force::T =       zeros(S, 3)
+    "spring force of the current tether segment, output of calc_particle_forces"
     spring_force::T =     zeros(S, 3)
-    total_forces::T =     zeros(S, 3)
-    force::T =            zeros(S, 3)
+    "unit vector in the direction of the current tether segment, output of calc_particle_forces"
     unit_vector::T =      zeros(S, 3)
+    "average velocity of the current tether segment, output of calc_particle_forces"
     av_vel::T =           zeros(S, 3)
-    kite_y::T =           zeros(S, 3)
     segment::T =          zeros(S, 3)
     last_tether_drag::T = zeros(S, 3)
     acc::T =              zeros(S, 3)     
@@ -244,23 +272,22 @@ end
 
 # Calculate the initial conditions y0 and yd0. Tether with the initial elevation angle
 # se().elevation, particle zero fixed at origin.
-function init(s::KPS4)
+# X is a vector of deviations in x and z positions, to be varied to find the inital equilibrium
+function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)))
     delta = 1e-6
     particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k)
     pos = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
     vel = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
+    pos[1] .= [0.0, delta, 0.0]
+    vel[1] .= [delta, delta, delta]
     sin_el, cos_el = sin(s.set.elevation / 180.0 * pi), cos(s.set.elevation / 180.0 * pi)
-    for i in 1:s.set.segments+1
-        radius = -(i-1) * (s.set.l_tether/s.set.segments)
-        pos[i] .= [-cos_el * radius, delta, -sin_el * radius]
-        if i == 1
-            vel[i] .= [delta, delta, delta]
-        else
-            vel[i] .= [delta, delta, 0]
-        end
+    for i in 1:s.set.segments
+        radius = -i * (s.set.l_tether/s.set.segments)
+        pos[i+1] .= [-cos_el * radius + X[i], delta, -sin_el * radius + X[s.set.segments+i]]
+        vel[i+1] .= [delta, delta, 0]
     end
     for i in 1:KITE_PARTICLES
-        pos[s.set.segments+1+i] .= particles[i+2]
+        pos[s.set.segments+1+i] .= particles[i+2] + [X[2*s.set.segments+i], 0, X[2*s.set.segments+KITE_PARTICLES+i]]
         vel[s.set.segments+1+i] .= [delta, delta, delta]
     end
     pos, vel
@@ -366,4 +393,30 @@ function calc_aero_forces(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
     s.forces[s.set.segments + 3] .+= (L2 + D2)
     s.forces[s.set.segments + 4] .+= (L3 + D3)
     s.forces[s.set.segments + 5] .+= (L4 + D4)
+end
+
+""" 
+Calculate the vector res0 using a vector expression, and calculate res1 using a loop
+that iterates over all tether segments. 
+"""
+function loop(s::KPS4, masses, forces, pos, vel, posd, veld, res0, res1)
+    L_0      = s.l_tether / s.segments
+    # mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
+    mass_per_meter = 0.011
+    res0[1] .= pos[1]
+    res1[1] .= vel[1]
+    particles = s.set.segments + KITE_PARTICLES + 1
+    res0[2:particles] .= vel[2:particles] - posd[2:particles]
+    # Compute the masses and forces
+    m_tether_particle = mass_per_meter * s.length / L_0
+    masses[s.segments+1] .= s.kcu_mass + 0.5 * m_tether_particle
+#     for i in xrange(0, SEGMENTS):
+#         masses[i] = m_tether_particle
+#         SPRINGS[i, 2] = scalars[Length] # Current unstressed length
+#         SPRINGS[i, 3] = scalars[C_spring] / scalars[Stiffnes_factor]
+#         SPRINGS[i, 4] = scalars[Damping]
+#     innerLoop2_(pos, vel, vec3[V_wind_gnd], vec3[V_wind_tether], forces, \
+#                 scalars[Stiffnes_factor], int(SEGMENTS), D_TETHER)
+#     for i in xrange(1, NO_PARTICLES):
+#         res1[i] = veld[i] - (G_EARTH - forces[i] / masses[i])
 end
