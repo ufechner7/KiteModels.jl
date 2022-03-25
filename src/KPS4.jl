@@ -100,25 +100,20 @@ $(TYPEDFIELDS)
     "spring force of the current tether segment, output of calc_particle_forces"
     spring_force::T =     zeros(S, 3)
     segment::T =          zeros(S, 3)
-    acc::T =              zeros(S, 3)     
-    pos_kite::T =         zeros(S, 3)
     v_kite::T =           zeros(S, 3)        
     res1::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     res2::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     pos::SVector{P, KVec3} = zeros(SVector{P, KVec3})
+    "unstressed reelout length [m]"
     length::S =           0.0
-    last_v_app_norm_tether::S = zero(S)
     "lift coefficient of the kite, depending on the angle of attack"
     param_cl::S =         0.2
     "drag coefficient of the kite, depending on the angle of attack"
     param_cd::S =         1.0
-    v_app_norm::S =       zero(S)
-    cor_steering::S =     zero(S)
     "azimuth angle in radian; inital value is zero"
     psi::S =              zero(S)
     "elevation angle in radian; initial value about 70 degrees"
     beta::S =             deg2rad(se().elevation)
-    last_alpha::S =        0.1
     alpha_depower::S =     0.0
     "relative start time of the current time interval"
     t_0::S =               0.0
@@ -148,7 +143,7 @@ function clear(s::KPS4)
     s.v_apparent    .= [s.set.v_wind, 0, 0]
     s.l_tether = s.set.l_tether
     s.length = s.l_tether / s.set.segments
-    s.pos_kite, s.v_kite = zeros(SimFloat, 3), zeros(SimFloat, 3)
+    s.v_kite = zeros(SimFloat, 3)
     s.beta = deg2rad(s.set.elevation)
     init_masses(s)
     init_springs(s)
@@ -397,13 +392,14 @@ function loop(s::KPS4, masses, forces, pos, vel, posd, veld, res0, res1)
     # Compute the masses and forces
     m_tether_particle = mass_per_meter * s.length / L_0
     masses[s.segments+1] .= s.kcu_mass + 0.5 * m_tether_particle
-#     for i in xrange(0, SEGMENTS):
-#         masses[i] = m_tether_particle
-#         SPRINGS[i, 2] = scalars[Length] # Current unstressed length
-#         SPRINGS[i, 3] = scalars[C_spring] / scalars[Stiffnes_factor]
-#         SPRINGS[i, 4] = scalars[Damping]
+    for i in 1:s.set.segments+1
+        masses[i] = m_tether_particle
+        s.springs[i].length = s.lenght
+        s.springs[i].c_spring = s.c_spring / s.stiffnes_factor
+        s.springs[i].damping = s.damping
 #     innerLoop2_(pos, vel, vec3[V_wind_gnd], vec3[V_wind_tether], forces, \
 #                 scalars[Stiffnes_factor], int(SEGMENTS), D_TETHER)
 #     for i in xrange(1, NO_PARTICLES):
 #         res1[i] = veld[i] - (G_EARTH - forces[i] / masses[i])
+    end
 end

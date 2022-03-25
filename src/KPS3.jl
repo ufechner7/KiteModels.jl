@@ -86,9 +86,7 @@ $(TYPEDFIELDS)
     segment::T =          zeros(S, 3)
     last_tether_drag::T = zeros(S, 3)
     acc::T =              zeros(S, 3)     
-    vec_z::T =            zeros(S, 3)
-    pos_kite::T =         zeros(S, 3)
-    v_kite::T =           zeros(S, 3)        
+    vec_z::T =            zeros(S, 3) 
     res1::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     res2::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     pos::SVector{P, KVec3} = zeros(SVector{P, KVec3})
@@ -145,7 +143,6 @@ function clear(s::KPS3)
     s.alpha_depower = 0.0
     s.l_tether = s.set.l_tether
     s.length = s.l_tether / s.set.segments
-    s.pos_kite, s.v_kite = zeros(SimFloat, 3), zeros(SimFloat, 3)
     s.beta = deg2rad(s.set.elevation)
     mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
     mass_per_meter = 0.011
@@ -283,8 +280,8 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
     veld = SVector{div(S,6)+1}(if i==1 SVector(0.0,0,0) else SVector(veld1[:,i-1]) end for i in 1:div(S,6)+1)
 
     # update parameters
-    s.pos_kite .= pos[div(S,6)+1]
-    s.v_kite   .= vel[div(S,6)+1]
+    pos_kite = pos[div(S,6)+1]
+    v_kite   = vel[div(S,6)+1]
     delta_t = time - s.t_0
     delta_v = s.v_reel_out - s.last_v_reel_out
     s.length = (s.l_tether + s.last_v_reel_out * delta_t + 0.5 * delta_v * delta_t^2) / div(S,6)
@@ -292,10 +289,10 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
     s.damping  = s.set.damping / s.length
 
     # call core calculation routines
-    vec_c = SVector{3, SimFloat}(pos[s.set.segments] - s.pos_kite)     # convert to SVector to avoid allocations
-    v_app = SVector{3, SimFloat}(s.v_wind - s.v_kite)
+    vec_c = SVector{3, SimFloat}(pos[s.set.segments] - pos_kite)     # convert to SVector to avoid allocations
+    v_app = SVector{3, SimFloat}(s.v_wind - v_kite)
     calc_set_cl_cd(s, vec_c, v_app)
-    calc_aero_forces(s, s.pos_kite, s.v_kite, s.rho, s.steering) # force at the kite
+    calc_aero_forces(s, pos_kite, v_kite, s.rho, s.steering) # force at the kite
     loop(s, pos, vel, posd, veld, s.res1, s.res2)
   
     # copy and flatten result

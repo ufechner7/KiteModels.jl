@@ -230,4 +230,34 @@ end
     end
 end
 
+function init2()
+    pos, vel = KiteModels.init(kps4)
+    posd = copy(vel)
+    veld = zero(vel)
+#     # print 'pos.shape: ', pos.shape
+#     # print SEGMENTS + KITE_PARTICLES + 1
+#     # print "pos.shape", pos.shape
+#     vec3[V_wind_gnd][:] = np.array((7.0, 0.1, 0.0))
+#     vec3[V_wind_tether][:] = np.zeros(3)
+#     scalars[Stiffnes_factor] = 0.5
+#     scalars[Alpha] = 1.0/7.0
+#     length = 150.0
+#     scalars[Length] = length / SEGMENTS
+#     scalars[Damping]  = DAMPING  * L_0 / scalars[Length]
+#     scalars[C_spring] = C_SPRING * L_0 / scalars[Length]
+#     scalars[D_tether] = D_TETHER
+#     forces = np.zeros((SEGMENTS + PARTICLES.shape[0] - 1, 3))
+#     res = np.zeros((SEGMENTS + PARTICLES.shape[0] - 1) * 6).reshape((2, -1, 3))
+#     if WINCH_MODEL:
+#         res = np.append(res, 0.0) # res_length
+#         res = np.append(res, 0.0) # res_v_reel_out
+#     res0, res1 = res[0:-2].reshape((2, -1, 3))[0], res[0:-2].reshape((2, -1, 3))[1]
+#     return vec3, scalars, pos, vel, posd, veld, forces, res0, res1
+end
+
+@testset "test_loop          " begin
+    init2()
+    # vec3, scalars, pos, vel, posd, veld, forces, res0, res1 = init2()
+end
+
 end
