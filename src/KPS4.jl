@@ -123,6 +123,7 @@ $(TYPEDFIELDS)
     rho::S =               0.0
     depower::S =           0.0
     steering::S =          0.0
+    stiffness_factor::S =  1.0
     "initial masses of the point masses"
     initial_masses::MVector{P, S} = ones(P)
     "current masses, depending on the total tether length"
@@ -305,6 +306,10 @@ The result is stored in the array s.forces.
     else
         s.spring_force .= (k2 *  (norm1 - l_0) + (c * spring_vel)) * unit_vector
     end
+    if i==1
+        # println(s.segment)
+        # println("==> ", norm1, " ", l_0, " ", s.spring_force)
+    end
 
     s.v_apparent .= s.v_wind_tether - av_vel
     # TODO: check why d_brindle is not used !!!
@@ -330,6 +335,9 @@ function inner_loop(s, pos, vel, v_wind_gnd, stiffnes_factor, segments, d_tether
         height = 0.5 * (pos[p1][3] + pos[p2][3])
         rho = calc_rho(s, height)
         s.v_wind_tether .= calc_wind_factor(s, height) * v_wind_gnd
+        if i == 1
+            # println(rho, " ", s.v_wind_tether)
+        end
         calc_particle_forces(s, pos[p1], pos[p2], vel[p1], vel[p2], s.springs[i], stiffnes_factor, segments, d_tether, rho, i)
     end
     nothing
@@ -378,28 +386,32 @@ function calc_aero_forces(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
 end
 
 """ 
-Calculate the vector res0 using a vector expression, and calculate res1 using a loop
-that iterates over all tether segments. 
+Calculate the vector res1 and calculate res2 using loops
+that iterate over all tether segments. 
 """
-function loop(s::KPS4, masses, forces, pos, vel, posd, veld, res0, res1)
-    L_0      = s.l_tether / s.segments
+function loop(s::KPS4, pos, vel, posd, veld)
+    L_0      = s.l_tether / s.set.segments
     # mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
     mass_per_meter = 0.011
-    res0[1] .= pos[1]
-    res1[1] .= vel[1]
+    s.res1[1] .= pos[1]
+    s.res2[1] .= vel[1]
     particles = s.set.segments + KITE_PARTICLES + 1
-    res0[2:particles] .= vel[2:particles] - posd[2:particles]
+    for i in 2:particles
+        s.res1[i] .= vel[i] - posd[i] 
+    end
     # Compute the masses and forces
-    m_tether_particle = mass_per_meter * s.length / L_0
-    masses[s.segments+1] .= s.kcu_mass + 0.5 * m_tether_particle
-    for i in 1:s.set.segments+1
-        masses[i] = m_tether_particle
-        s.springs[i].length = s.lenght
-        s.springs[i].c_spring = s.c_spring / s.stiffnes_factor
-        s.springs[i].damping = s.damping
-#     innerLoop2_(pos, vel, vec3[V_wind_gnd], vec3[V_wind_tether], forces, \
-#                 scalars[Stiffnes_factor], int(SEGMENTS), D_TETHER)
-#     for i in xrange(1, NO_PARTICLES):
-#         res1[i] = veld[i] - (G_EARTH - forces[i] / masses[i])
+    m_tether_particle = mass_per_meter * s.length
+    s.masses[s.set.segments+1] = s.set.kcu_mass + 0.5 * m_tether_particle
+    # TODO: check if the next two lines are correct
+    damping  = s.set.damping / L_0
+    c_spring = s.set.c_spring/s.stiffness_factor/L_0 
+    # println(c_spring, " ", damping)
+    for i in 1:s.set.segments
+        s.masses[i] = m_tether_particle
+        s.springs[i] = SP(s.springs[i].p1, s.springs[i].p2, s.length, c_spring, damping)
+    end
+    inner_loop(s, pos, vel, s.v_wind_gnd, s.stiffness_factor, s.set.segments, s.set.d_tether/1000.0)
+    for i in 2:particles
+        s.res2[i] .= veld[i] - (SVector(0, 0, -G_EARTH) - s.forces[i] / s.masses[i])
     end
 end
