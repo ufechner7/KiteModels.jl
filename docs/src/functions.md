@@ -2,11 +2,16 @@
 CurrentModule = KiteModels
 ```
 ## Introduction
-Most of the functions work on a KPS3 object. For this, the variable s is used.
+Most of the functions work on a KPS3 or KPS4 object. For this, the variable s is used.
 Such a variable can be created with the lines:
 ```julia
-using KiteModels, KitePodSimulator
+using KiteModels, KitePodModels
 const s = KPS3(KCU())
+```
+Or, if you want to use the 4 point kite model:
+```julia
+using KiteModels, KitePodModels
+const s = KPS4(KCU())
 ```
 
 ## Input functions
