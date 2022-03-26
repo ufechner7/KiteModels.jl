@@ -242,7 +242,7 @@ function init2()
     kps4.stiffness_factor = 0.5
     kps4.set.alpha = 1.0/7.0
     length = 150.0
-    kps4.length = length/se().segments
+    kps4.segment_length = length/se().segments
     for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1 
         kps4.forces[i] .= zeros(3)
     end

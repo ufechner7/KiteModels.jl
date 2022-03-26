@@ -104,8 +104,8 @@ $(TYPEDFIELDS)
     res1::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     res2::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     pos::SVector{P, KVec3} = zeros(SVector{P, KVec3})
-    "unstressed reelout length [m]"
-    length::S =           0.0
+    "unstressed segment length [m]"
+    segment_length::S =           0.0
     "lift coefficient of the kite, depending on the angle of attack"
     param_cl::S =         0.2
     "drag coefficient of the kite, depending on the angle of attack"
@@ -143,7 +143,7 @@ function clear(s::KPS4)
     s.v_wind_tether .= [s.set.v_wind, 0, 0]
     s.v_apparent    .= [s.set.v_wind, 0, 0]
     s.l_tether = s.set.l_tether
-    s.length = s.l_tether / s.set.segments
+    s.segment_length = s.l_tether / s.set.segments
     s.v_kite = zeros(SimFloat, 3)
     s.beta = deg2rad(s.set.elevation)
     init_masses(s)
@@ -400,7 +400,7 @@ function loop(s::KPS4, pos, vel, posd, veld)
         s.res1[i] .= vel[i] - posd[i] 
     end
     # Compute the masses and forces
-    m_tether_particle = mass_per_meter * s.length
+    m_tether_particle = mass_per_meter * s.segment_length
     s.masses[s.set.segments+1] = s.set.kcu_mass + 0.5 * m_tether_particle
     # TODO: check if the next two lines are correct
     damping  = s.set.damping / L_0
@@ -408,10 +408,70 @@ function loop(s::KPS4, pos, vel, posd, veld)
     # println(c_spring, " ", damping)
     for i in 1:s.set.segments
         s.masses[i] = m_tether_particle
-        s.springs[i] = SP(s.springs[i].p1, s.springs[i].p2, s.length, c_spring, damping)
+        s.springs[i] = SP(s.springs[i].p1, s.springs[i].p2, s.segment_length, c_spring, damping)
     end
     inner_loop(s, pos, vel, s.v_wind_gnd, s.stiffness_factor, s.set.segments, s.set.d_tether/1000.0)
     for i in 2:particles
         s.res2[i] .= veld[i] - (SVector(0, 0, -G_EARTH) - s.forces[i] / s.masses[i])
     end
+end
+
+"""
+    residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
+
+    N-point tether model, one point kite at the top:
+    Inputs:
+    State vector y   = pos1, pos2, ..., posn, vel1, vel2, ..., veln, length, v_reel_out
+    Derivative   yd  = vel1, vel2, ..., veln, acc1, acc2, ..., accn, lengthd, v_reel_out_d
+    Output:
+    Residual     res = res1, res2 = pos1,  ..., vel1, ...
+
+    Additional parameters:
+    s: Struct with work variables, type KPS3
+    S: The dimension of the state vector
+The number of the point masses of the model N = (S-2)/6, the state of each point 
+is represented by two 3 element vectors.
+"""
+function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
+    # Reset the force vector to zero.
+    for i in 1:se().segments + KITE_PARTICLES + 1 
+        s.forces[i] .= zeros(3)
+    end
+    length = y[end-1]
+    v_reel_out = y[end]
+    lengthd = yd[end-1]
+    v_reel_outd = yd[end]
+    # unpack the vectors y and yd
+    T = S-2
+    part = reshape(SVector{T}(y[1:end-2]),  Size(3, div(T,6), 2))
+    partd = reshape(SVector{T}(yd[1:end-2]),  Size(3, div(T,6), 2))
+    pos1, vel1 = part[:,:,1], part[:,:,2]
+    pos = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(pos1[:,i-1]) end for i in 1:div(T,6)+1)
+    vel = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(vel1[:,i-1]) end for i in 1:div(S,T)+1)
+    posd1, veld1 = partd[:,:,1], partd[:,:,2]
+    posd = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(posd1[:,i-1]) end for i in 1:div(T,6)+1)
+    veld = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(veld1[:,i-1]) end for i in 1:div(T,6)+1)    
+    s.segment_length = length/div(T,6)
+    height = pos[segments+1][3]
+    rho = calc_rho(s, height)               # calculate the air density
+    calc_aero_forces(s, pos, vel, rho, s.alpha_depower, s.steering)
+    loop(s, pos, vel, posd, veld)
+    # copy and flatten result
+    for i in 2:div(T,6)+1
+        for j in 1:3
+           res[3*(i-2)+j] = s.res1[i][j]
+           res[3*(div(S,6))+3*(i-2)+j] = s.res2[i][j]
+        end
+    end
+    if norm(res) < 10.0
+        # println(norm(res))
+        for i in 1:length(pos)
+            s.pos[i] .= pos[i]
+        end
+    end
+    # winch not yet integrated
+    for i in 1:6
+        res[i] = 0.0
+    end
+    nothing
 end
