@@ -333,13 +333,10 @@ end
     s = kps4
     t = 0.0
     init_150()
-    println(length(res))
-    println(length(y0))
-    # residual!(res, yd0, y0, s, time)
-    # residual!(res, yd0, y0, p, t)
-    # res1 = res[1:3*SEGMENTS]
-    # res2 = res[3*SEGMENTS+1:end]
-    # @test res1 == zeros(3*(SEGMENTS))
+    @test length(res) == length(y0)
+    res1, res2 = residual!(res, yd0, y0, s, time)
+    println("$(length(res1)) $(length(zeros(MVector{(kps4.set.segments+4+1), KVec3})))")
+    @test res1 == zeros(MVector{(kps4.set.segments+4+1), KVec3})
     # # TODO: add test for res2
     # # println(res2)
 end

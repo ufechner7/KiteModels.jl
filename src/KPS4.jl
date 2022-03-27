@@ -497,10 +497,10 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
     loop(s, pos, vel, posd, veld)
 
     # copy and flatten result
-    for i in 2:div(T,6)+1
+    for i in 1:div(T,6)
         for j in 1:3
-            res[3*(i-2)+j] = s.res1[i][j]
-            res[3*(div(S,6))+3*(i-2)+j] = s.res2[i][j]
+            res[3*(i-1)+j] = s.res1[i][j]
+            res[3*(div(T,6))+3*(i-1)+j] = s.res2[i][j]
         end
     end
     if norm(res) < 10.0
@@ -509,8 +509,9 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
             s.pos[i] .= pos[i]
         end
     end
+
     # winch not yet integrated
-        res[end-1] = 0.0
-        res[end]   = 0.0
-    nothing
+    res[end-1] = 0.0
+    res[end]   = 0.0
+    s.res1, s.res2
 end
