@@ -149,7 +149,7 @@ end
 @testset "init                  " begin
     init_150()
     kps4.set.elevation = 60.0
-    pos, vel = KiteModels.init(kps4)
+    pos, vel = KiteModels.init_pos_vel(kps4)
     pos1 = [[  -0.                    0.000001             -0.                ]
             [  12.5000000000000036    0.000001             21.6506350946109656]
             [  25.0000000000000071    0.000001             43.3012701892219312]
@@ -174,7 +174,7 @@ end
     for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1 
         kps4.forces[i] .= zeros(3)
     end
-    pos, vel = KiteModels.init(kps4)
+    pos, vel = KiteModels.init_pos_vel(kps4)
     v_wind_gnd = KVec3(7.0, 0.1, 0.0)
     stiffnes_factor = 0.5
     segments = kps4.set.segments
@@ -204,7 +204,7 @@ end
     for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1 
         kps4.forces[i] .= zeros(3)
     end
-    pos, vel = KiteModels.init(kps4)
+    pos, vel = KiteModels.init_pos_vel(kps4)
     rho = 1.25
     kps4.v_wind .= KVec3(8.0, 0.2, 0.0)
     alpha_depower = 0.1
@@ -235,7 +235,7 @@ function init2()
     init_150()
     kps4.set.elevation = 60.0
     kps4.set.profile_law = Int(EXP)
-    pos, vel = KiteModels.init(kps4)
+    pos, vel = KiteModels.init_pos_vel(kps4)
     posd = copy(vel)
     veld = zero(vel)
     kps4.v_wind_gnd .= [7.0, 0.1, 0.0]
@@ -295,6 +295,53 @@ end
     for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1
         @test all(res2[i,:] .≈ kps4.res2[i])
     end
+end
+
+@testset "test_residual!       " begin
+    res =  zeros(MVector{6*(kps4.set.segments+4+1)+2, SimFloat})
+    y0, yd0 = KiteModels.init_flat(kps4)
+    y0s = """-0.             0.000001             -0.                   12.5000000000000036
+            0.000001             21.6506350946109656   25.0000000000000071
+            0.000001             43.3012701892219312   37.5000000000000071
+            0.000001             64.9519052838329003   50.0000000000000142
+            0.000001             86.6025403784438623   62.5000000000000142
+            0.000001            108.2531754730548244   75.0000000000000142
+            0.000001            129.9038105676658006   76.5905217485472747    0.
+        134.6435550484500823   78.5650000003636109    0.                  136.0785716987731178
+        77.4500000002498865    2.4810999999999996  134.1473350483994693
+        77.4500000002498865   -2.4810999999999996  134.1473350483994693
+            0.000001              0.000001              0.000001              0.000001
+            0.000001             -0.                    0.000001              0.000001
+           -0.                    0.000001              0.000001             -0.
+            0.000001              0.000001             -0.                    0.000001
+            0.000001             -0.                    0.000001              0.000001
+           -0.                    0.000001              0.000001              0.000001
+            0.000001              0.000001              0.000001              0.000001
+            0.000001              0.000001              0.000001              0.000001
+            0.000001            150.                    0."""
+    y0s = split(replace(y0s, r"[\s]+" => ","),",")
+    @test length(y0s) == length(y0)
+    y0_ = Float64[]
+    for i in 1:length(y0s)
+        push!(y0_, parse(Float64, y0s[i]))
+        if ! (y0_[i] ≈ y0[i])
+            println(y0_[i]," != ", y0[i])
+        end
+    end
+    @test sum(y0) ≈ 1716.23568958026658
+    @test sum(yd0) ≈ -98.09994900000005
+    s = kps4
+    t = 0.0
+    init_150()
+    println(length(res))
+    println(length(y0))
+    # residual!(res, yd0, y0, s, time)
+    # residual!(res, yd0, y0, p, t)
+    # res1 = res[1:3*SEGMENTS]
+    # res2 = res[3*SEGMENTS+1:end]
+    # @test res1 == zeros(3*(SEGMENTS))
+    # # TODO: add test for res2
+    # # println(res2)
 end
 
 end

@@ -253,10 +253,10 @@ function init_masses(s)
     s.masses 
 end
 
-# Calculate the initial conditions y0 and yd0. Tether with the initial elevation angle
+# Calculate the initial vectors pos and vel. Tether with the initial elevation angle
 # se().elevation, particle zero fixed at origin.
 # X is a vector of deviations in x and z positions, to be varied to find the inital equilibrium
-function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)))
+function init_pos_vel(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)))
     delta = 1e-6
     particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k)
     pos = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
@@ -274,6 +274,40 @@ function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)))
         vel[s.set.segments+1+i] .= [delta, delta, delta]
     end
     pos, vel
+end
+
+function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)))
+    delta = 1e-6
+    particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k)
+    pos = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
+    vel = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
+    acc = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
+    pos[1] .= [0.0, delta, 0.0]
+    vel[1] .= [delta, delta, delta]
+    acc[1] .= [delta, delta, delta]
+    sin_el, cos_el = sin(s.set.elevation / 180.0 * pi), cos(s.set.elevation / 180.0 * pi)
+    for i in 1:s.set.segments
+        radius = -i * (s.set.l_tether/s.set.segments)
+        pos[i+1] .= [-cos_el * radius + X[i], delta, -sin_el * radius + X[s.set.segments+i]]
+        vel[i+1] .= [delta, delta, 0]
+        acc[i+1] .= [delta, delta, -9.81]
+    end
+    for i in 1:KITE_PARTICLES
+        pos[s.set.segments+1+i] .= particles[i+2] + [X[2*s.set.segments+i], 0, X[2*s.set.segments+KITE_PARTICLES+i]]
+        vel[s.set.segments+1+i] .= [delta, delta, delta]
+        acc[s.set.segments+1+i] .= [delta, delta, -9.81]
+    end
+    vcat(pos, vel), vcat(vel, acc)
+end
+
+# same as above, but returns a tuple of two one dimensional arrays
+function init_flat(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)))
+    res1_, res2_ = init(s, X)
+    res1, res2  = reduce(vcat, res1_), reduce(vcat, res2_)
+    # append the initial reel-out length and it's derivative
+    res1 = vcat(res1, SVector(s.set.l_tether, s.set.v_reel_out))
+    res2 = vcat(res2, SVector(s.set.v_reel_out, 1e-6))
+    res1, res2
 end
 
 """ 
@@ -433,34 +467,40 @@ The number of the point masses of the model N = (S-2)/6, the state of each point
 is represented by two 3 element vectors.
 """
 function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
+    T = S-2
+    segments = div(T,6) - KITE_PARTICLES - 1
+    
     # Reset the force vector to zero.
-    for i in 1:se().segments + KITE_PARTICLES + 1 
-        s.forces[i] .= zeros(3)
+    for i in 1:segments + KITE_PARTICLES + 1 
+        s.forces[i] .= SVector(0.0,0,0)
     end
     length = y[end-1]
     v_reel_out = y[end]
     lengthd = yd[end-1]
     v_reel_outd = yd[end]
+
     # unpack the vectors y and yd
-    T = S-2
     part = reshape(SVector{T}(y[1:end-2]),  Size(3, div(T,6), 2))
     partd = reshape(SVector{T}(yd[1:end-2]),  Size(3, div(T,6), 2))
     pos1, vel1 = part[:,:,1], part[:,:,2]
     pos = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(pos1[:,i-1]) end for i in 1:div(T,6)+1)
-    vel = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(vel1[:,i-1]) end for i in 1:div(S,T)+1)
+    vel = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(vel1[:,i-1]) end for i in 1:div(T,6)+1)
     posd1, veld1 = partd[:,:,1], partd[:,:,2]
     posd = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(posd1[:,i-1]) end for i in 1:div(T,6)+1)
-    veld = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(veld1[:,i-1]) end for i in 1:div(T,6)+1)    
-    s.segment_length = length/div(T,6)
+    veld = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(veld1[:,i-1]) end for i in 1:div(T,6)+1)
+
+    # core calculations
+    s.segment_length = length/segments
     height = pos[segments+1][3]
     rho = calc_rho(s, height)               # calculate the air density
     calc_aero_forces(s, pos, vel, rho, s.alpha_depower, s.steering)
     loop(s, pos, vel, posd, veld)
+
     # copy and flatten result
     for i in 2:div(T,6)+1
         for j in 1:3
-           res[3*(i-2)+j] = s.res1[i][j]
-           res[3*(div(S,6))+3*(i-2)+j] = s.res2[i][j]
+            res[3*(i-2)+j] = s.res1[i][j]
+            res[3*(div(S,6))+3*(i-2)+j] = s.res2[i][j]
         end
     end
     if norm(res) < 10.0
@@ -470,8 +510,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
         end
     end
     # winch not yet integrated
-    for i in 1:6
-        res[i] = 0.0
-    end
+        res[end-1] = 0.0
+        res[end]   = 0.0
     nothing
 end
