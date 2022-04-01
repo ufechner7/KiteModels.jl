@@ -208,7 +208,12 @@ function get_particles(height_k, height_b, width, m_k)
     [zeros(3), pos0, pos1, pos_kite, pos3, pos4]
 end
 
-function init_springs(s)
+function calc_height(s::KPS4)
+    pos_kite = 0.5 * (s.pos[s.set.segments+4] + s.pos[s.set.segments+5])
+    pos_kite[3]
+end
+
+function init_springs(s::KPS4)
     l_0     = s.set.l_tether / s.set.segments 
     particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k)
     for j in 1:size(SPRINGS_INPUT)[1]
@@ -235,7 +240,7 @@ function init_springs(s)
     s.springs
 end
 
-function init_masses(s)
+function init_masses(s::KPS4)
     s.masses = zeros(s.set.segments+KITE_PARTICLES+1)
     l_0 = s.set.l_tether / s.set.segments 
     for i in 1:s.set.segments
@@ -340,10 +345,6 @@ The result is stored in the array s.forces.
     else
         s.spring_force .= (k2 *  (norm1 - l_0) + (c * spring_vel)) * unit_vector
     end
-    if i==1
-        # println(s.segment)
-        # println("==> ", norm1, " ", l_0, " ", s.spring_force)
-    end
 
     s.v_apparent .= s.v_wind_tether - av_vel
     # TODO: check why d_brindle is not used !!!
@@ -363,15 +364,13 @@ v_wind_tether: out parameter
 forces:        out parameter
 """
 function inner_loop(s, pos, vel, v_wind_gnd, stiffnes_factor, segments, d_tether)
+    # println("s.set.rho_0: $(s.set.rho_0)")
     for i in 1:length(s.springs)
         p1 = s.springs[i].p1  # First point nr.
         p2 = s.springs[i].p2  # Second point nr.
         height = 0.5 * (pos[p1][3] + pos[p2][3])
         rho = calc_rho(s, height)
         s.v_wind_tether .= calc_wind_factor(s, height) * v_wind_gnd
-        if i == 1
-            # println(rho, " ", s.v_wind_tether)
-        end
         calc_particle_forces(s, pos[p1], pos[p2], vel[p1], vel[p2], s.springs[i], stiffnes_factor, segments, d_tether, rho, i)
     end
     nothing
@@ -396,6 +395,7 @@ function calc_aero_forces(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
     z = -normalize(delta)
     y = normalize(pos3 - pos4)
     x = cross(y, z)
+
     va_xz2 = va_2 - dot(va_2, y) * y
     va_xy3 = va_3 - dot(va_3, z) * z
     va_xy4 = va_4 - dot(va_4, z) * z
@@ -407,7 +407,6 @@ function calc_aero_forces(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
     CL2, CD2 = calc_cl(alpha_2), DRAG_CORR * calc_cd(alpha_2)
     CL3, CD3 = calc_cl(alpha_3), DRAG_CORR * calc_cd(alpha_3)
     CL4, CD4 = calc_cl(alpha_4), DRAG_CORR * calc_cd(alpha_4)
-
     L2 = (-0.5 * rho * (norm(va_xz2))^2 * s.set.area * CL2) * normalize(cross(va_2, y))
     L3 = (-0.5 * rho * (norm(va_xy3))^2 * s.set.area * rel_side_area * CL3) * normalize(cross(va_3, z))
     L4 = (-0.5 * rho * (norm(va_xy4))^2 * s.set.area * rel_side_area * CL4) * normalize(cross(z, va_4))
@@ -439,7 +438,6 @@ function loop(s::KPS4, pos, vel, posd, veld)
     # TODO: check if the next two lines are correct
     damping  = s.set.damping / L_0
     c_spring = s.set.c_spring/s.stiffness_factor/L_0 
-    # println(c_spring, " ", damping)
     for i in 1:s.set.segments
         s.masses[i] = m_tether_particle
         s.springs[i] = SP(s.springs[i].p1, s.springs[i].p2, s.segment_length, c_spring, damping)
@@ -483,35 +481,32 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
     part = reshape(SVector{T}(y[1:end-2]),  Size(3, div(T,6), 2))
     partd = reshape(SVector{T}(yd[1:end-2]),  Size(3, div(T,6), 2))
     pos1, vel1 = part[:,:,1], part[:,:,2]
-    pos = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(pos1[:,i-1]) end for i in 1:div(T,6)+1)
-    vel = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(vel1[:,i-1]) end for i in 1:div(T,6)+1)
+    pos = SVector{div(T,6)}(SVector(pos1[:,i]) for i in 1:div(T,6))
+    vel = SVector{div(T,6)}(SVector(vel1[:,i]) for i in 1:div(T,6))
     posd1, veld1 = partd[:,:,1], partd[:,:,2]
-    posd = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(posd1[:,i-1]) end for i in 1:div(T,6)+1)
-    veld = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(veld1[:,i-1]) end for i in 1:div(T,6)+1)
+    posd = SVector{div(T,6)}(SVector(posd1[:,i]) for i in 1:div(T,6))
+    veld = SVector{div(T,6)}(SVector(veld1[:,i]) for i in 1:div(T,6))
 
     # core calculations
-    s.segment_length = length/segments
-    height = pos[segments+1][3]
-    rho = calc_rho(s, height)               # calculate the air density
-    calc_aero_forces(s, pos, vel, rho, s.alpha_depower, s.steering)
+    calc_aero_forces(s, pos, vel, s.rho, s.alpha_depower, s.steering)
     loop(s, pos, vel, posd, veld)
 
     # copy and flatten result
     for i in 1:div(T,6)
         for j in 1:3
-            res[3*(i-1)+j] = s.res1[i][j]
-            res[3*(div(T,6))+3*(i-1)+j] = s.res2[i][j]
+            @inbounds res[3*(i-1)+j] = s.res1[i][j]
+            @inbounds res[3*(div(T,6))+3*(i-1)+j] = s.res2[i][j]
         end
     end
     if norm(res) < 10.0
         # println(norm(res))
-        for i in 1:length(pos)
-            s.pos[i] .= pos[i]
+        for i in 1:div(T,6)
+            @inbounds s.pos[i] .= pos[i]
         end
     end
 
     # winch not yet integrated
     res[end-1] = 0.0
     res[end]   = 0.0
-    s.res1, s.res2
+    nothing
 end

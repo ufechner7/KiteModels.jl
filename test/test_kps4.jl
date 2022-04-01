@@ -95,6 +95,13 @@ end
     @test sp[7].length ≈ 4.998493790987047
     @test sp[7].c_spring ≈ 54012.39452466341
     @test sp[7].damping ≈ 94.62850606174248
+    @test sp[8].length ≈ 2.4403799411263991
+    @test sp[9].length ≈  3.3353120022370204
+    @test sp[10].length ≈ 3.3353120022370204
+    @test sp[11].length ≈ 5.4912468596622306
+    @test sp[11].c_spring ≈ 49165.631334315847
+    @test sp[12].length ≈ 5.4912468596622306
+    # TODO also test spring 13 .. 15
 end
 
 @testset "init_masses           " begin
@@ -239,6 +246,8 @@ function init2()
     posd = copy(vel)
     veld = zero(vel)
     kps4.v_wind_gnd .= [7.0, 0.1, 0.0]
+    height = 134.14733504839947
+    kps4.v_wind .= kps4.v_wind_gnd * calc_wind_factor(kps4, height)
     kps4.stiffness_factor = 0.5
     kps4.set.alpha = 1.0/7.0
     length = 150.0
@@ -246,6 +255,7 @@ function init2()
     for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1 
         kps4.forces[i] .= zeros(3)
     end
+    KiteModels.init_springs(kps4)
     return pos, vel, posd, veld
 end
 
@@ -298,6 +308,10 @@ end
 end
 
 @testset "test_residual!       " begin
+    init2()
+    kps4.alpha_depower = -0.820659579962 
+    kps4.stiffness_factor = 0.04
+    kps4.set.alpha_zero = 0.0
     res =  zeros(MVector{6*(kps4.set.segments+4+1)+2, SimFloat})
     y0, yd0 = KiteModels.init_flat(kps4)
     y0s = """-0.             0.000001             -0.                   12.5000000000000036
@@ -330,15 +344,32 @@ end
     end
     @test sum(y0) ≈ 1716.23568958026658
     @test sum(yd0) ≈ -98.09994900000005
-    s = kps4
-    t = 0.0
-    init_150()
+    time = 0.0
     @test length(res) == length(y0)
-    res1, res2 = residual!(res, yd0, y0, s, time)
-    println("$(length(res1)) $(length(zeros(MVector{(kps4.set.segments+4+1), KVec3})))")
-    @test res1 == zeros(MVector{(kps4.set.segments+4+1), KVec3})
-    # # TODO: add test for res2
-    # # println(res2)
+    residual!(res, yd0, y0, kps4, time)
+    res1, res2 = kps4.res1, kps4.res2
+    height = calc_height(kps4)
+    # @test height ≈ 134.14733504839947
+    res1_= zeros(MVector{(kps4.set.segments+4+1), KVec3})
+    res1_[1][2]=1e-6
+    @test res1 == res1_
+    res2_= [[   0.000001              0.000001              0.000001          ]
+            [  -9.4954332703640603   -0.1808623430347626    5.4821227320670882]
+            [ -11.8070279026385823   -0.2248931126495136    6.816791315268075 ]
+            [ -13.2729903567184451   -0.2528161075957597    7.6631651331197066]
+            [ -14.3920128707363926   -0.2741307509235479    8.3092330824871627]
+            [ -15.3096925251050866   -0.2916103077136664    8.8390556767932171]
+            [  -0.7543438292598375   -0.0077244009806506   -0.407464478647972 ]
+            [  -1.2766764661730894   -0.0049560787501444    0.6267331714897555]
+            [-170.1483123967530844   -2.4632143900241044  327.4738349406080147]
+            [ -19.5074216613609686 -108.106358305295231    -0.6312062960364813]
+            [ -22.7934890811423543  107.5043152723890785    1.2645963793717296]]
+    @test res2_[1, :] == res2[1]
+    @test all(res2_[2, :] .≈ res2[2])
+    for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1
+        @test all(res2_[i, :] .≈ res2[i])
+    end
+
 end
 
 end

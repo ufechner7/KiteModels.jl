@@ -37,6 +37,7 @@ import Base.zero
 
 export KPS3, KPS4, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                                  # constants and types
 export calc_rho, calc_wind_factor, calc_drag, calc_set_cl_cd, clear, find_steady_state, residual! # environment and helper functions
+export calc_height                                                                                # helper functions
 export set_v_reel_out, set_depower_steering                                                       # setters
 export winch_force, lift_drag, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
 export spring_forces
@@ -160,6 +161,26 @@ function calc_set_cl_cd(s::AKM, vec_c, v_app)
     alpha = calc_alpha(v_app, s.vec_z) - s.alpha_depower
     set_cl_cd(s, alpha)
 end
+
+"""
+    set_depower_steering(s::KPS3, depower, steering)
+
+Setter for the depower and steering model inputs. 
+- valid range for steering: -1.0 .. 1.0.  
+- valid range for depower: 0 .. 1.0
+
+This function sets the variables s.depower, s.steering and s.alpha_depower. 
+
+It takes the depower offset c0 and the dependency of the steering sensitivity from
+the depower settings into account.
+"""
+function set_depower_steering(s::AKM, depower, steering)
+    s.depower  = depower
+    s.alpha_depower = calc_alpha_depower(s.kcu, depower)
+    s.steering = (steering - s.set.c0) / (1.0 + s.set.k_ds * (s.alpha_depower / deg2rad(s.set.alpha_d_max)))
+    nothing
+end
+
 
 """
     set_v_reel_out(s::AKM, v_reel_out, t_0, period_time = 1.0 / s.set.sample_freq)

@@ -149,6 +149,16 @@ t = @benchmark KiteModels.loop($kps4, $pos, $vel, $posd, $veld)
 push!(msg, ("Mean time loop:                $(round(mean(t.times), digits=1)) ns"))
 @test t.memory == 0
 
+# benchmark residual!
+init2()
+kps4.alpha_depower = -0.820659579962 
+kps4.stiffness_factor = 0.04
+kps4.set.alpha_zero = 0.0
+res =  zeros(MVector{6*(kps4.set.segments+4+1)+2, SimFloat})
+y0, yd0 = KiteModels.init_flat(kps4)
+time = 0.0
+t = @benchmark residual!($res, $yd0, $y0, $kps4, $time)
+push!(msg, ("Mean time residual!:           $(round(mean(t.times), digits=1)) ns, memory: $(t.memory)"))
 end
 for i in 1:length(msg)
     println(msg[i])

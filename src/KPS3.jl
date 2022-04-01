@@ -311,25 +311,6 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
     nothing
 end
 
-"""
-    set_depower_steering(s::KPS3, depower, steering)
-
-Setter for the depower and steering model inputs. 
-- valid range for steering: -1.0 .. 1.0.  
-- valid range for depower: 0 .. 1.0
-
-This function sets the variables s.depower, s.steering and s.alpha_depower. 
-
-It takes the depower offset c0 and the dependency of the steering sensitivity from
-the depower settings into account.
-"""
-function set_depower_steering(s::KPS3, depower, steering)
-    s.depower  = depower
-    s.alpha_depower = calc_alpha_depower(s.kcu, depower)
-    s.steering = (steering - s.set.c0) / (1.0 + s.set.k_ds * (s.alpha_depower / deg2rad(s.set.alpha_d_max)))
-    nothing
-end
-
 # Calculate the initial conditions y0 and yd0. Tether with the initial elevation angle
 # se().elevation, particle zero fixed at origin.
 # Parameters:
