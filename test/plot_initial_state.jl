@@ -25,16 +25,16 @@ function init2()
     init_150()
     kps4.set.elevation = 60.0
     kps4.set.profile_law = Int(EXP)
+    kps4.set.l_tether = 150.0
     pos, vel = KiteModels.init_pos_vel(kps4)
     posd = copy(vel)
     veld = zero(vel)
-    kps4.v_wind_gnd .= [7.0, 0.1, 0.0]
+    kps4.v_wind_gnd .= [9.1, 0.0, 0.0]
     height = 134.14733504839947
     kps4.v_wind .= kps4.v_wind_gnd * calc_wind_factor(kps4, height)
     kps4.stiffness_factor = 0.5
     kps4.set.alpha = 1.0/7.0
-    length = 150.0
-    kps4.segment_length = length/se().segments
+    kps4.segment_length = kps4.set.l_tether/se().segments
     for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1 
         kps4.forces[i] .= zeros(3)
     end
@@ -43,13 +43,25 @@ function init2()
 end
 
 KiteModels.set_depower_steering(kps4, 0.25, 0.0)
-init2()
-kps4.alpha_depower = -0.820659579962 
-kps4.v_wind_gnd .= [9.0, 0.0, 0.0]
-height = 134.14733504839947
-kps4.v_wind .= kps4.v_wind_gnd * calc_wind_factor(kps4, height)    
-kps4.stiffness_factor = 0.5
-kps4.set.alpha_zero = 0.0   
+
+x0 = Float64[] 
+z0 = Float64[]
+if typeof(kps4) <: KPS4
+    pos, vel, posd, veld = init2()
+    for i in 1:length(pos)
+        push!(x0, pos[i][1])
+        push!(z0, pos[i][3])
+    end
+    kps4.alpha_depower = -0.820659579962 
+    kps4.v_wind_gnd .= [9.0, 0.0, 0.0]
+    height = 134.14733504839947
+    kps4.v_wind .= kps4.v_wind_gnd * calc_wind_factor(kps4, height)    
+    kps4.stiffness_factor = 0.1
+    kps4.set.alpha_zero = 0.0   
+end
+
+plot(x0,z0, xlabel="x [m]", ylabel="z [m]", legend=false)
+plot!(x0, z0, seriestype = :scatter)
 
 find_steady_state(kps4, true)
 
@@ -60,7 +72,6 @@ for i in 1:length(kps4.pos)
      push!(z, kps4.pos[i][3])
 end
 
-using Plots
 plot(x,z, xlabel="x [m]", ylabel="z [m]", legend=false)
 plot!(x, z, seriestype = :scatter)
 
