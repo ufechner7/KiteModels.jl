@@ -95,7 +95,8 @@ $(TYPEDFIELDS)
     bridle_area::S =      zero(S)
     "spring constant, depending on the length of the tether segment"
     c_spring::S =         zero(S)
-    length::S =           0.0
+    "unstressed segment length [m]"
+    segment_length::S =           0.0
     "damping factor, depending on the length of the tether segment"
     damping::S =          zero(S)
     area::S =             zero(S)
@@ -142,14 +143,14 @@ function clear(s::KPS3)
     s.v_apparent    .= [s.set.v_wind, 0, 0]
     s.alpha_depower = 0.0
     s.l_tether = s.set.l_tether
-    s.length = s.l_tether / s.set.segments
+    s.segment_length = s.l_tether / s.set.segments
     s.beta = deg2rad(s.set.elevation)
     mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
     mass_per_meter = 0.011
     s.initial_masses .= ones(s.set.segments+1) * mass_per_meter * s.set.l_tether / s.set.segments # Dyneema: 1.1 kg/ 100m
     s.rho = s.set.rho_0
-    s.c_spring = s.set.c_spring / s.length
-    s.damping  = s.set.damping / s.length
+    s.c_spring = s.set.c_spring / s.segment_length
+    s.damping  = s.set.damping / s.segment_length
     s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
     s.calc_cd = Spline1D(s.set.alpha_cd, s.set.cd_list) 
 end
@@ -213,10 +214,10 @@ function calc_res(s::KPS3, pos1, pos2, vel1, vel2, mass, veld, result, i)
     spring_vel = dot(s.unit_vector, rel_vel)
 
     k2 = 0.05 * s.c_spring             # compression stiffness tether segments
-    if norm1 - s.length > 0.0
-        s.spring_force .= (s.c_spring * (norm1 - s.length) + s.damping * spring_vel) .* s.unit_vector
+    if norm1 - s.segment_length > 0.0
+        s.spring_force .= (s.c_spring * (norm1 - s.segment_length) + s.damping * spring_vel) .* s.unit_vector
     else
-        s.spring_force .= k2 * ((norm1 - s.length) + (s.damping * spring_vel)) .* s.unit_vector
+        s.spring_force .= k2 * ((norm1 - s.segment_length) + (s.damping * spring_vel)) .* s.unit_vector
     end
     s.seg_area = norm1 * s.set.d_tether/1000.0
     s.last_v_app_norm_tether = calc_drag(s, s.av_vel, s.unit_vector, rho, s.last_tether_drag, s.v_app_perp, s.seg_area)
@@ -239,7 +240,7 @@ end
 # Calculate the vector res1 using a vector expression, and calculate res2 using a loop
 # that iterates over all tether segments. 
 function loop(s::KPS3, pos, vel, posd, veld, res1, res2)
-    s.masses               .= s.length / (s.set.l_tether / s.set.segments) .* s.initial_masses
+    s.masses               .= s.segment_length / (s.set.l_tether / s.set.segments) .* s.initial_masses
     s.masses[s.set.segments+1]   += (s.set.mass + s.set.kcu_mass)
     res1[1] .= pos[1]
     res2[1] .= vel[1]
@@ -284,9 +285,9 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
     v_kite   = vel[div(S,6)+1]
     delta_t = time - s.t_0
     delta_v = s.v_reel_out - s.last_v_reel_out
-    s.length = (s.l_tether + s.last_v_reel_out * delta_t + 0.5 * delta_v * delta_t^2) / div(S,6)
-    s.c_spring = s.set.c_spring / s.length
-    s.damping  = s.set.damping / s.length
+    s.segment_length = (s.l_tether + s.last_v_reel_out * delta_t + 0.5 * delta_v * delta_t^2) / div(S,6)
+    s.c_spring = s.set.c_spring / s.segment_length
+    s.damping  = s.set.damping / s.segment_length
 
     # call core calculation routines
     vec_c = SVector{3, SimFloat}(pos[s.set.segments] - pos_kite)     # convert to SVector to avoid allocations

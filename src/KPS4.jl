@@ -501,7 +501,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
             res[3*(div(T,6)-1)+3*(i-2)+j] = s.res2[i][j]
         end
     end
-    if norm(res) < 10.0
+    if norm(res) < 1e5
         for i in 1:div(T,6)
             @inbounds s.pos[i] .= pos[i]
         end
@@ -520,16 +520,25 @@ Find an initial equilibrium, based on the inital parameters
 `l_tether`, elevation and `v_reel_out`.
 """
 function find_steady_state(s::KPS4, prn=false)
+    DELTA_MAX = 50.0
     res = zeros(MVector{6*(s.set.segments+KITE_PARTICLES)+2, SimFloat})
 
     # helper function for the steady state finder
     function test_initial_condition!(F, x::Vector)
-        y0, yd0 = init_flat(s, x)
+        x1 = copy(x)
+        for i in 1:length(x)
+            if x[i] > DELTA_MAX
+                x1[i] = 0.9*DELTA_MAX + x[i]
+            elseif x[i] < -DELTA_MAX
+                x1[i] = -0.9*DELTA_MAX +x[i]
+            end
+        end
+        y0, yd0 = init_flat(s, x1)
         residual!(res, yd0, y0, s, 0.0)
         for i in 1:s.set.segments+KITE_PARTICLES
             # copy the x-component of the residual res2 (acceleration)
             F[i]                               = res[1 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)]
-            # copy the z-component of the residual
+            # copy the z-component of the residual res2
             F[i+s.set.segments+KITE_PARTICLES] = res[3 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)]
         end
         # copy the acceleration of point C in y direction
@@ -538,7 +547,7 @@ function find_steady_state(s::KPS4, prn=false)
         return nothing 
     end
     if prn println("\nStarted function test_nlsolve...") end
-    results = nlsolve(test_initial_condition!, zeros(SimFloat, 2*(s.set.segments+KITE_PARTICLES)+1))
+    results = nlsolve(test_initial_condition!, zeros(SimFloat, 2*(s.set.segments+KITE_PARTICLES)+1), autoscale=true, iterations=2000)
     if prn println("\nresult: $results") end
     init(s, results.zero)
 end

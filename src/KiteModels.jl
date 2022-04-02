@@ -223,7 +223,7 @@ Return an array of the scalar spring forces of all tether segements.
 function spring_forces(s::AKM)
     forces = zeros(SimFloat, s.set.segments)
     for i in 1:s.set.segments
-        forces[i] =  s.c_spring * (norm(s.pos[i+1] - s.pos[i]) - s.length)
+        forces[i] =  s.c_spring * (norm(s.pos[i+1] - s.pos[i]) - s.segment_length)
     end
     forces
 end

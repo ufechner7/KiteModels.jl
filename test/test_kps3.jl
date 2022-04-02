@@ -109,7 +109,7 @@ end
     kps.last_force = KVec3(-1.0, -2, -3)
     kps.v_app_perp = KVec3(0.1,0.22,0.33)
     kps.v_wind_tether .= [0.1, 0.2, 0.3]
-    kps.length = 10.0
+    kps.segment_length = 10.0
     KiteModels.calc_res(kps, pos1, pos2, vel1, vel2, mass, veld, result, i)
     @test result ≈ [ -6.99178740e-03, 1.01297086e-01, 9.83843908e+00]
     i = SEGMENTS+1
@@ -123,9 +123,9 @@ end
     kps.last_force = KVec3(-1.0, -2, -3)
     kps.v_app_perp = KVec3(0.1,0.22,0.33)
     kps.v_wind_tether .= [0.1, 0.2, 0.3]
-    kps.length = 10.0
-    kps.c_spring = kps.set.c_spring / kps.length
-    kps.damping  = kps.set.damping / kps.length
+    kps.segment_length = 10.0
+    kps.c_spring = kps.set.c_spring / kps.segment_length
+    kps.damping  = kps.set.damping / kps.segment_length
     pos  = zeros(SVector{SEGMENTS+1, KVec3})
     for i in 1:SEGMENTS+1
         pos[i][3] = 5.0 * (i-1)
@@ -265,7 +265,7 @@ z= nothing
     end  
     # println(norm(res))
 
-    @test my_state.length ≈ 65.33333333333333
+    @test my_state.segment_length ≈ 65.33333333333333
     @test my_state.c_spring ≈ 9407.142857142859
     @test my_state.damping  ≈  14.479591836734695
     # @test isapprox(my_state.param_cl, 1.0641931441572074, atol=1e-4)
@@ -282,7 +282,7 @@ end
 
 @testset "test_find_steady_state" begin
    KiteModels.set_depower_steering(kps, 0.25, 0.0)
-   res1, res2 = find_steady_state(kps) 
+   res1, res2 = find_steady_state(kps, true) 
    @test norm(res2) < 1e-5                            # velocity and acceleration must be near zero
    pre_tension = KiteModels.calc_pre_tension(kps)
    @test pre_tension > 1.0001
