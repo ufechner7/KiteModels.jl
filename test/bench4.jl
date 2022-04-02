@@ -71,40 +71,6 @@ end
 
 set_defaults()
 
-@testset "calc_particle_forces  " begin
-    init_150()
-    sp = KiteModels.init_springs(kps4)
-    pos1 = [1.0, 2.0, 3.0]
-    pos2 = [2.0, 3.0, 4.0]
-    vel1 = [3.0, 4.0, 5.0]
-    vel2 = [4.0, 5.0, 6.0]
-    rho = kps4.set.rho_0
-    for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1 
-        kps4.forces[i] .= zeros(3)
-    end
-    for i in 1:length(kps4.springs)
-        spring = kps4.springs[i]
-        stiffnes_factor = 0.5
-        kps4.v_wind_tether .= [8.0, 0.1, 0.0]
-        KiteModels.calc_particle_forces(kps4, pos1, pos2, vel1, vel2, spring, stiffnes_factor, se().segments, se().d_tether/1000.0, rho, i)
-    end
-    # Python output
-    res=[[ 18550.4729309395152086  18550.6132232745367219  18550.6305627766196267]
-         [    -0.1986161147506209      0.0819685552924057      0.1166475594582153]
-         [    -0.1986161147506209      0.0819685552924057      0.1166475594582153]
-         [    -0.1986161147506209      0.0819685552924057      0.1166475594582153]
-         [    -0.1986161147506209      0.0819685552924057      0.1166475594582153]
-         [    -0.1986161147506209      0.0819685552924057      0.1166475594582153]
-         [-32417.6381463687685027 -32417.0769770286824496 -32417.0076190203544684]
-         [-20528.0512582440096594 -20527.4900889039272442 -20527.420730895599263 ]
-         [ 12986.35257788861054    12986.7734548936750798  12986.8254733999201562]
-         [ 23289.9810739697131794  23290.5422433097955945  23290.6116013181235758]
-         [ -1883.1033393325606085  -1882.5421699924754648  -1882.4728119841502121]]
-    for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1
-        @test all(res[i,:] .≈ kps4.forces[i])
-    end
-end
-
 # benchmark calc_aero_forces
 t = @benchmark KiteModels.calc_particle_forces(kps4, pos1, pos2, vel1, vel2, spring, stiffnes_factor, segments, d_tether, rho, i) setup=(pos1 = KVec3(1.0, 2.0, 3.0);  
                                         pos2 = KVec3(2.0, 3.0, 4.0); vel1 = KVec3(3.0, 4.0, 5.0); vel2 = KVec3(4.0, 5.0, 6.0); kps4.v_wind_tether.=KVec3(8.0, 0.1, 0.0); spring=kps4.springs[1];
@@ -158,7 +124,10 @@ res =  zeros(MVector{6*(kps4.set.segments+4+1)+2, SimFloat})
 y0, yd0 = KiteModels.init_flat(kps4)
 time = 0.0
 t = @benchmark residual!($res, $yd0, $y0, $kps4, $time)
-push!(msg, ("Mean time residual!:           $(round(mean(t.times), digits=1)) ns, memory: $(t.memory)"))
+push!(msg, ("Mean time residual!:           $(round(mean(t.times), digits=1)) ns"))
+@test t.memory == 0
+# time using Python/ Numba: 8.94 µs, time using Julia 1.7.2: 1.6µs
+
 end
 for i in 1:length(msg)
     println(msg[i])

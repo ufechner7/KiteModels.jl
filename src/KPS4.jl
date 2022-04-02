@@ -363,8 +363,7 @@ Calculate the forces, acting on all particles.
 v_wind_tether: out parameter
 forces:        out parameter
 """
-function inner_loop(s, pos, vel, v_wind_gnd, stiffnes_factor, segments, d_tether)
-    # println("s.set.rho_0: $(s.set.rho_0)")
+@inline function inner_loop(s, pos, vel, v_wind_gnd, stiffnes_factor, segments, d_tether)
     for i in 1:length(s.springs)
         p1 = s.springs[i].p1  # First point nr.
         p2 = s.springs[i].p2  # Second point nr.
@@ -439,8 +438,8 @@ function loop(s::KPS4, pos, vel, posd, veld)
     damping  = s.set.damping / L_0
     c_spring = s.set.c_spring/s.stiffness_factor/L_0 
     for i in 1:s.set.segments
-        s.masses[i] = m_tether_particle
-        s.springs[i] = SP(s.springs[i].p1, s.springs[i].p2, s.segment_length, c_spring, damping)
+        @inbounds s.masses[i] = m_tether_particle
+        @inbounds s.springs[i] = SP(s.springs[i].p1, s.springs[i].p2, s.segment_length, c_spring, damping)
     end
     inner_loop(s, pos, vel, s.v_wind_gnd, s.stiffness_factor, s.set.segments, s.set.d_tether/1000.0)
     for i in 2:particles
@@ -470,7 +469,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
     
     # Reset the force vector to zero.
     for i in 1:segments + KITE_PARTICLES + 1 
-        s.forces[i] .= SVector(0.0,0,0)
+        s.forces[i] .= SVector(0.0, 0, 0)
     end
     length = y[end-1]
     v_reel_out = y[end]
@@ -478,8 +477,10 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
     v_reel_outd = yd[end]
 
     # unpack the vectors y and yd
-    part = reshape(SVector{T}(y[1:end-2]),  Size(3, div(T,6), 2))
-    partd = reshape(SVector{T}(yd[1:end-2]),  Size(3, div(T,6), 2))
+    ys  = @view y[1:T]
+    yds = @view yd[1:T]
+    part  = reshape(SVector{T}(ys),  Size(3, div(T,6), 2))
+    partd = reshape(SVector{T}(yds), Size(3, div(T,6), 2))
     pos1, vel1 = part[:,:,1], part[:,:,2]
     pos = SVector{div(T,6)}(SVector(pos1[:,i]) for i in 1:div(T,6))
     vel = SVector{div(T,6)}(SVector(vel1[:,i]) for i in 1:div(T,6))
@@ -499,7 +500,6 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
         end
     end
     if norm(res) < 10.0
-        # println(norm(res))
         for i in 1:div(T,6)
             @inbounds s.pos[i] .= pos[i]
         end
