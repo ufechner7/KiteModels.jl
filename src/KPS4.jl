@@ -281,7 +281,7 @@ function init_pos_vel(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)))
     pos, vel
 end
 
-function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)))
+function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1))
     delta = 1e-6
     particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k)
     pos = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
@@ -302,6 +302,8 @@ function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)))
         vel[s.set.segments+1+i] .= [delta, delta, delta]
         acc[s.set.segments+1+i] .= [delta, delta, -9.81]
     end
+    pos[s.set.segments+1+3][2] += X[end] # Y position of point C
+    pos[s.set.segments+1+4][2] -= X[end] # Y position of point D
     vcat(pos, vel), vcat(vel, acc)
 end
 
@@ -452,10 +454,10 @@ end
 
     N-point tether model, one point kite at the top:
     Inputs:
-    State vector y   = pos1, pos2, ..., posn, vel1, vel2, ..., veln, length, v_reel_out
-    Derivative   yd  = vel1, vel2, ..., veln, acc1, acc2, ..., accn, lengthd, v_reel_out_d
+    State vector y   = pos1,  pos2, ... , posn,  vel1,  vel2, . .., veln,  length, v_reel_out
+    Derivative   yd  = posd1, posd2, ..., posdn, veld1, veld2, ..., veldn, lengthd, v_reel_outd
     Output:
-    Residual     res = res1, res2 = pos1,  ..., vel1, ...
+    Residual     res = res1, res2 = vel1-posd1,  ..., veld1-acc1, ...
 
     Additional parameters:
     s: Struct with work variables, type KPS3
@@ -464,7 +466,7 @@ The number of the point masses of the model N = (S-2)/6, the state of each point
 is represented by two 3 element vectors.
 """
 function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
-    T = S-2
+    T = S-2 # T: three times the number of particles including the origin
     segments = div(T,6) - KITE_PARTICLES - 1
     
     # Reset the force vector to zero.
@@ -493,10 +495,10 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
     loop(s, pos, vel, posd, veld)
 
     # copy and flatten result
-    for i in 1:div(T,6)
+    for i in 2:div(T,6)
         for j in 1:3
-            @inbounds res[3*(i-1)+j] = s.res1[i][j]
-            @inbounds res[3*(div(T,6))+3*(i-1)+j] = s.res2[i][j]
+            res[3*(i-2)+j]                = s.res1[i][j]
+            res[3*(div(T,6)-1)+3*(i-2)+j] = s.res2[i][j]
         end
     end
     if norm(res) < 10.0
@@ -509,4 +511,34 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
     res[end-1] = 0.0
     res[end]   = 0.0
     nothing
+end
+
+"""
+    find_steady_state(s::KPS4, prn=false)
+
+Find an initial equilibrium, based on the inital parameters
+`l_tether`, elevation and `v_reel_out`.
+"""
+function find_steady_state(s::KPS4, prn=false)
+    res = zeros(MVector{6*(s.set.segments+KITE_PARTICLES)+2, SimFloat})
+
+    # helper function for the steady state finder
+    function test_initial_condition!(F, x::Vector)
+        y0, yd0 = init_flat(s, x)
+        residual!(res, yd0, y0, s, 0.0)
+        for i in 1:s.set.segments+KITE_PARTICLES
+            # copy the x-component of the residual res2 (acceleration)
+            F[i]                               = res[1 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)]
+            # copy the z-component of the residual
+            F[i+s.set.segments+KITE_PARTICLES] = res[3 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)]
+        end
+        # copy the acceleration of point C in y direction
+        i = s.set.segments+3
+        F[end]                                 = res[2 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)] 
+        return nothing 
+    end
+    if prn println("\nStarted function test_nlsolve...") end
+    results = nlsolve(test_initial_condition!, zeros(SimFloat, 2*(s.set.segments+KITE_PARTICLES)+1))
+    if prn println("\nresult: $results") end
+    init(s, results.zero)
 end

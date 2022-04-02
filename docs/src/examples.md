@@ -27,7 +27,7 @@ copy_settings()
 First an instance of the model of the kite control unit (KCU) is created which is needed by the Kite Power System model KPS3. Then we create a kps instance, passing the kcu model as parameter. We need to declare these variables as const to achieve a decent performance.
 ```julia
 using KiteModels
-using KitePodSimulator
+using KitePodModels
 const kcu = KCU()
 const kps = KPS3(kcu)
 ```

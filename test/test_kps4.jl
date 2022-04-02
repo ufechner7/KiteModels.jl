@@ -312,7 +312,7 @@ end
     kps4.alpha_depower = -0.820659579962 
     kps4.stiffness_factor = 0.04
     kps4.set.alpha_zero = 0.0
-    res =  zeros(MVector{6*(kps4.set.segments+4+1)+2, SimFloat})
+    res =  zeros(MVector{6*(kps4.set.segments+4)+2, SimFloat})
     y0, yd0 = KiteModels.init_flat(kps4)
     y0s = """-0.             0.000001             -0.                   12.5000000000000036
             0.000001             21.6506350946109656   25.0000000000000071
@@ -345,8 +345,9 @@ end
     @test sum(y0) ≈ 1716.23568958026658
     @test sum(yd0) ≈ -98.09994900000005
     time = 0.0
-    @test length(res) == length(y0)
+    @test length(res) == length(y0)-6
     residual!(res, yd0, y0, kps4, time)
+    println("length(res): $(length(res))")
     res1, res2 = kps4.res1, kps4.res2
     height = calc_height(kps4)
     # @test height ≈ 134.14733504839947
@@ -370,6 +371,30 @@ end
         @test all(res2_[i, :] .≈ res2[i])
     end
 
+end
+
+@testset "test_find_steady_state" begin
+    KiteModels.set_depower_steering(kps4, 0.25, 0.0)
+    init2()
+    kps4.alpha_depower = -0.820659579962 
+    kps4.v_wind_gnd .= [9.0, 0.0, 0.0]
+    height = 134.14733504839947
+    kps4.v_wind .= kps4.v_wind_gnd * calc_wind_factor(kps4, height)    
+    kps4.stiffness_factor = 0.5
+    kps4.set.alpha_zero = 0.0   
+    res1, res2 = find_steady_state(kps4, true) 
+#    @test norm(res2) < 1e-5                            # velocity and acceleration must be near zero
+#    pre_tension = KiteModels.calc_pre_tension(kps)
+#    @test pre_tension > 1.0001
+#    @test pre_tension < 1.01
+#    @test unstretched_length(kps) ≈ 392.0              # initial, unstreched tether lenght
+#    @test tether_length(kps) ≈ 392.1861381318156 # real, streched tether length
+#    @test winch_force(kps) ≈ 276.25776695110034        # initial force at the winch [N]
+#    lift, drag = lift_drag(kps)
+#    @test lift ≈ 443.63303000106197                    # initial lift force of the kite [N]
+#    @test drag ≈ 94.25223134952152                     # initial drag force of the kite [N]
+#    @test lift_over_drag(kps) ≈ 4.706870316479931      # initlal lift-over-drag
+#    @test norm(v_wind_kite(kps)) ≈ 9.107670173739065   # inital wind speed at the height of the kite [m/s]
 end
 
 end

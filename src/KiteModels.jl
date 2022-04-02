@@ -117,6 +117,9 @@ Calculate the relative wind speed at a given height and reference height.
     if typeof(profile_law) != ProfileLaw
         profile_law = ProfileLaw(profile_law)
     end
+    if height < s.set.h_ref
+        height = s.set.h_ref
+    end
     if profile_law == EXP
         return exp(s.set.alpha * log(height/s.set.h_ref))
     elseif profile_law == LOG

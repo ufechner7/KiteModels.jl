@@ -384,7 +384,7 @@ function find_steady_state(s::KPS3, prn=false)
         y0, yd0 = init(s, x)
         residual!(res, yd0, y0, s, 0.0)
         for i in 1:s.set.segments
-            F[i] = res[1 + 3*(i-1) + 3*s.set.segments]
+            F[i]                = res[1 + 3*(i-1) + 3*s.set.segments]
             F[i+s.set.segments] = res[3 + 3*(i-1) + 3*s.set.segments]
         end
         return nothing 
