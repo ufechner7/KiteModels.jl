@@ -313,7 +313,7 @@ end
     kps4.stiffness_factor = 0.04
     kps4.set.alpha_zero = 0.0
     res =  zeros(MVector{6*(kps4.set.segments+4)+2, SimFloat})
-    y0, yd0 = KiteModels.init_flat(kps4)
+    y0, yd0 = KiteModels.init_flat(kps4; old=true)
     y0s = """-0.             0.000001             -0.                   12.5000000000000036
             0.000001             21.6506350946109656   25.0000000000000071
             0.000001             43.3012701892219312   37.5000000000000071
@@ -380,7 +380,7 @@ end
     kps4.v_wind_gnd .= [9.0, 0.0, 0.0]
     height = 134.14733504839947
     kps4.v_wind .= kps4.v_wind_gnd * calc_wind_factor(kps4, height)    
-    kps4.stiffness_factor = 0.5
+    kps4.stiffness_factor = 1.0
     kps4.set.alpha_zero = 0.0   
     res1, res2 = find_steady_state(kps4, true) 
 #    @test norm(res2) < 1e-5                            # velocity and acceleration must be near zero

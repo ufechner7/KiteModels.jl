@@ -277,7 +277,7 @@ function init_pos_vel(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)))
         pos[i+1] .= [-cos_el * radius + X[i], delta, -sin_el * radius + X[s.set.segments+i]]
         vel[i+1] .= [delta, delta, 0]
     end
-    particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k, pos[s.set.segments+1])
+    particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k)
     for i in 1:KITE_PARTICLES
         pos[s.set.segments+1+i] .= particles[i+2] + [X[2*s.set.segments+i], 0, X[2*s.set.segments+KITE_PARTICLES+i]]
         vel[s.set.segments+1+i] .= [delta, delta, delta]
@@ -285,7 +285,7 @@ function init_pos_vel(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)))
     pos, vel
 end
 
-function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1))
+function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1); old=false)
     delta = 1e-6
     pos = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
     vel = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
@@ -296,12 +296,20 @@ function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1))
     sin_el, cos_el = sin(s.set.elevation / 180.0 * pi), cos(s.set.elevation / 180.0 * pi)
     for i in 1:s.set.segments
         radius = -i * (s.set.l_tether/s.set.segments)
-        pos[i+1] .= [-cos_el * radius + X[i] + X0[i], delta, -sin_el * radius + X[s.set.segments+i] + X0[s.set.segments+i]]
+        if old
+            pos[i+1] .= [-cos_el * radius + X[i], delta, -sin_el * radius + X[s.set.segments+i]]
+        else
+            pos[i+1] .= [-cos_el * radius + X[i] + X0[i], delta, -sin_el * radius + X[s.set.segments+i] + X0[s.set.segments+i]]
+        end
         vel[i+1] .= [delta, delta, 0]
         acc[i+1] .= [delta, delta, -9.81]
     end
     vec_c = pos[6] - pos[7]
-    particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k, pos[s.set.segments+1], vec_c, s.v_apparent)
+    if old
+        particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k)
+    else
+        particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k, pos[s.set.segments+1], vec_c, s.v_apparent)
+    end
     for i in 1:KITE_PARTICLES
         pos[s.set.segments+1+i] .= particles[i+2] + [X[2*s.set.segments+i], 0, X[2*s.set.segments+KITE_PARTICLES+i]]
         vel[s.set.segments+1+i] .= [delta, delta, delta]
@@ -316,8 +324,8 @@ function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1))
 end
 
 # same as above, but returns a tuple of two one dimensional arrays
-function init_flat(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)))
-    res1_, res2_ = init(s, X)
+function init_flat(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)); old=false)
+    res1_, res2_ = init(s, X; old=old)
     res1, res2  = reduce(vcat, res1_), reduce(vcat, res2_)
     # append the initial reel-out length and it's derivative
     res1 = vcat(res1, SVector(s.set.l_tether, s.set.v_reel_out))
@@ -409,9 +417,9 @@ function calc_aero_forces(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
     va_xy3 = va_3 - dot(va_3, z) * z
     va_xy4 = va_4 - dot(va_4, z) * z
 
-    alpha_2 = (pi - acos(dot(normalize(va_xz2), x)) - alpha_depower) * 360.0 / pi + s.set.alpha_zero
-    alpha_3 = (pi - acos(dot(normalize(va_xy3), x)) - rel_steering * KS) * 360.0 / pi + s.set.alpha_ztip
-    alpha_4 = (pi - acos(dot(normalize(va_xy4), x)) + rel_steering * KS) * 360.0 / pi + s.set.alpha_ztip
+    alpha_2 = (pi - acos(max(dot(normalize(va_xz2), x), -1.0)) - alpha_depower) * 360.0 / pi + s.set.alpha_zero
+    alpha_3 = (pi - acos(max(dot(normalize(va_xy3), x), -1.0)) - rel_steering * KS) * 360.0 / pi + s.set.alpha_ztip
+    alpha_4 = (pi - acos(max(dot(normalize(va_xy4), x), -1.0)) + rel_steering * KS) * 360.0 / pi + s.set.alpha_ztip
 
     CL2, CD2 = calc_cl(alpha_2), DRAG_CORR * calc_cd(alpha_2)
     CL3, CD3 = calc_cl(alpha_3), DRAG_CORR * calc_cd(alpha_3)
