@@ -527,10 +527,10 @@ function spring_forces(s::KPS4)
         forces[i] =  s.springs[i].c_spring * (norm(s.pos[i+1] - s.pos[i]) - s.segment_length)
     end
     for i in 1:KITE_SPRINGS
-        p1 = s.springs[i].p1  # First point nr.
-        p2 = s.springs[i].p2  # Second point nr.
+        p1 = s.springs[i+s.set.segments].p1  # First point nr.
+        p2 = s.springs[i+s.set.segments].p2  # Second point nr.
         pos1, pos2 = s.pos[p1], s.pos[p2]
-        spring = s.springs[i]
+        spring = s.springs[i+s.set.segments]
         l_0 = spring.length # Unstressed length
         k = spring.c_spring * s.stiffness_factor       # Spring constant 
         s.segment .= pos1 - pos2
@@ -541,7 +541,7 @@ function spring_forces(s::KPS4)
         else 
             s.spring_force .= k1 *  (norm1 - l_0)
         end
-        forces[i] = norm(s.spring_force)
+        forces[i+s.set.segments] = norm(s.spring_force)
     end
     forces
 end
