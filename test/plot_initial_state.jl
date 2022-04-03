@@ -1,11 +1,3 @@
-using KiteModels
-using KitePodModels
-using KiteUtils
-using Plots
-
-const kcu = KCU()
-const kps4 = KPS4(kcu)
-
 function init_150()
     KiteModels.clear(kps4)
     kps4.set.l_tether = 150.0
@@ -42,6 +34,11 @@ function init2()
     return pos, vel, posd, veld
 end
 
+function plot2d(x, z)
+    plot(x,z, xlabel="x [m]", ylabel="z [m]", legend=false)
+    plot!(x, z, seriestype = :scatter)
+end
+
 KiteModels.set_depower_steering(kps4, 0.25, 0.0)
 
 x0 = Float64[] 
@@ -52,9 +49,9 @@ if typeof(kps4) <: KPS4
         push!(x0, pos[i][1])
         push!(z0, pos[i][3])
     end
-    kps4.alpha_depower = -0.820659579962 
+    kps4.alpha_depower = deg2rad(2.2095658807330962) # from one point simulation
     kps4.v_wind_gnd .= [9.0, 0.0, 0.0]
-    height = 134.14733504839947
+    height = 134.14733504839947                      # from one point simulation
     kps4.v_wind .= kps4.v_wind_gnd * calc_wind_factor(kps4, height)    
     kps4.stiffness_factor = 0.1
     kps4.set.alpha_zero = 0.0   
@@ -72,8 +69,8 @@ for i in 1:length(kps4.pos)
      push!(z, kps4.pos[i][3])
 end
 
-plot(x,z, xlabel="x [m]", ylabel="z [m]", legend=false)
-plot!(x, z, seriestype = :scatter)
+println(KiteModels.spring_forces(kps4))
+println("alpha_depower [deg]: $(rad2deg(kps4.alpha_depower))")
+println("lift, drag    [N]  : $(KiteModels.lift_drag(kps4))")
 
-
-
+plot2d(x, z)
