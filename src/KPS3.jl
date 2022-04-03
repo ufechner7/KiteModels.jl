@@ -372,6 +372,19 @@ function init(s::KPS3, X; output=false)
 end
 
 """
+    spring_forces(s::AKM)
+
+Return an array of the scalar spring forces of all tether segements.
+"""
+function spring_forces(s::KPS3)
+    forces = zeros(SimFloat, s.set.segments)
+    for i in 1:s.set.segments
+        forces[i] =  s.c_spring * (norm(s.pos[i+1] - s.pos[i]) - s.segment_length)
+    end
+    forces
+end
+
+"""
     find_steady_state(s::KPS3, prn=false)
 
 Find an initial equilibrium, based on the inital parameters
@@ -390,6 +403,7 @@ function find_steady_state(s::KPS3, prn=false)
         end
         return nothing 
     end
+
     if prn println("\nStarted function test_nlsolve...") end
     results = nlsolve(test_initial_condition!, zeros(SimFloat, 2*s.set.segments))
     if prn println("\nresult: $results") end

@@ -97,6 +97,10 @@ $(TYPEDFIELDS)
     v_wind_tether::T =    zeros(S, 3)
     "apparent wind vector at the kite"
     v_apparent::T =       zeros(S, 3)
+    "drag force of kite and bridle; output of calc_aero_forces"
+    drag_force::T =       zeros(S, 3)
+    "lift force of the kite; output of calc_aero_forces"
+    lift_force::T =       zeros(S, 3)    
     "spring force of the current tether segment, output of calc_particle_forces"
     spring_force::T =     zeros(S, 3)
     segment::T =          zeros(S, 3)
@@ -151,6 +155,8 @@ function clear(s::KPS4)
     for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1 
         s.forces[i] .= zeros(3)
     end
+    s.drag_force .= [0.0, 0, 0]
+    s.lift_force .= [0.0, 0, 0]
     s.rho = s.set.rho_0
     s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
     s.calc_cd = Spline1D(s.set.alpha_cd, s.set.cd_list) 
@@ -414,6 +420,8 @@ function calc_aero_forces(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
     D2 = (-0.5 * K * rho * norm(va_2) * s.set.area * CD2) * va_2
     D3 = (-0.5 * K * rho * norm(va_3) * s.set.area * rel_side_area * CD3) * va_3
     D4 = (-0.5 * K * rho * norm(va_4) * s.set.area * rel_side_area * CD4) * va_4
+    s.lift_force .= L2
+    s.drag_force .= D2 + D3 + D4
     s.forces[s.set.segments + 3] .+= (L2 + D2)
     s.forces[s.set.segments + 4] .+= (L3 + D3)
     s.forces[s.set.segments + 5] .+= (L4 + D4)
@@ -511,6 +519,31 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
     res[end-1] = 0.0
     res[end]   = 0.0
     nothing
+end
+
+function spring_forces(s::KPS4)
+    forces = zeros(SimFloat, s.set.segments+KITE_SPRINGS)
+    for i in 1:s.set.segments
+        forces[i] =  s.springs[i].c_spring * (norm(s.pos[i+1] - s.pos[i]) - s.segment_length)
+    end
+    for i in 1:KITE_SPRINGS
+        p1 = s.springs[i].p1  # First point nr.
+        p2 = s.springs[i].p2  # Second point nr.
+        pos1, pos2 = s.pos[p1], s.pos[p2]
+        spring = s.springs[i]
+        l_0 = spring.length # Unstressed length
+        k = spring.c_spring * s.stiffness_factor       # Spring constant 
+        s.segment .= pos1 - pos2
+        norm1 = norm(s.segment)
+        k1 = 0.25 * k # compression stiffness kite segments
+        if (norm1 - l_0) > 0.0
+            s.spring_force .= k *  (norm1 - l_0) 
+        else 
+            s.spring_force .= k1 *  (norm1 - l_0)
+        end
+        forces[i] = norm(s.spring_force)
+    end
+    forces
 end
 
 """

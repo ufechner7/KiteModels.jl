@@ -216,19 +216,6 @@ Return the absolute value of the force at the winch as calculated during the las
 function winch_force(s::AKM) norm(s.last_force) end
 
 """
-    spring_forces(s::AKM)
-
-Return an array of the scalar spring forces of all tether segements.
-"""
-function spring_forces(s::AKM)
-    forces = zeros(SimFloat, s.set.segments)
-    for i in 1:s.set.segments
-        forces[i] =  s.c_spring * (norm(s.pos[i+1] - s.pos[i]) - s.segment_length)
-    end
-    forces
-end
-
-"""
     lift_drag(s::AKM)
 
 Return a tuple of the scalar lift and drag forces. 
