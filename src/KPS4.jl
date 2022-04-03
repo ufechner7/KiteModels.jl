@@ -57,6 +57,9 @@ end
 const SP = Spring{Int16, Float64}
 const KITE_PARTICLES = 4
 const KITE_SPRINGS = 9
+const KITE_ANGLE = 4.5 # angle between the kite and the last tether segment due to the mass of the control pod
+const DELTA_MAX = 70.0
+const MAX_INTER  = 1000  # max interations for steady state finder
 const PRE_STRESS  = 0.9998   # Multiplier for the initial spring lengths.
 const KS = deg2rad(16.565 * 1.064 * 0.875 * 1.033 * 0.9757 * 1.083)  # max steering
 const DRAG_CORR = 0.93       # correction of the drag for the 4-point model
@@ -285,7 +288,7 @@ function init_pos_vel(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)))
     pos, vel
 end
 
-function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1); old=false)
+function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false)
     delta = 1e-6
     pos = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
     vel = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
@@ -308,13 +311,15 @@ function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1); old=false
     if old
         particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k)
     else
-        particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k, pos[s.set.segments+1], vec_c, s.v_apparent)
+        particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k, pos[s.set.segments+1], rotate_in_xz(vec_c, deg2rad(KITE_ANGLE)), s.v_apparent)
     end
-    for i in 1:KITE_PARTICLES
+    for i in 1:KITE_PARTICLES-1
         pos[s.set.segments+1+i] .= particles[i+2] + [X[2*s.set.segments+i], 0, X[2*s.set.segments+KITE_PARTICLES+i]]
         vel[s.set.segments+1+i] .= [delta, delta, delta]
         acc[s.set.segments+1+i] .= [delta, delta, -9.81]
     end
+    pos[s.set.segments+1+4][1] = pos[s.set.segments+1+3][1] # x and z component of the right and left particle must be equal 
+    pos[s.set.segments+1+4][3] = pos[s.set.segments+1+3][3]
     pos[s.set.segments+1+3][2] += X[end] # Y position of point C
     pos[s.set.segments+1+4][2] -= X[end] # Y position of point D
     for i in 1:length(pos)
@@ -324,7 +329,7 @@ function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1); old=false
 end
 
 # same as above, but returns a tuple of two one dimensional arrays
-function init_flat(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)); old=false)
+function init_flat(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)); old=false)
     res1_, res2_ = init(s, X; old=old)
     res1, res2  = reduce(vcat, res1_), reduce(vcat, res2_)
     # append the initial reel-out length and it's derivative
@@ -417,9 +422,9 @@ function calc_aero_forces(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
     va_xy3 = va_3 - dot(va_3, z) * z
     va_xy4 = va_4 - dot(va_4, z) * z
 
-    alpha_2 = (pi - acos(max(dot(normalize(va_xz2), x), -1.0)) - alpha_depower) * 360.0 / pi + s.set.alpha_zero
-    alpha_3 = (pi - acos(max(dot(normalize(va_xy3), x), -1.0)) - rel_steering * KS) * 360.0 / pi + s.set.alpha_ztip
-    alpha_4 = (pi - acos(max(dot(normalize(va_xy4), x), -1.0)) + rel_steering * KS) * 360.0 / pi + s.set.alpha_ztip
+    alpha_2 = (pi - acos(max(dot(normalize(va_xz2), x), -1.0)) - alpha_depower) * 180.0 / pi + s.set.alpha_zero
+    alpha_3 = (pi - acos(max(dot(normalize(va_xy3), x), -1.0)) - rel_steering * KS) * 180.0 / pi + s.set.alpha_ztip
+    alpha_4 = (pi - acos(max(dot(normalize(va_xy4), x), -1.0)) + rel_steering * KS) * 180.0 / pi + s.set.alpha_ztip
 
     CL2, CD2 = calc_cl(alpha_2), DRAG_CORR * calc_cd(alpha_2)
     CL3, CD3 = calc_cl(alpha_3), DRAG_CORR * calc_cd(alpha_3)
@@ -431,6 +436,7 @@ function calc_aero_forces(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
     D3 = (-0.5 * K * rho * norm(va_3) * s.set.area * rel_side_area * CD3) * va_3
     D4 = (-0.5 * K * rho * norm(va_4) * s.set.area * rel_side_area * CD4) * va_4
     s.lift_force .= L2
+    # println("D2, D3, D4: $D2, $D3, $D4")
     s.drag_force .= D2 + D3 + D4
     s.forces[s.set.segments + 3] .+= (L2 + D2)
     s.forces[s.set.segments + 4] .+= (L3 + D3)
@@ -563,8 +569,8 @@ Find an initial equilibrium, based on the inital parameters
 `l_tether`, elevation and `v_reel_out`.
 """
 function find_steady_state(s::KPS4, prn=false)
-    DELTA_MAX = 50.0
     res = zeros(MVector{6*(s.set.segments+KITE_PARTICLES)+2, SimFloat})
+    iter = 0
 
     # helper function for the steady state finder
     function test_initial_condition!(F, x::Vector)
@@ -576,9 +582,12 @@ function find_steady_state(s::KPS4, prn=false)
                 x1[i] = -0.9*DELTA_MAX +x[i]
             end
         end
+        if iter > 500
+            s.stiffness_factor = 0.1 # + iter/500 * 0.1
+        end
         y0, yd0 = init_flat(s, x1)
         residual!(res, yd0, y0, s, 0.0)
-        for i in 1:s.set.segments+KITE_PARTICLES
+        for i in 1:s.set.segments+KITE_PARTICLES-1
             # copy the x-component of the residual res2 (acceleration)
             F[i]                               = res[1 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)]
             # copy the z-component of the residual res2
@@ -587,10 +596,20 @@ function find_steady_state(s::KPS4, prn=false)
         # copy the acceleration of point C in y direction
         i = s.set.segments+3
         F[end]                                 = res[2 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)] 
+        iter += 1
         return nothing 
     end
     if prn println("\nStarted function test_nlsolve...") end
-    results = nlsolve(test_initial_condition!, zeros(SimFloat, 2*(s.set.segments+KITE_PARTICLES)+1), autoscale=true, iterations=2000)
+    results = nlsolve(test_initial_condition!, zeros(SimFloat, 2*(s.set.segments+KITE_PARTICLES-1)+1), autoscale=true, iterations=MAX_INTER)
     if prn println("\nresult: $results") end
     init(s, results.zero)
+end
+
+# rotate a 3d vector around the y axis
+function rotate_in_xz(vec, angle)
+    result = similar(vec)
+    result[1] = cos(angle) * vec[1] - sin(angle) * vec[3]
+    result[2] = vec[2]
+    result[3] = cos(angle) * vec[3] + sin(angle) * vec[1]
+    result
 end
