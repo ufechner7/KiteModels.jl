@@ -319,7 +319,7 @@ end
 # length(x) == 2*SEGMENTS
 # Returns:
 # res, a single vector consisting of the elements of y0 and yd0
-function init(s::KPS3, X; output=false)
+function init(s::KPS3, X=zeros(SimFloat, 2*s.set.segments); output=false)
     pos = zeros(SVector{s.set.segments+1, KVec3})
     vel = zeros(SVector{s.set.segments+1, KVec3})
     acc = zeros(SVector{s.set.segments+1, KVec3})

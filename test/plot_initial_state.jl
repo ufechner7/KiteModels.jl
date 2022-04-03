@@ -15,7 +15,7 @@ end
 function init2()
     kps4.set.alpha = 1.0/7.0
     init_150()
-    kps4.set.elevation = 60.0
+    kps4.set.elevation = 70.7 
     kps4.set.profile_law = Int(EXP)
     kps4.set.l_tether = 150.0
     pos, vel = KiteModels.init_pos_vel(kps4)
@@ -45,10 +45,6 @@ x0 = Float64[]
 z0 = Float64[]
 if typeof(kps4) <: KPS4
     pos, vel, posd, veld = init2()
-    for i in 1:length(pos)
-        push!(x0, pos[i][1])
-        push!(z0, pos[i][3])
-    end
     kps4.alpha_depower = deg2rad(2.2095658807330962) # from one point simulation
     kps4.v_wind_gnd .= [9.0, 0.0, 0.0]
     height = 134.14733504839947                      # from one point simulation
@@ -57,20 +53,27 @@ if typeof(kps4) <: KPS4
     kps4.set.alpha_zero = 0.0   
 end
 
-plot(x0,z0, xlabel="x [m]", ylabel="z [m]", legend=false)
-plot!(x0, z0, seriestype = :scatter)
+y0, yd0 = KiteModels.init(kps4)
+
+for i in 1:length(kps4.pos)
+     push!(x0, kps4.pos[i][1])
+     push!(z0, kps4.pos[i][3])
+end
 
 find_steady_state(kps4, true)
 
 x = Float64[] 
 z = Float64[]
+
 for i in 1:length(kps4.pos)
      push!(x, kps4.pos[i][1])
      push!(z, kps4.pos[i][3])
 end
 
+println("kite distance: $(norm(kps4.pos[7]))")
 println(KiteModels.spring_forces(kps4))
 println("alpha_depower [deg]: $(rad2deg(kps4.alpha_depower))")
 println("lift, drag    [N]  : $(KiteModels.lift_drag(kps4))")
 
 plot2d(x, z)
+
