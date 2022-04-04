@@ -35,15 +35,15 @@ Scientific background: http://arxiv.org/abs/1406.6218 =#
 # Array of connections of bridlepoints.
 # First point, second point, unstressed length.
 const SPRINGS_INPUT = [0.    1.  150.
-                       1.    2.   -1.
-                       2.    3.   -1.
-                       3.    4.   -1.
-                       3.    5.   -1.
-                       4.    1.   -1.
-                       5.    1.   -1.
-                       4.    5.   -1.
-                       4.    2.   -1.
-                       5.    2.   -1.]
+                       1.    2.   -1. # s1, p7, p8
+                       2.    3.   -1. # s2, p8, p9
+                       3.    4.   -1. # s3, p9, p10
+                       3.    5.   -1. # s4, p9, p11
+                       4.    1.   -1. # s5, p10, p7
+                       5.    1.   -1. # s6, p11, p7 not in diagram
+                       4.    5.   -1. # s7, p10, p11
+                       4.    2.   -1. # s9, p10, p8 
+                       5.    2.   -1.]# s9, p11, p8
 
 # struct, defining the phyical parameters of one spring
 @with_kw struct Spring{I, S}
@@ -57,9 +57,9 @@ end
 const SP = Spring{Int16, Float64}
 const KITE_PARTICLES = 4
 const KITE_SPRINGS = 9
-const KITE_ANGLE = 4.5 # angle between the kite and the last tether segment due to the mass of the control pod
-const DELTA_MAX = 70.0
-const MAX_INTER  = 1000  # max interations for steady state finder
+const KITE_ANGLE = 4.8 # angle between the kite and the last tether segment due to the mass of the control pod
+const DELTA_MAX = 60.0
+const MAX_INTER  = 1  # max interations for steady state finder
 const PRE_STRESS  = 0.9998   # Multiplier for the initial spring lengths.
 const KS = deg2rad(16.565 * 1.064 * 0.875 * 1.033 * 0.9757 * 1.083)  # max steering
 const DRAG_CORR = 0.93       # correction of the drag for the 4-point model
@@ -196,6 +196,8 @@ end
 """ 
 Calculate the initial positions of the particels representing 
 a 4-point kite, connected to a kite control unit (KCU). 
+Parameters:
+- mk: relative nose distance
 """
 function get_particles(height_k, height_b, width, m_k, pos_pod= [ 75., 0., 129.90381057], vec_c=[-15., 0., -25.98076211], v_app=[10.4855, 0, -3.08324])
     # inclination angle of the kite; beta = atan(-pos_kite[2], pos_kite[1]) ???
@@ -206,12 +208,15 @@ function get_particles(height_k, height_b, width, m_k, pos_pod= [ 75., 0., 129.9
     h_kz = height_k * sin(beta); # print 'h_kz: ', h_kz
     h_bx = height_b * cos(beta)
     h_bz = height_b * sin(beta)
-    pos_kite = pos_pod - (h_kz + h_bz) * z + (h_kx + h_bx) * x
-    pos3 = pos_kite + h_kz * z + 0.5 * width * y + h_kx * x
-    pos1 = pos_kite + h_kz * z + (h_kx + width * m_k) * x
-    pos4 = pos_kite + h_kz * z - 0.5 * width * y + h_kx * x
-    pos0 = pos_kite + (h_kz + h_bz) * z + (h_kx + h_bx) * x
-    [zeros(3), pos0, pos1, pos_kite, pos3, pos4]
+    pos_kite = pos_pod - (h_kz + h_bz) * z + (h_kx + h_bx) * x  # center,     P_C in diagram
+    pos3 = pos_kite + h_kz * z + 0.5 * width * y + h_kx * x     # side point, point C in diatram
+    pos1 = pos_kite + h_kz * z + (h_kx + width * m_k) * x       # nose,       point A in diagram
+    pos4 = pos_kite + h_kz * z - 0.5 * width * y + h_kx * x     # side point, point D in diagram
+    pos0 = pos_kite + (h_kz + h_bz) * z + (h_kx + h_bx) * x     # equal to pos_pod, P_KCU in diagram
+    # println("norm(pos1-pos3) $(norm(pos1-pos3))")             # S2 p8 p9 
+    # println("norm(pos4-pos3) $(norm(pos4-pos3))")             # S3 p9 p10
+    println("norm(pos1-pos4) $(norm(pos1-pos4))")               # S9 p11 p8
+    [zeros(3), pos0, pos1, pos3, pos4, pos_kite] # 0, p7, p8, p9, p10, p11, pos_kite
 end
 
 function calc_height(s::KPS4)
@@ -233,12 +238,21 @@ function init_springs(s::KPS4)
         # build the bridle segments
         else
             p0, p1 = SPRINGS_INPUT[j, 1]+1, SPRINGS_INPUT[j, 2]+1 # point 0 and 1
+            # if p0 >= 3 
+            #     p0 +=1
+            # end
+            # if p1 >= 3
+            #     p1+=1
+            # end
             if SPRINGS_INPUT[j, 3] == -1
                 l_0 = norm(particles[Int(p1)] - particles[Int(p0)]) * PRE_STRESS
                 k = s.set.e_tether * (s.set.d_line/2000.0)^2 * pi / l_0
                 p0 += s.set.segments - 1 # correct the index for the start and end particles of the bridle
                 p1 += s.set.segments - 1
                 c = s.set.damping/ l_0
+                if j+s.set.segments-1 == 15
+                    println("s9: $(l_0), $p0, $p1")
+                end
                 s.springs[j+s.set.segments-1] = SP(Int(p0), Int(p1), l_0, k, c)
             end
         end
@@ -300,9 +314,9 @@ function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=fal
     for i in 1:s.set.segments
         radius = -i * (s.set.l_tether/s.set.segments)
         if old
-            pos[i+1] .= [-cos_el * radius + X[i], delta, -sin_el * radius + X[s.set.segments+i]]
+            pos[i+1] .= [-cos_el * radius + X[i], delta, -sin_el * radius + X[s.set.segments+KITE_PARTICLES-1+i]]
         else
-            pos[i+1] .= [-cos_el * radius + X[i] + X0[i], delta, -sin_el * radius + X[s.set.segments+i] + X0[s.set.segments+i]]
+            pos[i+1] .= [-cos_el * radius + X[i] + X0[i], delta, -sin_el * radius + X[s.set.segments+KITE_PARTICLES-1+i] + X0[s.set.segments+i]]
         end
         vel[i+1] .= [delta, delta, 0]
         acc[i+1] .= [delta, delta, -9.81]
@@ -313,18 +327,20 @@ function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=fal
     else
         particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k, pos[s.set.segments+1], rotate_in_xz(vec_c, deg2rad(KITE_ANGLE)), s.v_apparent)
     end
-    for i in 1:KITE_PARTICLES-1
-        pos[s.set.segments+1+i] .= particles[i+2] + [X[2*s.set.segments+i], 0, X[2*s.set.segments+KITE_PARTICLES+i]]
+    for i in [1,2,4]
+        j = i + 2
+        pos[s.set.segments+1+i] .= particles[j] + [X[s.set.segments+i], 0, X[2*s.set.segments+KITE_PARTICLES-1+i]]
         vel[s.set.segments+1+i] .= [delta, delta, delta]
         acc[s.set.segments+1+i] .= [delta, delta, -9.81]
     end
-    pos[s.set.segments+1+4][1] = pos[s.set.segments+1+3][1] # x and z component of the right and left particle must be equal 
-    pos[s.set.segments+1+4][3] = pos[s.set.segments+1+3][3]
-    pos[s.set.segments+1+3][2] += X[end] # Y position of point C
-    pos[s.set.segments+1+4][2] -= X[end] # Y position of point D
+    pos[s.set.segments+1+3][1] = pos[s.set.segments+1+2][1] # x and z component of the right and left particle must be equal 
+    pos[s.set.segments+1+3][3] = pos[s.set.segments+1+2][3]
+    pos[s.set.segments+1+2][2] += X[end] # Y position of point C
+    pos[s.set.segments+1+3][2] -= X[end] # Y position of point D
     for i in 1:length(pos)
         s.pos[i] .= pos[i]
     end
+    println("pos[8], pos[11]: $(pos[8]), $(pos[11])")
     vcat(pos, vel), vcat(vel, acc)
 end
 
@@ -343,9 +359,9 @@ Calculate the drag force of the tether segment, defined by the parameters pos1, 
 and distribute it equally on the two particles, that are attached to the segment.
 The result is stored in the array s.forces. 
 """
-@inline function calc_particle_forces(s, pos1, pos2, vel1, vel2, spring, stiffnes_factor, segments, d_tether, rho, i)
+@inline function calc_particle_forces(s, pos1, pos2, vel1, vel2, spring, segments, d_tether, rho, i)
     l_0 = spring.length # Unstressed length
-    k = spring.c_spring * stiffnes_factor       # Spring constant
+    k = spring.c_spring * s.stiffness_factor  # Spring constant
     c = spring.damping  # Damping coefficient    
     s.segment .= pos1 - pos2
     rel_vel = vel1 - vel2
@@ -359,7 +375,7 @@ The result is stored in the array s.forces.
     spring_vel   = dot(unit_vector, rel_vel)
     if (norm1 - l_0) > 0.0
         if i > segments  # kite springs
-             s.spring_force .= (k *  (norm1 - l_0) + (c1 * spring_vel)) * unit_vector
+             s.spring_force .= (k *  (norm1 - l_0) + (c1 * spring_vel)) * unit_vector 
         else
              s.spring_force .= (k *  (norm1 - l_0) + (c * spring_vel)) * unit_vector
         end
@@ -386,14 +402,14 @@ Calculate the forces, acting on all particles.
 v_wind_tether: out parameter
 forces:        out parameter
 """
-@inline function inner_loop(s, pos, vel, v_wind_gnd, stiffnes_factor, segments, d_tether)
+@inline function inner_loop(s, pos, vel, v_wind_gnd, segments, d_tether)
     for i in 1:length(s.springs)
         p1 = s.springs[i].p1  # First point nr.
         p2 = s.springs[i].p2  # Second point nr.
         height = 0.5 * (pos[p1][3] + pos[p2][3])
         rho = calc_rho(s, height)
         s.v_wind_tether .= calc_wind_factor(s, height) * v_wind_gnd
-        calc_particle_forces(s, pos[p1], pos[p2], vel[p1], vel[p2], s.springs[i], stiffnes_factor, segments, d_tether, rho, i)
+        calc_particle_forces(s, pos[p1], pos[p2], vel[p1], vel[p2], s.springs[i], segments, d_tether, rho, i)
     end
     nothing
 end
@@ -436,6 +452,7 @@ function calc_aero_forces(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
     D3 = (-0.5 * K * rho * norm(va_3) * s.set.area * rel_side_area * CD3) * va_3
     D4 = (-0.5 * K * rho * norm(va_4) * s.set.area * rel_side_area * CD4) * va_4
     s.lift_force .= L2
+    # println("L3, L4: $(norm(L3)), $(norm(L4))")
     # println("D2, D3, D4: $D2, $D3, $D4")
     s.drag_force .= D2 + D3 + D4
     s.forces[s.set.segments + 3] .+= (L2 + D2)
@@ -462,12 +479,12 @@ function loop(s::KPS4, pos, vel, posd, veld)
     s.masses[s.set.segments+1] = s.set.kcu_mass + 0.5 * m_tether_particle
     # TODO: check if the next two lines are correct
     damping  = s.set.damping / L_0
-    c_spring = s.set.c_spring/s.stiffness_factor/L_0 
+    c_spring = s.set.c_spring/L_0 
     for i in 1:s.set.segments
         @inbounds s.masses[i] = m_tether_particle
         @inbounds s.springs[i] = SP(s.springs[i].p1, s.springs[i].p2, s.segment_length, c_spring, damping)
     end
-    inner_loop(s, pos, vel, s.v_wind_gnd, s.stiffness_factor, s.set.segments, s.set.d_tether/1000.0)
+    inner_loop(s, pos, vel, s.v_wind_gnd, s.set.segments, s.set.d_tether/1000.0)
     for i in 2:particles
         s.res2[i] .= veld[i] - (SVector(0, 0, -G_EARTH) - s.forces[i] / s.masses[i])
     end
@@ -540,7 +557,10 @@ end
 function spring_forces(s::KPS4)
     forces = zeros(SimFloat, s.set.segments+KITE_SPRINGS)
     for i in 1:s.set.segments
-        forces[i] =  s.springs[i].c_spring * (norm(s.pos[i+1] - s.pos[i]) - s.segment_length)
+        forces[i] =  s.springs[i].c_spring * (norm(s.pos[i+1] - s.pos[i]) - s.segment_length) * s.stiffness_factor
+        if forces[i] > 4000.0
+            println("Tether raptures for segment $i !")
+        end
     end
     for i in 1:KITE_SPRINGS
         p1 = s.springs[i+s.set.segments].p1  # First point nr.
@@ -558,6 +578,9 @@ function spring_forces(s::KPS4)
             s.spring_force .= k1 *  (norm1 - l_0)
         end
         forces[i+s.set.segments] = norm(s.spring_force)
+        if norm(s.spring_force) > 4000.0
+            println("Bridle brakes for spring $i !")
+        end
     end
     forces
 end
@@ -582,8 +605,8 @@ function find_steady_state(s::KPS4, prn=false)
                 x1[i] = -0.9*DELTA_MAX +x[i]
             end
         end
-        if iter > 500
-            s.stiffness_factor = 0.1 # + iter/500 * 0.1
+        if iter > 100
+            s.stiffness_factor = 0.1 + iter/100 * 0.1
         end
         y0, yd0 = init_flat(s, x1)
         residual!(res, yd0, y0, s, 0.0)
