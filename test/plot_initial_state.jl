@@ -1,7 +1,7 @@
 function init2()
-    kps4.set.alpha = 1.0/7.0
+    kps4.set.alpha =  0.08163
     KiteModels.clear(kps4)
-    kps4.set.l_tether = 150.0
+    kps4.set.l_tether = 150.0 - kps4.set.height_k - kps4.set.h_bridle
     kps4.set.area = 10.18
     kps4.set.rel_side_area = 30.6
     kps4.set.mass = 6.21
@@ -10,14 +10,13 @@ function init2()
     kps4.set.c_spring = 614600.0 # unit spring coefficent
     kps4.set.width = 4.9622
     kps4.set.elevation = 70.7 
-    kps4.set.profile_law = Int(EXP)
-    kps4.set.l_tether = 150.0
+    kps4.set.profile_law = Int(EXPLOG)
     pos, vel = KiteModels.init_pos_vel(kps4)
     posd = copy(vel)
     veld = zero(vel)
     height = 134.14733504839947
     kps4.v_wind .= kps4.v_wind_gnd * calc_wind_factor(kps4, height)
-    kps4.stiffness_factor = 0.5
+    kps4.stiffness_factor = 1.0
     KiteModels.init_springs(kps4)
     return pos, vel, posd, veld
 end
@@ -39,10 +38,11 @@ if typeof(kps4) <: KPS4
     pos, vel, posd, veld = init2()
     kps4.alpha_depower = deg2rad(2.2095658807330962) # from one point simulation
     height = 134.14733504839947                      # from one point simulation
-    kps4.stiffness_factor = 0.1
+    kps4.stiffness_factor = 1.0
     kps4.set.alpha_zero = 0.0   
 end
 
+println(kps4.set.l_tether)
 y0, yd0 = KiteModels.init(kps4)
 
 for i in 1:length(kps4.pos)
@@ -60,7 +60,7 @@ for i in 1:length(kps4.pos)
      push!(z, kps4.pos[i][3])
 end
 
-println("kite distance: $(norm(kps4.pos[7]))")
+println("kite distance: $(norm(kps4.pos[end]))")
 println(KiteModels.spring_forces(kps4))
 println("alpha_depower [deg]: $(rad2deg(kps4.alpha_depower))")
 println("lift, drag    [N]  : $(KiteModels.lift_drag(kps4))")

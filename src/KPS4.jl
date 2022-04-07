@@ -57,9 +57,9 @@ end
 const SP = Spring{Int16, Float64}
 const KITE_PARTICLES = 4
 const KITE_SPRINGS = 9
-const KITE_ANGLE = 4.8 # angle between the kite and the last tether segment due to the mass of the control pod
+const KITE_ANGLE = 0.0 # angle between the kite and the last tether segment due to the mass of the control pod
 const DELTA_MAX = 60.0
-const MAX_INTER  = 1  # max interations for steady state finder
+const MAX_INTER  = 200  # max interations for steady state finder
 const PRE_STRESS  = 0.9998   # Multiplier for the initial spring lengths.
 const KS = deg2rad(16.565 * 1.064 * 0.875 * 1.033 * 0.9757 * 1.083)  # max steering
 const DRAG_CORR = 0.93       # correction of the drag for the 4-point model
@@ -208,15 +208,15 @@ function get_particles(height_k, height_b, width, m_k, pos_pod= [ 75., 0., 129.9
     h_kz = height_k * sin(beta); # print 'h_kz: ', h_kz
     h_bx = height_b * cos(beta)
     h_bz = height_b * sin(beta)
-    pos_kite = pos_pod - (h_kz + h_bz) * z + (h_kx + h_bx) * x  # center,     P_C in diagram
-    pos3 = pos_kite + h_kz * z + 0.5 * width * y + h_kx * x     # side point, point C in diatram
+    pos_kite = pos_pod - (h_kz + h_bz) * z + (h_kx + h_bx) * x  # top,        poing B in diagram
+    pos3 = pos_kite + h_kz * z + 0.5 * width * y + h_kx * x     # side point, point C in diagram
     pos1 = pos_kite + h_kz * z + (h_kx + width * m_k) * x       # nose,       point A in diagram
     pos4 = pos_kite + h_kz * z - 0.5 * width * y + h_kx * x     # side point, point D in diagram
     pos0 = pos_kite + (h_kz + h_bz) * z + (h_kx + h_bx) * x     # equal to pos_pod, P_KCU in diagram
     # println("norm(pos1-pos3) $(norm(pos1-pos3))")             # S2 p8 p9 
     # println("norm(pos4-pos3) $(norm(pos4-pos3))")             # S3 p9 p10
-    println("norm(pos1-pos4) $(norm(pos1-pos4))")               # S9 p11 p8
-    [zeros(3), pos0, pos1, pos3, pos4, pos_kite] # 0, p7, p8, p9, p10, p11, pos_kite
+    # println("norm(pos1-pos4) $(norm(pos1-pos4))")             # S9 p11 p8
+    [zeros(3), pos0, pos1, pos3, pos4, pos_kite] # 0, p7, p8, p9, p10, p11
 end
 
 function calc_height(s::KPS4)
@@ -238,21 +238,15 @@ function init_springs(s::KPS4)
         # build the bridle segments
         else
             p0, p1 = SPRINGS_INPUT[j, 1]+1, SPRINGS_INPUT[j, 2]+1 # point 0 and 1
-            # if p0 >= 3 
-            #     p0 +=1
-            # end
-            # if p1 >= 3
-            #     p1+=1
-            # end
             if SPRINGS_INPUT[j, 3] == -1
                 l_0 = norm(particles[Int(p1)] - particles[Int(p0)]) * PRE_STRESS
                 k = s.set.e_tether * (s.set.d_line/2000.0)^2 * pi / l_0
                 p0 += s.set.segments - 1 # correct the index for the start and end particles of the bridle
                 p1 += s.set.segments - 1
                 c = s.set.damping/ l_0
-                if j+s.set.segments-1 == 15
-                    println("s9: $(l_0), $p0, $p1")
-                end
+                # if j+s.set.segments-1 == 15
+                #     println("s9: $(l_0), $p0, $p1")
+                # end
                 s.springs[j+s.set.segments-1] = SP(Int(p0), Int(p1), l_0, k, c)
             end
         end
@@ -282,27 +276,11 @@ end
 # se().elevation, particle zero fixed at origin.
 # X is a vector of deviations in x and z positions, to be varied to find the inital equilibrium
 function init_pos_vel(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)))
-    delta = 1e-6
-    
-    pos = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
-    vel = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
-    pos[1] .= [0.0, delta, 0.0]
-    vel[1] .= [delta, delta, delta]
-    sin_el, cos_el = sin(s.set.elevation / 180.0 * pi), cos(s.set.elevation / 180.0 * pi)
-    for i in 1:s.set.segments
-        radius = -i * (s.set.l_tether/s.set.segments)
-        pos[i+1] .= [-cos_el * radius + X[i], delta, -sin_el * radius + X[s.set.segments+i]]
-        vel[i+1] .= [delta, delta, 0]
-    end
-    particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k)
-    for i in 1:KITE_PARTICLES
-        pos[s.set.segments+1+i] .= particles[i+2] + [X[2*s.set.segments+i], 0, X[2*s.set.segments+KITE_PARTICLES+i]]
-        vel[s.set.segments+1+i] .= [delta, delta, delta]
-    end
+    pos, vel, acc = init_pos_vel_acc(s, X; old=true)
     pos, vel
 end
 
-function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false)
+function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false)
     delta = 1e-6
     pos = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
     vel = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
@@ -327,20 +305,27 @@ function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=fal
     else
         particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k, pos[s.set.segments+1], rotate_in_xz(vec_c, deg2rad(KITE_ANGLE)), s.v_apparent)
     end
-    for i in [1,2,4]
+    for i in [1,2,3,4] # set p8, p9, ,p10, p11
         j = i + 2
         pos[s.set.segments+1+i] .= particles[j] + [X[s.set.segments+i], 0, X[2*s.set.segments+KITE_PARTICLES-1+i]]
         vel[s.set.segments+1+i] .= [delta, delta, delta]
         acc[s.set.segments+1+i] .= [delta, delta, -9.81]
     end
-    pos[s.set.segments+1+3][1] = pos[s.set.segments+1+2][1] # x and z component of the right and left particle must be equal 
-    pos[s.set.segments+1+3][3] = pos[s.set.segments+1+2][3]
+    # set p9=C and p10=D
+    # x and z component of the right and left particle must be equal
+    pos[s.set.segments+1+3][1] = pos[s.set.segments+1+2][1] # D.x = C.x
+    pos[s.set.segments+1+3][3] = pos[s.set.segments+1+2][3] # D.z = C.z
     pos[s.set.segments+1+2][2] += X[end] # Y position of point C
     pos[s.set.segments+1+3][2] -= X[end] # Y position of point D
     for i in 1:length(pos)
         s.pos[i] .= pos[i]
     end
-    println("pos[8], pos[11]: $(pos[8]), $(pos[11])")
+    # println("pos[8], pos[10]: $(pos[8]), $(pos[10])")
+    pos, vel, acc
+end
+
+function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false)
+    pos, vel, acc = init_pos_vel_acc(s, X; old=old)
     vcat(pos, vel), vcat(vel, acc)
 end
 
@@ -598,23 +583,28 @@ function find_steady_state(s::KPS4, prn=false)
     # helper function for the steady state finder
     function test_initial_condition!(F, x::Vector)
         x1 = copy(x)
-        for i in 1:length(x)
-            if x[i] > DELTA_MAX
-                x1[i] = 0.9*DELTA_MAX + x[i]
-            elseif x[i] < -DELTA_MAX
-                x1[i] = -0.9*DELTA_MAX +x[i]
-            end
-        end
-        if iter > 100
-            s.stiffness_factor = 0.1 + iter/100 * 0.1
-        end
+        # for i in 1:length(x)
+        #     if x[i] > DELTA_MAX
+        #         x1[i] = 0.9*DELTA_MAX + x[i]
+        #     elseif x[i] < -DELTA_MAX
+        #         x1[i] = -0.9*DELTA_MAX +x[i]
+        #     end
+        # end
+        # if iter > 100
+        #     s.stiffness_factor = 0.1 + iter/100 * 0.1
+        # end
         y0, yd0 = init_flat(s, x1)
         residual!(res, yd0, y0, s, 0.0)
         for i in 1:s.set.segments+KITE_PARTICLES-1
+            if i != s.set.segments+KITE_PARTICLES-1
+                j = i
+            else
+                j = i + 1
+            end
             # copy the x-component of the residual res2 (acceleration)
-            F[i]                               = res[1 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)]
+            F[i]                               = res[1 + 3*(j-1) + 3*(s.set.segments+KITE_PARTICLES)]
             # copy the z-component of the residual res2
-            F[i+s.set.segments+KITE_PARTICLES] = res[3 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)]
+            F[i+s.set.segments+KITE_PARTICLES] = res[3 + 3*(j-1) + 3*(s.set.segments+KITE_PARTICLES)]
         end
         # copy the acceleration of point C in y direction
         i = s.set.segments+3
