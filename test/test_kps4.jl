@@ -131,9 +131,9 @@ end
 #     bytes = 0
 #     for i in 1:length(kps4.springs)
 #         spring = kps4.springs[i]
-#         stiffnes_factor = 0.5
+#         kps4.stiffness_factor = 0.5
 #         kps4.v_wind_tether .= KVec3(8.0, 0.1, 0.0)
-#         bytes = @allocated KiteModels.calc_particle_forces(kps4, pos1, pos2, vel1, vel2, spring, stiffnes_factor, se().segments, se().d_tether/1000.0, rho, i)
+#         bytes = @allocated KiteModels.calc_particle_forces(kps4, pos1, pos2, vel1, vel2, spring, se().segments, se().d_tether/1000.0, rho, i)
 #     end
 #     # @test bytes == 0
 #     # Python output
