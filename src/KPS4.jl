@@ -57,20 +57,13 @@ end
 const SP = Spring{Int16, Float64}
 const KITE_PARTICLES = 4
 const KITE_SPRINGS = 9
-const KITE_ANGLE = 3.8 # angle between the kite and the last tether segment due to the mass of the control pod
+const KITE_ANGLE = 3.81 # angle between the kite and the last tether segment due to the mass of the control pod
 const DELTA_MAX = 30.0
-const USE_NOMAD = true
-const MAX_INTER  = 100  # max interations for steady state finder
+const USE_NOMAD = false
+const MAX_INTER  = 1000  # max interations for steady state finder
 const PRE_STRESS  = 0.9998   # Multiplier for the initial spring lengths.
 const KS = deg2rad(16.565 * 1.064 * 0.875 * 1.033 * 0.9757 * 1.083)  # max steering
 const DRAG_CORR = 0.93       # correction of the drag for the 4-point model
-# const X0 = [0.28145470281885937, 0.23227171443921474, -0.14839155793746792, -0.8611709892573215, -1.9064957057144336, -3.2593647930763865, -0.07481136068131161, -0.0320181798695833,  0.12347499137210405,  0.386732547359143,   0.7527967363707873, 1.2094642620268343]
-# const X00 = [1.2920877908591142, 1.805784436840238, 1.9811991362643417, 2.1624168969962803, 2.308053915351016, 2.426323438597114, -0.347399490607679, -0.3382081199552657, -0.47968612691009005, -0.48986133189890857, -0.6729736083472052, -0.7322501981033889, -0.7935456484742676, -0.8423258191651944, -0.8811464437359281, 0.04970303818984063, 0.10393814212523027, 0.16883269717897145, -0.003115768195860734]
-# const X00 = [1.286733,  1.807743,   2.019513,   2.172045,   2.305881,   2.665952,  -0.394539,  -0.267354,  -0.746302,  -0.487799,  -0.673806,  -0.7461,    -0.797136,  -0.84151,   -0.967774,  -0.012006,   0.066886,   0.228953,  -0.038472]
-#const X00 = [1.29044,    1.805875,   2.024852,   2.187221,   2.31497,    2.669564,  -0.393218,  -0.265462,  -0.757762,  -0.487393,  -0.669517,  -0.742705,  -0.795564,  -0.836682,  -0.960051,  -0.013596,   0.070221,   0.233618,  -0.038532]
-#const X00 = [1.310236,   1.826226,   2.058625,   2.224326,   2.324677,   2.801553,  -0.400658,  -0.275782,  -0.767225,  -0.49256,   -0.671764,  -0.746666, -0.797588,  -0.825812,  -0.991318,  -0.016655,   0.070457,   0.226817,  -0.037857 ]
-#const X00 = [1.9616380996056078, 3.0831297183579403, 3.923474337317383, 4.709346372942605, 5.456808834543749, 6.635620447165995, -0.5304744112903841, -0.3953419401018206, -0.9395790446300472, -0.7700591568439518, -1.1820423830524633, -1.4821917813075025, -1.7611277971401813, -2.0251961180248923, -2.4604625120224237, 0.0014807397938664249, 0.11049910426445765, 0.2876133948013786, -0.0384747365700002]
-#const X00 = [1.0989198969424006, 1.6148835475875825, 1.8901129999579414, 2.0875735022084823, 2.2261028201663104, 2.582785078998004, -0.24569831479342286, -0.11401194093941638, -0.6258988098871039, -0.3676736927862901, -0.5088013058266545, -0.5612169010415446, -0.5855688217128946, -0.5888548982433978, -0.6709683952476885, -0.0354902538625784, 0.048556577827989514, 0.2004032421566736, -0.04191614720724987]
 const X00 = [0.894146,   1.528959,   1.832319,   2.133604,   2.213243,   2.096041,  -0.242634,  -0.121017,  -0.586176,  -0.300887,  -0.501362,  -0.578397,  -0.654672,  -0.651483,  -0.579665,  -0.034478,   0.037224,   0.17459,   -0.039631]
 function zero(::Type{SP})
     SP(0,0,0,0,0)
@@ -567,11 +560,11 @@ function spring_forces(s::KPS4)
         norm1 = norm(s.segment)
         k1 = 0.25 * k # compression stiffness kite segments
         if (norm1 - l_0) > 0.0
-            s.spring_force .= k *  (norm1 - l_0) 
+            spring_force = k *  (norm1 - l_0) 
         else 
-            s.spring_force .= k1 *  (norm1 - l_0)
+            spring_force = k1 *  (norm1 - l_0)
         end
-        forces[i+s.set.segments] = norm(s.spring_force)
+        forces[i+s.set.segments] = spring_force
         if norm(s.spring_force) > 4000.0
             println("Bridle brakes for spring $i !")
         end
@@ -642,7 +635,7 @@ function find_steady_state(s::KPS4, prn=false)
         result = solve(pb, X00)       
         init(s, result[1])
     else
-        results = nlsolve(test_initial_condition!, X00, autoscale=true, iterations=MAX_INTER)
+        results = nlsolve(test_initial_condition!, X00, autoscale=false, iterations=MAX_INTER)
         if prn println("\nresult: $results") end
         init(s, results.zero)
     end
