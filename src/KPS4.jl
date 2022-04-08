@@ -59,12 +59,12 @@ const KITE_SPRINGS = 8
 const KITE_ANGLE = 3.82 # angle between the kite and the last tether segment due to the mass of the control pod
 const DELTA_MAX = 30.0
 const USE_NOMAD = false
-const MAX_INTER  = 10000  # max interations for steady state finder
+const MAX_ITER  = 10000  # max iterations for steady state finder
 const PRE_STRESS  = 0.9998   # Multiplier for the initial spring lengths.
 const KS = deg2rad(16.565 * 1.064 * 0.875 * 1.033 * 0.9757 * 1.083)  # max steering
 const DRAG_CORR = 0.93       # correction of the drag for the 4-point model
-# const X00 = [0.894146,   1.528959,   1.832319,   2.133604,   2.213243,   2.096041,  -0.242634,  -0.121017,  -0.586176,  -0.300887,  -0.501362,  -0.578397,  -0.654672,  -0.651483,  -0.579665,  -0.034478,   0.037224,   0.17459,   -0.039631]
 const X00 = [0.865927,   1.50382,    1.885892,   2.152502,   2.218636,   2.014114,  -0.247826,  -0.106443,  -0.574604,  -0.289361,  -0.49061,   -0.596101,  -0.659418,  -0.651149,  -0.549102,   0.00159,    0.074091,   0.221581,  -0.050683 ]
+# const X00 = zeros(SimFloat, 2*(6+KITE_PARTICLES-1)+1)
 function zero(::Type{SP})
     SP(0,0,0,0,0)
 end
@@ -628,14 +628,14 @@ function find_steady_state(s::KPS4, prn=false)
                     eval_fct;
                     lower_bound = -DELTA_MAX * n_ones,
                     upper_bound =  DELTA_MAX * n_ones)
-    pb.options.max_bb_eval = MAX_INTER * 10
+    pb.options.max_bb_eval = MAX_ITER * 10
     if prn println("\nStarted function test_nlsolve...") end
     if USE_NOMAD
         # result = solve(pb, zeros(SimFloat, 2*(s.set.segments+KITE_PARTICLES-1)+1))
         result = solve(pb, X00)       
         init(s, result[1])
     else
-        results = nlsolve(test_initial_condition!, X00, autoscale=false, iterations=MAX_INTER)
+        results = nlsolve(test_initial_condition!, X00, autoscale=false, iterations=MAX_ITER)
         if prn println("\nresult: $results") end
         init(s, results.zero)
     end
