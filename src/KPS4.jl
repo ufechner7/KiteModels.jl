@@ -57,14 +57,15 @@ end
 const SP = Spring{Int16, Float64}
 const KITE_PARTICLES = 4
 const KITE_SPRINGS = 9
-const KITE_ANGLE = 0.0 # angle between the kite and the last tether segment due to the mass of the control pod
-const DELTA_MAX = 60.0
-const MAX_INTER  = 200  # max interations for steady state finder
+const KITE_ANGLE = 2.0 # angle between the kite and the last tether segment due to the mass of the control pod
+const DELTA_MAX = 30.0
+const USE_NOMAD = true
+const MAX_INTER  = 110  # max interations for steady state finder
 const PRE_STRESS  = 0.9998   # Multiplier for the initial spring lengths.
 const KS = deg2rad(16.565 * 1.064 * 0.875 * 1.033 * 0.9757 * 1.083)  # max steering
 const DRAG_CORR = 0.93       # correction of the drag for the 4-point model
-const X0 = [0.28145470281885937, 0.23227171443921474, -0.14839155793746792, -0.8611709892573215, -1.9064957057144336, -3.2593647930763865, -0.07481136068131161, -0.0320181798695833, 0.12347499137210405, 0.386732547359143, 0.7527967363707873, 1.2094642620268343]
-
+# const X0 = [0.28145470281885937, 0.23227171443921474, -0.14839155793746792, -0.8611709892573215, -1.9064957057144336, -3.2593647930763865, -0.07481136068131161, -0.0320181798695833,  0.12347499137210405,  0.386732547359143,   0.7527967363707873, 1.2094642620268343]
+const X00 = [1.2920877908591142, 1.805784436840238, 1.9811991362643417, 2.1624168969962803, 2.308053915351016, 2.426323438597114, -0.347399490607679, -0.3382081199552657, -0.47968612691009005, -0.48986133189890857, -0.6729736083472052, -0.7322501981033889, -0.7935456484742676, -0.8423258191651944, -0.8811464437359281, 0.04970303818984063, 0.10393814212523027, 0.16883269717897145, -0.003115768195860734]
 function zero(::Type{SP})
     SP(0,0,0,0,0)
 end
@@ -294,7 +295,8 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)
         if old
             pos[i+1] .= [-cos_el * radius + X[i], delta, -sin_el * radius + X[s.set.segments+KITE_PARTICLES-1+i]]
         else
-            pos[i+1] .= [-cos_el * radius + X[i] + X0[i], delta, -sin_el * radius + X[s.set.segments+KITE_PARTICLES-1+i] + X0[s.set.segments+i]]
+            # pos[i+1] .= [-cos_el * radius + X[i] + X0[i], delta, -sin_el * radius + X[s.set.segments+KITE_PARTICLES-1+i] + X0[s.set.segments+i]]
+            pos[i+1] .= [-cos_el * radius + X[i], delta, -sin_el * radius + X[s.set.segments+KITE_PARTICLES-1+i]]
         end
         vel[i+1] .= [delta, delta, 0]
         acc[i+1] .= [delta, delta, -9.81]
@@ -305,18 +307,19 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)
     else
         particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k, pos[s.set.segments+1], rotate_in_xz(vec_c, deg2rad(KITE_ANGLE)), s.v_apparent)
     end
-    for i in [1,2,3,4] # set p8, p9, ,p10, p11
-        j = i + 2
-        pos[s.set.segments+1+i] .= particles[j] + [X[s.set.segments+i], 0, X[2*s.set.segments+KITE_PARTICLES-1+i]]
+    j = 1
+    for i in [1,2,4] # set p8, p9, p11
+        pos[s.set.segments+1+i] .= particles[i+2] + [X[s.set.segments+j], 0, X[2*s.set.segments+KITE_PARTICLES-1+j]]
         vel[s.set.segments+1+i] .= [delta, delta, delta]
         acc[s.set.segments+1+i] .= [delta, delta, -9.81]
+        j +=1
     end
     # set p9=C and p10=D
     # x and z component of the right and left particle must be equal
-    pos[s.set.segments+1+3][1] = pos[s.set.segments+1+2][1] # D.x = C.x
-    pos[s.set.segments+1+3][3] = pos[s.set.segments+1+2][3] # D.z = C.z
-    pos[s.set.segments+1+2][2] += X[end] # Y position of point C
-    pos[s.set.segments+1+3][2] -= X[end] # Y position of point D
+    pos[s.set.segments+1+3][1] = pos[s.set.segments+1+2][1]  # D.x = C.x
+    pos[s.set.segments+1+3][3] = pos[s.set.segments+1+2][3]  # D.z = C.z
+    pos[s.set.segments+1+2][2] += X[end]                     # Y position of point C
+    pos[s.set.segments+1+3][2] = -pos[s.set.segments+1+2][2] # Y position of point D
     for i in 1:length(pos)
         s.pos[i] .= pos[i]
     end
@@ -578,21 +581,12 @@ Find an initial equilibrium, based on the inital parameters
 """
 function find_steady_state(s::KPS4, prn=false)
     res = zeros(MVector{6*(s.set.segments+KITE_PARTICLES)+2, SimFloat})
+    n_ones = ones(SimFloat, 2*(s.set.segments+KITE_PARTICLES-1)+1)
     iter = 0
 
     # helper function for the steady state finder
     function test_initial_condition!(F, x::Vector)
         x1 = copy(x)
-        # for i in 1:length(x)
-        #     if x[i] > DELTA_MAX
-        #         x1[i] = 0.9*DELTA_MAX + x[i]
-        #     elseif x[i] < -DELTA_MAX
-        #         x1[i] = -0.9*DELTA_MAX +x[i]
-        #     end
-        # end
-        # if iter > 100
-        #     s.stiffness_factor = 0.1 + iter/100 * 0.1
-        # end
         y0, yd0 = init_flat(s, x1)
         residual!(res, yd0, y0, s, 0.0)
         for i in 1:s.set.segments+KITE_PARTICLES-1
@@ -612,10 +606,33 @@ function find_steady_state(s::KPS4, prn=false)
         iter += 1
         return nothing 
     end
+    function f(x)
+      F = zeros(SimFloat, 2*(s.set.segments+KITE_PARTICLES-1)+1)
+      test_initial_condition!(F, x)
+      F
+    end
+    function eval_fct(x)
+        bb_outputs = [norm(f(x))]
+        success = ! isnan(bb_outputs[1]) && all(KiteModels.spring_forces(s) .> 0)
+        count_eval = true
+        success, count_eval, bb_outputs
+    end
+    pb = NomadProblem(2*(s.set.segments+KITE_PARTICLES-1)+1, # number of inputs of the blackbox
+                    1, # number of outputs of the blackbox
+                    ["OBJ"], # type of outputs of the blackbox
+                    eval_fct;
+                    lower_bound = -DELTA_MAX * n_ones,
+                    upper_bound =  DELTA_MAX * n_ones)    
     if prn println("\nStarted function test_nlsolve...") end
-    results = nlsolve(test_initial_condition!, zeros(SimFloat, 2*(s.set.segments+KITE_PARTICLES-1)+1), autoscale=true, iterations=MAX_INTER)
-    if prn println("\nresult: $results") end
-    init(s, results.zero)
+    if USE_NOMAD
+        # result = solve(pb, zeros(SimFloat, 2*(s.set.segments+KITE_PARTICLES-1)+1))
+        result = solve(pb, X00)       
+        init(s, result[1])
+    else
+        results = nlsolve(test_initial_condition!, zeros(SimFloat, 2*(s.set.segments+KITE_PARTICLES-1)+1), autoscale=true, iterations=MAX_INTER)
+        if prn println("\nresult: $results") end
+        init(s, results.zero)
+    end
 end
 
 # rotate a 3d vector around the y axis

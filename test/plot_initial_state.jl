@@ -1,7 +1,7 @@
 function init2()
     kps4.set.alpha =  0.08163
     KiteModels.clear(kps4)
-    kps4.set.l_tether = 150.0 - kps4.set.height_k - kps4.set.h_bridle
+    kps4.set.l_tether = 150.0 # - kps4.set.height_k - kps4.set.h_bridle
     kps4.set.area = 10.18
     kps4.set.rel_side_area = 30.6
     kps4.set.mass = 6.21
@@ -16,7 +16,7 @@ function init2()
     veld = zero(vel)
     height = 134.14733504839947
     kps4.v_wind .= kps4.v_wind_gnd * calc_wind_factor(kps4, height)
-    kps4.stiffness_factor = 1.0
+    kps4.stiffness_factor = 0.5
     KiteModels.init_springs(kps4)
     return pos, vel, posd, veld
 end
@@ -24,6 +24,8 @@ end
 function plot2d(x, z; zoom=1)
     if zoom ==1
         plot(x,z, xlabel="x [m]", ylabel="z [m]", legend=false, xlims = (35.0, 55), ylims = (135.0, 155))
+        plot!([x[7],x[10]],[z[7],z[10]], legend=false)
+        plot!([x[8],x[11]],[z[8],z[11]], legend=false)
     else
         plot(x,z, xlabel="x [m]", ylabel="z [m]", legend=false)
     end
@@ -65,5 +67,5 @@ println(KiteModels.spring_forces(kps4))
 println("alpha_depower [deg]: $(rad2deg(kps4.alpha_depower))")
 println("lift, drag    [N]  : $(KiteModels.lift_drag(kps4))")
 
-plot2d(x, z; zoom=0)
+plot2d(x, z; zoom=1)
 

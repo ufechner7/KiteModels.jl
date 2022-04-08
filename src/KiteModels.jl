@@ -31,7 +31,7 @@ Scientific background: http://arxiv.org/abs/1406.6218 =#
 
 module KiteModels
 
-using Dierckx, StaticArrays, LinearAlgebra, Parameters, NLsolve, DocStringExtensions
+using Dierckx, StaticArrays, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, NOMAD
 using KiteUtils, KitePodModels
 import Base.zero
 
