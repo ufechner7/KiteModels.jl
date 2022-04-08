@@ -16,14 +16,16 @@ function init2()
     veld = zero(vel)
     height = 134.14733504839947
     kps4.v_wind .= kps4.v_wind_gnd * calc_wind_factor(kps4, height)
-    kps4.stiffness_factor = 0.5
+    kps4.stiffness_factor = 1.0
     KiteModels.init_springs(kps4)
     return pos, vel, posd, veld
 end
 
 function plot2d(x, z; zoom=1)
     if zoom ==1
-        plot(x,z, xlabel="x [m]", ylabel="z [m]", legend=false, xlims = (35.0, 55), ylims = (135.0, 155))
+        x_max=maximum(x)
+        z_max=maximum(z)
+        plot(x,z, xlabel="x [m]", ylabel="z [m]", legend=false, xlims = (x_max-15.0, x_max+5), ylims = (z_max-15.0, z_max+5))
         plot!([x[7],x[10]],[z[7],z[10]], legend=false)
         plot!([x[8],x[11]],[z[8],z[11]], legend=false)
     else
