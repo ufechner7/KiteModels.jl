@@ -40,8 +40,9 @@ const SPRINGS_INPUT = [0.    1.  150.
                        3.    4.   -1. # s3, p9, p10
                        3.    5.   -1. # s4, p9, p11
                        4.    1.   -1. # s5, p10, p7
+                       3.    1.   -1. # s6, p9, p7
                        4.    5.   -1. # s7, p10, p11
-                       4.    2.   -1. # s9, p10, p8 
+                       4.    2.   -1. # s8, p10, p8 
                        5.    2.   -1.]# s9, p11, p8
 
 # struct, defining the phyical parameters of one spring
@@ -55,15 +56,16 @@ end
 
 const SP = Spring{Int16, Float64}
 const KITE_PARTICLES = 4
-const KITE_SPRINGS = 8
-const KITE_ANGLE = 3.82 # angle between the kite and the last tether segment due to the mass of the control pod
+const KITE_SPRINGS = 9
+const KITE_ANGLE = 3.83 # angle between the kite and the last tether segment due to the mass of the control pod
 const DELTA_MAX = 30.0
 const USE_NOMAD = false
-const MAX_ITER  = 10000  # max iterations for steady state finder
+const MAX_ITER  = 1000  # max iterations for steady state finder
 const PRE_STRESS  = 0.9998   # Multiplier for the initial spring lengths.
 const KS = deg2rad(16.565 * 1.064 * 0.875 * 1.033 * 0.9757 * 1.083)  # max steering
 const DRAG_CORR = 0.93       # correction of the drag for the 4-point model
-const X00 = [0.865927,   1.50382,    1.885892,   2.152502,   2.218636,   2.014114,  -0.247826,  -0.106443,  -0.574604,  -0.289361,  -0.49061,   -0.596101,  -0.659418,  -0.651149,  -0.549102,   0.00159,    0.074091,   0.221581,  -0.050683 ]
+# const X00 = [0.863528,   1.51625,    1.922544,   2.175807,   2.210943,   2.045284,  -0.247677,  -0.087096,  -0.606921,  -0.284333,  -0.487121,  -0.597404,  -0.651721,  -0.628258,  -0.535218,   0.004805,   0.068857,   0.245859,  -0.062045 ]
+const X00 = [ 0.83635,    1.521626,   1.978326,   2.213506,   2.263477,   2.132096,  -0.227731,  -0.066485,  -0.581328,  -0.268612,  -0.478843,  -0.602845,  -0.645727,  -0.622621,  -0.536473,   0.004827,   0.064474,   0.242901,  -0.062636 ]
 # const X00 = zeros(SimFloat, 2*(6+KITE_PARTICLES-1)+1)
 function zero(::Type{SP})
     SP(0,0,0,0,0)
@@ -281,7 +283,8 @@ function init_pos_vel(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)))
 end
 
 function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false)
-    delta = 1e-6
+    # delta = 1e-6
+    delta = 0.0
     pos = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
     vel = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
     acc = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
@@ -601,6 +604,7 @@ function find_steady_state(s::KPS4, prn=false)
         end
         # copy the acceleration of point C in y direction
         i = s.set.segments+3
+        # F[end-1] = norm() # sum of 
         F[end]                                 = res[2 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)] 
         iter += 1
         return nothing 
