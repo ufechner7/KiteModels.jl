@@ -41,7 +41,6 @@ z0 = Float64[]
 if typeof(kps4) <: KPS4
     pos, vel, posd, veld = init2()
     kps4.alpha_depower = deg2rad(2.2095658807330962) # from one point simulation
-    height = 134.14733504839947                      # from one point simulation
     kps4.stiffness_factor = 1.0
     kps4.set.alpha_zero = 0.0   
 end
@@ -54,7 +53,7 @@ for i in 1:length(kps4.pos)
      push!(z0, kps4.pos[i][3])
 end
 
-find_steady_state(kps4, true)
+# find_steady_state(kps4, true)
 
 x = Float64[] 
 z = Float64[]
@@ -69,5 +68,5 @@ println(KiteModels.spring_forces(kps4))
 println("alpha_depower [deg]: $(rad2deg(kps4.alpha_depower))")
 println("lift, drag    [N]  : $(KiteModels.lift_drag(kps4))")
 
-plot2d(x, z; zoom=1)
+plot2d(x0, z0; zoom=0)
 

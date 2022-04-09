@@ -55,18 +55,18 @@ const SPRINGS_INPUT = [0.    1.  150.
 end
 
 const SP = Spring{Int16, Float64}
+const SHORT = true
 const KITE_PARTICLES = 4
 const KITE_SPRINGS = 9
-const KITE_ANGLE = 3.83 # angle between the kite and the last tether segment due to the mass of the control pod
-const DELTA_MAX = 30.0
+const KITE_ANGLE = 0.0 # 3.83 # angle between the kite and the last tether segment due to the mass of the control pod
+const DELTA_MAX = 5.0
 const USE_NOMAD = false
 const MAX_ITER  = 1000  # max iterations for steady state finder
 const PRE_STRESS  = 0.9998   # Multiplier for the initial spring lengths.
 const KS = deg2rad(16.565 * 1.064 * 0.875 * 1.033 * 0.9757 * 1.083)  # max steering
 const DRAG_CORR = 0.93       # correction of the drag for the 4-point model
-# const X00 = [0.863528,   1.51625,    1.922544,   2.175807,   2.210943,   2.045284,  -0.247677,  -0.087096,  -0.606921,  -0.284333,  -0.487121,  -0.597404,  -0.651721,  -0.628258,  -0.535218,   0.004805,   0.068857,   0.245859,  -0.062045 ]
-const X00 = [ 0.83635,    1.521626,   1.978326,   2.213506,   2.263477,   2.132096,  -0.227731,  -0.066485,  -0.581328,  -0.268612,  -0.478843,  -0.602845,  -0.645727,  -0.622621,  -0.536473,   0.004827,   0.064474,   0.242901,  -0.062636 ]
-# const X00 = zeros(SimFloat, 2*(6+KITE_PARTICLES-1)+1)
+const X00 = [ 0.83635,    1.521626,   1.978326,   2.213506,   2.263477,   2.132096,  -0.227731,  -0.066485,  -0.581328,  -0.268612,  -0.478843,  -0.602845,  -0.645727,  -0.622621,  -0.536473,   0.004827,   0.064474,   0.242901,  0.0, -0.062636 ]
+# const X00 = zeros(SimFloat, 2*(6+KITE_PARTICLES-1)+2)
 function zero(::Type{SP})
     SP(0,0,0,0,0)
 end
@@ -91,6 +91,8 @@ $(TYPEDFIELDS)
     set::Settings = se()
     "Reference to the KCU struct (Kite Control Unit, type from the module KitePodSimulor"
     kcu::KCU = KCU()
+    "Iteration"
+    iter:: Int64 = 0
     "Function for calculation the lift coefficent, using a spline based on the provided value pairs."
     calc_cl = Spline1D(se().alpha_cl, se().cl_list)
     "Function for calculation the drag coefficent, using a spline based on the provided value pairs."
@@ -282,7 +284,7 @@ function init_pos_vel(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)))
     pos, vel
 end
 
-function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false)
+function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1); old=false)
     # delta = 1e-6
     delta = 0.0
     pos = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
@@ -307,7 +309,7 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)
     if old
         particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k)
     else
-        particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k, pos[s.set.segments+1], rotate_in_xz(vec_c, deg2rad(KITE_ANGLE)), s.v_apparent)
+        particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k, pos[s.set.segments+1], rotate_in_xz(vec_c, deg2rad(X[end-1]+KITE_ANGLE)), s.v_apparent)
     end
     j = 1
     for i in [1,2,4] # set p8, p9, p11
@@ -316,6 +318,8 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)
         acc[s.set.segments+1+i] .= [delta, delta, -9.81]
         j +=1
     end
+    acc[s.set.segments+1+3] .= [delta, delta, -9.81]
+    vel[s.set.segments+1+3] .= [delta, delta, delta]
     # set p9=C and p10=D
     # x and z component of the right and left particle must be equal
     pos[s.set.segments+1+3][1] = pos[s.set.segments+1+2][1]  # D.x = C.x
@@ -331,17 +335,25 @@ end
 
 function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false)
     pos, vel, acc = init_pos_vel_acc(s, X; old=old)
-    vcat(pos, vel), vcat(vel, acc)
+    if SHORT
+        vcat(pos[2:end], vel[2:end]), vcat(vel[2:end], acc[2:end])
+    else
+        vcat(pos, vel), vcat(vel, acc)
+    end
 end
 
 # same as above, but returns a tuple of two one dimensional arrays
-function init_flat(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)); old=false)
+function init_flat(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false)
     res1_, res2_ = init(s, X; old=old)
     res1, res2  = reduce(vcat, res1_), reduce(vcat, res2_)
     # append the initial reel-out length and it's derivative
     res1 = vcat(res1, SVector(s.set.l_tether, s.set.v_reel_out))
     res2 = vcat(res2, SVector(s.set.v_reel_out, 1e-6))
-    res1, res2
+    if SHORT
+        MVector{62, Float64}(res1), MVector{62, Float64}(res2)
+    else
+        res1, res2
+    end
 end
 
 """ 
@@ -398,7 +410,12 @@ forces:        out parameter
         p2 = s.springs[i].p2  # Second point nr.
         height = 0.5 * (pos[p1][3] + pos[p2][3])
         rho = calc_rho(s, height)
+        if ! (height > 0)
+           println("i, $i, p1: $p1, p2: $p2, pos[p1]: $(pos[p1]), pos[p2]: $(pos[p2])")
+        end
+        @assert height > 0.0
         s.v_wind_tether .= calc_wind_factor(s, height) * v_wind_gnd
+        @assert ! isnan(s.v_wind_tether[1])
         calc_particle_forces(s, pos[p1], pos[p2], vel[p1], vel[p2], s.springs[i], segments, d_tether, rho, i)
     end
     nothing
@@ -497,11 +514,11 @@ The number of the point masses of the model N = (S-2)/6, the state of each point
 is represented by two 3 element vectors.
 """
 function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
-    T = S-2 # T: three times the number of particles including the origin
-    segments = div(T,6) - KITE_PARTICLES - 1
+    T = S-2 # T: three times the number of particles excluding the origin
+    segments = div(T,6) - KITE_PARTICLES
     
     # Reset the force vector to zero.
-    for i in 1:segments + KITE_PARTICLES + 1 
+    for i in 1:segments+KITE_PARTICLES+1
         s.forces[i] .= SVector(0.0, 0, 0)
     end
     length = y[end-1]
@@ -514,28 +531,56 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
     yds = @view yd[1:T]
     part  = reshape(SVector{T}(ys),  Size(3, div(T,6), 2))
     partd = reshape(SVector{T}(yds), Size(3, div(T,6), 2))
-    pos1, vel1 = part[:,:,1], part[:,:,2]
-    pos = SVector{div(T,6)}(SVector(pos1[:,i]) for i in 1:div(T,6))
-    vel = SVector{div(T,6)}(SVector(vel1[:,i]) for i in 1:div(T,6))
-    posd1, veld1 = partd[:,:,1], partd[:,:,2]
-    posd = SVector{div(T,6)}(SVector(posd1[:,i]) for i in 1:div(T,6))
-    veld = SVector{div(T,6)}(SVector(veld1[:,i]) for i in 1:div(T,6))
+    if SHORT
+        pos1, vel1 = part[:,:,1], part[:,:,2]
+        pos = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(pos1[:,i-1]) end for i in 1:div(T,6)+1)
+        vel = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(vel1[:,i-1]) end for i in 1:div(T,6)+1)
+        posd1, veld1 = partd[:,:,1], partd[:,:,2]
+        posd = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(posd1[:,i-1]) end for i in 1:div(T,6)+1)
+        veld = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(veld1[:,i-1]) end for i in 1:div(T,6)+1)
+    else
+        pos1, vel1 = part[:,:,1], part[:,:,2]
+        pos = SVector{div(T,6)}(SVector(pos1[:,i]) for i in 1:div(T,6))
+        vel = SVector{div(T,6)}(SVector(vel1[:,i]) for i in 1:div(T,6))
+        posd1, veld1 = partd[:,:,1], partd[:,:,2]
+        posd = SVector{div(T,6)}(SVector(posd1[:,i]) for i in 1:div(T,6))
+        veld = SVector{div(T,6)}(SVector(veld1[:,i]) for i in 1:div(T,6))
+    end
+    if ! isnan(pos[2][3])
+        print(s.iter, " ")
+    end
+
+    @assert ! isnan(pos[2][3])
 
     # core calculations
     calc_aero_forces(s, pos, vel, s.rho, s.alpha_depower, s.steering)
     loop(s, pos, vel, posd, veld)
 
     # copy and flatten result
-    for i in 2:div(T,6)
+    for i in 2:div(T,6)+1
         for j in 1:3
             res[3*(i-2)+j]                = s.res1[i][j]
             res[3*(div(T,6)-1)+3*(i-2)+j] = s.res2[i][j]
         end
     end
     if norm(res) < 1e5
-        for i in 1:div(T,6)
-            @inbounds s.pos[i] .= pos[i]
+        for i in 1:div(T,6)+1
+            s.pos[i] .= pos[i]
         end
+    end
+
+    @assert ! isnan(norm(res))
+    s.iter += 1
+    if true # s.iter <= 4 || s.iter >= 62
+        println(s.iter, " T: ", T)
+        println(pos) 
+        println(vel)
+        println(posd)
+        println(veld)
+        println(s.res1)
+        println(s.res2)
+        println(s.forces)
+        println()
     end
 
     # winch not yet integrated
@@ -583,7 +628,7 @@ Find an initial equilibrium, based on the inital parameters
 """
 function find_steady_state(s::KPS4, prn=false)
     res = zeros(MVector{6*(s.set.segments+KITE_PARTICLES)+2, SimFloat})
-    n_ones = ones(SimFloat, 2*(s.set.segments+KITE_PARTICLES-1)+1)
+    n_ones = ones(SimFloat, 2*(s.set.segments+KITE_PARTICLES-1)+2)
     iter = 0
 
     # helper function for the steady state finder
@@ -602,15 +647,17 @@ function find_steady_state(s::KPS4, prn=false)
             # copy the z-component of the residual res2
             F[i+s.set.segments+KITE_PARTICLES] = res[3 + 3*(j-1) + 3*(s.set.segments+KITE_PARTICLES)]
         end
+        # copy the acceleration of point KCU in x direction
+        i = s.set.segments+1
+        F[end-1]                               = res[1 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)] 
         # copy the acceleration of point C in y direction
-        i = s.set.segments+3
-        # F[end-1] = norm() # sum of 
+        i = s.set.segments+3 
         F[end]                                 = res[2 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)] 
         iter += 1
         return nothing 
     end
     function f(x)
-      F = zeros(SimFloat, 2*(s.set.segments+KITE_PARTICLES-1)+1)
+      F = zeros(SimFloat, 2*(s.set.segments+KITE_PARTICLES-1)+2)
       test_initial_condition!(F, x)
       # reduce the weight of the tether particles
       for i in 1:s.set.segments       
@@ -621,27 +668,29 @@ function find_steady_state(s::KPS4, prn=false)
       F
     end
     function eval_fct(x)
-        bb_outputs = [norm(f(x))]
-        success = ! isnan(bb_outputs[1])  #&& all(KiteModels.spring_forces(s) .> 0)
+        winch_force = norm(spring_forces(s)[1])
+        bb_outputs = [norm(f(x))-0.005*winch_force]
+        success = ! isnan(bb_outputs[1])  && all(KiteModels.spring_forces(s)[1:s.set.segments] .> 0)
         count_eval = true
         success, count_eval, bb_outputs
     end
-    pb = NomadProblem(2*(s.set.segments+KITE_PARTICLES-1)+1, # number of inputs of the blackbox
+    pb = NomadProblem(2*(s.set.segments+KITE_PARTICLES-1)+2, # number of inputs of the blackbox
                     1, # number of outputs of the blackbox
                     ["OBJ"], # type of outputs of the blackbox
                     eval_fct;
                     lower_bound = -DELTA_MAX * n_ones,
-                    upper_bound =  DELTA_MAX * n_ones)
-    pb.options.max_bb_eval = MAX_ITER * 10
+                    upper_bound =  DELTA_MAX * n_ones,
+                    initial_mesh_size = 1e-4 * n_ones)
+    pb.options.max_bb_eval = MAX_ITER
     if prn println("\nStarted function test_nlsolve...") end
     if USE_NOMAD
         # result = solve(pb, zeros(SimFloat, 2*(s.set.segments+KITE_PARTICLES-1)+1))
-        result = solve(pb, X00)       
-        init(s, result[1])
+        result = NOMAD.solve(pb, X00)       
+        init_flat(s, result[1])
     else
-        results = nlsolve(test_initial_condition!, X00, autoscale=false, iterations=MAX_ITER)
+        results = nlsolve(test_initial_condition!, X00, autoscale=true, iterations=MAX_ITER)
         if prn println("\nresult: $results") end
-        init(s, results.zero)
+        init_flat(s, results.zero)
     end
 end
 
@@ -652,4 +701,42 @@ function rotate_in_xz(vec, angle)
     result[2] = vec[2]
     result[3] = cos(angle) * vec[3] + sin(angle) * vec[1]
     result
+end
+
+function init_sim(kps, t_end)
+    USE_IDA=true
+    clear(kps)
+    kps.alpha_depower = deg2rad(2.2095658807330962) # from one point simulation
+    kps.set.alpha_zero = 0.0   
+    height = 134.14733504839947
+    kps.set.elevation = 70.7 
+    kps.set.profile_law = Int(EXPLOG)
+    kps.v_wind .= kps.v_wind_gnd * calc_wind_factor(kps, height)
+    y0, yd0 = init_flat(kps, X00) # 
+    # y0, yd0 = KiteModels.find_steady_state(kps)
+    println(length(y0))
+    kps.stiffness_factor = 1.0
+
+    forces = spring_forces(kps)
+    println(forces)
+
+    differential_vars =  ones(Bool, length(y0))
+    differential_vars[end] = false
+    differential_vars[end-1] = false
+    if USE_IDA
+        solver = IDA(linear_solver=:Dense)
+    else
+        solver = DABDF2()
+    end
+    tspan = (0.0, t_end) 
+    MAX_ERROR = 1.8        # maximal position error in cm
+    pos_tol = MAX_ERROR/ 100.0
+    vel_tol = pos_tol / 60.0
+
+    prob = DAEProblem(residual!, yd0, y0, tspan, kps, differential_vars=differential_vars)
+    if USE_IDA
+       integrator = Sundials.init(prob, solver, abstol=vel_tol, reltol=0.001)
+    else
+        integrator = DifferentialEquations.init(prob, solver, abstol=vel_tol, reltol=0.0001)
+    end
 end
