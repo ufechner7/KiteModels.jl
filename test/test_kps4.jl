@@ -49,6 +49,29 @@ function init_150()
     kps4.set.width = 4.9622
 end
 
+function init3()
+    kps4.set.alpha =  0.08163
+    KiteModels.clear(kps4)
+    kps4.set.l_tether = 150.0 # - kps4.set.height_k - kps4.set.h_bridle
+    kps4.set.area = 10.18
+    kps4.set.rel_side_area = 30.6
+    kps4.set.mass = 6.21
+    kps4.set.c_s = 0.6
+    kps4.set.damping = 473.0     # unit damping coefficient
+    kps4.set.c_spring = 614600.0 # unit spring coefficent
+    kps4.set.width = 4.9622
+    kps4.set.elevation = 70.7 
+    kps4.set.profile_law = Int(EXPLOG)
+    pos, vel = KiteModels.init_pos_vel(kps4)
+    posd = copy(vel)
+    veld = zero(vel)
+    height = 134.14733504839947
+    kps4.v_wind .= kps4.v_wind_gnd * calc_wind_factor(kps4, height)
+    kps4.stiffness_factor = 1.0
+    KiteModels.init_springs(kps4)
+    return pos, vel, posd, veld
+end
+
 set_defaults()
 
 @testset "calc_rho              " begin
@@ -172,6 +195,24 @@ end
     for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1
         @test all(pos1[i,:] .≈ pos[i])
     end
+end
+
+function split_res(res)
+    particles = se().segments+KiteModels.KITE_PARTICLES
+    pos=res[1:3*particles]
+    vel=res[3*particles+1:6*particles]
+    pos, vel
+end
+
+@testset "initial_residual      " begin
+    init3()
+    res = zeros(MVector{6*(se().segments+KiteModels.KITE_PARTICLES), SimFloat})
+    y0, yd0 = KiteModels.init_flat(kps4, KiteModels.X00)
+    residual!(res, yd0, y0, kps4, 0.0)
+    res_pos, res_vel = split_res(res)
+    @test res_pos == zeros(length(res_pos))
+    # in the second test we check if the norm of the accelerations of the tether particles is low
+    @test (norm(res_vel[1:15])) < 15.0
 end
 
 # @testset "inner_loop            " begin

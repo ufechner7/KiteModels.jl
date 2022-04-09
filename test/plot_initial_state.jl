@@ -45,7 +45,6 @@ if typeof(kps4) <: KPS4
     kps4.set.alpha_zero = 0.0   
 end
 
-println(kps4.set.l_tether)
 y0, yd0 = KiteModels.init(kps4)
 
 for i in 1:length(kps4.pos)
@@ -53,7 +52,7 @@ for i in 1:length(kps4.pos)
      push!(z0, kps4.pos[i][3])
 end
 
-# find_steady_state(kps4, true)
+find_steady_state(kps4, true)
 
 x = Float64[] 
 z = Float64[]
@@ -68,5 +67,21 @@ println(KiteModels.spring_forces(kps4))
 println("alpha_depower [deg]: $(rad2deg(kps4.alpha_depower))")
 println("lift, drag    [N]  : $(KiteModels.lift_drag(kps4))")
 
-plot2d(x0, z0; zoom=0)
+integrator=KiteModels.init_sim(kps4, 1.0)
+
+x1 = Float64[] 
+z1 = Float64[]
+
+for i in 1:length(kps4.pos)
+     push!(x1, kps4.pos[i][1])
+     push!(z1, kps4.pos[i][3])
+end
+
+println("kite distance: $(norm(kps4.pos[end]))")
+println(KiteModels.spring_forces(kps4))
+println("alpha_depower [deg]: $(rad2deg(kps4.alpha_depower))")
+println("lift, drag    [N]  : $(KiteModels.lift_drag(kps4))")
+
+plot2d(x, z; zoom=0)
+plot2d(x1, z1; zoom=0)
 

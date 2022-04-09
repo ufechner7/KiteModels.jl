@@ -61,7 +61,7 @@ const KITE_SPRINGS = 9
 const KITE_ANGLE = 0.0 # 3.83 # angle between the kite and the last tether segment due to the mass of the control pod
 const DELTA_MAX = 5.0
 const USE_NOMAD = false
-const MAX_ITER  = 1000  # max iterations for steady state finder
+const MAX_ITER  = 1  # max iterations for steady state finder
 const PRE_STRESS  = 0.9998   # Multiplier for the initial spring lengths.
 const KS = deg2rad(16.565 * 1.064 * 0.875 * 1.033 * 0.9757 * 1.083)  # max steering
 const DRAG_CORR = 0.93       # correction of the drag for the 4-point model
@@ -294,12 +294,7 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
     sin_el, cos_el = sin(s.set.elevation / 180.0 * pi), cos(s.set.elevation / 180.0 * pi)
     for i in 1:s.set.segments
         radius = -i * (s.set.l_tether/s.set.segments)
-        if old
-            pos[i+1] .= [-cos_el * radius + X[i], delta, -sin_el * radius + X[s.set.segments+KITE_PARTICLES-1+i]]
-        else
-            # pos[i+1] .= [-cos_el * radius + X[i] + X0[i], delta, -sin_el * radius + X[s.set.segments+KITE_PARTICLES-1+i] + X0[s.set.segments+i]]
-            pos[i+1] .= [-cos_el * radius + X[i], delta, -sin_el * radius + X[s.set.segments+KITE_PARTICLES-1+i]]
-        end
+        pos[i+1] .= [-cos_el * radius + X[i], delta, -sin_el * radius + X[s.set.segments+KITE_PARTICLES-1+i]]
         vel[i+1] .= [delta, delta, 0]
         acc[i+1] .= [delta, delta, -9.81]
     end
@@ -344,9 +339,6 @@ end
 function init_flat(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false)
     res1_, res2_ = init(s, X; old=old, delta = 0.0)
     res1, res2  = reduce(vcat, res1_), reduce(vcat, res2_)
-    # append the initial reel-out length and it's derivative
-    # res1 = vcat(res1, SVector(s.set.l_tether, s.set.v_reel_out))
-    # res2 = vcat(res2, SVector(s.set.v_reel_out, 1e-6))
     if SHORT
         MVector{6*(s.set.segments+KITE_PARTICLES), Float64}(res1), MVector{6*(s.set.segments+KITE_PARTICLES), Float64}(res2)
     else
@@ -539,8 +531,8 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
     # copy and flatten result
     for i in 2:div(T,6)+1
         for j in 1:3
-            res[3*(i-2)+j]                = s.res1[i][j]
-            res[3*(div(T,6)-1)+3*(i-2)+j] = s.res2[i][j]
+            res[3*(i-2)+j]              = s.res1[i][j]
+            res[3*(div(T,6))+3*(i-2)+j] = s.res2[i][j]
         end
     end
     if norm(res) < 1e5
@@ -634,6 +626,7 @@ function find_steady_state(s::KPS4, prn=false)
         return nothing 
     end
     function f(x)
+      # p2 to p11, but not p10; in addition delta y and kite_angle
       F = zeros(SimFloat, 2*(s.set.segments+KITE_PARTICLES-1)+2)
       test_initial_condition!(F, x)
       # reduce the weight of the tether particles
@@ -641,7 +634,7 @@ function find_steady_state(s::KPS4, prn=false)
           F[i] *= 0.25 / (i/(2*s.set.segments))
           F[i+KITE_PARTICLES-1] *= 0.5 / (i/(2*s.set.segments))
       end    
-      F[end] *= 5.0  
+      F[end-1] *= 5.0  
       F
     end
     function eval_fct(x)
@@ -681,7 +674,6 @@ function rotate_in_xz(vec, angle)
 end
 
 function init_sim(kps, t_end)
-    USE_IDA=true
     clear(kps)
     kps.alpha_depower = deg2rad(2.2095658807330962) # from one point simulation
     kps.set.alpha_zero = 0.0   
@@ -700,20 +692,22 @@ function init_sim(kps, t_end)
     differential_vars =  ones(Bool, length(y0))
     differential_vars[end] = false
     differential_vars[end-1] = false
-    if USE_IDA
-        solver = IDA(linear_solver=:Dense)
-    else
-        solver = DABDF2()
-    end
+    solver = IDA(linear_solver=:Dense)
     tspan = (0.0, t_end) 
     MAX_ERROR = 1.8        # maximal position error in cm
     pos_tol = MAX_ERROR/ 100.0
     vel_tol = pos_tol / 60.0
 
     prob = DAEProblem(residual!, yd0, y0, tspan, kps, differential_vars=differential_vars)
-    if USE_IDA
-       integrator = Sundials.init(prob, solver, abstol=vel_tol, reltol=0.001)
-    else
-        integrator = DifferentialEquations.init(prob, solver, abstol=vel_tol, reltol=0.0001)
-    end
+    integrator = Sundials.init(prob, solver, abstol=vel_tol, reltol=0.001)
+end
+
+function next_step(s, integrator, dt)
+    KitePodModels.on_timer(s.kcu)
+    KiteModels.set_depower_steering(s, 0.236, get_steering(s.kcu))
+    Sundials.step!(integrator, dt, true)
+    u = integrator.u
+    t = integrator.t
+    v_ro = 0.0
+    set_v_reel_out(s, v_ro, t)
 end
