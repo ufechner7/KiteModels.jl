@@ -10,17 +10,6 @@ end
 
 const dt = 0.05
 
-integrator=KiteModels.init_sim(kps4, 1.0)
-oldpos = deepcopy(kps4.pos)
-kps4.stiffness_factor=0.02
-for i in 1:200
-    println("lift, drag    [N]  : $(KiteModels.lift_drag(kps4))")
-    KiteModels.next_step(kps4, integrator, dt)
-    if kps4.stiffness_factor < 1.0
-        kps4.stiffness_factor+=0.01
-    end
-end
-
 function plot2d(x, z; zoom=1)
     if zoom ==1
         x_max=maximum(x)
@@ -34,10 +23,31 @@ function plot2d(x, z; zoom=1)
     plot!(x, z, seriestype = :scatter)
 end
 
+integrator=KiteModels.init_sim(kps4, 1.0)
+oldpos = deepcopy(kps4.pos)
+kps4.stiffness_factor=0.02
+for i in 1:100
+    println("lift, drag    [N]  : $(KiteModels.lift_drag(kps4))")
+    KiteModels.next_step(kps4, integrator, dt)
+    if kps4.stiffness_factor < 1.0
+        kps4.stiffness_factor+=0.01
+    end
+    local x = Float64[] 
+    local z = Float64[]
+    for i in 1:length(kps4.pos)
+        push!(x, kps4.pos[i][1])
+        push!(z, kps4.pos[i][3])
+    end
+    local p = plot2d(x, z; zoom=0)
+    display(p)
+    sleep(0.1)
+end
+
 x = Float64[] 
 z = Float64[]
 for i in 1:length(kps4.pos)
      push!(x, kps4.pos[i][1])
      push!(z, kps4.pos[i][3])
 end
-plot2d(x, z; zoom=0)
+# p = plot2d(x, z; zoom=0)
+# display(p)
