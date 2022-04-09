@@ -299,7 +299,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
     # copy and flatten result
     for i in 2:div(S,6)+1
         for j in 1:3
-           @inbounds res[3*(i-2)+j] = s.res1[i][j]
+           @inbounds res[3*(i-2)+j]              = s.res1[i][j]
            @inbounds res[3*(div(S,6))+3*(i-2)+j] = s.res2[i][j]
         end
     end

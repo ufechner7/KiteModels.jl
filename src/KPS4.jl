@@ -284,9 +284,7 @@ function init_pos_vel(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)))
     pos, vel
 end
 
-function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1); old=false)
-    # delta = 1e-6
-    delta = 0.0
+function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1); old=false, delta = 1e-6)
     pos = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
     vel = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
     acc = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
@@ -333,8 +331,8 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
     pos, vel, acc
 end
 
-function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false)
-    pos, vel, acc = init_pos_vel_acc(s, X; old=old)
+function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false, delta=1e-6)
+    pos, vel, acc = init_pos_vel_acc(s, X; old=old, delta=delta)
     if SHORT
         vcat(pos[2:end], vel[2:end]), vcat(vel[2:end], acc[2:end])
     else
@@ -344,13 +342,13 @@ end
 
 # same as above, but returns a tuple of two one dimensional arrays
 function init_flat(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false)
-    res1_, res2_ = init(s, X; old=old)
+    res1_, res2_ = init(s, X; old=old, delta = 0.0)
     res1, res2  = reduce(vcat, res1_), reduce(vcat, res2_)
     # append the initial reel-out length and it's derivative
-    res1 = vcat(res1, SVector(s.set.l_tether, s.set.v_reel_out))
-    res2 = vcat(res2, SVector(s.set.v_reel_out, 1e-6))
+    # res1 = vcat(res1, SVector(s.set.l_tether, s.set.v_reel_out))
+    # res2 = vcat(res2, SVector(s.set.v_reel_out, 1e-6))
     if SHORT
-        MVector{62, Float64}(res1), MVector{62, Float64}(res2)
+        MVector{6*(s.set.segments+KITE_PARTICLES), Float64}(res1), MVector{6*(s.set.segments+KITE_PARTICLES), Float64}(res2)
     else
         res1, res2
     end
@@ -413,9 +411,7 @@ forces:        out parameter
         if ! (height > 0)
            println("i, $i, p1: $p1, p2: $p2, pos[p1]: $(pos[p1]), pos[p2]: $(pos[p2])")
         end
-        @assert height > 0.0
         s.v_wind_tether .= calc_wind_factor(s, height) * v_wind_gnd
-        @assert ! isnan(s.v_wind_tether[1])
         calc_particle_forces(s, pos[p1], pos[p2], vel[p1], vel[p2], s.springs[i], segments, d_tether, rho, i)
     end
     nothing
@@ -514,40 +510,24 @@ The number of the point masses of the model N = (S-2)/6, the state of each point
 is represented by two 3 element vectors.
 """
 function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
-    T = S-2 # T: three times the number of particles excluding the origin
+    T = S # T: three times the number of particles excluding the origin
     segments = div(T,6) - KITE_PARTICLES
     
     # Reset the force vector to zero.
     for i in 1:segments+KITE_PARTICLES+1
         s.forces[i] .= SVector(0.0, 0, 0)
     end
-    length = y[end-1]
-    v_reel_out = y[end]
-    lengthd = yd[end-1]
-    v_reel_outd = yd[end]
-
     # unpack the vectors y and yd
-    ys  = @view y[1:T]
-    yds = @view yd[1:T]
-    part  = reshape(SVector{T}(ys),  Size(3, div(T,6), 2))
-    partd = reshape(SVector{T}(yds), Size(3, div(T,6), 2))
-    if SHORT
-        pos1, vel1 = part[:,:,1], part[:,:,2]
-        pos = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(pos1[:,i-1]) end for i in 1:div(T,6)+1)
-        vel = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(vel1[:,i-1]) end for i in 1:div(T,6)+1)
-        posd1, veld1 = partd[:,:,1], partd[:,:,2]
-        posd = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(posd1[:,i-1]) end for i in 1:div(T,6)+1)
-        veld = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(veld1[:,i-1]) end for i in 1:div(T,6)+1)
-    else
-        pos1, vel1 = part[:,:,1], part[:,:,2]
-        pos = SVector{div(T,6)}(SVector(pos1[:,i]) for i in 1:div(T,6))
-        vel = SVector{div(T,6)}(SVector(vel1[:,i]) for i in 1:div(T,6))
-        posd1, veld1 = partd[:,:,1], partd[:,:,2]
-        posd = SVector{div(T,6)}(SVector(posd1[:,i]) for i in 1:div(T,6))
-        veld = SVector{div(T,6)}(SVector(veld1[:,i]) for i in 1:div(T,6))
-    end
+    part  = reshape(SVector{T}(y),  Size(3, div(T,6), 2))
+    partd = reshape(SVector{T}(yd), Size(3, div(T,6), 2))
+    pos1, vel1 = part[:,:,1], part[:,:,2]
+    pos = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(pos1[:,i-1]) end for i in 1:div(T,6)+1)
+    vel = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(vel1[:,i-1]) end for i in 1:div(T,6)+1)
+    posd1, veld1 = partd[:,:,1], partd[:,:,2]
+    posd = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(posd1[:,i-1]) end for i in 1:div(T,6)+1)
+    veld = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(veld1[:,i-1]) end for i in 1:div(T,6)+1)
     if ! isnan(pos[2][3])
-        print(s.iter, " ")
+        # print(s.iter, " ")
     end
 
     @assert ! isnan(pos[2][3])
@@ -571,7 +551,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
 
     @assert ! isnan(norm(res))
     s.iter += 1
-    if true # s.iter <= 4 || s.iter >= 62
+    if false # s.iter <= 4 || s.iter >= 62
         println(s.iter, " T: ", T)
         println(pos) 
         println(vel)
@@ -583,9 +563,6 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
         println()
     end
 
-    # winch not yet integrated
-    res[end-1] = 0.0
-    res[end]   = 0.0
     nothing
 end
 
