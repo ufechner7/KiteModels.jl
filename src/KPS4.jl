@@ -339,11 +339,7 @@ end
 function init_flat(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false)
     res1_, res2_ = init(s, X; old=old, delta = 0.0)
     res1, res2  = reduce(vcat, res1_), reduce(vcat, res2_)
-    if SHORT
-        MVector{6*(s.set.segments+KITE_PARTICLES), Float64}(res1), MVector{6*(s.set.segments+KITE_PARTICLES), Float64}(res2)
-    else
-        res1, res2
-    end
+    MVector{6*(s.set.segments+KITE_PARTICLES), Float64}(res1), MVector{6*(s.set.segments+KITE_PARTICLES), Float64}(res2)
 end
 
 """ 
@@ -531,13 +527,13 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
     # copy and flatten result
     for i in 2:div(T,6)+1
         for j in 1:3
-            res[3*(i-2)+j]              = s.res1[i][j]
-            res[3*(div(T,6))+3*(i-2)+j] = s.res2[i][j]
+            @inbounds res[3*(i-2)+j]              = s.res1[i][j]
+            @inbounds res[3*(div(T,6))+3*(i-2)+j] = s.res2[i][j]
         end
     end
     if norm(res) < 1e5
         for i in 1:div(T,6)+1
-            s.pos[i] .= pos[i]
+            @inbounds s.pos[i] .= pos[i]
         end
     end
 
@@ -683,11 +679,10 @@ function init_sim(kps, t_end)
     kps.v_wind .= kps.v_wind_gnd * calc_wind_factor(kps, height)
     y0, yd0 = init_flat(kps, X00) # 
     # y0, yd0 = KiteModels.find_steady_state(kps)
-    println(length(y0))
     kps.stiffness_factor = 1.0
 
-    forces = spring_forces(kps)
-    println(forces)
+    # forces = spring_forces(kps)
+    # println(forces)
 
     differential_vars =  ones(Bool, length(y0))
     differential_vars[end] = false
@@ -706,7 +701,6 @@ function next_step(s, integrator, dt)
     KitePodModels.on_timer(s.kcu)
     KiteModels.set_depower_steering(s, 0.236, get_steering(s.kcu))
     Sundials.step!(integrator, dt, true)
-    u = integrator.u
     t = integrator.t
     v_ro = 0.0
     set_v_reel_out(s, v_ro, t)
