@@ -685,9 +685,7 @@ function init_sim(kps, t_end)
     # println(forces)
 
     differential_vars =  ones(Bool, length(y0))
-    differential_vars[end] = false
-    differential_vars[end-1] = false
-    solver = IDA(linear_solver=:Dense)
+    solver = IDA(linear_solver=:Dense, max_order = 3)
     tspan = (0.0, t_end) 
     MAX_ERROR = 1.8        # maximal position error in cm
     pos_tol = MAX_ERROR/ 100.0
