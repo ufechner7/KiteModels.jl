@@ -61,7 +61,7 @@ const KITE_SPRINGS = 9
 const KITE_ANGLE = 3.83 # angle between the kite and the last tether segment due to the mass of the control pod
 const DELTA_MAX = 5.0
 const USE_NOMAD = false
-const MAX_ITER  = 200  # max iterations for steady state finder
+const MAX_ITER  = 10  # max iterations for steady state finder
 const PRE_STRESS  = 0.9998   # Multiplier for the initial spring lengths.
 const KS = deg2rad(16.565 * 1.064 * 0.875 * 1.033 * 0.9757 * 1.083)  # max steering
 const DRAG_CORR = 0.93       # correction of the drag for the 4-point model
@@ -221,7 +221,7 @@ function get_particles(height_k, height_b, width, m_k, pos_pod= [ 75., 0., 129.9
     # println("norm(pos1-pos3) $(norm(pos1-pos3))")             # S2 p8 p9 
     # println("norm(pos4-pos3) $(norm(pos4-pos3))")             # S3 p9 p10
     # println("norm(pos1-pos4) $(norm(pos1-pos4))")             # S9 p11 p8
-    [zeros(3), pos0, pos1, pos3, pos4, pos_kite] # 0, p7, p8, p9, p10, p11
+    [zeros(3), pos0, pos1, pos_kite, pos3, pos4] # 0, p7, p8, p9, p10, p11
 end
 
 function calc_height(s::KPS4)
@@ -306,20 +306,20 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
         particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k, pos[s.set.segments+1], rotate_in_xz(vec_c, deg2rad(KITE_ANGLE)), s.v_apparent)
     end
     j = 1
-    for i in [1,2,4] # set p8, p9, p11
+    for i in [1,2,3] # set p8, p9, p10
         pos[s.set.segments+1+i] .= particles[i+2] + [X[s.set.segments+j], 0, X[2*s.set.segments+KITE_PARTICLES-1+j]]
         vel[s.set.segments+1+i] .= [delta, delta, delta]
         acc[s.set.segments+1+i] .= [delta, delta, -9.81]
         j +=1
     end
-    acc[s.set.segments+1+3] .= [delta, delta, -9.81]
-    vel[s.set.segments+1+3] .= [delta, delta, delta]
-    # set p9=C and p10=D
+    acc[s.set.segments+1+4] .= [delta, delta, -9.81]
+    vel[s.set.segments+1+4] .= [delta, delta, delta]
+    # set p10=C and p11=D
     # x and z component of the right and left particle must be equal
-    pos[s.set.segments+1+3][1] = pos[s.set.segments+1+2][1]  # D.x = C.x
-    pos[s.set.segments+1+3][3] = pos[s.set.segments+1+2][3]  # D.z = C.z
-    pos[s.set.segments+1+2][2] += X[end]                     # Y position of point C
-    pos[s.set.segments+1+3][2] = -pos[s.set.segments+1+2][2] # Y position of point D
+    pos[s.set.segments+1+4][1] = pos[s.set.segments+1+3][1]  # D.x = C.x
+    pos[s.set.segments+1+4][3] = pos[s.set.segments+1+3][3]  # D.z = C.z
+    pos[s.set.segments+1+3][2] += X[end]                     # Y position of point C
+    pos[s.set.segments+1+4][2] = -pos[s.set.segments+1+3][2] # Y position of point D
     for i in 1:length(pos)
         s.pos[i] .= pos[i]
     end

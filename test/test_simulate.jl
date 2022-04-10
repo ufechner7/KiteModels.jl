@@ -16,6 +16,7 @@ end
 
 const dt = 0.05
 const PLOT = true
+const SHOW_FRONT = true
 
 function plot2d(x, z; zoom=1)
     if zoom == 1
@@ -45,7 +46,11 @@ function simulate(integrator, steps, plot=false)
             x = Float64[] 
             z = Float64[]
             for i in 1:length(kps4.pos)
-                push!(x, kps4.pos[i][1])
+                if SHOW_FRONT
+                    push!(x, kps4.pos[i][2])
+                else
+                    push!(x, kps4.pos[i][1])
+                end
                 push!(z, kps4.pos[i][3])
             end
             p = plot2d(x, z; zoom=1)

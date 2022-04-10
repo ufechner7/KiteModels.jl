@@ -15,7 +15,6 @@ if ! @isdefined kps
 end
 
 const dt = 0.05
-const PLOT = true
 
 function plot2d(x, z; zoom=1)
     if zoom == 1
@@ -38,8 +37,8 @@ kps.set.elevation = 70.7
 kps.set.profile_law = Int(EXPLOG)
 kps.v_wind .= kps.v_wind_gnd * calc_wind_factor(kps, height)
 kps.stiffness_factor = 1.0
-# y0, yd0 = KiteModels.init_flat(kps, KiteModels.X00) # 
-y0, yd0 = KiteModels.find_steady_state(kps, true)
+y0, yd0 = KiteModels.init_flat(kps, KiteModels.X00) # 
+# y0, yd0 = KiteModels.find_steady_state(kps, true)
 
 println("\nlift, drag    [N]  : $(KiteModels.lift_drag(kps))")
 println("\nSpring forces:")
