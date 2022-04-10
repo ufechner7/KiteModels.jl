@@ -36,14 +36,14 @@ Scientific background: http://arxiv.org/abs/1406.6218 =#
 # First point, second point, unstressed length.
 const SPRINGS_INPUT = [0.    1.  150.
                        1.    2.   -1. # s1, p7, p8
-                       2.    3.   -1. # s2, p8, p9
-                       3.    4.   -1. # s3, p9, p10
-                       3.    5.   -1. # s4, p9, p11
-                       4.    1.   -1. # s5, p10, p7
-                       3.    1.   -1. # s6, p9, p7
-                       4.    5.   -1. # s7, p10, p11
-                       4.    2.   -1. # s8, p10, p8 
-                       5.    2.   -1.]# s9, p11, p8
+                       4.    2.   -1. # s2, p10, p8                        
+                       4.    5.   -1. # s3, p10, p11
+                       3.    4.   -1. # s4, p9, p10
+                       5.    1.   -1. # s5, p11, p7
+                       4.    1.   -1. # s6, p10, p7
+                       3.    5.   -1. # s7, p9, p11
+                       5.    2.   -1. # s8, p11, p8
+                       2.    3.   -1.] # s9, p8, p9
 
 # struct, defining the phyical parameters of one spring
 @with_kw struct Spring{I, S}
@@ -61,7 +61,7 @@ const KITE_SPRINGS = 9
 const KITE_ANGLE = 3.83 # angle between the kite and the last tether segment due to the mass of the control pod
 const DELTA_MAX = 5.0
 const USE_NOMAD = false
-const MAX_ITER  = 10  # max iterations for steady state finder
+const MAX_ITER  = 200  # max iterations for steady state finder
 const PRE_STRESS  = 0.9998   # Multiplier for the initial spring lengths.
 const KS = deg2rad(16.565 * 1.064 * 0.875 * 1.033 * 0.9757 * 1.083)  # max steering
 const DRAG_CORR = 0.93       # correction of the drag for the 4-point model
@@ -214,14 +214,14 @@ function get_particles(height_k, height_b, width, m_k, pos_pod= [ 75., 0., 129.9
     h_bx = height_b * cos(beta)
     h_bz = height_b * sin(beta)
     pos_kite = pos_pod - (h_kz + h_bz) * z + (h_kx + h_bx) * x  # top,        poing B in diagram
-    pos3 = pos_kite + h_kz * z + 0.5 * width * y + h_kx * x     # side point, point C in diagram
-    pos1 = pos_kite + h_kz * z + (h_kx + width * m_k) * x       # nose,       point A in diagram
-    pos4 = pos_kite + h_kz * z - 0.5 * width * y + h_kx * x     # side point, point D in diagram
+    pos_C = pos_kite + h_kz * z + 0.5 * width * y + h_kx * x     # side point, point C in diagram
+    pos_A = pos_kite + h_kz * z + (h_kx + width * m_k) * x       # nose,       point A in diagram
+    pos_D = pos_kite + h_kz * z - 0.5 * width * y + h_kx * x     # side point, point D in diagram
     pos0 = pos_kite + (h_kz + h_bz) * z + (h_kx + h_bx) * x     # equal to pos_pod, P_KCU in diagram
-    # println("norm(pos1-pos3) $(norm(pos1-pos3))")             # S2 p8 p9 
-    # println("norm(pos4-pos3) $(norm(pos4-pos3))")             # S3 p9 p10
-    # println("norm(pos1-pos4) $(norm(pos1-pos4))")             # S9 p11 p8
-    [zeros(3), pos0, pos1, pos_kite, pos3, pos4] # 0, p7, p8, p9, p10, p11
+    # println("norm(pos_A-pos_C) $(norm(pos_A-pos_C))")             # S2 p8  p10 
+    # println("norm(pos_D-pos_C) $(norm(pos_D-pos_C))")             # S3 p11 p10
+    # println("norm(pos_A-pos_D) $(norm(pos_A-pos_D))")             # S9 p8  p11
+    [zeros(3), pos0, pos_A, pos_kite, pos_C, pos_D] # 0, p7, p8, p9, p10, p11
 end
 
 function calc_height(s::KPS4)
@@ -407,8 +407,8 @@ forces:        out parameter
 end
 
 """
-pos2, pos3, pos4: position of the kite particles P2, P3, and P4
-v2, v3, v4:       velocity of the kite particles P2, P3, and P4
+pos_B, pos_C, pos_D: position of the kite particles B, C, and D
+v_B, v_C, v_D:       velocity of the kite particles B, C, and D
 rho:              air density [kg/m^3]
 rel_depower:      value between  0.0 and  1.0
 rel_steering:     value between -1.0 and +1.0
@@ -416,14 +416,14 @@ rel_steering:     value between -1.0 and +1.0
 function calc_aero_forces(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
     rel_side_area = s.set.rel_side_area/100.0 # defined in percent
     K = 1 - rel_side_area # correction factor for the drag
-    pos2, pos3, pos4 = pos[s.set.segments+3], pos[s.set.segments+4], pos[s.set.segments+5]
-    v2, v3, v4 = vel[s.set.segments+3], vel[s.set.segments+4], vel[s.set.segments+5]
-    va_2, va_3, va_4 = s.v_wind - v2, s.v_wind - v3, s.v_wind - v4
+    pos_B, pos_C, pos_D = pos[s.set.segments+3], pos[s.set.segments+4], pos[s.set.segments+5]
+    v_B, v_C, v_D = vel[s.set.segments+3], vel[s.set.segments+4], vel[s.set.segments+5]
+    va_2, va_3, va_4 = s.v_wind - v_B, s.v_wind - v_C, s.v_wind - v_D
  
-    pos_centre = 0.5 * (pos3 + pos4)
-    delta = pos2 - pos_centre
+    pos_centre = 0.5 * (pos_C + pos_D)
+    delta = pos_B - pos_centre
     z = -normalize(delta)
-    y = normalize(pos3 - pos4)
+    y = normalize(pos_C - pos_D)
     x = cross(y, z)
 
     va_xz2 = va_2 - dot(va_2, y) * y
