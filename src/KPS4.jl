@@ -61,7 +61,7 @@ const KITE_SPRINGS = 9
 const KITE_ANGLE = 0.0 # 3.83 # angle between the kite and the last tether segment due to the mass of the control pod
 const DELTA_MAX = 5.0
 const USE_NOMAD = false
-const MAX_ITER  = 1  # max iterations for steady state finder
+const MAX_ITER  = 1000  # max iterations for steady state finder
 const PRE_STRESS  = 0.9998   # Multiplier for the initial spring lengths.
 const KS = deg2rad(16.565 * 1.064 * 0.875 * 1.033 * 0.9757 * 1.083)  # max steering
 const DRAG_CORR = 0.93       # correction of the drag for the 4-point model
@@ -640,14 +640,16 @@ function find_steady_state(s::KPS4, prn=false)
         count_eval = true
         success, count_eval, bb_outputs
     end
-    pb = NomadProblem(2*(s.set.segments+KITE_PARTICLES-1)+2, # number of inputs of the blackbox
-                    1, # number of outputs of the blackbox
-                    ["OBJ"], # type of outputs of the blackbox
-                    eval_fct;
-                    lower_bound = -DELTA_MAX * n_ones,
-                    upper_bound =  DELTA_MAX * n_ones,
-                    initial_mesh_size = 1e-4 * n_ones)
-    pb.options.max_bb_eval = MAX_ITER
+    if USE_NOMAD
+        pb = NomadProblem(2*(s.set.segments+KITE_PARTICLES-1)+2, # number of inputs of the blackbox
+                        1, # number of outputs of the blackbox
+                        ["OBJ"], # type of outputs of the blackbox
+                        eval_fct;
+                        lower_bound = -DELTA_MAX * n_ones,
+                        upper_bound =  DELTA_MAX * n_ones,
+                        initial_mesh_size = 1e-4 * n_ones)
+        pb.options.max_bb_eval = MAX_ITER
+    end
     if prn println("\nStarted function test_nlsolve...") end
     if USE_NOMAD
         # result = solve(pb, zeros(SimFloat, 2*(s.set.segments+KITE_PARTICLES-1)+1))
@@ -677,9 +679,9 @@ function init_sim(kps, t_end)
     kps.set.elevation = 70.7 
     kps.set.profile_law = Int(EXPLOG)
     kps.v_wind .= kps.v_wind_gnd * calc_wind_factor(kps, height)
-    y0, yd0 = init_flat(kps, X00) # 
-    # y0, yd0 = KiteModels.find_steady_state(kps)
-    kps.stiffness_factor = 1.0
+    kps.stiffness_factor = 0.04
+    # y0, yd0 = init_flat(kps, X00) # 
+    y0, yd0 = KiteModels.find_steady_state(kps, true)
 
     # forces = spring_forces(kps)
     # println(forces)

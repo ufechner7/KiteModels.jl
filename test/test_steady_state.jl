@@ -10,8 +10,8 @@ using KiteModels, KitePodModels
 if ! @isdefined kcu
     const kcu = KCU()
 end
-if ! @isdefined kps4
-    const kps4 = KPS4(kcu)
+if ! @isdefined kps
+    const kps = KPS4(kcu)
 end
 
 const dt = 0.05
@@ -30,36 +30,19 @@ function plot2d(x, z; zoom=1)
     plot!(x, z, seriestype = :scatter)
 end
 
-function simulate(integrator, steps, plot=false)
-    start = integrator.p.iter
-    for i in 1:steps
-        # println("lift, drag    [N]  : $(KiteModels.lift_drag(kps4))")
-        KiteModels.next_step(kps4, integrator, dt)
-        if kps4.stiffness_factor < 1.0
-            kps4.stiffness_factor+=0.01
-        end
-        if plot
-            x = Float64[] 
-            z = Float64[]
-            for i in 1:length(kps4.pos)
-                push!(x, kps4.pos[i][1])
-                push!(z, kps4.pos[i][3])
-            end
-            p = plot2d(x, z; zoom=0)
-            display(p)
-            sleep(0.1)
-        end
-    end
-    (integrator.p.iter - start) / steps
-end
+clear(kps)
+kps.alpha_depower = deg2rad(2.2095658807330962) # from one point simulation
+kps.set.alpha_zero = 0.0   
+height = 134.14733504839947
+kps.set.elevation = 70.7 
+kps.set.profile_law = Int(EXPLOG)
+kps.v_wind .= kps.v_wind_gnd * calc_wind_factor(kps, height)
+kps.stiffness_factor = 1.0
+# y0, yd0 = KiteModels.init_flat(kps, KiteModels.X00) # 
+y0, yd0 = KiteModels.find_steady_state(kps, true)
 
-integrator = KiteModels.init_sim(kps4, 1.0)
-kps4.stiffness_factor = 0.02
-simulate(integrator, 3)
+println("\nlift, drag    [N]  : $(KiteModels.lift_drag(kps))")
+println("\nSpring forces:")
+spring_forces(kps)
 
-if PLOT
-    av_steps = simulate(integrator, 100, true)
-else
-    @time av_steps = simulate(integrator, 100)
-end
-println("Average number of callbacks per time step: $av_steps")
+

@@ -83,5 +83,5 @@ println("alpha_depower [deg]: $(rad2deg(kps4.alpha_depower))")
 println("lift, drag    [N]  : $(KiteModels.lift_drag(kps4))")
 
 plot2d(x, z; zoom=0)
-plot2d(x1, z1; zoom=0)
+plot2d(x1, z1; zoom=1)
 
