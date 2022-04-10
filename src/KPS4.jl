@@ -58,10 +58,10 @@ const SP = Spring{Int16, Float64}
 const SHORT = true
 const KITE_PARTICLES = 4
 const KITE_SPRINGS = 9
-const KITE_ANGLE = 0.0 # 3.83 # angle between the kite and the last tether segment due to the mass of the control pod
+const KITE_ANGLE = 3.83 # angle between the kite and the last tether segment due to the mass of the control pod
 const DELTA_MAX = 5.0
 const USE_NOMAD = false
-const MAX_ITER  = 1000  # max iterations for steady state finder
+const MAX_ITER  = 200  # max iterations for steady state finder
 const PRE_STRESS  = 0.9998   # Multiplier for the initial spring lengths.
 const KS = deg2rad(16.565 * 1.064 * 0.875 * 1.033 * 0.9757 * 1.083)  # max steering
 const DRAG_CORR = 0.93       # correction of the drag for the 4-point model
@@ -136,6 +136,7 @@ $(TYPEDFIELDS)
     depower::S =           0.0
     steering::S =          0.0
     stiffness_factor::S =  1.0
+    damping_factor::S   =  1.0
     "initial masses of the point masses"
     initial_masses::MVector{P, S} = ones(P)
     "current masses, depending on the total tether length"
@@ -284,7 +285,7 @@ function init_pos_vel(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)))
     pos, vel
 end
 
-function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1); old=false, delta = 1e-6)
+function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1); old=false, delta = 0.0)
     pos = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
     vel = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
     acc = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
@@ -302,7 +303,7 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
     if old
         particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k)
     else
-        particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k, pos[s.set.segments+1], rotate_in_xz(vec_c, deg2rad(X[end-1]+KITE_ANGLE)), s.v_apparent)
+        particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k, pos[s.set.segments+1], rotate_in_xz(vec_c, deg2rad(KITE_ANGLE)), s.v_apparent)
     end
     j = 1
     for i in [1,2,4] # set p8, p9, p11
@@ -326,7 +327,7 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
     pos, vel, acc
 end
 
-function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false, delta=1e-6)
+function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false, delta=0.0)
     pos, vel, acc = init_pos_vel_acc(s, X; old=old, delta=delta)
     if SHORT
         vcat(pos[2:end], vel[2:end]), vcat(vel[2:end], acc[2:end])
@@ -350,7 +351,7 @@ The result is stored in the array s.forces.
 @inline function calc_particle_forces(s, pos1, pos2, vel1, vel2, spring, segments, d_tether, rho, i)
     l_0 = spring.length # Unstressed length
     k = spring.c_spring * s.stiffness_factor  # Spring constant
-    c = spring.damping  # Damping coefficient    
+    c = spring.damping * s.damping_factor # Damping coefficient    
     s.segment .= pos1 - pos2
     rel_vel = vel1 - vel2
     av_vel = 0.5 * (vel1 + vel2)
@@ -672,14 +673,16 @@ function rotate_in_xz(vec, angle)
 end
 
 function init_sim(kps, t_end)
+    kps.set.alpha =  0.08163
     clear(kps)
     kps.alpha_depower = deg2rad(2.2095658807330962) # from one point simulation
     kps.set.alpha_zero = 0.0   
     height = 134.14733504839947
-    kps.set.elevation = 70.7 
+    # kps.set.elevation = 70.7 
     kps.set.profile_law = Int(EXPLOG)
     kps.v_wind .= kps.v_wind_gnd * calc_wind_factor(kps, height)
     kps.stiffness_factor = 0.04
+    set_depower_steering(kps, 0.25, 0.0)
     # y0, yd0 = init_flat(kps, X00) # 
     y0, yd0 = KiteModels.find_steady_state(kps, true)
 
