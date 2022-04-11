@@ -7,11 +7,13 @@ end
 using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils, Plots, Printf
 using KiteModels, KitePodModels
 
+const Model=KPS3
+
 if ! @isdefined kcu
     const kcu = KCU()
 end
 if ! @isdefined kps4
-    const kps4 = KPS4(kcu)
+    const kps4 = Model(kcu)
 end
 
 # the following values can be changed to match your interest
@@ -49,7 +51,6 @@ end
 
 integrator = KiteModels.init_sim(kps4, 1.0, STATISTIC)
 kps4.stiffness_factor = 0.04
-kps4.damping_factor = 1.0
 
 if PLOT
     simulate(integrator, 100, true)
