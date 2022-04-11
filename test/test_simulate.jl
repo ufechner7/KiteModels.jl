@@ -4,7 +4,7 @@ if ! ("BenchmarkTools" ∈ keys(Pkg.project().dependencies))
     using TestEnv; TestEnv.activate()
 end
 
-using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils, Plots
+using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils, Plots, Printf
 using KiteModels, KitePodModels
 
 if ! @isdefined kcu
@@ -15,61 +15,39 @@ if ! @isdefined kps4
 end
 
 # the following values can be changed to match your interest
-const dt = 0.05
-const STEPS = 500
-const PLOT = true
-const SHOW_FRONT = false
-const ZOOM = true
-const PRINT = false
+dt = 0.05
+STEPS = 500
+PLOT = true
+FRONT_VIEW = true
+ZOOM = true
+PRINT = false
+STATISTIC = false
 
-function plot2d(x, z; zoom=true)
-    if zoom
-        x_max = maximum(x)
-        z_max = maximum(z)
-        xlabel = "x [m]"
-        if SHOW_FRONT xlabel = "y [m]" end
-        plot(x,z, xlabel=xlabel, ylabel="z [m]", legend=false, xlims = (x_max-15.0, x_max+5), ylims = (z_max-15.0, z_max+5))
-    else
-        plot(x,z, xlabel="x [m]", ylabel="z [m]", legend=false)
-    end
-    plot!([x[7],x[10]],[z[7],z[10]], legend=false) #s6
-    plot!([x[8],x[11]],[z[8],z[11]], legend=false) #s8
-    plot!([x[9],x[11]],[z[9],z[11]], legend=false) #s7
-    plot!([x[8],x[10]],[z[8],z[10]], legend=false) #s2
-    plot!([x[7],x[11]] ,[z[7],z[11]],legend=false) #s5
-    plot!(x, z, seriestype = :scatter)
-end
+include("plot2d.jl")
 
 function simulate(integrator, steps, plot=false)
     start = integrator.p.iter
     for i in 1:steps
         if PRINT
-            println("lift, drag    [N]  : $(KiteModels.lift_drag(kps4))")
+            lift, drag = KiteModels.lift_drag(kps4)
+            @printf "%.2f: " round(integrator.t, digits=2)
+            println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
         end
         KiteModels.next_step(kps4, integrator, dt)
         if kps4.stiffness_factor < 1.0
             kps4.stiffness_factor+=0.01
         end
         if plot
-            x = Float64[] 
-            z = Float64[]
-            for i in 1:length(kps4.pos)
-                if SHOW_FRONT
-                    push!(x, kps4.pos[i][2])
-                else
-                    push!(x, kps4.pos[i][1])
-                end
-                push!(z, kps4.pos[i][3])
-            end
-            p = plot2d(x, z; zoom=ZOOM)
+            reltime = i*dt
+            p = plot2d(kps4.pos, reltime; zoom=ZOOM)
             display(p)
-            sleep(0.05)
+            sleep(dt)
         end
     end
     (integrator.p.iter - start) / steps
 end
 
-integrator = KiteModels.init_sim(kps4, 1.0)
+integrator = KiteModels.init_sim(kps4, 1.0, STATISTIC)
 kps4.stiffness_factor = 0.04
 kps4.damping_factor = 1.0
 
@@ -77,7 +55,11 @@ if PLOT
     simulate(integrator, 100, true)
     av_steps = simulate(integrator, STEPS-100, true)
 else
+    println("\nStarting simulation...")
     simulate(integrator, 100)
-    @time av_steps = simulate(integrator, STEPS-100)
+    runtime = @elapsed av_steps = simulate(integrator, STEPS-100)
+    println("\nTotal simulation time: $(round(runtime, digits=3)) s")
+    speed = (STEPS-100) / runtime * dt
+    println("Simulation speed: $(round(speed, digits=2)) times realtime.")
 end
 println("Average number of callbacks per time step: $av_steps")

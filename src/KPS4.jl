@@ -619,7 +619,7 @@ function find_steady_state(s::KPS4, prn=false)
         return nothing 
     end
     if prn println("\nStarted function test_nlsolve...") end
-    results = nlsolve(test_initial_condition!, X00, autoscale=true, iterations=MAX_ITER)
+    results = nlsolve(test_initial_condition!, X00, autoscale=true, xtol=1e-6, ftol=1e-6, iterations=MAX_ITER)
     if prn println("\nresult: $results") end
     init_flat(s, results.zero)
 end
@@ -633,13 +633,13 @@ function rotate_in_xz(vec, angle)
     result
 end
 
-function init_sim(kps, t_end)
+function init_sim(kps, t_end, prn=false)
     clear(kps)
     height = sin(deg2rad(kps.set.elevation)) * kps.set.l_tether
     kps.v_wind .= kps.v_wind_gnd * calc_wind_factor(kps, height)
     kps.stiffness_factor = 0.04
     set_depower_steering(kps, kps.set.depower_offset/100.0, 0.0)
-    y0, yd0 = KiteModels.find_steady_state(kps, true)
+    y0, yd0 = KiteModels.find_steady_state(kps, prn)
 
     differential_vars = ones(Bool, length(y0))
     solver  = IDA(linear_solver=:Dense, max_order = 3)
