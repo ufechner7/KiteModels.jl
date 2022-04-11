@@ -30,13 +30,10 @@ function plot2d(x, z; zoom=1)
 end
 
 clear(kps)
-kps.alpha_depower = deg2rad(2.2095658807330962) # from one point simulation
-kps.set.alpha_zero = 0.0   
-height = 134.14733504839947
-kps.set.elevation = 70.7 
-kps.set.profile_law = Int(EXPLOG)
+KiteModels.set_depower_steering(kps, kps.set.depower_offset/100.0, 0.0)
+height = sin(deg2rad(kps.set.elevation)) * kps.set.l_tether
 kps.v_wind .= kps.v_wind_gnd * calc_wind_factor(kps, height)
-kps.stiffness_factor = 1.0
+kps.stiffness_factor = 0.04
 # y0, yd0 = KiteModels.init_flat(kps, KiteModels.X00) # 
 y0, yd0 = KiteModels.find_steady_state(kps, true)
 
