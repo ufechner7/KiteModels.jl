@@ -326,14 +326,14 @@ function init(s::KPS3, X=zeros(SimFloat, 2*s.set.segments); output=false)
     state_y0 = zeros(SVector{2*s.set.segments, KVec3})
     yd0 = zeros(SVector{2*s.set.segments, KVec3})
 
-    DELTA = 1e-6
+    DELTA = 0.0 #1e-6
     set_cl_cd(s, 10.0/180.0 * π)
 
     for i in 0:s.set.segments
         radius =  -i * s.set.l_tether / s.set.segments
         elevation = s.set.elevation
         sin_el, cos_el = sin(elevation / 180.0 * π), cos(elevation / 180.0 * π)
-        if i==0
+        if i == 0
             pos[i+1] .= SVec3(0.0, DELTA, 0.0)
         else
             pos[i+1] .= SVec3(-cos_el * radius+X[i], DELTA, -sin_el * radius+X[s.set.segments+i])
@@ -405,7 +405,7 @@ function find_steady_state(s::KPS3, prn=false)
     end
 
     if prn println("\nStarted function test_nlsolve...") end
-    results = nlsolve(test_initial_condition!, zeros(SimFloat, 2*s.set.segments))
+    results = nlsolve(test_initial_condition!, zeros(SimFloat, 2*s.set.segments), xtol=1e-6, ftol=1e-6, iterations=100)
     if prn println("\nresult: $results") end
     init(s, results.zero; output=false)
 end

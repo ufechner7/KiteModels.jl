@@ -1,3 +1,4 @@
+# is included from test_simulate.jl
 function plot2d(pos, reltime=0.0; zoom=true)
     x = Float64[] 
     z = Float64[]
@@ -19,10 +20,12 @@ function plot2d(pos, reltime=0.0; zoom=true)
     else
         plot(x,z, xlabel="x [m]", ylabel="z [m]", legend=false)
     end
-    plot!([x[7],x[10]],[z[7],z[10]], legend=false) # S6
-    plot!([x[8],x[11]],[z[8],z[11]], legend=false) # S8
-    plot!([x[9],x[11]],[z[9],z[11]], legend=false) # S7
-    plot!([x[8],x[10]],[z[8],z[10]], legend=false) # S2
-    plot!([x[7],x[11]] ,[z[7],z[11]],legend=false) # S5
+    if length(pos) > 7
+        plot!([x[7],x[10]],[z[7],z[10]], legend=false) # S6
+        plot!([x[8],x[11]],[z[8],z[11]], legend=false) # S8
+        plot!([x[9],x[11]],[z[9],z[11]], legend=false) # S7
+        plot!([x[8],x[10]],[z[8],z[10]], legend=false) # S2
+        plot!([x[7],x[11]] ,[z[7],z[11]],legend=false) # S5
+    end
     plot!(x, z, seriestype = :scatter) 
 end
