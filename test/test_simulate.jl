@@ -14,17 +14,19 @@ if ! @isdefined kps4
     const kps4 = KPS4(kcu)
 end
 
+# the following values can be changed to match your interest
 const dt = 0.05
 const STEPS = 500
-const PLOT = false
+const PLOT = true
 const SHOW_FRONT = false
-const ZOOM = false
+const ZOOM = true
+const PRINT = false
 
 function plot2d(x, z; zoom=true)
     if zoom
         x_max = maximum(x)
         z_max = maximum(z)
-        x_label = "x [m]"
+        xlabel = "x [m]"
         if SHOW_FRONT xlabel = "y [m]" end
         plot(x,z, xlabel=xlabel, ylabel="z [m]", legend=false, xlims = (x_max-15.0, x_max+5), ylims = (z_max-15.0, z_max+5))
     else
@@ -41,7 +43,9 @@ end
 function simulate(integrator, steps, plot=false)
     start = integrator.p.iter
     for i in 1:steps
-        # println("lift, drag    [N]  : $(KiteModels.lift_drag(kps4))")
+        if PRINT
+            println("lift, drag    [N]  : $(KiteModels.lift_drag(kps4))")
+        end
         KiteModels.next_step(kps4, integrator, dt)
         if kps4.stiffness_factor < 1.0
             kps4.stiffness_factor+=0.01
@@ -65,7 +69,6 @@ function simulate(integrator, steps, plot=false)
     (integrator.p.iter - start) / steps
 end
 
-kps4.set.elevation = 70.7 
 integrator = KiteModels.init_sim(kps4, 1.0)
 kps4.stiffness_factor = 0.04
 kps4.damping_factor = 1.0

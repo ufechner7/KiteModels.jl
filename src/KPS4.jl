@@ -65,8 +65,7 @@ const MAX_ITER  = 200  # max iterations for steady state finder
 const PRE_STRESS  = 0.9998   # Multiplier for the initial spring lengths.
 const KS = deg2rad(16.565 * 1.064 * 0.875 * 1.033 * 0.9757 * 1.083)  # max steering
 const DRAG_CORR = 0.93       # correction of the drag for the 4-point model
-const X00 = [ 0.83635,    1.521626,   1.978326,   2.213506,   2.263477,   2.132096,  -0.227731,  -0.066485,  -0.581328,  -0.268612,  -0.478843,  -0.602845,  -0.645727,  -0.622621,  -0.536473,   0.004827,   0.064474,   0.242901,  0.0, -0.062636 ]
-# const X00 = zeros(SimFloat, 2*(6+KITE_PARTICLES-1)+2)
+const X00 = zeros(SimFloat, 2*(6+KITE_PARTICLES-1)+2)
 function zero(::Type{SP})
     SP(0,0,0,0,0)
 end
@@ -406,6 +405,11 @@ forces:        out parameter
     nothing
 end
 
+function acos2(alpha)
+   beta = min(max(alpha, -1.0), 1.0)
+   acos(beta)
+end
+
 """
 pos_B, pos_C, pos_D: position of the kite particles B, C, and D
 v_B, v_C, v_D:       velocity of the kite particles B, C, and D
@@ -430,9 +434,9 @@ function calc_aero_forces(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
     va_xy3 = va_3 - dot(va_3, z) * z
     va_xy4 = va_4 - dot(va_4, z) * z
 
-    alpha_2 = (pi - acos(max(dot(normalize(va_xz2), x), -1.0)) - alpha_depower) * 180.0 / pi + s.set.alpha_zero
-    alpha_3 = (pi - acos(max(dot(normalize(va_xy3), x), -1.0)) - rel_steering * KS) * 180.0 / pi + s.set.alpha_ztip
-    alpha_4 = (pi - acos(max(dot(normalize(va_xy4), x), -1.0)) + rel_steering * KS) * 180.0 / pi + s.set.alpha_ztip
+    alpha_2 = (pi - acos2(dot(normalize(va_xz2), x)) - alpha_depower) * 180.0 / pi + s.set.alpha_zero
+    alpha_3 = (pi - acos2(dot(normalize(va_xy3), x)) - rel_steering * KS) * 180.0 / pi + s.set.alpha_ztip
+    alpha_4 = (pi - acos2(dot(normalize(va_xy4), x)) + rel_steering * KS) * 180.0 / pi + s.set.alpha_ztip
 
     CL2, CD2 = calc_cl(alpha_2), DRAG_CORR * calc_cd(alpha_2)
     CL3, CD3 = calc_cl(alpha_3), DRAG_CORR * calc_cd(alpha_3)
@@ -594,7 +598,6 @@ Find an initial equilibrium, based on the inital parameters
 """
 function find_steady_state(s::KPS4, prn=false)
     res = zeros(MVector{6*(s.set.segments+KITE_PARTICLES)+2, SimFloat})
-    n_ones = ones(SimFloat, 2*(s.set.segments+KITE_PARTICLES-1)+2)
     iter = 0
 
     # helper function for the steady state finder
@@ -622,45 +625,10 @@ function find_steady_state(s::KPS4, prn=false)
         iter += 1
         return nothing 
     end
-    function f(x)
-      # p2 to p11, but not p10; in addition delta y and kite_angle
-      F = zeros(SimFloat, 2*(s.set.segments+KITE_PARTICLES-1)+2)
-      test_initial_condition!(F, x)
-      # reduce the weight of the tether particles
-      for i in 1:s.set.segments       
-          F[i] *= 0.25 / (i/(2*s.set.segments))
-          F[i+KITE_PARTICLES-1] *= 0.5 / (i/(2*s.set.segments))
-      end    
-      F[end-1] *= 5.0  
-      F
-    end
-    function eval_fct(x)
-        winch_force = norm(spring_forces(s)[1])
-        bb_outputs = [norm(f(x))-0.005*winch_force]
-        success = ! isnan(bb_outputs[1])  && all(KiteModels.spring_forces(s)[1:s.set.segments] .> 0)
-        count_eval = true
-        success, count_eval, bb_outputs
-    end
-    if USE_NOMAD
-        pb = NomadProblem(2*(s.set.segments+KITE_PARTICLES-1)+2, # number of inputs of the blackbox
-                        1, # number of outputs of the blackbox
-                        ["OBJ"], # type of outputs of the blackbox
-                        eval_fct;
-                        lower_bound = -DELTA_MAX * n_ones,
-                        upper_bound =  DELTA_MAX * n_ones,
-                        initial_mesh_size = 1e-4 * n_ones)
-        pb.options.max_bb_eval = MAX_ITER
-    end
     if prn println("\nStarted function test_nlsolve...") end
-    if USE_NOMAD
-        # result = solve(pb, zeros(SimFloat, 2*(s.set.segments+KITE_PARTICLES-1)+1))
-        result = NOMAD.solve(pb, X00)       
-        init_flat(s, result[1])
-    else
-        results = nlsolve(test_initial_condition!, X00, autoscale=true, iterations=MAX_ITER)
-        if prn println("\nresult: $results") end
-        init_flat(s, results.zero)
-    end
+    results = nlsolve(test_initial_condition!, X00, autoscale=true, iterations=MAX_ITER)
+    if prn println("\nresult: $results") end
+    init_flat(s, results.zero)
 end
 
 # rotate a 3d vector around the y axis
@@ -673,31 +641,19 @@ function rotate_in_xz(vec, angle)
 end
 
 function init_sim(kps, t_end)
-    kps.set.alpha =  0.08163
     clear(kps)
-    kps.alpha_depower = deg2rad(2.2095658807330962) # from one point simulation
-    kps.set.alpha_zero = 0.0   
-    height = 134.14733504839947
-    # kps.set.elevation = 70.7 
-    kps.set.profile_law = Int(EXPLOG)
+    height = sin(deg2rad(kps.set.elevation)) * kps.set.l_tether
     kps.v_wind .= kps.v_wind_gnd * calc_wind_factor(kps, height)
     kps.stiffness_factor = 0.04
-    set_depower_steering(kps, 0.25, 0.0)
-    # y0, yd0 = init_flat(kps, X00) # 
+    set_depower_steering(kps, kps.set.depower_offset/100.0, 0.0)
     y0, yd0 = KiteModels.find_steady_state(kps, true)
 
-    # forces = spring_forces(kps)
-    # println(forces)
-
-    differential_vars =  ones(Bool, length(y0))
-    solver = IDA(linear_solver=:Dense, max_order = 3)
-    tspan = (0.0, t_end) 
-    MAX_ERROR = 1.8        # maximal position error in cm
-    pos_tol = MAX_ERROR/ 100.0
-    vel_tol = pos_tol / 60.0
-
-    prob = DAEProblem(residual!, yd0, y0, tspan, kps, differential_vars=differential_vars)
-    integrator = Sundials.init(prob, solver, abstol=vel_tol, reltol=0.001)
+    differential_vars = ones(Bool, length(y0))
+    solver  = IDA(linear_solver=:Dense, max_order = 3)
+    tspan   = (0.0, t_end) 
+    abstol  = 0.0006 # max error in m/s and m
+    prob    = DAEProblem(residual!, yd0, y0, tspan, kps, differential_vars=differential_vars)
+    integrator = Sundials.init(prob, solver, abstol=abstol, reltol=0.001)
 end
 
 function next_step(s, integrator, dt)

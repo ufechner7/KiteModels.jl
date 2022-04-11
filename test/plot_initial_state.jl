@@ -1,3 +1,5 @@
+const SHOW_FRONT = false
+
 function init2()
     kps4.set.alpha =  0.08163
     KiteModels.clear(kps4)
@@ -22,18 +24,20 @@ function init2()
 end
 
 function plot2d(x, z; zoom=1)
+    xlabel = "x [m]"
+    if SHOW_FRONT xlabel = "y [m]" end
     if zoom ==1
         x_max=maximum(x)
         z_max=maximum(z)
-        plot(x,z, xlabel="x [m]", ylabel="z [m]", legend=false, xlims = (x_max-15.0, x_max+5), ylims = (z_max-15.0, z_max+5))
-        plot!([x[7],x[10]],[z[7],z[10]], legend=false) #s6
-        plot!([x[8],x[11]],[z[8],z[11]], legend=false) #s8
-        plot!([x[9],x[11]],[z[9],z[11]], legend=false) #s7
-        plot!([x[8],x[10]],[z[8],z[10]], legend=false) #s2
-        plot!([x[7],x[11]] ,[z[7],z[11]],legend=false) #s5
+        plot(x,z, xlabel=xlabel, ylabel="z [m]", legend=false, xlims = (x_max-15.0, x_max+5), ylims = (z_max-15.0, z_max+5))
     else
-        plot(x,z, xlabel="x [m]", ylabel="z [m]", legend=false)
+        plot(x,z, xlabel=xlabel, ylabel="z [m]", legend=false)
     end
+    plot!([x[7],x[10]],[z[7],z[10]], legend=false) #s6
+    plot!([x[8],x[11]],[z[8],z[11]], legend=false) #s8
+    plot!([x[9],x[11]],[z[9],z[11]], legend=false) #s7
+    plot!([x[8],x[10]],[z[8],z[10]], legend=false) #s2
+    plot!([x[7],x[11]] ,[z[7],z[11]],legend=false) #s5    
     plot!(x, z, seriestype = :scatter)
 end
 
@@ -60,8 +64,12 @@ x = Float64[]
 z = Float64[]
 
 for i in 1:length(kps4.pos)
-     push!(x, kps4.pos[i][2])
-     push!(z, kps4.pos[i][3])
+    if SHOW_FRONT
+        push!(x, kps4.pos[i][2])
+    else
+        push!(x, kps4.pos[i][1])
+    end
+    push!(z, kps4.pos[i][3])
 end
 
 println("kite distance: $(norm(kps4.pos[end]))")
@@ -75,8 +83,12 @@ x1 = Float64[]
 z1 = Float64[]
 
 for i in 1:length(kps4.pos)
-     push!(x1, kps4.pos[i][1])
-     push!(z1, kps4.pos[i][3])
+    if SHOW_FRONT
+        push!(x1, kps4.pos[i][2])
+    else
+        push!(x1, kps4.pos[i][1])
+    end
+    push!(z1, kps4.pos[i][3])
 end
 
 println("kite distance: $(norm(kps4.pos[end]))")
