@@ -312,7 +312,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
             @inbounds s.pos[i] .= pos[i]
         end
     end
-    @assert ! isnan(norm(res))
+    # @assert ! isnan(norm(res))
     s.iter += 1
     nothing
 end

@@ -45,7 +45,7 @@ end
 set_defaults()
 function test_initial_condition(params::Vector)
     my_state = kps
-    y0, yd0 = KiteModels.init(my_state, params)
+    y0, yd0 = KiteModels.init_flat(my_state, params)
     residual!(res3, yd0, y0, kps, 0.0)
     return norm(res3) # z component of force on all particles but the first
 end
@@ -60,7 +60,7 @@ end
     res2 = deepcopy(res1)
     res = reduce(vcat, vcat(res1, res2))
     X = zeros(SimFloat, 2*kps.set.segments)
-    y0, yd0 = KiteModels.init(kps, X; output=false)
+    y0, yd0 = KiteModels.init_flat(kps, X; output=false)
     # println(y0)
     # println(yd0)
     p = kps
