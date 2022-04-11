@@ -55,12 +55,9 @@ const SPRINGS_INPUT = [0.    1.  150.
 end
 
 const SP = Spring{Int16, Float64}
-const SHORT = true
 const KITE_PARTICLES = 4
 const KITE_SPRINGS = 9
 const KITE_ANGLE = 3.83 # angle between the kite and the last tether segment due to the mass of the control pod
-const DELTA_MAX = 5.0
-const USE_NOMAD = false
 const MAX_ITER  = 200  # max iterations for steady state finder
 const PRE_STRESS  = 0.9998   # Multiplier for the initial spring lengths.
 const KS = deg2rad(16.565 * 1.064 * 0.875 * 1.033 * 0.9757 * 1.083)  # max steering
@@ -328,11 +325,7 @@ end
 
 function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false, delta=0.0)
     pos, vel, acc = init_pos_vel_acc(s, X; old=old, delta=delta)
-    if SHORT
-        vcat(pos[2:end], vel[2:end]), vcat(vel[2:end], acc[2:end])
-    else
-        vcat(pos, vel), vcat(vel, acc)
-    end
+    vcat(pos[2:end], vel[2:end]), vcat(vel[2:end], acc[2:end])
 end
 
 # same as above, but returns a tuple of two one dimensional arrays
