@@ -121,6 +121,7 @@ $(TYPEDFIELDS)
     rho::S =               0.0
     depower::S =           0.0
     steering::S =          0.0
+    stiffness_factor::S =  1.0
     "initial masses of the point masses"
     initial_masses::MVector{P, S} = ones(P)
     "current masses, depending on the total tether length"
@@ -213,9 +214,9 @@ function calc_res(s::KPS3, pos1, pos2, vel1, vel2, mass, veld, result, i)
     # # calculate the relative velocity in the direction of the spring (=segment)
     spring_vel = dot(s.unit_vector, rel_vel)
 
-    k2 = 0.05 * s.c_spring             # compression stiffness tether segments
+    k2 = 0.05 * s.c_spring * s.stiffness_factor             # compression stiffness tether segments
     if norm1 - s.segment_length > 0.0
-        s.spring_force .= (s.c_spring * (norm1 - s.segment_length) + s.damping * spring_vel) .* s.unit_vector
+        s.spring_force .= (s.c_spring * s.stiffness_factor * (norm1 - s.segment_length) + s.damping * spring_vel) .* s.unit_vector
     else
         s.spring_force .= k2 * ((norm1 - s.segment_length) + (s.damping * spring_vel)) .* s.unit_vector
     end
@@ -303,7 +304,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
            @inbounds res[3*(div(S,6))+3*(i-2)+j] = s.res2[i][j]
         end
     end
-    if norm(res) < 10.0
+    if norm(res) < 1e5
         # println(norm(res))
         for i in 1:length(pos)
             @inbounds s.pos[i] .= pos[i]
