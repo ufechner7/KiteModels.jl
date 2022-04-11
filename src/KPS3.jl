@@ -373,8 +373,8 @@ function init(s::KPS3, X=zeros(2 * s.set.segments); output=false)
 end
 
 # same as above, but returns a tuple of two one dimensional arrays
-function init_flat(s::KPS3, X=zeros(2 * (s.set.segments)))
-    res1_, res2_ = init(s, X)
+function init_flat(s::KPS3, X=zeros(2 * (s.set.segments)); output=false)
+    res1_, res2_ = init(s, X; output)
     res1, res2  = reduce(vcat, res1_), reduce(vcat, res2_)
     MVector{6*(s.set.segments), Float64}(res1), MVector{6*(s.set.segments), Float64}(res2)
 end
@@ -398,7 +398,7 @@ end
 Find an initial equilibrium, based on the inital parameters
 `l_tether`, elevation and `v_reel_out`.
 """
-function find_steady_state(s::KPS3, prn=false)
+function find_steady_state_inner(s::KPS3, X, prn=false)
     res = zeros(MVector{6*s.set.segments, SimFloat})
 
     # helper function for the steady state finder
@@ -413,8 +413,16 @@ function find_steady_state(s::KPS3, prn=false)
     end
 
     if prn println("\nStarted function test_nlsolve...") end
-    results = nlsolve(test_initial_condition!, zeros(SimFloat, 2*s.set.segments), xtol=1e-6, ftol=1e-6, autoscale=true, iterations=1000)
+    results = nlsolve(test_initial_condition!, X, xtol=1e-6, ftol=1e-6, autoscale=true, iterations=1000)
     if prn println("\nresult: $results") end
-    init(s, results.zero; output=false)
-    println("MAX_ITER: $MAX_ITER")
+    results.zero
+ end
+
+function find_steady_state(s::KPS3, prn=false)
+    zero = zeros(SimFloat, 2*s.set.segments)
+    s.stiffness_factor=0.04
+    zero = find_steady_state_inner(s, zero, prn)
+    s.stiffness_factor=1.0
+    zero = find_steady_state_inner(s, zero, prn)
+    init_flat(s, zero; output=false)
 end

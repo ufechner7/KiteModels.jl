@@ -8,7 +8,7 @@ kps4.stiffness_factor = 0.04
 
 y0, yd0 = KiteModels.init(kps4)
 
-find_steady_state(kps4, true)
+find_steady_state(kps4, false)
 
 if typeof(kps4) <: KPS4
     println("kite distance: $(norm(kps4.pos[end-2]))")
