@@ -7,7 +7,8 @@ end
 using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils, Plots, Printf
 using KiteModels, KitePodModels
 
-const Model=KPS3
+# change this to KPS3 or KPS4
+const Model = KPS4
 
 if ! @isdefined kcu
     const kcu = KCU()
@@ -20,9 +21,9 @@ end
 dt = 0.05
 STEPS = 500
 PLOT = true
-FRONT_VIEW = true
+FRONT_VIEW = false
 ZOOM = true
-PRINT = false
+PRINT = true
 STATISTIC = false
 
 include("plot2d.jl")
@@ -63,4 +64,6 @@ else
     speed = (STEPS-100) / runtime * dt
     println("Simulation speed: $(round(speed, digits=2)) times realtime.")
 end
+lift, drag = KiteModels.lift_drag(kps4)
+println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
 println("Average number of callbacks per time step: $av_steps")

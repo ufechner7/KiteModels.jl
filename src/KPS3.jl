@@ -51,6 +51,8 @@ $(TYPEDFIELDS)
     set::Settings = se()
     "Reference to the KCU struct (Kite Control Unit, type from the module KitePodSimulor"
     kcu::KCU = KCU()
+    "Iteration"
+    iter:: Int64 = 0
     "Function for calculation the lift coefficent, using a spline based on the provided value pairs."
     calc_cl = Spline1D(se().alpha_cl, se().cl_list)
     "Function for calculation the drag coefficent, using a spline based on the provided value pairs."
@@ -310,6 +312,8 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
             @inbounds s.pos[i] .= pos[i]
         end
     end
+    @assert ! isnan(norm(res))
+    s.iter += 1
     nothing
 end
 
