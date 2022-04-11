@@ -320,14 +320,14 @@ end
 # length(x) == 2*SEGMENTS
 # Returns:
 # res, a single vector consisting of the elements of y0 and yd0
-function init(s::KPS3, X=zeros(SimFloat, 2*s.set.segments); output=false)
+function init(s::KPS3, X=zeros(2 * s.set.segments); output=false)
     pos = zeros(SVector{s.set.segments+1, KVec3})
     vel = zeros(SVector{s.set.segments+1, KVec3})
     acc = zeros(SVector{s.set.segments+1, KVec3})
     state_y0 = zeros(SVector{2*s.set.segments, KVec3})
     yd0 = zeros(SVector{2*s.set.segments, KVec3})
 
-    DELTA = 0.0 #1e-6
+    DELTA = 1e-6
     set_cl_cd(s, 10.0/180.0 * π)
 
     for i in 0:s.set.segments
@@ -369,7 +369,14 @@ function init(s::KPS3, X=zeros(SimFloat, 2*s.set.segments); output=false)
         print("yd0: ")
         display(yd0)
     end
-    return reduce(vcat, state_y0), reduce(vcat, yd0)
+    state_y0, yd0
+end
+
+# same as above, but returns a tuple of two one dimensional arrays
+function init_flat(s::KPS3, X=zeros(2 * (s.set.segments)))
+    res1_, res2_ = init(s, X)
+    res1, res2  = reduce(vcat, res1_), reduce(vcat, res2_)
+    MVector{6*(s.set.segments), Float64}(res1), MVector{6*(s.set.segments), Float64}(res2)
 end
 
 """
@@ -380,7 +387,7 @@ Return an array of the scalar spring forces of all tether segements.
 function spring_forces(s::KPS3)
     forces = zeros(SimFloat, s.set.segments)
     for i in 1:s.set.segments
-        forces[i] =  s.c_spring * (norm(s.pos[i+1] - s.pos[i]) - s.segment_length)
+        forces[i] =  s.c_spring * s.stiffness_factor * (norm(s.pos[i+1] - s.pos[i]) - s.segment_length)
     end
     forces
 end
@@ -396,7 +403,7 @@ function find_steady_state(s::KPS3, prn=false)
 
     # helper function for the steady state finder
     function test_initial_condition!(F, x::Vector)
-        y0, yd0 = init(s, x)
+        y0, yd0 = init_flat(s, x)
         residual!(res, yd0, y0, s, 0.0)
         for i in 1:s.set.segments
             F[i]                = res[1 + 3*(i-1) + 3*s.set.segments]
@@ -406,7 +413,8 @@ function find_steady_state(s::KPS3, prn=false)
     end
 
     if prn println("\nStarted function test_nlsolve...") end
-    results = nlsolve(test_initial_condition!, zeros(SimFloat, 2*s.set.segments), xtol=1e-6, ftol=1e-6, iterations=100)
+    results = nlsolve(test_initial_condition!, zeros(SimFloat, 2*s.set.segments), xtol=1e-6, ftol=1e-6, autoscale=true, iterations=1000)
     if prn println("\nresult: $results") end
     init(s, results.zero; output=false)
+    println("MAX_ITER: $MAX_ITER")
 end

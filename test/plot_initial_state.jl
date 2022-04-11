@@ -4,9 +4,7 @@ clear(kps4)
 KiteModels.set_depower_steering(kps4, kps4.set.depower_offset/100.0, 0.0)
 height = sin(deg2rad(kps4.set.elevation)) * kps4.set.l_tether
 kps4.v_wind .= kps4.v_wind_gnd * calc_wind_factor(kps4, height)
-# if typeof(kps4) <: KPS4
-    kps4.stiffness_factor = 0.04
-# end
+kps4.stiffness_factor = 0.04
 
 y0, yd0 = KiteModels.init(kps4)
 
