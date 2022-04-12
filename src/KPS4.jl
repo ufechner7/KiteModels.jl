@@ -108,9 +108,12 @@ $(TYPEDFIELDS)
     "spring force of the current tether segment, output of calc_particle_forces"
     spring_force::T =     zeros(S, 3)
     segment::T =          zeros(S, 3)
-    v_kite::T =           zeros(S, 3)        
+    v_kite::T =           zeros(S, 3)    
+    "a copy of the residual one (pos,vel) for debugging and unit tests"    
     res1::SVector{P, KVec3} = zeros(SVector{P, KVec3})
+    "a copy of the residual two (vel,acc) for debugging and unit tests"
     res2::SVector{P, KVec3} = zeros(SVector{P, KVec3})
+    "a copy of the actual positions as output for the user"
     pos::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     "unstressed segment length [m]"
     segment_length::S =           0.0
@@ -125,9 +128,12 @@ $(TYPEDFIELDS)
     alpha_depower::S =     0.0
     "relative start time of the current time interval"
     t_0::S =               0.0
+    "reel out speed of the winch"
     v_reel_out::S =        0.0
+    "reel out speed at the last time step"
     last_v_reel_out::S =   0.0
     l_tether::S =          0.0
+    "air density"
     rho::S =               0.0
     depower::S =           0.0
     steering::S =          0.0
@@ -209,14 +215,11 @@ function get_particles(height_k, height_b, width, m_k, pos_pod= [ 75., 0., 129.9
     h_kz = height_k * sin(beta); # print 'h_kz: ', h_kz
     h_bx = height_b * cos(beta)
     h_bz = height_b * sin(beta)
-    pos_kite = pos_pod - (h_kz + h_bz) * z + (h_kx + h_bx) * x  # top,        poing B in diagram
+    pos_kite = pos_pod - (h_kz + h_bz) * z + (h_kx + h_bx) * x   # top,        poing B in diagram
     pos_C = pos_kite + h_kz * z + 0.5 * width * y + h_kx * x     # side point, point C in diagram
     pos_A = pos_kite + h_kz * z + (h_kx + width * m_k) * x       # nose,       point A in diagram
     pos_D = pos_kite + h_kz * z - 0.5 * width * y + h_kx * x     # side point, point D in diagram
-    pos0 = pos_kite + (h_kz + h_bz) * z + (h_kx + h_bx) * x     # equal to pos_pod, P_KCU in diagram
-    # println("norm(pos_A-pos_C) $(norm(pos_A-pos_C))")             # S2 p8  p10 
-    # println("norm(pos_D-pos_C) $(norm(pos_D-pos_C))")             # S3 p11 p10
-    # println("norm(pos_A-pos_D) $(norm(pos_A-pos_D))")             # S9 p8  p11
+    pos0 = pos_kite + (h_kz + h_bz) * z + (h_kx + h_bx) * x      # equal to pos_pod, P_KCU in diagram
     [zeros(3), pos0, pos_A, pos_kite, pos_C, pos_D] # 0, p7, p8, p9, p10, p11
 end
 
@@ -245,9 +248,6 @@ function init_springs(s::KPS4)
                 p0 += s.set.segments - 1 # correct the index for the start and end particles of the bridle
                 p1 += s.set.segments - 1
                 c = s.set.damping/ l_0
-                # if j+s.set.segments-1 == 15
-                #     println("s9: $(l_0), $p0, $p1")
-                # end
                 s.springs[j+s.set.segments-1] = SP(Int(p0), Int(p1), l_0, k, c)
             end
         end
@@ -319,7 +319,6 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
     for i in 1:length(pos)
         s.pos[i] .= pos[i]
     end
-    # println("pos[8], pos[10]: $(pos[8]), $(pos[10])")
     pos, vel, acc
 end
 
@@ -411,11 +410,11 @@ rel_depower:      value between  0.0 and  1.0
 rel_steering:     value between -1.0 and +1.0
 """
 function calc_aero_forces(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
-    rel_side_area = s.set.rel_side_area/100.0 # defined in percent
-    K = 1 - rel_side_area # correction factor for the drag
+    rel_side_area = s.set.rel_side_area/100.0    # defined in percent
+    K = 1 - rel_side_area                        # correction factor for the drag
     pos_B, pos_C, pos_D = pos[s.set.segments+3], pos[s.set.segments+4], pos[s.set.segments+5]
-    v_B, v_C, v_D = vel[s.set.segments+3], vel[s.set.segments+4], vel[s.set.segments+5]
-    va_2, va_3, va_4 = s.v_wind - v_B, s.v_wind - v_C, s.v_wind - v_D
+    v_B,   v_C,   v_D   = vel[s.set.segments+3], vel[s.set.segments+4], vel[s.set.segments+5]
+    va_2,  va_3,  va_4  = s.v_wind - v_B, s.v_wind - v_C, s.v_wind - v_D
  
     pos_centre = 0.5 * (pos_C + pos_D)
     delta = pos_B - pos_centre
@@ -427,9 +426,9 @@ function calc_aero_forces(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
     va_xy3 = va_3 - dot(va_3, z) * z
     va_xy4 = va_4 - dot(va_4, z) * z
 
-    alpha_2 = (pi - acos2(dot(normalize(va_xz2), x)) - alpha_depower) * 180.0 / pi + s.set.alpha_zero
-    alpha_3 = (pi - acos2(dot(normalize(va_xy3), x)) - rel_steering * KS) * 180.0 / pi + s.set.alpha_ztip
-    alpha_4 = (pi - acos2(dot(normalize(va_xy4), x)) + rel_steering * KS) * 180.0 / pi + s.set.alpha_ztip
+    alpha_2 = rad2deg(π - acos2(dot(normalize(va_xz2), x)) - alpha_depower)     + s.set.alpha_zero
+    alpha_3 = rad2deg(π - acos2(dot(normalize(va_xy3), x)) - rel_steering * KS) + s.set.alpha_ztip
+    alpha_4 = rad2deg(π - acos2(dot(normalize(va_xy4), x)) + rel_steering * KS) + s.set.alpha_ztip
 
     CL2, CD2 = calc_cl(alpha_2), DRAG_CORR * calc_cd(alpha_2)
     CL3, CD3 = calc_cl(alpha_3), DRAG_CORR * calc_cd(alpha_3)
@@ -441,9 +440,8 @@ function calc_aero_forces(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
     D3 = (-0.5 * K * rho * norm(va_3) * s.set.area * rel_side_area * CD3) * va_3
     D4 = (-0.5 * K * rho * norm(va_4) * s.set.area * rel_side_area * CD4) * va_4
     s.lift_force .= L2
-    # println("L3, L4: $(norm(L3)), $(norm(L4))")
-    # println("D2, D3, D4: $D2, $D3, $D4")
     s.drag_force .= D2 + D3 + D4
+
     s.forces[s.set.segments + 3] .+= (L2 + D2)
     s.forces[s.set.segments + 4] .+= (L3 + D3)
     s.forces[s.set.segments + 5] .+= (L4 + D4)
@@ -512,10 +510,6 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
     posd1, veld1 = partd[:,:,1], partd[:,:,2]
     posd = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(posd1[:,i-1]) end for i in 1:div(T,6)+1)
     veld = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(veld1[:,i-1]) end for i in 1:div(T,6)+1)
-    if ! isnan(pos[2][3])
-        # print(s.iter, " ")
-    end
-
     @assert ! isnan(pos[2][3])
 
     # core calculations
@@ -529,25 +523,13 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
             @inbounds res[3*(div(T,6))+3*(i-2)+j] = s.res2[i][j]
         end
     end
-    if norm(res) < 1e5
-        for i in 1:div(T,6)+1
-            @inbounds s.pos[i] .= pos[i]
-        end
+    # copy the position vector for easy debugging
+    for i in 1:div(T,6)+1
+        @inbounds s.pos[i] .= pos[i]
     end
 
     @assert ! isnan(norm(res))
     s.iter += 1
-    if false # s.iter <= 4 || s.iter >= 62
-        println(s.iter, " T: ", T)
-        println(pos) 
-        println(vel)
-        println(posd)
-        println(veld)
-        println(s.res1)
-        println(s.res2)
-        println(s.forces)
-        println()
-    end
 
     nothing
 end

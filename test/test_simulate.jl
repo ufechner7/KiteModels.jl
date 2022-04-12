@@ -1,9 +1,3 @@
-# activate the test environment if needed
-# using Pkg
-# if ! ("BenchmarkTools" ∈ keys(Pkg.project().dependencies))
-#     using TestEnv; TestEnv.activate()
-# end
-
 using StaticArrays, LinearAlgebra, KiteUtils, Printf
 using KiteModels, KitePodModels
 
@@ -27,8 +21,12 @@ PRINT = false
 STATISTIC = false
 
 if PLOT
-   using Plots
-   include("plot2d.jl")
+    using Pkg
+    if ! ("Plots" ∈ keys(Pkg.project().dependencies))
+        using TestEnv; TestEnv.activate()
+    end
+    using Plots
+    include("plot2d.jl")
 end
 
 function simulate(integrator, steps, plot=false)
