@@ -58,7 +58,7 @@ const SP = Spring{Int16, Float64}
 const KITE_PARTICLES = 4
 const KITE_SPRINGS = 9
 const KITE_ANGLE = 3.83 # angle between the kite and the last tether segment due to the mass of the control pod
-const MAX_ITER  = 200  # max iterations for steady state finder
+const MAX_ITER  = 1000  # max iterations for steady state finder
 const PRE_STRESS  = 0.9998   # Multiplier for the initial spring lengths.
 const KS = deg2rad(16.565 * 1.064 * 0.875 * 1.033 * 0.9757 * 1.083)  # max steering
 const DRAG_CORR = 0.93       # correction of the drag for the 4-point model
@@ -631,29 +631,4 @@ function rotate_in_xz(vec, angle)
     result[2] = vec[2]
     result[3] = cos(angle) * vec[3] + sin(angle) * vec[1]
     result
-end
-
-function init_sim(kps, t_end, prn=false)
-    clear(kps)
-    height = sin(deg2rad(kps.set.elevation)) * kps.set.l_tether
-    kps.v_wind .= kps.v_wind_gnd * calc_wind_factor(kps, height)
-    kps.stiffness_factor = 0.04
-    set_depower_steering(kps, kps.set.depower_offset/100.0, 0.0)
-    y0, yd0 = KiteModels.find_steady_state(kps, prn)
-
-    differential_vars = ones(Bool, length(y0))
-    solver  = IDA(linear_solver=:Dense, max_order = 3)
-    tspan   = (0.0, t_end) 
-    abstol  = 0.0006 # max error in m/s and m
-    prob    = DAEProblem(residual!, yd0, y0, tspan, kps, differential_vars=differential_vars)
-    integrator = Sundials.init(prob, solver, abstol=abstol, reltol=0.001)
-end
-
-function next_step(s, integrator, dt)
-    KitePodModels.on_timer(s.kcu)
-    KiteModels.set_depower_steering(s, 0.236, get_steering(s.kcu))
-    Sundials.step!(integrator, dt, true)
-    t = integrator.t
-    v_ro = 0.0
-    set_v_reel_out(s, v_ro, t)
 end

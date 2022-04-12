@@ -287,6 +287,32 @@ function calc_pre_tension(s::AKM)
     return res + 1.0
 end
 
-precompile(find_steady_state, (KPS3{SimFloat, KVec3, 7},))   
+function init_sim(kps, t_end, prn=false)
+    clear(kps)
+    height = sin(deg2rad(kps.set.elevation)) * kps.set.l_tether
+    kps.v_wind .= kps.v_wind_gnd * calc_wind_factor(kps, height)
+    kps.stiffness_factor = 0.04
+    set_depower_steering(kps, kps.set.depower_offset/100.0, 0.0)
+    y0, yd0 = KiteModels.find_steady_state(kps, prn)
+
+    differential_vars = ones(Bool, length(y0))
+    solver  = IDA(linear_solver=:Dense, max_order = 3)
+    tspan   = (0.0, t_end) 
+    abstol  = 0.0006 # max error in m/s and m
+    prob    = DAEProblem(residual!, yd0, y0, tspan, kps, differential_vars=differential_vars)
+    integrator = Sundials.init(prob, solver, abstol=abstol, reltol=0.001)
+end
+
+function next_step(s, integrator, dt)
+    KitePodModels.on_timer(s.kcu)
+    KiteModels.set_depower_steering(s, 0.236, get_steering(s.kcu))
+    Sundials.step!(integrator, dt, true)
+    t = integrator.t
+    v_ro = 0.0
+    set_v_reel_out(s, v_ro, t)
+end
+
+precompile(find_steady_state, (KPS3{SimFloat, KVec3, 7},)) 
+precompile(find_steady_state, (KPS4{Float64, MVector{3, Float64}, 11, 15, KiteModels.Spring{Int16, Float64}},))  
 
 end
