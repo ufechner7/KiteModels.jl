@@ -12,6 +12,9 @@ if [[ $# -gt 0 ]]; then
     fi
 fi
 
+julia_version=$(julia --version | awk '{print($3)}')
+julia_major=${julia_version:0:3} 
+branch=$(git rev-parse --abbrev-ref HEAD)
 if test -f "kps-image-${julia_major}-${branch}.so"; then
     mv kps-image-${julia_major}-${branch}.so kps-image-${julia_major}-${branch}.so.bak
 fi
@@ -24,16 +27,16 @@ if [[ $update == true ]]; then
     julia --project -e "include(\"./test/update_packages.jl\");"
 else
     if [[ $julia_major == "1.7" ]]; then
-        cp Manifest-1.6.toml.default Manifest.toml
+        cp Manifest-1.7.toml.default Manifest.toml
         echo "Using Manifest-1.7.toml.default ..."
     else
-        cp Manifest-1.7.toml.default Manifest.toml
+        cp Manifest-1.8.toml.default Manifest.toml
         echo "Using Manifest-1.8.toml.default ..."
     fi
 fi
 julia --project -e "using Pkg; Pkg.precompile()"
 julia --project -e "include(\"./test/create_sys_image.jl\");"
-mv kps-image.so kps-image-${julia_major}-${branch}.so
+mv kps-image_tmp.so bin/kps-image-${julia_major}-${branch}.so
 julia --project -e "using Pkg; Pkg.precompile()"
 cd src
 touch *.jl # make sure all modules get recompiled in the next step

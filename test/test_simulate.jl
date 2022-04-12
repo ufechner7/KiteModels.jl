@@ -1,10 +1,10 @@
 # activate the test environment if needed
-using Pkg
-if ! ("BenchmarkTools" ∈ keys(Pkg.project().dependencies))
-    using TestEnv; TestEnv.activate()
-end
+# using Pkg
+# if ! ("BenchmarkTools" ∈ keys(Pkg.project().dependencies))
+#     using TestEnv; TestEnv.activate()
+# end
 
-using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils, Plots, Printf
+using StaticArrays, LinearAlgebra, KiteUtils, Printf
 using KiteModels, KitePodModels
 
 # change this to KPS3 or KPS4
@@ -20,13 +20,16 @@ end
 # the following values can be changed to match your interest
 dt = 0.05
 STEPS = 500
-PLOT = true
+PLOT = false
 FRONT_VIEW = false
 ZOOM = true
-PRINT = true
+PRINT = false
 STATISTIC = false
 
-include("plot2d.jl")
+if PLOT
+   using Plots
+   include("plot2d.jl")
+end
 
 function simulate(integrator, steps, plot=false)
     start = integrator.p.iter

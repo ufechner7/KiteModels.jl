@@ -1,11 +1,7 @@
 let
     using KiteModels, KitePodModels
-    if ! @isdefined kcu
-        const kcu = KCU()
-    end
-    if ! @isdefined kps4
-        const kps4 = Model(kcu)
-    end
+    kcu = KCU()
+    kps4 = KPS4(kcu)
     dt = 0.05
     STATISTIC = false
     function simulate(integrator, steps, plot=false)

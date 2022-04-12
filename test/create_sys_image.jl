@@ -1,3 +1,8 @@
+# activate the test environment if needed
+using Pkg
+if ! ("PackageCompiler" ∈ keys(Pkg.project().dependencies))
+    using TestEnv; TestEnv.activate()
+end
 @info "Loading packages ..."
 using Dierckx, StaticArrays, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, Sundials, KiteUtils, KitePodModels
 using PackageCompiler
