@@ -1,0 +1,7 @@
+#!/bin/bash
+
+if test -f "kps-image.so"; then
+    julia -J  kps-image-${julia_major}-${branch}.so -t auto --project
+else
+    julia --project
+fi
