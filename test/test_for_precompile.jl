@@ -5,6 +5,7 @@ let
     dt = 0.05
     STATISTIC = false
     FRONT_VIEW = false
+    ZOOM = false
     PLOT = true
 
     if PLOT
@@ -19,6 +20,11 @@ let
             KiteModels.next_step(kps4, integrator, dt)
             if kps4.stiffness_factor < 1.0
                 kps4.stiffness_factor+=0.01
+            end
+            if plot
+                reltime = i*dt
+                p = plot2d(kps4.pos, reltime; zoom=ZOOM, front=FRONT_VIEW)
+                display(p)
             end
         end
         (integrator.p.iter - start) / steps

@@ -14,7 +14,7 @@ end
 # the following values can be changed to match your interest
 dt = 0.05
 STEPS = 500
-PLOT = false
+PLOT = true
 FRONT_VIEW = false
 ZOOM = true
 PRINT = false
@@ -43,9 +43,9 @@ function simulate(integrator, steps, plot=false)
         end
         if plot
             reltime = i*dt
-            p = plot2d(kps4.pos, reltime; zoom=ZOOM)
+            p = plot2d(kps4.pos, reltime; zoom=ZOOM, front=FRONT_VIEW)
             display(p)
-            sleep(dt)
+            # sleep(dt)
         end
     end
     (integrator.p.iter - start) / steps
@@ -55,8 +55,7 @@ integrator = KiteModels.init_sim(kps4, 1.0, STATISTIC)
 kps4.stiffness_factor = 0.04
 
 if PLOT
-    simulate(integrator, 100, true)
-    av_steps = simulate(integrator, STEPS-100, true)
+    av_steps = simulate(integrator, STEPS, true)
 else
     println("\nStarting simulation...")
     simulate(integrator, 100)

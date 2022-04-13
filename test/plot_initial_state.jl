@@ -20,4 +20,4 @@ println("alpha_depower [deg]: $(rad2deg(kps4.alpha_depower))")
 println("lift, drag    [N]  : $(KiteModels.lift_drag(kps4))")
 
 include("plot2d.jl")
-plot2d(kps4.pos; zoom=false)
+plot2d(kps4.pos; zoom=false, front=FRONT_VIEW)

@@ -1,9 +1,9 @@
 # is included from test_simulate.jl
-function plot2d(pos, reltime=0.0; zoom=true)
+function plot2d(pos, reltime=0.0; zoom=true, front=false)
     x = Float64[] 
     z = Float64[]
     for i in 1:length(pos)
-        if FRONT_VIEW
+        if front
             push!(x, pos[i][2])
         else
             push!(x, pos[i][1])
@@ -14,7 +14,7 @@ function plot2d(pos, reltime=0.0; zoom=true)
     z_max = maximum(z)
     if zoom
         xlabel = "x [m]"
-        if FRONT_VIEW xlabel = "y [m]" end
+        if front xlabel = "y [m]" end
         plot(x,z, xlabel=xlabel, ylabel="z [m]", legend=false, xlims = (x_max-15.0, x_max+5), ylims = (z_max-15.0, z_max+5))
         annotate!(x_max-10.0, z_max-3.0, "t=$(round(reltime,digits=1)) s")
     else
