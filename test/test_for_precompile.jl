@@ -4,6 +4,14 @@ let
     kps4 = KPS4(kcu)
     dt = 0.05
     STATISTIC = false
+    FRONT_VIEW = false
+    PLOT = true
+
+    if PLOT
+        using Plots
+        include("plot2d.jl")
+    end
+
     function simulate(integrator, steps, plot=false)
         start = integrator.p.iter
         for i in 1:steps
