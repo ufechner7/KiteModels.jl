@@ -12,6 +12,10 @@ if [[ $# -gt 0 ]]; then
     fi
 fi
 
+if [[ $(basename $(pwd)) == "bin" ]]; then
+    cd ..
+fi
+
 julia_version=$(julia --version | awk '{print($3)}')
 julia_major=${julia_version:0:3} 
 branch=$(git rev-parse --abbrev-ref HEAD)
