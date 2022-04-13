@@ -13,7 +13,7 @@ end
 
 # the following values can be changed to match your interest
 dt = 0.05
-STEPS = 500
+STEPS = 2300
 PLOT = true
 FRONT_VIEW = false
 ZOOM = true
@@ -43,8 +43,11 @@ function simulate(integrator, steps, plot=false)
         end
         if plot
             reltime = i*dt
-            p = plot2d(kps4.pos, reltime; zoom=ZOOM, front=FRONT_VIEW)
-            display(p)
+            if mod(i, 5) == 0
+                p = plot2d(kps4.pos, reltime; zoom=ZOOM, front=FRONT_VIEW)
+                display(p)                
+            end
+           
             # sleep(dt)
         end
     end

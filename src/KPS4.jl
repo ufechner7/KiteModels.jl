@@ -388,9 +388,8 @@ forces:        out parameter
         p2 = s.springs[i].p2  # Second point nr.
         height = 0.5 * (pos[p1][3] + pos[p2][3])
         rho = calc_rho(s, height)
-        if ! (height > 0)
-           println("i, $i, p1: $p1, p2: $p2, pos[p1]: $(pos[p1]), pos[p2]: $(pos[p2])")
-        end
+        @assert height > 0
+
         s.v_wind_tether .= calc_wind_factor(s, height) * v_wind_gnd
         calc_particle_forces(s, pos[p1], pos[p2], vel[p1], vel[p2], s.springs[i], segments, d_tether, rho, i)
     end

@@ -313,6 +313,7 @@ function next_step(s, integrator, dt)
 end
 
 precompile(find_steady_state, (KPS3{SimFloat, KVec3, 7},)) 
-precompile(find_steady_state, (KPS4{Float64, MVector{3, Float64}, 11, 15, KiteModels.Spring{Int16, Float64}},))  
+precompile(find_steady_state, (KPS4{Float64, MVector{3, Float64}, 11, 15, KiteModels.Spring{Int16, Float64}},))
+precompile(init_sim, (KPS4{Float64, MVector{3, Float64}, 11, 15, KiteModels.Spring{Int16, Float64}}, Float64,))  
 
 end
