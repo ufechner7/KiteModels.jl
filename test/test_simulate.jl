@@ -13,8 +13,8 @@ end
 
 # the following values can be changed to match your interest
 dt = 0.05
-STEPS = 2300
-PLOT = true
+STEPS = 2000
+PLOT = false
 FRONT_VIEW = false
 ZOOM = true
 PRINT = false
