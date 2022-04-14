@@ -126,7 +126,7 @@ Calculate the relative wind speed at a given height and reference height.
         return log(height / s.set.z0) / log(s.set.h_ref / s.set.z0)
     else
         K = 1.0
-        log1 = log(height / s.set.z0) / log(s.set.h_ref / s.set.z0)
+        log1 = log(height / s.set.z0) / s.log_href_over_z0
         exp1 = exp(s.set.alpha * log(height/s.set.h_ref))
         return log1 +  K * (log1 - exp1)
     end

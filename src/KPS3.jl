@@ -124,6 +124,7 @@ $(TYPEDFIELDS)
     depower::S =           0.0
     steering::S =          0.0
     stiffness_factor::S =  1.0
+    log_href_over_z0::S =  log(se().h_ref / se().z0)
     "initial masses of the point masses"
     initial_masses::MVector{P, S} = ones(P)
     "current masses, depending on the total tether length"
