@@ -327,8 +327,8 @@ function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=fal
 end
 
 # same as above, but returns a tuple of two one dimensional arrays
-function init_flat(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false)
-    res1_, res2_ = init(s, X; old=old, delta = 0.0)
+function init_flat(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false, delta=0.0)
+    res1_, res2_ = init(s, X; old=old, delta = delta)
     res1, res2  = reduce(vcat, res1_), reduce(vcat, res2_)
     MVector{6*(s.set.segments+KITE_PARTICLES), Float64}(res1), MVector{6*(s.set.segments+KITE_PARTICLES), Float64}(res2)
 end
