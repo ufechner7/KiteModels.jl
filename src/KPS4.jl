@@ -107,8 +107,7 @@ $(TYPEDFIELDS)
     lift_force::T =       zeros(S, 3)    
     "spring force of the current tether segment, output of calc_particle_forces"
     spring_force::T =     zeros(S, 3)
-    segment::T =          zeros(S, 3)
-    v_kite::T =           zeros(S, 3)    
+    segment::T =          zeros(S, 3) 
     "a copy of the residual one (pos,vel) for debugging and unit tests"    
     res1::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     "a copy of the residual two (vel,acc) for debugging and unit tests"
@@ -160,7 +159,6 @@ function clear(s::KPS4)
     s.v_apparent    .= [s.set.v_wind, 0, 0]
     s.l_tether = s.set.l_tether
     s.segment_length = s.l_tether / s.set.segments
-    s.v_kite = zeros(SimFloat, 3)
     s.beta = deg2rad(s.set.elevation)
     init_masses(s)
     init_springs(s)
