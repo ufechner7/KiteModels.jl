@@ -120,9 +120,9 @@ end
     @test sp[7].damping ≈ 94.62850606174248
     @test sp[8].length ≈ 2.671692035300166       # S2
     @test sp[9].length ≈ 4.96120756              # S3
-    # @test sp[10].length ≈ 3.3353120022370204
-    # @test sp[11].length ≈ 5.4912468596622306
-    # @test sp[11].c_spring ≈ 49165.631334315847
+    @test sp[10].length ≈ 3.3353120022370204
+    @test sp[11].length ≈ 5.4912468596622306
+    @test sp[11].c_spring ≈ 49165.631334315847
     @test sp[15].length ≈  2.440379941126399     # S9 p11 p8
     # TODO also test spring 13 .. 15
 end
@@ -141,40 +141,40 @@ end
     @test m[11] ≈ 0.98739
 end
 
-# @testset "calc_particle_forces  " begin
-#     init_150()
-#     pos1 = KVec3(1.0, 2.0, 3.0)
-#     pos2 = KVec3(2.0, 3.0, 4.0)
-#     vel1 = KVec3(3.0, 4.0, 5.0)
-#     vel2 = KVec3(4.0, 5.0, 6.0)
-#     rho = kps4.set.rho_0
-#     for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1 
-#         kps4.forces[i] .= zeros(3)
-#     end
-#     bytes = 0
-#     for i in 1:length(kps4.springs)
-#         spring = kps4.springs[i]
-#         kps4.stiffness_factor = 0.5
-#         kps4.v_wind_tether .= KVec3(8.0, 0.1, 0.0)
-#         bytes = @allocated KiteModels.calc_particle_forces(kps4, pos1, pos2, vel1, vel2, spring, se().segments, se().d_tether/1000.0, rho, i)
-#     end
-#     # @test bytes == 0
-#     # Python output
-#     res=[[ 18550.4729309395152086  18550.6132232745367219  18550.6305627766196267]
-#          [    -0.1986161147506209      0.0819685552924057      0.1166475594582153]
-#          [    -0.1986161147506209      0.0819685552924057      0.1166475594582153]
-#          [    -0.1986161147506209      0.0819685552924057      0.1166475594582153]
-#          [    -0.1986161147506209      0.0819685552924057      0.1166475594582153]
-#          [    -0.1986161147506209      0.0819685552924057      0.1166475594582153]
-#          [-32417.6381463687685027 -32417.0769770286824496 -32417.0076190203544684]
-#          [-20528.0512582440096594 -20527.4900889039272442 -20527.420730895599263 ]
-#          [ 12986.35257788861054    12986.7734548936750798  12986.8254733999201562]
-#          [ 23289.9810739697131794  23290.5422433097955945  23290.6116013181235758]
-#          [ -1883.1033393325606085  -1882.5421699924754648  -1882.4728119841502121]]
-#     for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1
-#         @test all(res[i,:] .≈ kps4.forces[i])
-#     end
-# end
+@testset "calc_particle_forces  " begin
+    init_150()
+    pos1 = KVec3(1.0, 2.0, 3.0)
+    pos2 = KVec3(2.0, 3.0, 4.0)
+    vel1 = KVec3(3.0, 4.0, 5.0)
+    vel2 = KVec3(4.0, 5.0, 6.0)
+    rho = kps4.set.rho_0
+    for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1 
+        kps4.forces[i] .= zeros(3)
+    end
+    bytes = 0
+    for i in 1:length(kps4.springs)
+        spring = kps4.springs[i]
+        kps4.stiffness_factor = 0.5
+        kps4.v_wind_tether .= KVec3(8.0, 0.1, 0.0)
+        bytes = @allocated KiteModels.calc_particle_forces(kps4, pos1, pos2, vel1, vel2, spring, se().segments, se().d_tether/1000.0, rho, i)
+    end
+    # @test bytes == 0
+    # Python output
+    res=[[ 18550.4729309395152086  18550.6132232745367219  18550.6305627766196267]
+         [    -0.1986161147506209      0.0819685552924057      0.1166475594582153]
+         [    -0.1986161147506209      0.0819685552924057      0.1166475594582153]
+         [    -0.1986161147506209      0.0819685552924057      0.1166475594582153]
+         [    -0.1986161147506209      0.0819685552924057      0.1166475594582153]
+         [    -0.1986161147506209      0.0819685552924057      0.1166475594582153]
+         [-32417.6381463687685027 -32417.0769770286824496 -32417.0076190203544684]
+         [-20528.0512582440096594 -20527.4900889039272442 -20527.420730895599263 ]
+         [ 12986.35257788861054    12986.7734548936750798  12986.8254733999201562]
+         [ 23289.9810739697131794  23290.5422433097955945  23290.6116013181235758]
+         [ -1883.1033393325606085  -1882.5421699924754648  -1882.4728119841502121]]
+    for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1
+        @test all(res[i,:] .≈ kps4.forces[i])
+    end
+end
 
 # @testset "init                  " begin
 #     init_150()
