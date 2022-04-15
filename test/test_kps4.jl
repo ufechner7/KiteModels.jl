@@ -475,7 +475,7 @@ end
     height = sin(deg2rad(kps4.set.elevation)) * kps4.set.l_tether
     kps4.v_wind .= kps4.v_wind_gnd * calc_wind_factor(kps4, height)
     kps4.stiffness_factor = 0.04
-    res1, res2 = find_steady_state(kps4, false) 
+    res1, res2 = find_steady_state(kps4, true) 
     forces = spring_forces(kps4)
     ref_forces = [975.0026331269528, 974.9637290710727, 974.9330386838346, 974.9052145755538, 974.8789544840638, 974.8539576327931, 135.68082911232483, -80.28460587802745, 116.34133442160972, 308.61323749829336, 467.1456555341946, 467.1456555341946, 308.61323749829336, -80.28460587802745, 143.53766465030952]
     for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1

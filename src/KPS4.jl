@@ -599,7 +599,7 @@ function find_steady_state(s::KPS4, prn=false)
         return nothing 
     end
     if prn println("\nStarted function test_nlsolve...") end
-    results = nlsolve(test_initial_condition!, X00, autoscale=true, xtol=1e-6, ftol=1e-6, iterations=MAX_ITER)
+    results = nlsolve(test_initial_condition!, X00, autoscale=true, xtol=1e-7, ftol=1e-7, iterations=MAX_ITER)
     if prn println("\nresult: $results") end
     init_flat(s, results.zero)
 end
