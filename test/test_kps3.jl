@@ -109,7 +109,7 @@ end
     kps.last_force = KVec3(-1.0, -2, -3)
     kps.v_app_perp = KVec3(0.1,0.22,0.33)
     kps.v_wind_tether .= [0.1, 0.2, 0.3]
-    kps.length = 10.0
+    kps.segment_length = 10.0
     KiteModels.calc_res(kps, pos1, pos2, vel1, vel2, mass, veld, result, i)
     @test result ≈ [ -6.99178740e-03, 1.01297086e-01, 9.83843908e+00]
     i = SEGMENTS+1
@@ -123,9 +123,9 @@ end
     kps.last_force = KVec3(-1.0, -2, -3)
     kps.v_app_perp = KVec3(0.1,0.22,0.33)
     kps.v_wind_tether .= [0.1, 0.2, 0.3]
-    kps.length = 10.0
-    kps.c_spring = kps.set.c_spring / kps.length
-    kps.damping  = kps.set.damping / kps.length
+    kps.segment_length = 10.0
+    kps.c_spring = kps.set.c_spring / kps.segment_length
+    kps.damping  = kps.set.damping / kps.segment_length
     pos  = zeros(SVector{SEGMENTS+1, KVec3})
     for i in 1:SEGMENTS+1
         pos[i][3] = 5.0 * (i-1)
@@ -186,7 +186,7 @@ end
     res2 = deepcopy(res1)
     res = reduce(vcat, vcat(res1, res2))
     X = zeros(SimFloat, 2*kps.set.segments)
-    y0, yd0 = KiteModels.init(kps, X; output=false)
+    y0, yd0 = KiteModels.init(kps, X)
     # println(y0)
     # println(yd0)
     p = kps
@@ -219,7 +219,7 @@ end
 
 @testset "test_init            " begin
     my_state = deepcopy(kps)
-    y0, yd0 = KiteModels.init(my_state, zeros(SimFloat, 2*SEGMENTS))
+    y0, yd0 = KiteModels.init(my_state, zeros(SimFloat, 2*SEGMENTS), delta=1e-6)
     @test length(y0)  == (SEGMENTS) * 6
     @test length(yd0) == (SEGMENTS) * 6
     @test sum(y0)  ≈ 717.163369868302
@@ -265,7 +265,7 @@ z= nothing
     end  
     # println(norm(res))
 
-    @test my_state.length ≈ 65.33333333333333
+    @test my_state.segment_length ≈ 65.33333333333333
     @test my_state.c_spring ≈ 9407.142857142859
     @test my_state.damping  ≈  14.479591836734695
     # @test isapprox(my_state.param_cl, 1.0641931441572074, atol=1e-4)
@@ -282,7 +282,7 @@ end
 
 @testset "test_find_steady_state" begin
    KiteModels.set_depower_steering(kps, 0.25, 0.0)
-   res1, res2 = find_steady_state(kps) 
+   res1, res2 = find_steady_state(kps, false, delta=1e-6) 
    @test norm(res2) < 1e-5                            # velocity and acceleration must be near zero
    pre_tension = KiteModels.calc_pre_tension(kps)
    @test pre_tension > 1.0001
@@ -342,31 +342,5 @@ function run_benchmarks()
     println()
 end
 
-# @benchmark residual!(res, yd, y, p, t) setup = (res1 = zeros(SVector{SEGMENTS, KVec3}); res2 = deepcopy(res1); 
-#                                                             res = reduce(vcat, vcat(res1, res2)); pos = deepcopy(res1);
-#                                                             pos[1] .= [1.0,2,3]; vel = deepcopy(res1); y = reduce(vcat, vcat(pos, vel));
-#                                                             der_pos = deepcopy(res1); der_vel = deepcopy(res1); yd = reduce(vcat, vcat(der_pos, der_vel));
-#                                                             p = SciMLBase.NullParameters(); t = 0.0)
-
-# With  KVec3     = SizedVector{3, SimFloat}
-# Time  (mean ± σ):   52.215 μs ± 37.302 μs  Memory estimate: 16.92 KiB, allocs estimate: 614.
-#
-# KVec3     = MVector{3, SimFloat}
-#  Time  (mean ± σ):   509.464 ns ±  52.723 ns  Memory estimate: 0 bytes, allocs estimate: 0. =#
-
-# @benchmark residual!(res, yd, y, p, t) setup = (res1 = zeros(SVector{SEGMENTS, KVec3}); res2 = deepcopy(res1); 
-#                                                                res = reduce(vcat, vcat(res1, res2)); pos = deepcopy(res1);
-#                                                                pos[1] .= [1.0,2,3]; vel = deepcopy(res1); y = reduce(vcat, vcat(pos, vel));
-#                                                                der_pos = deepcopy(res1); der_vel = deepcopy(res1); yd = reduce(vcat, vcat(der_pos, der_vel));
-#                                                                p = kps; t = 0.0)
-
-#  Time  (mean ± σ):   913.738 ns ± 395.611 ns  ┊ GC (mean ± σ):  0.43% ±  0.97% with const PART= se().segments+1
-#  Time  (mean ± σ):   943.225 ns ± 488.996 ns  ┊ GC (mean ± σ):  0.51% ±  0.98% without const PART ...
-#  using KiteModels; @time KiteModels.find_steady_state(KPS3{SimFloat, KVec3, 7}())
-#  0.308473 seconds (3.12 M allocations: 108.310 MiB, 4.08% gc time)
-# ((F, x) -> f1!(F, x, params))
-# old: residual!(res, yd0, y0, [0.0], 0.0)
-# new: residual!(res, yd0, y0, [0.0], 0.0, state) 35ms to 155ms
-# ((res, yd, y::MVector{S, SimFloat}, p, t) -> res1(res, yd, y::MVector{S, SimFloat}, p, t, state))
 end
 nothing

@@ -31,7 +31,7 @@ Scientific background: http://arxiv.org/abs/1406.6218 =#
 
 module KiteModels
 
-using Dierckx, StaticArrays, LinearAlgebra, Parameters, NLsolve, DocStringExtensions
+using Dierckx, StaticArrays, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, Sundials
 using KiteUtils, KitePodModels
 import Base.zero
 
@@ -117,13 +117,16 @@ Calculate the relative wind speed at a given height and reference height.
     if typeof(profile_law) != ProfileLaw
         profile_law = ProfileLaw(profile_law)
     end
+    if height < s.set.h_ref
+        height = s.set.h_ref
+    end
     if profile_law == EXP
         return exp(s.set.alpha * log(height/s.set.h_ref))
     elseif profile_law == LOG
         return log(height / s.set.z0) / log(s.set.h_ref / s.set.z0)
     else
         K = 1.0
-        log1 = log(height / s.set.z0) / log(s.set.h_ref / s.set.z0)
+        log1 = log(height / s.set.z0) / s.log_href_over_z0
         exp1 = exp(s.set.alpha * log(height/s.set.h_ref))
         return log1 +  K * (log1 - exp1)
     end
@@ -213,19 +216,6 @@ Return the absolute value of the force at the winch as calculated during the las
 function winch_force(s::AKM) norm(s.last_force) end
 
 """
-    spring_forces(s::AKM)
-
-Return an array of the scalar spring forces of all tether segements.
-"""
-function spring_forces(s::AKM)
-    forces = zeros(SimFloat, s.set.segments)
-    for i in 1:s.set.segments
-        forces[i] =  s.c_spring * (norm(s.pos[i+1] - s.pos[i]) - s.length)
-    end
-    forces
-end
-
-"""
     lift_drag(s::AKM)
 
 Return a tuple of the scalar lift and drag forces. 
@@ -297,6 +287,33 @@ function calc_pre_tension(s::AKM)
     return res + 1.0
 end
 
-precompile(find_steady_state, (KPS3{SimFloat, KVec3, 7},))   
+function init_sim(kps, t_end, prn=false)
+    clear(kps)
+    height = sin(deg2rad(kps.set.elevation)) * kps.set.l_tether
+    kps.v_wind .= kps.v_wind_gnd * calc_wind_factor(kps, height)
+    kps.stiffness_factor = 0.035
+    set_depower_steering(kps, kps.set.depower_offset/100.0, 0.0)
+    y0, yd0 = KiteModels.find_steady_state(kps, prn)
+
+    differential_vars = ones(Bool, length(y0))
+    solver  = IDA(linear_solver=:Dense, max_order = 3)
+    tspan   = (0.0, t_end) 
+    abstol  = 0.0006 # max error in m/s and m
+    prob    = DAEProblem(residual!, yd0, y0, tspan, kps, differential_vars=differential_vars)
+    integrator = Sundials.init(prob, solver, abstol=abstol, reltol=0.001)
+end
+
+function next_step(s, integrator, dt)
+    KitePodModels.on_timer(s.kcu)
+    KiteModels.set_depower_steering(s, 0.236, get_steering(s.kcu))
+    Sundials.step!(integrator, dt, true)
+    t = integrator.t
+    v_ro = 0.0
+    set_v_reel_out(s, v_ro, t)
+end
+
+precompile(find_steady_state, (KPS3{SimFloat, KVec3, 7},)) 
+precompile(find_steady_state, (KPS4{Float64, MVector{3, Float64}, 11, 15, KiteModels.Spring{Int16, Float64}},))
+precompile(init_sim, (KPS4{Float64, MVector{3, Float64}, 11, 15, KiteModels.Spring{Int16, Float64}}, Float64,))  
 
 end

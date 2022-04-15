@@ -1,0 +1,16 @@
+#!/bin/bash
+
+if [[ $(basename $(pwd)) == "bin" ]]; then
+    cd ..
+fi
+
+julia_version=$(julia --version | awk '{print($3)}')
+julia_major=${julia_version:0:3} 
+branch=$(git rev-parse --abbrev-ref HEAD)
+
+if test -f "bin/kps-image-${julia_major}-${branch}.so"; then
+    echo "Found system image!"
+    julia -J  bin/kps-image-${julia_major}-${branch}.so -t 1 --project
+else
+    julia --project
+fi

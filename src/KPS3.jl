@@ -51,6 +51,8 @@ $(TYPEDFIELDS)
     set::Settings = se()
     "Reference to the KCU struct (Kite Control Unit, type from the module KitePodSimulor"
     kcu::KCU = KCU()
+    "Iteration"
+    iter:: Int64 = 0
     "Function for calculation the lift coefficent, using a spline based on the provided value pairs."
     calc_cl = Spline1D(se().alpha_cl, se().cl_list)
     "Function for calculation the drag coefficent, using a spline based on the provided value pairs."
@@ -95,7 +97,8 @@ $(TYPEDFIELDS)
     bridle_area::S =      zero(S)
     "spring constant, depending on the length of the tether segment"
     c_spring::S =         zero(S)
-    length::S =           0.0
+    "unstressed segment length [m]"
+    segment_length::S =           0.0
     "damping factor, depending on the length of the tether segment"
     damping::S =          zero(S)
     area::S =             zero(S)
@@ -120,6 +123,8 @@ $(TYPEDFIELDS)
     rho::S =               0.0
     depower::S =           0.0
     steering::S =          0.0
+    stiffness_factor::S =  1.0
+    log_href_over_z0::S =  log(se().h_ref / se().z0)
     "initial masses of the point masses"
     initial_masses::MVector{P, S} = ones(P)
     "current masses, depending on the total tether length"
@@ -142,14 +147,14 @@ function clear(s::KPS3)
     s.v_apparent    .= [s.set.v_wind, 0, 0]
     s.alpha_depower = 0.0
     s.l_tether = s.set.l_tether
-    s.length = s.l_tether / s.set.segments
+    s.segment_length = s.l_tether / s.set.segments
     s.beta = deg2rad(s.set.elevation)
     mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
     mass_per_meter = 0.011
     s.initial_masses .= ones(s.set.segments+1) * mass_per_meter * s.set.l_tether / s.set.segments # Dyneema: 1.1 kg/ 100m
     s.rho = s.set.rho_0
-    s.c_spring = s.set.c_spring / s.length
-    s.damping  = s.set.damping / s.length
+    s.c_spring = s.set.c_spring / s.segment_length
+    s.damping  = s.set.damping / s.segment_length
     s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
     s.calc_cd = Spline1D(s.set.alpha_cd, s.set.cd_list) 
 end
@@ -212,11 +217,11 @@ function calc_res(s::KPS3, pos1, pos2, vel1, vel2, mass, veld, result, i)
     # # calculate the relative velocity in the direction of the spring (=segment)
     spring_vel = dot(s.unit_vector, rel_vel)
 
-    k2 = 0.05 * s.c_spring             # compression stiffness tether segments
-    if norm1 - s.length > 0.0
-        s.spring_force .= (s.c_spring * (norm1 - s.length) + s.damping * spring_vel) .* s.unit_vector
+    k2 = 0.05 * s.c_spring * s.stiffness_factor             # compression stiffness tether segments
+    if norm1 - s.segment_length > 0.0
+        s.spring_force .= (s.c_spring * s.stiffness_factor * (norm1 - s.segment_length) + s.damping * spring_vel) .* s.unit_vector
     else
-        s.spring_force .= k2 * ((norm1 - s.length) + (s.damping * spring_vel)) .* s.unit_vector
+        s.spring_force .= k2 * ((norm1 - s.segment_length) + (s.damping * spring_vel)) .* s.unit_vector
     end
     s.seg_area = norm1 * s.set.d_tether/1000.0
     s.last_v_app_norm_tether = calc_drag(s, s.av_vel, s.unit_vector, rho, s.last_tether_drag, s.v_app_perp, s.seg_area)
@@ -239,7 +244,7 @@ end
 # Calculate the vector res1 using a vector expression, and calculate res2 using a loop
 # that iterates over all tether segments. 
 function loop(s::KPS3, pos, vel, posd, veld, res1, res2)
-    s.masses               .= s.length / (s.set.l_tether / s.set.segments) .* s.initial_masses
+    s.masses               .= s.segment_length / (s.set.l_tether / s.set.segments) .* s.initial_masses
     s.masses[s.set.segments+1]   += (s.set.mass + s.set.kcu_mass)
     res1[1] .= pos[1]
     res2[1] .= vel[1]
@@ -284,9 +289,9 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
     v_kite   = vel[div(S,6)+1]
     delta_t = time - s.t_0
     delta_v = s.v_reel_out - s.last_v_reel_out
-    s.length = (s.l_tether + s.last_v_reel_out * delta_t + 0.5 * delta_v * delta_t^2) / div(S,6)
-    s.c_spring = s.set.c_spring / s.length
-    s.damping  = s.set.damping / s.length
+    s.segment_length = (s.l_tether + s.last_v_reel_out * delta_t + 0.5 * delta_v * delta_t^2) / div(S,6)
+    s.c_spring = s.set.c_spring / s.segment_length
+    s.damping  = s.set.damping / s.segment_length
 
     # call core calculation routines
     vec_c = SVector{3, SimFloat}(pos[s.set.segments] - pos_kite)     # convert to SVector to avoid allocations
@@ -298,16 +303,18 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
     # copy and flatten result
     for i in 2:div(S,6)+1
         for j in 1:3
-           @inbounds res[3*(i-2)+j] = s.res1[i][j]
+           @inbounds res[3*(i-2)+j]              = s.res1[i][j]
            @inbounds res[3*(div(S,6))+3*(i-2)+j] = s.res2[i][j]
         end
     end
-    if norm(res) < 10.0
+    if norm(res) < 1e5
         # println(norm(res))
         for i in 1:length(pos)
             @inbounds s.pos[i] .= pos[i]
         end
     end
+    # @assert ! isnan(norm(res))
+    s.iter += 1
     nothing
 end
 
@@ -318,21 +325,21 @@ end
 # length(x) == 2*SEGMENTS
 # Returns:
 # res, a single vector consisting of the elements of y0 and yd0
-function init(s::KPS3, X; output=false)
+function init_inner(s::KPS3, X=zeros(2 * s.set.segments); old=false, delta=0.0)
     pos = zeros(SVector{s.set.segments+1, KVec3})
     vel = zeros(SVector{s.set.segments+1, KVec3})
     acc = zeros(SVector{s.set.segments+1, KVec3})
     state_y0 = zeros(SVector{2*s.set.segments, KVec3})
     yd0 = zeros(SVector{2*s.set.segments, KVec3})
 
-    DELTA = 1e-6
+    DELTA = delta
     set_cl_cd(s, 10.0/180.0 * π)
 
     for i in 0:s.set.segments
         radius =  -i * s.set.l_tether / s.set.segments
         elevation = s.set.elevation
         sin_el, cos_el = sin(elevation / 180.0 * π), cos(elevation / 180.0 * π)
-        if i==0
+        if i == 0
             pos[i+1] .= SVec3(0.0, DELTA, 0.0)
         else
             pos[i+1] .= SVec3(-cos_el * radius+X[i], DELTA, -sin_el * radius+X[s.set.segments+i])
@@ -344,11 +351,6 @@ function init(s::KPS3, X; output=false)
         s.pos[i] .= pos[i]
     end
 
-    if output
-        forces = spring_forces(s)
-        println("Winch force: $(norm(forces[1])) N"); 
-    end
-    
     for i in 2:s.set.segments+1
         state_y0[i-1] .= pos[i]  # Initial state vector
         yd0[i-1]      .= vel[i]  # Initial state vector derivative
@@ -361,13 +363,28 @@ function init(s::KPS3, X; output=false)
     set_v_wind_ground(s, pos[s.set.segments+1][3])
     s.l_tether = s.set.l_tether
     set_v_reel_out(s, s.set.v_reel_out, 0.0)
-    if output
-        print("y0: ")
-        display(state_y0)
-        print("yd0: ")
-        display(yd0)
+
+    state_y0, yd0
+end
+
+# same as above, but returns a tuple of two one dimensional arrays
+function init(s::KPS3, X=zeros(2 * (s.set.segments)); old=false, delta = 0.0)
+    res1_, res2_ = init_inner(s, X; old=old, delta = delta)
+    res1, res2  = reduce(vcat, res1_), reduce(vcat, res2_)
+    MVector{6*(s.set.segments), Float64}(res1), MVector{6*(s.set.segments), Float64}(res2)
+end
+
+"""
+    spring_forces(s::AKM)
+
+Return an array of the scalar spring forces of all tether segements.
+"""
+function spring_forces(s::KPS3)
+    forces = zeros(SimFloat, s.set.segments)
+    for i in 1:s.set.segments
+        forces[i] =  s.c_spring * s.stiffness_factor * (norm(s.pos[i+1] - s.pos[i]) - s.segment_length)
     end
-    return reduce(vcat, state_y0), reduce(vcat, yd0)
+    forces
 end
 
 """
@@ -376,21 +393,31 @@ end
 Find an initial equilibrium, based on the inital parameters
 `l_tether`, elevation and `v_reel_out`.
 """
-function find_steady_state(s::KPS3, prn=false)
+function find_steady_state_inner(s::KPS3, X, prn=false; delta=0.0)
     res = zeros(MVector{6*s.set.segments, SimFloat})
 
     # helper function for the steady state finder
     function test_initial_condition!(F, x::Vector)
-        y0, yd0 = init(s, x)
+        y0, yd0 = init(s, x, delta=delta)
         residual!(res, yd0, y0, s, 0.0)
         for i in 1:s.set.segments
-            F[i] = res[1 + 3*(i-1) + 3*s.set.segments]
+            F[i]                = res[1 + 3*(i-1) + 3*s.set.segments]
             F[i+s.set.segments] = res[3 + 3*(i-1) + 3*s.set.segments]
         end
         return nothing 
     end
+
     if prn println("\nStarted function test_nlsolve...") end
-    results = nlsolve(test_initial_condition!, zeros(SimFloat, 2*s.set.segments))
+    results = nlsolve(test_initial_condition!, X, xtol=1e-6, ftol=1e-6, autoscale=true, iterations=1000)
     if prn println("\nresult: $results") end
-    init(s, results.zero; output=false)
+    results.zero
+ end
+
+function find_steady_state(s::KPS3, prn=false; delta = 0.0)
+    zero = zeros(SimFloat, 2*s.set.segments)
+    s.stiffness_factor=0.04
+    zero = find_steady_state_inner(s, zero, prn, delta=delta)
+    s.stiffness_factor=1.0
+    zero = find_steady_state_inner(s, zero, prn, delta=delta)
+    init(s, zero; delta=delta)
 end
