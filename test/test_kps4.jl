@@ -469,17 +469,16 @@ end
 end
 
 @testset "test_spring_forces    " begin
-    init_392()
-    clear(kps4)
-    KiteModels.set_depower_steering(kps4, kps4.set.depower_offset/100.0, 0.0)
-    height = sin(deg2rad(kps4.set.elevation)) * kps4.set.l_tether
-    kps4.v_wind .= kps4.v_wind_gnd * calc_wind_factor(kps4, height)
+    init2()
+    kps4.alpha_depower = -0.820659579962 
     kps4.stiffness_factor = 0.04
-    res1, res2 = find_steady_state(kps4, true) 
+    kps4.set.alpha_zero = 0.0
+    res =  zeros(MVector{6*(kps4.set.segments+4), SimFloat})
+    y0, yd0 = KiteModels.init_flat(kps4)
     forces = spring_forces(kps4)
-    ref_forces = [975.0026331269528, 974.9637290710727, 974.9330386838346, 974.9052145755538, 974.8789544840638, 974.8539576327931, 135.68082911232483, -80.28460587802745, 116.34133442160972, 308.61323749829336, 467.1456555341946, 467.1456555341946, 308.61323749829336, -80.28460587802745, 143.53766465030952]
+    ref_forces = [3.928735076156923e-12, 3.928735076156923e-12, 3.928735076156923e-12, 0.0, -3.928735076156923e-12, 1.1786205228470769e-11, 2.160277004750972, 2.1602770047433926, 2.1602770047441373, 2.1602770047074573, 2.1602770047483513, 2.1602770047483513, 2.1602770047074573, 2.1602770047433926, 2.160277004685822]
     for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1
-        @test isapprox(forces[i], ref_forces[i], rtol=5e-3)
+        @test isapprox(forces[i], ref_forces[i], atol=1e-6, rtol=1e-4)
     end    
 end
 
