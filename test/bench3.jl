@@ -60,7 +60,7 @@ end
     res2 = deepcopy(res1)
     res = reduce(vcat, vcat(res1, res2))
     X = zeros(SimFloat, 2*kps.set.segments)
-    y0, yd0 = KiteModels.init_flat(kps, X; output=false)
+    y0, yd0 = KiteModels.init_flat(kps, X; delta=1e-6)
     # println(y0)
     # println(yd0)
     p = kps

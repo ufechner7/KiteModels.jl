@@ -325,14 +325,14 @@ end
 # length(x) == 2*SEGMENTS
 # Returns:
 # res, a single vector consisting of the elements of y0 and yd0
-function init(s::KPS3, X=zeros(2 * s.set.segments); output=false)
+function init(s::KPS3, X=zeros(2 * s.set.segments); old=false, delta=0.0)
     pos = zeros(SVector{s.set.segments+1, KVec3})
     vel = zeros(SVector{s.set.segments+1, KVec3})
     acc = zeros(SVector{s.set.segments+1, KVec3})
     state_y0 = zeros(SVector{2*s.set.segments, KVec3})
     yd0 = zeros(SVector{2*s.set.segments, KVec3})
 
-    DELTA = 1e-6
+    DELTA = delta
     set_cl_cd(s, 10.0/180.0 * π)
 
     for i in 0:s.set.segments
@@ -351,11 +351,6 @@ function init(s::KPS3, X=zeros(2 * s.set.segments); output=false)
         s.pos[i] .= pos[i]
     end
 
-    if output
-        forces = spring_forces(s)
-        println("Winch force: $(norm(forces[1])) N"); 
-    end
-    
     for i in 2:s.set.segments+1
         state_y0[i-1] .= pos[i]  # Initial state vector
         yd0[i-1]      .= vel[i]  # Initial state vector derivative
@@ -368,18 +363,13 @@ function init(s::KPS3, X=zeros(2 * s.set.segments); output=false)
     set_v_wind_ground(s, pos[s.set.segments+1][3])
     s.l_tether = s.set.l_tether
     set_v_reel_out(s, s.set.v_reel_out, 0.0)
-    if output
-        print("y0: ")
-        display(state_y0)
-        print("yd0: ")
-        display(yd0)
-    end
+
     state_y0, yd0
 end
 
 # same as above, but returns a tuple of two one dimensional arrays
-function init_flat(s::KPS3, X=zeros(2 * (s.set.segments)); output=false)
-    res1_, res2_ = init(s, X; output)
+function init_flat(s::KPS3, X=zeros(2 * (s.set.segments)); old=false, delta = 0.0)
+    res1_, res2_ = init(s, X; old=old, delta = delta)
     res1, res2  = reduce(vcat, res1_), reduce(vcat, res2_)
     MVector{6*(s.set.segments), Float64}(res1), MVector{6*(s.set.segments), Float64}(res2)
 end
@@ -403,12 +393,12 @@ end
 Find an initial equilibrium, based on the inital parameters
 `l_tether`, elevation and `v_reel_out`.
 """
-function find_steady_state_inner(s::KPS3, X, prn=false)
+function find_steady_state_inner(s::KPS3, X, prn=false; delta=0.0)
     res = zeros(MVector{6*s.set.segments, SimFloat})
 
     # helper function for the steady state finder
     function test_initial_condition!(F, x::Vector)
-        y0, yd0 = init_flat(s, x)
+        y0, yd0 = init_flat(s, x, delta=delta)
         residual!(res, yd0, y0, s, 0.0)
         for i in 1:s.set.segments
             F[i]                = res[1 + 3*(i-1) + 3*s.set.segments]
@@ -423,11 +413,11 @@ function find_steady_state_inner(s::KPS3, X, prn=false)
     results.zero
  end
 
-function find_steady_state(s::KPS3, prn=false)
+function find_steady_state(s::KPS3, prn=false; delta = 0.0)
     zero = zeros(SimFloat, 2*s.set.segments)
     s.stiffness_factor=0.04
-    zero = find_steady_state_inner(s, zero, prn)
+    zero = find_steady_state_inner(s, zero, prn, delta=delta)
     s.stiffness_factor=1.0
-    zero = find_steady_state_inner(s, zero, prn)
-    init_flat(s, zero; output=false)
+    zero = find_steady_state_inner(s, zero, prn, delta=delta)
+    init_flat(s, zero; delta=delta)
 end

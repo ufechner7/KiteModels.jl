@@ -186,7 +186,7 @@ end
     res2 = deepcopy(res1)
     res = reduce(vcat, vcat(res1, res2))
     X = zeros(SimFloat, 2*kps.set.segments)
-    y0, yd0 = KiteModels.init_flat(kps, X; output=false)
+    y0, yd0 = KiteModels.init_flat(kps, X)
     # println(y0)
     # println(yd0)
     p = kps
@@ -219,7 +219,7 @@ end
 
 @testset "test_init            " begin
     my_state = deepcopy(kps)
-    y0, yd0 = KiteModels.init_flat(my_state, zeros(SimFloat, 2*SEGMENTS))
+    y0, yd0 = KiteModels.init_flat(my_state, zeros(SimFloat, 2*SEGMENTS), delta=1e-6)
     @test length(y0)  == (SEGMENTS) * 6
     @test length(yd0) == (SEGMENTS) * 6
     @test sum(y0)  ≈ 717.163369868302
@@ -282,7 +282,7 @@ end
 
 @testset "test_find_steady_state" begin
    KiteModels.set_depower_steering(kps, 0.25, 0.0)
-   res1, res2 = find_steady_state(kps, false) 
+   res1, res2 = find_steady_state(kps, false, delta=1e-6) 
    @test norm(res2) < 1e-5                            # velocity and acceleration must be near zero
    pre_tension = KiteModels.calc_pre_tension(kps)
    @test pre_tension > 1.0001
