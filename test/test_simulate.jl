@@ -13,7 +13,7 @@ end
 
 # the following values can be changed to match your interest
 dt = 0.05
-STEPS = 2000
+STEPS = 1000
 PLOT = false
 FRONT_VIEW = false
 ZOOM = true
@@ -40,6 +40,9 @@ function simulate(integrator, steps, plot=false)
         KiteModels.next_step(kps4, integrator, dt)
         if kps4.stiffness_factor < 1.0
             kps4.stiffness_factor+=0.01
+            if kps4.stiffness_factor > 1.0
+                kps4.stiffness_factor = 1.0
+            end
         end
         if plot
             reltime = i*dt

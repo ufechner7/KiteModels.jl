@@ -488,14 +488,17 @@ function simulate(integrator, steps)
     for i in 1:steps
         KiteModels.next_step(kps4, integrator, 0.05)
         if kps4.stiffness_factor < 1.0
-            kps4.stiffness_factor+=0.01
+            kps4.stiffness_factor += 0.01
+            if kps4.stiffness_factor > 1.0
+                kps4.stiffness_factor = 1.0
+            end
         end
     end
     (integrator.p.iter - start) / steps
 end
 
 @testset "test_simulate        " begin
-    STEPS=500
+    STEPS = 500
     STATISTIC=false
     integrator = KiteModels.init_sim(kps4, 1.0, STATISTIC)
     kps4.stiffness_factor = 0.035
@@ -506,7 +509,7 @@ end
     @test isapprox(av_steps, 1102, rtol=0.2)
     lift, drag = KiteModels.lift_drag(kps4)
     println(lift, " ", drag) # 703.7699568972286 161.44746368100536
-    @test isapprox(lift, 703.8, rtol=0.1)
+    @test isapprox(lift, 703.8, rtol=0.05)
 end
 
 end
