@@ -342,31 +342,5 @@ function run_benchmarks()
     println()
 end
 
-# @benchmark residual!(res, yd, y, p, t) setup = (res1 = zeros(SVector{SEGMENTS, KVec3}); res2 = deepcopy(res1); 
-#                                                             res = reduce(vcat, vcat(res1, res2)); pos = deepcopy(res1);
-#                                                             pos[1] .= [1.0,2,3]; vel = deepcopy(res1); y = reduce(vcat, vcat(pos, vel));
-#                                                             der_pos = deepcopy(res1); der_vel = deepcopy(res1); yd = reduce(vcat, vcat(der_pos, der_vel));
-#                                                             p = SciMLBase.NullParameters(); t = 0.0)
-
-# With  KVec3     = SizedVector{3, SimFloat}
-# Time  (mean ± σ):   52.215 μs ± 37.302 μs  Memory estimate: 16.92 KiB, allocs estimate: 614.
-#
-# KVec3     = MVector{3, SimFloat}
-#  Time  (mean ± σ):   509.464 ns ±  52.723 ns  Memory estimate: 0 bytes, allocs estimate: 0. =#
-
-# @benchmark residual!(res, yd, y, p, t) setup = (res1 = zeros(SVector{SEGMENTS, KVec3}); res2 = deepcopy(res1); 
-#                                                                res = reduce(vcat, vcat(res1, res2)); pos = deepcopy(res1);
-#                                                                pos[1] .= [1.0,2,3]; vel = deepcopy(res1); y = reduce(vcat, vcat(pos, vel));
-#                                                                der_pos = deepcopy(res1); der_vel = deepcopy(res1); yd = reduce(vcat, vcat(der_pos, der_vel));
-#                                                                p = kps; t = 0.0)
-
-#  Time  (mean ± σ):   913.738 ns ± 395.611 ns  ┊ GC (mean ± σ):  0.43% ±  0.97% with const PART= se().segments+1
-#  Time  (mean ± σ):   943.225 ns ± 488.996 ns  ┊ GC (mean ± σ):  0.51% ±  0.98% without const PART ...
-#  using KiteModels; @time KiteModels.find_steady_state(KPS3{SimFloat, KVec3, 7}())
-#  0.308473 seconds (3.12 M allocations: 108.310 MiB, 4.08% gc time)
-# ((F, x) -> f1!(F, x, params))
-# old: residual!(res, yd0, y0, [0.0], 0.0)
-# new: residual!(res, yd0, y0, [0.0], 0.0, state) 35ms to 155ms
-# ((res, yd, y::MVector{S, SimFloat}, p, t) -> res1(res, yd, y::MVector{S, SimFloat}, p, t, state))
 end
 nothing
