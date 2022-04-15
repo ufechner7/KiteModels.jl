@@ -452,7 +452,7 @@ end
     height = sin(deg2rad(kps4.set.elevation)) * kps4.set.l_tether
     kps4.v_wind .= kps4.v_wind_gnd * calc_wind_factor(kps4, height)
     kps4.stiffness_factor = 0.04
-    res1, res2 = find_steady_state(kps4, false) 
+    res1, res2 = find_steady_state(kps4, true) 
     # TODO check why -9.81 appears in the residual
     @test sum(res2) ≈ -9.81*(se().segments+ KiteModels.KITE_PARTICLES) # velocity and acceleration must be near zero
     pre_tension = KiteModels.calc_pre_tension(kps4)
@@ -460,7 +460,7 @@ end
     @test pre_tension < 1.01
     @test unstretched_length(kps4) ≈ 392.0              # initial, unstreched tether lenght
     println("length: ", tether_length(kps4))
-    @test isapprox(tether_length(kps4), 405.6, rtol=5e-3) # real, streched tether length
+    @test isapprox(tether_length(kps4), 406.4, rtol=5e-3) # real, streched tether length
 #    @test winch_force(kps) ≈ 276.25776695110034        # initial force at the winch [N]
 #    lift, drag = lift_drag(kps)
 #    @test lift ≈ 443.63303000106197                    # initial lift force of the kite [N]
@@ -481,6 +481,32 @@ end
     for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1
         @test isapprox(forces[i], ref_forces[i], atol=1e-6, rtol=1e-4)
     end    
+end
+
+function simulate(integrator, steps)
+    start = integrator.p.iter
+    for i in 1:steps
+        KiteModels.next_step(kps4, integrator, 0.05)
+        if kps4.stiffness_factor < 1.0
+            kps4.stiffness_factor+=0.01
+        end
+    end
+    (integrator.p.iter - start) / steps
+end
+
+@testset "test_simulate        " begin
+    STEPS=500
+    STATISTIC=false
+    integrator = KiteModels.init_sim(kps4, 1.0, STATISTIC)
+    kps4.stiffness_factor = 0.04
+    println("\nStarting simulation...")
+    simulate(integrator, 100)
+    av_steps = simulate(integrator, STEPS-100)
+    println(av_steps) #1102
+    @test isapprox(av_steps, 1102, rtol=0.2)
+    lift, drag = KiteModels.lift_drag(kps4)
+    println(lift, " ", drag) # 703.7699568972286 161.44746368100536
+    @test isapprox(lift, 703.8, rtol=0.1)
 end
 
 end
