@@ -291,7 +291,7 @@ function init_sim(kps, t_end, prn=false)
     clear(kps)
     height = sin(deg2rad(kps.set.elevation)) * kps.set.l_tether
     kps.v_wind .= kps.v_wind_gnd * calc_wind_factor(kps, height)
-    kps.stiffness_factor = 0.04
+    kps.stiffness_factor = 0.035
     set_depower_steering(kps, kps.set.depower_offset/100.0, 0.0)
     y0, yd0 = KiteModels.find_steady_state(kps, prn)
 
