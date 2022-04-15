@@ -186,7 +186,7 @@ end
     res2 = deepcopy(res1)
     res = reduce(vcat, vcat(res1, res2))
     X = zeros(SimFloat, 2*kps.set.segments)
-    y0, yd0 = KiteModels.init_flat(kps, X)
+    y0, yd0 = KiteModels.init(kps, X)
     # println(y0)
     # println(yd0)
     p = kps
@@ -219,7 +219,7 @@ end
 
 @testset "test_init            " begin
     my_state = deepcopy(kps)
-    y0, yd0 = KiteModels.init_flat(my_state, zeros(SimFloat, 2*SEGMENTS), delta=1e-6)
+    y0, yd0 = KiteModels.init(my_state, zeros(SimFloat, 2*SEGMENTS), delta=1e-6)
     @test length(y0)  == (SEGMENTS) * 6
     @test length(yd0) == (SEGMENTS) * 6
     @test sum(y0)  ≈ 717.163369868302
@@ -230,7 +230,7 @@ end
 
 function test_initial_condition(params::Vector)
     my_state = kps
-    y0, yd0 = KiteModels.init_flat(my_state, params)
+    y0, yd0 = KiteModels.init(my_state, params)
     residual!(res3, yd0, y0, kps, 0.0)
     return norm(res3) # z component of force on all particles but the first
 end

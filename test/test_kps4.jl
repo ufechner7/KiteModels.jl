@@ -214,7 +214,7 @@ end
 @testset "initial_residual      " begin
     init3()
     res = zeros(MVector{6*(se().segments+KiteModels.KITE_PARTICLES), SimFloat})
-    y0, yd0 = KiteModels.init_flat(kps4, KiteModels.X00)
+    y0, yd0 = KiteModels.init(kps4, KiteModels.X00)
     residual!(res, yd0, y0, kps4, 0.0)
     res_pos, res_vel = split_res(res)
     @test res_pos == zeros(length(res_pos))
@@ -380,7 +380,7 @@ end
     kps4.stiffness_factor = 0.04
     kps4.set.alpha_zero = 0.0
     res =  zeros(MVector{6*(kps4.set.segments+4), SimFloat})
-    y0, yd0 = KiteModels.init_flat(kps4; old=true, delta=1e-6)
+    y0, yd0 = KiteModels.init(kps4; old=true, delta=1e-6)
     pos, vel = unpack_add_origin(y0)
     y0s =[  -0.                ,    0.000          ,   -0.                ,
          12.5000000000000036,    0.000001          ,   21.6506350946109656,
@@ -475,7 +475,7 @@ end
     kps4.stiffness_factor = 0.04
     kps4.set.alpha_zero = 0.0
     res =  zeros(MVector{6*(kps4.set.segments+4), SimFloat})
-    y0, yd0 = KiteModels.init_flat(kps4)
+    y0, yd0 = KiteModels.init(kps4)
     forces = spring_forces(kps4)
     ref_forces = [3.928735076156923e-12, 3.928735076156923e-12, 3.928735076156923e-12, 0.0, -3.928735076156923e-12, 1.1786205228470769e-11, 2.160277004750972, 2.1602770047433926, 2.1602770047441373, 2.1602770047074573, 2.1602770047483513, 2.1602770047483513, 2.1602770047074573, 2.1602770047433926, 2.160277004685822]
     for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1

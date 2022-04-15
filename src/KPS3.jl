@@ -325,7 +325,7 @@ end
 # length(x) == 2*SEGMENTS
 # Returns:
 # res, a single vector consisting of the elements of y0 and yd0
-function init(s::KPS3, X=zeros(2 * s.set.segments); old=false, delta=0.0)
+function init_inner(s::KPS3, X=zeros(2 * s.set.segments); old=false, delta=0.0)
     pos = zeros(SVector{s.set.segments+1, KVec3})
     vel = zeros(SVector{s.set.segments+1, KVec3})
     acc = zeros(SVector{s.set.segments+1, KVec3})
@@ -368,8 +368,8 @@ function init(s::KPS3, X=zeros(2 * s.set.segments); old=false, delta=0.0)
 end
 
 # same as above, but returns a tuple of two one dimensional arrays
-function init_flat(s::KPS3, X=zeros(2 * (s.set.segments)); old=false, delta = 0.0)
-    res1_, res2_ = init(s, X; old=old, delta = delta)
+function init(s::KPS3, X=zeros(2 * (s.set.segments)); old=false, delta = 0.0)
+    res1_, res2_ = init_inner(s, X; old=old, delta = delta)
     res1, res2  = reduce(vcat, res1_), reduce(vcat, res2_)
     MVector{6*(s.set.segments), Float64}(res1), MVector{6*(s.set.segments), Float64}(res2)
 end
@@ -398,7 +398,7 @@ function find_steady_state_inner(s::KPS3, X, prn=false; delta=0.0)
 
     # helper function for the steady state finder
     function test_initial_condition!(F, x::Vector)
-        y0, yd0 = init_flat(s, x, delta=delta)
+        y0, yd0 = init(s, x, delta=delta)
         residual!(res, yd0, y0, s, 0.0)
         for i in 1:s.set.segments
             F[i]                = res[1 + 3*(i-1) + 3*s.set.segments]
@@ -419,5 +419,5 @@ function find_steady_state(s::KPS3, prn=false; delta = 0.0)
     zero = find_steady_state_inner(s, zero, prn, delta=delta)
     s.stiffness_factor=1.0
     zero = find_steady_state_inner(s, zero, prn, delta=delta)
-    init_flat(s, zero; delta=delta)
+    init(s, zero; delta=delta)
 end

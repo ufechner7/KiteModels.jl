@@ -321,14 +321,14 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
     pos, vel, acc
 end
 
-function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false, delta=0.0)
+function init_inner(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false, delta=0.0)
     pos, vel, acc = init_pos_vel_acc(s, X; old=old, delta=delta)
     vcat(pos[2:end], vel[2:end]), vcat(vel[2:end], acc[2:end])
 end
 
 # same as above, but returns a tuple of two one dimensional arrays
-function init_flat(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false, delta=0.0)
-    res1_, res2_ = init(s, X; old=old, delta = delta)
+function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false, delta=0.0)
+    res1_, res2_ = init_inner(s, X; old=old, delta = delta)
     res1, res2  = reduce(vcat, res1_), reduce(vcat, res2_)
     MVector{6*(s.set.segments+KITE_PARTICLES), Float64}(res1), MVector{6*(s.set.segments+KITE_PARTICLES), Float64}(res2)
 end
@@ -576,7 +576,7 @@ function find_steady_state(s::KPS4, prn=false)
     # helper function for the steady state finder
     function test_initial_condition!(F, x::Vector)
         x1 = copy(x)
-        y0, yd0 = init_flat(s, x1)
+        y0, yd0 = init(s, x1)
         residual!(res, yd0, y0, s, 0.0)
         for i in 1:s.set.segments+KITE_PARTICLES-1
             if i != s.set.segments+KITE_PARTICLES-1
@@ -601,7 +601,7 @@ function find_steady_state(s::KPS4, prn=false)
     if prn println("\nStarted function test_nlsolve...") end
     results = nlsolve(test_initial_condition!, X00, autoscale=true, xtol=2e-7, ftol=2e-7, iterations=MAX_ITER)
     if prn println("\nresult: $results") end
-    init_flat(s, results.zero)
+    init(s, results.zero)
 end
 
 # rotate a 3d vector around the y axis
