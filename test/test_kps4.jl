@@ -459,7 +459,7 @@ end
     @test pre_tension > 1.0001
     @test pre_tension < 1.01
     @test unstretched_length(kps4) ≈ 392.0              # initial, unstreched tether lenght
-    @test tether_length(kps4) ≈ 407.54546799279416 # real, streched tether length
+    @test isapprox(tether_length(kps4), 407.54546799279416, rtol=5e-3) # real, streched tether length
 #    @test winch_force(kps) ≈ 276.25776695110034        # initial force at the winch [N]
 #    lift, drag = lift_drag(kps)
 #    @test lift ≈ 443.63303000106197                    # initial lift force of the kite [N]
@@ -477,8 +477,10 @@ end
     kps4.stiffness_factor = 0.04
     res1, res2 = find_steady_state(kps4, false) 
     forces = spring_forces(kps4)
-    @test all(forces .≈ [975.0026331269528, 974.9637290710727, 974.9330386838346, 974.9052145755538, 974.8789544840638, 974.8539576327931, 135.68082911232483, -80.28460587802745, 116.34133442160972, 308.61323749829336, 467.1456555341946, 467.1456555341946, 308.61323749829336, -80.28460587802745, 143.53766465030952])
-    
+    ref_forces = [975.0026331269528, 974.9637290710727, 974.9330386838346, 974.9052145755538, 974.8789544840638, 974.8539576327931, 135.68082911232483, -80.28460587802745, 116.34133442160972, 308.61323749829336, 467.1456555341946, 467.1456555341946, 308.61323749829336, -80.28460587802745, 143.53766465030952]
+    for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1
+        @test isapprox(forces[i], ref_forces[i], rtol=5e-3)
+    end    
 end
 
 end
