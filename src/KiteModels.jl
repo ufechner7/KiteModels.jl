@@ -37,6 +37,7 @@ import Base.zero
 
 export KPS3, KPS4, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                                  # constants and types
 export calc_rho, calc_wind_factor, calc_drag, calc_set_cl_cd, clear, find_steady_state, residual! # environment and helper functions
+export init_sim, next_step                                                                        # worker functions
 export calc_height                                                                                # helper functions
 export set_v_reel_out, set_depower_steering                                                       # setters
 export winch_force, lift_drag, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
@@ -303,9 +304,11 @@ function init_sim(s; t_end=1.0, stiffness_factor=0.035, prn=false)
     integrator = Sundials.init(prob, solver, abstol=abstol, reltol=0.001)
 end
 
-function next_step(s, integrator, dt=1/s.set.sample_freq)
+function next_step(s, integrator; v_ro = 0.0, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
     KitePodModels.on_timer(s.kcu)
     KiteModels.set_depower_steering(s, get_depower(s.kcu), get_steering(s.kcu))
+    set_v_reel_out(s, v_ro, integrator.t)
+    set_v_wind_ground(s, calc_height(s), v_wind_gnd, wind_dir)
     Sundials.step!(integrator, dt, true)
     if s.stiffness_factor < 1.0
         s.stiffness_factor+=0.01
@@ -313,9 +316,7 @@ function next_step(s, integrator, dt=1/s.set.sample_freq)
             s.stiffness_factor = 1.0
         end
     end
-    t = integrator.t
-    v_ro = 0.0
-    set_v_reel_out(s, v_ro, t)
+    integrator.t
 end
 
 precompile(find_steady_state, (KPS3{SimFloat, KVec3, 7},)) 

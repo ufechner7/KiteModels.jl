@@ -136,7 +136,6 @@ $(TYPEDFIELDS)
     depower::S =           0.0
     steering::S =          0.0
     stiffness_factor::S =  1.0
-    damping_factor::S   =  1.0
     log_href_over_z0::S =  log(se().h_ref / se().z0)
     "initial masses of the point masses"
     initial_masses::MVector{P, S} = ones(P)
@@ -222,7 +221,7 @@ function get_particles(height_k, height_b, width, m_k, pos_pod= [ 75., 0., 129.9
 end
 
 function calc_height(s::KPS4)
-    pos_kite = 0.5 * (s.pos[s.set.segments+4] + s.pos[s.set.segments+5])
+    pos_kite = s.pos[end-2]
     pos_kite[3]
 end
 
@@ -340,7 +339,7 @@ The result is stored in the array s.forces.
 @inline function calc_particle_forces(s, pos1, pos2, vel1, vel2, spring, segments, d_tether, rho, i)
     l_0 = spring.length # Unstressed length
     k = spring.c_spring * s.stiffness_factor  # Spring constant
-    c = spring.damping * s.damping_factor # Damping coefficient    
+    c = spring.damping                        # Damping coefficient    
     s.segment .= pos1 - pos2
     rel_vel = vel1 - vel2
     av_vel = 0.5 * (vel1 + vel2)

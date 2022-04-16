@@ -119,13 +119,19 @@ $(TYPEDFIELDS)
     alpha_depower::S =     0.0
     "relative start time of the current time interval"
     t_0::S =               0.0
+    "reel out speed of the winch [m/s]"
     v_reel_out::S =        0.0
+    "reel out speed during the last time step"
     last_v_reel_out::S =   0.0
+    "unstretched tether length"
     l_tether::S =          0.0
+    "air density at the height of the kite"
     rho::S =               0.0
     depower::S =           0.0
     steering::S =          0.0
+    "factor for the tether stiffness, used to find the steady state with a low stiffness first"
     stiffness_factor::S =  1.0
+    "pre-calculated constant for the wind profile law calcuation"
     log_href_over_z0::S =  log(se().h_ref / se().z0)
     "initial masses of the point masses"
     initial_masses::MVector{P, S} = ones(P)
@@ -150,10 +156,10 @@ function clear(s::KPS3)
     s.l_tether = s.set.l_tether
     s.segment_length = s.l_tether / s.set.segments
     s.beta = deg2rad(s.set.elevation)
+    s.rho = s.set.rho_0
     mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
     mass_per_meter = 0.011
     s.initial_masses .= ones(s.set.segments+1) * mass_per_meter * s.set.l_tether / s.set.segments # Dyneema: 1.1 kg/ 100m
-    s.rho = s.set.rho_0
     s.c_spring = s.set.c_spring / s.segment_length
     s.damping  = s.set.damping / s.segment_length
     s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
@@ -204,6 +210,11 @@ function calc_aero_forces(s::KPS3, pos_kite, v_kite, rho, rel_steering)
     nothing
 end
 
+function calc_height(s::KPS3)
+    pos_kite = s.pos[end]
+    pos_kite[3]
+end
+
 # Calculate the vector res1, that depends on the velocity and the acceleration.
 # The drag force of each segment is distributed equaly on both particles.
 function calc_res(s::KPS3, pos1, pos2, vel1, vel2, mass, veld, result, i)
@@ -245,7 +256,7 @@ end
 # Calculate the vector res1 using a vector expression, and calculate res2 using a loop
 # that iterates over all tether segments. 
 function loop(s::KPS3, pos, vel, posd, veld, res1, res2)
-    s.masses               .= s.segment_length / (s.set.l_tether / s.set.segments) .* s.initial_masses
+    s.masses               .= s.segment_length / (s.l_tether / s.set.segments) .* s.initial_masses
     s.masses[s.set.segments+1]   += (s.set.mass + s.set.kcu_mass)
     res1[1] .= pos[1]
     res2[1] .= vel[1]

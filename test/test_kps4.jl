@@ -416,7 +416,7 @@ end
     residual!(res, yd0, y0, kps4, time)
     res1, res2 = kps4.res1, kps4.res2
     height = calc_height(kps4)
-    @test height ≈ 134.14733504839947
+    @test height ≈ 136.07857169877312
     res1_= zeros(MVector{(kps4.set.segments+4+1), KVec3})
     @test res1 == res1_
     # reference values output of KPS4P_v2.py of FreeKiteSim
@@ -485,13 +485,7 @@ end
 function simulate(integrator, steps)
     start = integrator.p.iter
     for i in 1:steps
-        KiteModels.next_step(kps4, integrator, 0.05)
-        if kps4.stiffness_factor < 1.0
-            kps4.stiffness_factor += 0.01
-            if kps4.stiffness_factor > 1.0
-                kps4.stiffness_factor = 1.0
-            end
-        end
+        KiteModels.next_step(kps4, integrator)
     end
     (integrator.p.iter - start) / steps
 end
@@ -507,6 +501,8 @@ end
     lift, drag = KiteModels.lift_drag(kps4)
     println(lift, " ", drag) # 703.7699568972286 161.44746368100536
     @test isapprox(lift, 703.8, rtol=0.05)
+
+    # TODO Add testcase with varying reelout speed 
 end
 
 end
