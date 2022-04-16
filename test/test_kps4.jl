@@ -500,7 +500,7 @@ end
 @testset "test_simulate        " begin
     STEPS = 500
     STATISTIC=false
-    integrator = KiteModels.init_sim(kps4, 1.0, STATISTIC)
+    integrator = KiteModels.init_sim(kps4, 1.0, prn=STATISTIC)
     kps4.stiffness_factor = 0.035
     println("\nStarting simulation...")
     simulate(integrator, 100)

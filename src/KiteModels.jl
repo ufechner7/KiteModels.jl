@@ -287,7 +287,7 @@ function calc_pre_tension(s::AKM)
     return res + 1.0
 end
 
-function init_sim(kps, t_end, prn=false)
+function init_sim(kps, t_end; prn=false)
     clear(kps)
     height = sin(deg2rad(kps.set.elevation)) * kps.set.l_tether
     kps.v_wind .= kps.v_wind_gnd * calc_wind_factor(kps, height)
