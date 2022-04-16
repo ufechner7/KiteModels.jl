@@ -1,11 +1,11 @@
 using StaticArrays, LinearAlgebra, KiteUtils, Printf
-using KiteModels, KitePodModels
+using KiteModels, KitePodModels, KiteUtils
 
 # change this to KPS3 or KPS4
 const Model = KPS4
 
 if ! @isdefined kcu
-    const kcu = KCU()
+    const kcu = KCU(se())
 end
 if ! @isdefined kps4
     const kps4 = Model(kcu)
@@ -14,7 +14,7 @@ end
 # the following values can be changed to match your interest
 dt = 0.05
 STEPS = 1500
-PLOT = true
+PLOT = false
 FRONT_VIEW = false
 ZOOM = true
 PRINT = false

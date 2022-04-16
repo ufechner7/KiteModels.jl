@@ -292,7 +292,7 @@ function init_sim(s, t_end; stiffness_factor=0.035, prn=false)
     height = sin(deg2rad(s.set.elevation)) * s.set.l_tether
     s.v_wind .= s.v_wind_gnd * calc_wind_factor(s, height)
     s.stiffness_factor = stiffness_factor
-    set_depower_steering(s, s.set.depower_offset/100.0, 0.0)
+    KiteModels.set_depower_steering(s, get_depower(s.kcu), get_steering(s.kcu))
     y0, yd0 = KiteModels.find_steady_state(s; stiffness_factor=stiffness_factor, prn=prn)
 
     differential_vars = ones(Bool, length(y0))
@@ -303,9 +303,9 @@ function init_sim(s, t_end; stiffness_factor=0.035, prn=false)
     integrator = Sundials.init(prob, solver, abstol=abstol, reltol=0.001)
 end
 
-function next_step(s, integrator, dt)
+function next_step(s, integrator, dt=1/s.set.sample_freq)
     KitePodModels.on_timer(s.kcu)
-    KiteModels.set_depower_steering(s, 0.236, get_steering(s.kcu))
+    KiteModels.set_depower_steering(s, get_depower(s.kcu), get_steering(s.kcu))
     Sundials.step!(integrator, dt, true)
     if s.stiffness_factor < 1.0
         s.stiffness_factor+=0.01

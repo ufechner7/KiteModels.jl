@@ -5,7 +5,7 @@ if ! @isdefined SEGMENTS
     const SEGMENTS = se().segments
 end
 if ! @isdefined kcu
-    const kcu = KCU()
+    const kcu = KCU(se())
     const kps = KPS3(kcu)
 end
 

@@ -1,6 +1,6 @@
 let
-    using KiteModels, KitePodModels
-    kcu = KCU()
+    using KiteModels, KitePodModels, KiteUtils
+    kcu = KCU(se())
     kps4 = KPS4(kcu)
     dt = 0.05
     STATISTIC = false

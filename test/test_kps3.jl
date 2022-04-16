@@ -4,7 +4,7 @@ using KiteModels, KitePodModels
 
 const SEGMENTS = se().segments
 if ! @isdefined kcu
-    const kcu = KCU()
+    const kcu = KCU(se())
     const kps = KPS3(kcu)
 end
 res1 = zeros(SVector{SEGMENTS+1, KiteModels.KVec3})

@@ -2,7 +2,7 @@ using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils
 using KiteModels, KitePodModels
 
 if ! @isdefined kcu
-    const kcu = KCU()
+    const kcu = KCU(se())
 end
 if ! @isdefined kps4
     const kps4 = KPS4(kcu)
