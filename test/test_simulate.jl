@@ -14,7 +14,7 @@ end
 # the following values can be changed to match your interest
 dt = 0.05
 STEPS = 1500
-PLOT = false
+PLOT = true
 FRONT_VIEW = false
 ZOOM = true
 PRINT = false
@@ -51,7 +51,7 @@ function simulate(integrator, steps, plot=false)
     (integrator.p.iter - start) / steps
 end
 
-integrator = KiteModels.init_sim(kps4, 1.0, stiffness_factor=0.04, prn=STATISTIC)
+integrator = KiteModels.init_sim(kps4, stiffness_factor=0.04, prn=STATISTIC)
 
 if PLOT
     av_steps = simulate(integrator, STEPS, true)
