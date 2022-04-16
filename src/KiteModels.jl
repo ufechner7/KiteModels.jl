@@ -36,10 +36,10 @@ using KiteUtils, KitePodModels
 import Base.zero
 
 export KPS3, KPS4, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                                  # constants and types
-export calc_rho, calc_wind_factor, calc_drag, calc_set_cl_cd, clear, find_steady_state, residual! # environment and helper functions
-export init_sim, next_step                                                                        # worker functions
-export calc_height                                                                                # helper functions
-export set_v_reel_out, set_depower_steering                                                       # setters
+export calc_rho, calc_wind_factor, calc_set_cl_cd                                                 # environment and helper functions
+export clear, find_steady_state, residual!                                                        # low level worker functions
+export init_sim, next_step                                                                        # hight level worker functions
+export calc_height                                                                                # getters
 export winch_force, lift_drag, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
 export spring_forces
 

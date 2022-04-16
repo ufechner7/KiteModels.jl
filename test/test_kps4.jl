@@ -505,5 +505,7 @@ end
     # TODO Add testcase with varying reelout speed 
 end
 
+# TODO Add test for winch_force
+
 end
 nothing

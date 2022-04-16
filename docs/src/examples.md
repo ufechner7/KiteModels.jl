@@ -28,7 +28,8 @@ First an instance of the model of the kite control unit (KCU) is created which i
 ```julia
 using KiteModels
 using KitePodModels
-const kcu = KCU()
+using KiteUtils
+const kcu = KCU(se())
 const kps = KPS3(kcu)
 ```
 Then we call the function find_steady_state which uses a non-linear solver to find the solution for a given elevation angle, reel-out speed and wind speed. 
@@ -106,4 +107,3 @@ julia> v_wind_kite(kps)
   0.0
   0.0
 ```
-
