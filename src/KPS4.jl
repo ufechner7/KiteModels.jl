@@ -564,12 +564,13 @@ function spring_forces(s::KPS4)
 end
 
 """
-    find_steady_state(s::KPS4, prn=false)
+    find_steady_state(s::KPS4; prn=false, delta = 0.0, stiffness_factor=0.035)
 
 Find an initial equilibrium, based on the inital parameters
 `l_tether`, elevation and `v_reel_out`.
 """
-function find_steady_state(s::KPS4, prn=false)
+function find_steady_state(s::KPS4; prn=false, delta = 0.0, stiffness_factor=0.035)
+    s.stiffness_factor = stiffness_factor
     res = zeros(MVector{6*(s.set.segments+KITE_PARTICLES)+2, SimFloat})
     iter = 0
 

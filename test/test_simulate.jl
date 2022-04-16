@@ -13,7 +13,7 @@ end
 
 # the following values can be changed to match your interest
 dt = 0.05
-STEPS = 1000
+STEPS = 1500
 PLOT = true
 FRONT_VIEW = false
 ZOOM = true
@@ -37,28 +37,21 @@ function simulate(integrator, steps, plot=false)
             @printf "%.2f: " round(integrator.t, digits=2)
             println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
         end
+
         KiteModels.next_step(kps4, integrator, dt)
-        if kps4.stiffness_factor < 1.0
-            kps4.stiffness_factor+=0.01
-            if kps4.stiffness_factor > 1.0
-                kps4.stiffness_factor = 1.0
-            end
-        end
+        
         if plot
             reltime = i*dt
             if mod(i, 5) == 0
                 p = plot2d(kps4.pos, reltime; zoom=ZOOM, front=FRONT_VIEW)
                 display(p)                
             end
-           
-            # sleep(dt)
         end
     end
     (integrator.p.iter - start) / steps
 end
 
-integrator = KiteModels.init_sim(kps4, 1.0, prn=STATISTIC)
-kps4.stiffness_factor = 0.04
+integrator = KiteModels.init_sim(kps4, 1.0, stiffness_factor=0.04, prn=STATISTIC)
 
 if PLOT
     av_steps = simulate(integrator, STEPS, true)

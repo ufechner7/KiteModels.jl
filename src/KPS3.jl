@@ -413,9 +413,9 @@ function find_steady_state_inner(s::KPS3, X, prn=false; delta=0.0)
     results.zero
  end
 
-function find_steady_state(s::KPS3, prn=false; delta = 0.0)
+function find_steady_state(s::KPS3; prn=false, delta = 0.0, stiffness_factor=0.035)
     zero = zeros(SimFloat, 2*s.set.segments)
-    s.stiffness_factor=0.04
+    s.stiffness_factor=stiffness_factor
     zero = find_steady_state_inner(s, zero, prn, delta=delta)
     s.stiffness_factor=1.0
     zero = find_steady_state_inner(s, zero, prn, delta=delta)

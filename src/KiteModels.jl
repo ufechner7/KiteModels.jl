@@ -222,7 +222,7 @@ Return a tuple of the scalar lift and drag forces.
 
 **Example:**  
 
-    lift, drag = lift_drag(kps)
+    lift, drag = lift_drag(s)
 """
 function lift_drag(s::AKM) return (norm(s.lift_force), norm(s.drag_force)) end
 
@@ -287,19 +287,19 @@ function calc_pre_tension(s::AKM)
     return res + 1.0
 end
 
-function init_sim(kps, t_end; prn=false)
-    clear(kps)
-    height = sin(deg2rad(kps.set.elevation)) * kps.set.l_tether
-    kps.v_wind .= kps.v_wind_gnd * calc_wind_factor(kps, height)
-    kps.stiffness_factor = 0.035
-    set_depower_steering(kps, kps.set.depower_offset/100.0, 0.0)
-    y0, yd0 = KiteModels.find_steady_state(kps, prn)
+function init_sim(s, t_end; stiffness_factor=0.035, prn=false)
+    clear(s)
+    height = sin(deg2rad(s.set.elevation)) * s.set.l_tether
+    s.v_wind .= s.v_wind_gnd * calc_wind_factor(s, height)
+    s.stiffness_factor = stiffness_factor
+    set_depower_steering(s, s.set.depower_offset/100.0, 0.0)
+    y0, yd0 = KiteModels.find_steady_state(s; stiffness_factor=stiffness_factor, prn=prn)
 
     differential_vars = ones(Bool, length(y0))
     solver  = IDA(linear_solver=:Dense, max_order = 3)
     tspan   = (0.0, t_end) 
     abstol  = 0.0006 # max error in m/s and m
-    prob    = DAEProblem(residual!, yd0, y0, tspan, kps, differential_vars=differential_vars)
+    prob    = DAEProblem(residual!, yd0, y0, tspan, s, differential_vars=differential_vars)
     integrator = Sundials.init(prob, solver, abstol=abstol, reltol=0.001)
 end
 
@@ -307,6 +307,12 @@ function next_step(s, integrator, dt)
     KitePodModels.on_timer(s.kcu)
     KiteModels.set_depower_steering(s, 0.236, get_steering(s.kcu))
     Sundials.step!(integrator, dt, true)
+    if s.stiffness_factor < 1.0
+        s.stiffness_factor+=0.01
+        if s.stiffness_factor > 1.0
+            s.stiffness_factor = 1.0
+        end
+    end
     t = integrator.t
     v_ro = 0.0
     set_v_reel_out(s, v_ro, t)

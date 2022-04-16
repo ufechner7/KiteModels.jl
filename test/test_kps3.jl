@@ -282,7 +282,7 @@ end
 
 @testset "test_find_steady_state" begin
    KiteModels.set_depower_steering(kps, 0.25, 0.0)
-   res1, res2 = find_steady_state(kps, false, delta=1e-6) 
+   res1, res2 = find_steady_state(kps; delta=1e-6, prn=false) 
    @test norm(res2) < 1e-5                            # velocity and acceleration must be near zero
    pre_tension = KiteModels.calc_pre_tension(kps)
    @test pre_tension > 1.0001
