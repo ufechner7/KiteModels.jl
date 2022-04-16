@@ -22,15 +22,14 @@ SOFTWARE. =#
 
 #= Model of a kite-power system in implicit form: residual = f(y, yd)
 
-This model implements a 3D mass-spring system with reel-out. It uses five tether segments (the number can be
-configured in the file data/settings.yaml). The kite is modelled as additional mass at the end of the tether.
-The spring constant and the damping decrease with the segment length. The aerodynamic kite forces are
-calculated, depending on reel-out speed, depower and steering settings. 
+This model implements a 3D mass-spring system with reel-out. It uses six tether segments (the number can be
+configured in the file data/settings.yaml). The kite is modelled as additional using 4 point masses.
+The spring constant and the damping decrease with the segment length. The aerodynamic kite forces
+are acting on three of the four kite point masses. 
+
+This file is included from KiteModels.jl.
 
 Scientific background: http://arxiv.org/abs/1406.6218 =#
-
-# implementation of a four point kite model
-# included from KiteModels.jl
 
 # Array of connections of bridlepoints.
 # First point, second point, unstressed length.
@@ -368,7 +367,6 @@ The result is stored in the array s.forces.
     # TODO: check why d_brindle is not used !!!
     area = norm1 * d_tether
     v_app_perp = s.v_apparent - dot(s.v_apparent, unit_vector) * unit_vector
-    # TODO check the factors 0.25 !!!
     s.half_drag_force .= (-0.25 * rho * s.set.cd_tether * norm(v_app_perp) * area) * v_app_perp 
 
     @inbounds s.forces[spring.p1] .+= s.half_drag_force + s.spring_force

@@ -27,10 +27,9 @@ configured in the file data/settings.yaml). The kite is modelled as additional m
 The spring constant and the damping decrease with the segment length. The aerodynamic kite forces are
 calculated, depending on reel-out speed, depower and steering settings. 
 
-Scientific background: http://arxiv.org/abs/1406.6218 =#
+One point kite model, included from KiteModels.jl.
 
-# implementation of a one point kite model
-# included from KiteModels.jl
+Scientific background: http://arxiv.org/abs/1406.6218 =#
 
 """
     mutable struct KPS3{S, T, P} <: AbstractKiteModel
@@ -85,12 +84,16 @@ $(TYPEDFIELDS)
     av_vel::T =           zeros(S, 3)
     "y-vector of the kite fixed referense frame, output of calc_aero_forces"
     kite_y::T =           zeros(S, 3)
+    "vector representing one tether segment (p1-p2)"
     segment::T =          zeros(S, 3)
-    last_tether_drag::T = zeros(S, 3)
-    acc::T =              zeros(S, 3)     
+    "vector of the drag force of the last calculated tether segment"
+    last_tether_drag::T = zeros(S, 3)  
     vec_z::T =            zeros(S, 3) 
+    "part one of the residual, difference between pos' and vel, non-flat, mainly for unit testing"
     res1::SVector{P, KVec3} = zeros(SVector{P, KVec3})
+    "part two of the residual, difference between vel' and acc, non-flat, mainly for unit testing"
     res2::SVector{P, KVec3} = zeros(SVector{P, KVec3})
+    "vector of the positions of the particles"
     pos::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     "area of one tether segment"
     seg_area::S =         zero(S) 
@@ -101,7 +104,6 @@ $(TYPEDFIELDS)
     segment_length::S =           0.0
     "damping factor, depending on the length of the tether segment"
     damping::S =          zero(S)
-    area::S =             zero(S)
     last_v_app_norm_tether::S = zero(S)
     "lift coefficient of the kite, depending on the angle of attack"
     param_cl::S =         0.2
@@ -140,7 +142,6 @@ function clear(s::KPS3)
     s.t_0 = 0.0                              # relative start time of the current time interval
     s.v_reel_out = 0.0
     s.last_v_reel_out = 0.0
-    s.area = s.set.area
     s.v_wind        .= [s.set.v_wind, 0, 0]    # wind vector at the height of the kite
     s.v_wind_gnd    .= [s.set.v_wind, 0, 0]    # wind vector at reference height
     s.v_wind_tether .= [s.set.v_wind, 0, 0]
@@ -170,16 +171,16 @@ function KPS3(kcu::KCU)
 end
 
 """
-    calc_drag(s::KPS3, v_segment, unit_vector, rho, last_tether_drag, v_app_perp, area)
+    calc_drag(s::KPS3, v_segment, unit_vector, rho, last_tether_drag, v_app_perp)
 
 Calculate the drag of one tether segment, result stored in parameter `last_tether_drag`.
 Return the norm of the apparent wind velocity.
 """
-function calc_drag(s::KPS3, v_segment, unit_vector, rho, last_tether_drag, v_app_perp, area)
+function calc_drag(s::KPS3, v_segment, unit_vector, rho, v_app_perp, area)
     s.v_apparent .= s.v_wind_tether - v_segment
     v_app_norm = norm(s.v_apparent)
     v_app_perp .= s.v_apparent .- dot(s.v_apparent, unit_vector) .* unit_vector
-    last_tether_drag .= -0.5 * s.set.cd_tether * rho * norm(v_app_perp) * area .* v_app_perp
+    s.last_tether_drag .= -0.5 * s.set.cd_tether * rho * norm(v_app_perp) * area .* v_app_perp
     v_app_norm
 end 
 
@@ -224,20 +225,20 @@ function calc_res(s::KPS3, pos1, pos2, vel1, vel2, mass, veld, result, i)
         s.spring_force .= k2 * ((norm1 - s.segment_length) + (s.damping * spring_vel)) .* s.unit_vector
     end
     s.seg_area = norm1 * s.set.d_tether/1000.0
-    s.last_v_app_norm_tether = calc_drag(s, s.av_vel, s.unit_vector, rho, s.last_tether_drag, s.v_app_perp, s.seg_area)
+    s.last_v_app_norm_tether = calc_drag(s, s.av_vel, s.unit_vector, rho, s.v_app_perp, s.seg_area)
     s.force .= s.spring_force + 0.5 * s.last_tether_drag
 
     if i == s.set.segments+1 # add the drag of the bridle lines
         s.bridle_area =  s.set.l_bridle * s.set.d_line/1000.0
-        s.last_v_app_norm_tether = calc_drag(s, s.av_vel, s.unit_vector, rho, s.last_tether_drag, s.v_app_perp, s.bridle_area)
+        s.last_v_app_norm_tether = calc_drag(s, s.av_vel, s.unit_vector, rho, s.v_app_perp, s.bridle_area)
         s.force .+= s.last_tether_drag  
     end
    
     s.total_forces .= s.force + s.last_force
     s.last_force .= 0.5 * s.last_tether_drag - s.spring_force
-    s.acc .= s.total_forces ./ mass # create the vector of the spring acceleration
+    acc = s.total_forces ./ mass # create the vector of the spring acceleration
     # result .= veld - (s.acc + SVector(0,0, -G_EARTH)) # Python code, wrong
-    result .= veld - (SVector(0, 0, -G_EARTH) - s.acc)
+    result .= veld - (SVector(0, 0, -G_EARTH) - acc)
     nothing
 end
 

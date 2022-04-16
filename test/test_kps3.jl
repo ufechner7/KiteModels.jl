@@ -68,9 +68,9 @@ end
     v_app_perp = KVec3(0, -3.0, -4.0)
     area = 20.0   
     kps.v_wind_tether .= [0.1, 0.2, 0.3]
-    v_app_norm = calc_drag(kps, v_segment, unit_vector, rho, last_tether_drag, v_app_perp, area)
+    v_app_norm = calc_drag(kps, v_segment, unit_vector, rho, v_app_perp, area)
     @test v_app_norm ≈ 3.3674916481
-    @test last_tether_drag ≈ [-38506.7140169,  -57266.39520463, -76026.07639235]
+    @test kps.last_tether_drag ≈ [-38506.7140169,  -57266.39520463, -76026.07639235]
     @test v_app_perp ≈ [ 35.1, 52.2, 69.3]
 end
 
@@ -305,10 +305,10 @@ function run_benchmarks()
     println("\ncalc_cl:")
     show(@benchmark calc_cl(α) setup=(α=(rand()-0.5) * 360.0))
     println("\ncalc_drag:")
-    show(@benchmark calc_drag(state, v_segment, unit_vector, rho, last_tether_drag, v_app_perp, 
+    show(@benchmark calc_drag(state, v_segment, unit_vector, rho, v_app_perp, 
                             area) setup=(v_segment = KVec3(1.0, 2, 3);
                             unit_vector = KVec3(2.0, 3.0, 4.0); 
-                            rho = calc_rho(10.0f0); last_tether_drag = KVec3(0.0, 0.0, 0.0); 
+                            rho = calc_rho(10.0f0); state.last_tether_drag = KVec3(0.0, 0.0, 0.0); 
                             v_app_perp =  KVec3(0, -3.0, -4.0); area=se().area))
     println("\ncalc_aero_forces:")
     show(@benchmark KPS3.calc_aero_forces(state, pos_kite, v_kite, rho, rel_steering) setup=(state.v_apparent .= KVec3(35.1,
