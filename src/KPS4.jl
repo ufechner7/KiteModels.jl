@@ -409,7 +409,7 @@ Calculate the forces, acting on all particles.
 
 Output:
 - s.forces
-- s.v_wind_tether
+- `s.v_wind_tether`
 """
 @inline function inner_loop!(s::KPS4, pos, vel, v_wind_gnd, segments, d_tether)
     for i in 1:length(s.springs)
