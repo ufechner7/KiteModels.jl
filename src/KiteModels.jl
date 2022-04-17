@@ -317,7 +317,7 @@ function init_sim(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false)
 end
 
 """
-    next_step(s, integrator; v_ro = 0.0, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
+    next_step(s::AKM, integrator; v_ro = 0.0, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
 
 Calculates the next simulation step.
 
@@ -334,7 +334,7 @@ Only the first two parameters are required.
 Returns:
 The end time of the time step in seconds.
 """
-function next_step(s, integrator; v_ro = 0.0, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
+function next_step(s::AKM, integrator; v_ro = 0.0, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
     KitePodModels.on_timer(s.kcu)
     KiteModels.set_depower_steering(s, get_depower(s.kcu), get_steering(s.kcu))
     set_v_reel_out(s, v_ro, integrator.t)
