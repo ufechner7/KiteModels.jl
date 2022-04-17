@@ -1,9 +1,4 @@
 using KiteModels
-using Pkg
-if ! ("Documenter" ∈ keys(Pkg.project().dependencies))
-    using TestEnv; TestEnv.activate()
-end
-
 using Documenter
 
 DocMeta.setdocmeta!(KiteModels, :DocTestSetup, :(using KitePodSimulator); recursive=true)
