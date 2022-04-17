@@ -4,7 +4,6 @@ authors = ["Uwe Fechner <fechner@aenarete.eu> and contributors"]
 version = "0.3.0"
 
 [deps]
-AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
 Dierckx = "39dd38d3-220a-591b-8e3c-4c3a8c710a94"
 DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 KitePodModels = "9de5dc81-f971-414a-927b-652b2f41c539"
