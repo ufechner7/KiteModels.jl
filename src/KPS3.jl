@@ -211,6 +211,11 @@ function calc_aero_forces(s::KPS3, pos_kite, v_kite, rho, rel_steering)
     nothing
 end
 
+"""
+    calc_height(s::KPS3)
+
+Determine the height of the kite particle above ground.
+"""
 function calc_height(s::KPS3)
     pos_kite = s.pos[end]
     pos_kite[3]
@@ -400,12 +405,6 @@ function spring_forces(s::KPS3)
     forces
 end
 
-"""
-    find_steady_state(s::KPS3, prn=false)
-
-Find an initial equilibrium, based on the inital parameters
-`l_tether`, elevation and `v_reel_out`.
-"""
 function find_steady_state_inner(s::KPS3, X, prn=false; delta=0.0)
     res = zeros(MVector{6*s.set.segments, SimFloat})
 
@@ -426,6 +425,12 @@ function find_steady_state_inner(s::KPS3, X, prn=false; delta=0.0)
     results.zero
  end
 
+"""
+    find_steady_state(s::KPS3, prn=false, delta = 0.0, stiffness_factor=0.035)
+
+Find an initial equilibrium, based on the inital parameters
+`l_tether`, elevation and `v_reel_out`.
+"""
 function find_steady_state(s::KPS3; prn=false, delta = 0.0, stiffness_factor=0.035)
     zero = zeros(SimFloat, 2*s.set.segments)
     s.stiffness_factor=stiffness_factor

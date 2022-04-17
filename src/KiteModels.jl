@@ -96,7 +96,7 @@ include("KPS4.jl") # include code, specific for the four point kite model
 include("KPS3.jl") # include code, specific for the one point kite model
 
 """
-    calc_rho(s, height)
+    calc_rho(s::AKM, height)
 
 Calculate the air densisity as function of height.
 """
@@ -110,11 +110,11 @@ Enumeration to describe the wind profile low that is used.
 @enum ProfileLaw EXP=1 LOG=2 EXPLOG=3
 
 """
-    calc_wind_factor(s, height, profile_law=s.set.profile_law)
+    calc_wind_factor(s::AKM, height, profile_law=s.set.profile_law)
 
 Calculate the relative wind speed at a given height and reference height.
 """
-@inline function calc_wind_factor(s, height, profile_law=s.set.profile_law)
+@inline function calc_wind_factor(s::AKM, height, profile_law=s.set.profile_law)
     if typeof(profile_law) != ProfileLaw
         profile_law = ProfileLaw(profile_law)
     end
@@ -154,7 +154,7 @@ function calc_alpha(v_app, vec_z)
 end
 
 """
-    calc_set_cl_cd(s, vec_c, v_app)
+    calc_set_cl_cd(s::AKM, vec_c, v_app)
 
 Calculate the lift over drag ratio as a function of the direction vector of the last tether
 segment, the current depower setting and the apparent wind speed.
@@ -167,11 +167,13 @@ function calc_set_cl_cd(s::AKM, vec_c, v_app)
 end
 
 """
-    set_depower_steering(s::KPS3, depower, steering)
+    set_depower_steering(s::AKM, depower, steering)
 
 Setter for the depower and steering model inputs. 
-- valid range for steering: -1.0 .. 1.0.  
-- valid range for depower: 0 .. 1.0
+
+Parameters:
+- depower:   Relative depower,  must be between 0 .. 1.0
+- steering:  Relative steering, must be between -1.0 .. 1.0.  
 
 This function sets the variables s.depower, s.steering and s.alpha_depower. 
 

@@ -5,13 +5,13 @@ CurrentModule = KiteModels
 Most of the functions work on a KPS3 or KPS4 object. For this, the variable s is used.
 Such a variable can be created with the lines:
 ```julia
-using KiteModels, KitePodModels
-const s = KPS3(KCU())
+using KiteModels, KitePodModels, KiteUtils
+const s = KPS3(KCU(se()))
 ```
 Or, if you want to use the 4 point kite model:
 ```julia
-using KiteModels, KitePodModels
-const s = KPS4(KCU())
+using KiteModels, KitePodModels, KiteUtils
+const s = KPS4(KCU(se()))
 ```
 
 ## Input functions
@@ -25,6 +25,7 @@ set_v_wind_ground
 ```@docs
 unstretched_length
 tether_length
+calc_height
 winch_force
 spring_forces
 lift_drag
@@ -60,6 +61,5 @@ calc_particle_forces
 initial_kite_ref_frame
 inner_loop
 loop
-find_steady_state_inner
 get_particles
 ```

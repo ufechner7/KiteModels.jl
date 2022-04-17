@@ -147,6 +147,11 @@ $(TYPEDFIELDS)
     forces::SVector{P, KVec3} = zeros(SVector{P, KVec3})
 end
 
+"""
+    clear(s::KPS4)
+
+Initialize the kite power model.
+"""
 function clear(s::KPS4)
     s.t_0 = 0.0                              # relative start time of the current time interval
     s.v_reel_out = 0.0
@@ -182,13 +187,17 @@ function KPS4(kcu::KCU)
     return s
 end
 
-""" 
+"""
+    initial_kite_ref_frame(vec_c, v_app)
+
 Calculate the initial orientation of the kite based on the last tether segment and
 the apparent wind speed.
 
 Parameters:
-vec_c: (pos_n-2) - (pos_n-1) n: number of particles without the three kite particles
-                                that do not belong to the main thether (P1, P2 and P3).
+- vec_c: (pos_n-2) - (pos_n-1) n: number of particles without the three kite particles
+                                  that do not belong to the main thether (P1, P2 and P3).
+- v_app: vector of the apparent wind speed
+
 Returns:
 x, y, z:  the unit vectors of the kite reference frame in the ENU reference frame
 """
@@ -199,11 +208,19 @@ function initial_kite_ref_frame(vec_c, v_app)
     return (x, y, z)    
 end
 
-""" 
+"""
+    get_particles(height_k, height_b, width, m_k, pos_pod= [ 75., 0., 129.90381057], vec_c=[-15., 0., -25.98076211], v_app=[10.4855, 0, -3.08324])
+
 Calculate the initial positions of the particels representing 
 a 4-point kite, connected to a kite control unit (KCU). 
+
 Parameters:
+- height_k: height of the kite itself, not above ground [m]
+- height_b: height of the bridle [m]
+- width: width of the kite [m]
 - mk: relative nose distance
+- pos_pod: position of the control pod
+- vec_c: vector of the last tether segment
 """
 function get_particles(height_k, height_b, width, m_k, pos_pod= [ 75., 0., 129.90381057], vec_c=[-15., 0., -25.98076211], v_app=[10.4855, 0, -3.08324])
     # inclination angle of the kite; beta = atan(-pos_kite[2], pos_kite[1]) ???
@@ -222,6 +239,11 @@ function get_particles(height_k, height_b, width, m_k, pos_pod= [ 75., 0., 129.9
     [zeros(3), pos0, pos_A, pos_kite, pos_C, pos_D] # 0, p7, p8, p9, p10, p11
 end
 
+"""
+    calc_height(s::KPS4)
+
+Determine the height of the topmost kite particle above ground.
+"""
 function calc_height(s::KPS4)
     pos_kite = s.pos[end-2]
     pos_kite[3]
@@ -334,6 +356,8 @@ function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=fal
 end
 
 """ 
+    calc_particle_forces(s::KPS4, pos1, pos2, vel1, vel2, spring, segments, d_tether, rho, i)
+
 Calculate the drag force of the tether segment, defined by the parameters pos1, pos2, vel1 and vel2
 and distribute it equally on the two particles, that are attached to the segment.
 The result is stored in the array s.forces. 
@@ -376,11 +400,15 @@ The result is stored in the array s.forces.
 end
 
 """
+    inner_loop(s::KPS4, pos, vel, v_wind_gnd, segments, d_tether)
+
 Calculate the forces, acting on all particles.
-v_wind_tether: out parameter
-forces:        out parameter
+
+Output:
+- s.forces
+- s.v_wind_tether
 """
-@inline function inner_loop(s, pos, vel, v_wind_gnd, segments, d_tether)
+@inline function inner_loop(s::KPS4, pos, vel, v_wind_gnd, segments, d_tether)
     for i in 1:length(s.springs)
         p1 = s.springs[i].p1  # First point nr.
         p2 = s.springs[i].p2  # Second point nr.
@@ -400,15 +428,25 @@ function acos2(alpha)
 end
 
 """
-pos_B, pos_C, pos_D: position of the kite particles B, C, and D
-v_B, v_C, v_D:       velocity of the kite particles B, C, and D
-rho:              air density [kg/m^3]
-rel_depower:      value between  0.0 and  1.0
-rel_steering:     value between -1.0 and +1.0
+    calc_aero_forces(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
+
+Calculates the aerodynamic forces acting on the kite particles.
+
+Parameters:
+- pos:              vector of the particle positions
+- vel:              vector of the particle velocities
+- rho:              air density [kg/m^3]
+- rel_depower:      value between  0.0 and  1.0
+- alpha_depower:    depower angle [degrees]
+- rel_steering:     value between -1.0 and +1.0
+
+Updates the vector s.forces of the first parameter.
 """
 function calc_aero_forces(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
     rel_side_area = s.set.rel_side_area/100.0    # defined in percent
     K = 1 - rel_side_area                        # correction factor for the drag
+    # pos_B, pos_C, pos_D: position of the kite particles B, C, and D
+    # v_B,   v_C,   v_D:   velocity of the kite particles B, C, and D
     pos_B, pos_C, pos_D = pos[s.set.segments+3], pos[s.set.segments+4], pos[s.set.segments+5]
     v_B,   v_C,   v_D   = vel[s.set.segments+3], vel[s.set.segments+4], vel[s.set.segments+5]
     va_2,  va_3,  va_4  = s.v_wind - v_B, s.v_wind - v_C, s.v_wind - v_D
@@ -444,8 +482,10 @@ function calc_aero_forces(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
     s.forces[s.set.segments + 5] .+= (L4 + D4)
 end
 
-""" 
-Calculate the vector res1 and calculate res2 using loops
+"""
+    loop(s::KPS4, pos, vel, posd, veld)
+
+Calculate the vectors s.res1 and calculate s.res2 using loops
 that iterate over all tether segments. 
 """
 function loop(s::KPS4, pos, vel, posd, veld)
@@ -475,9 +515,9 @@ function loop(s::KPS4, pos, vel, posd, veld)
 end
 
 """
-    residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
+    residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
 
-    N-point tether model, one point kite at the top:
+    N-point tether model, four points for the kite on top:
     Inputs:
     State vector y   = pos1,  pos2, ... , posn,  vel1,  vel2, . .., veln,  length, v_reel_out
     Derivative   yd  = posd1, posd2, ..., posdn, veld1, veld2, ..., veldn, lengthd, v_reel_outd
@@ -485,9 +525,9 @@ end
     Residual     res = res1, res2 = vel1-posd1,  ..., veld1-acc1, ...
 
     Additional parameters:
-    s: Struct with work variables, type KPS3
+    s: Struct with work variables, type KPS4
     S: The dimension of the state vector
-The number of the point masses of the model N = (S-2)/6, the state of each point 
+The number of the point masses of the model N = S/6, the state of each point 
 is represented by two 3 element vectors.
 """
 function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
