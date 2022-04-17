@@ -276,6 +276,13 @@ function loop(s::KPS3, pos, vel, posd, veld, res1, res2)
 end
 
 """
+    winch_force(s::KPS3)
+
+Return the absolute value of the force at the winch as calculated during the last timestep. 
+"""
+function winch_force(s::KPS3) norm(s.last_force) end
+
+"""
     residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
 
     N-point tether model, one point kite at the top:

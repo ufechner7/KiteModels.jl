@@ -212,13 +212,6 @@ Getter for the unstretched tether reel-out lenght (at zero force).
 function unstretched_length(s::AKM) s.l_tether end
 
 """
-    winch_force(s::AKM)
-
-Return the absolute value of the force at the winch as calculated during the last timestep. 
-"""
-function winch_force(s::AKM) norm(s.last_force) end
-
-"""
     lift_drag(s::AKM)
 
 Return a tuple of the scalar lift and drag forces. 

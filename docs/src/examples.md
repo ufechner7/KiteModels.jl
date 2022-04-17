@@ -34,7 +34,7 @@ const kps = KPS3(kcu)
 ```
 Then we call the function find_steady_state which uses a non-linear solver to find the solution for a given elevation angle, reel-out speed and wind speed. 
 ```julia
-find_steady_state(kps, true)
+find_steady_state!(kps, prn=true)
 ```
 To plot the result in 2D we extract the vectors of the x and z coordinates of the tether particles with a for loop:
 ```julia
@@ -59,13 +59,14 @@ Print the vector of the positions of the particles:
 ```
 julia> kps.pos
 7-element StaticArrays.SVector{7, StaticArrays.MVector{3, Float64}} with indices SOneTo(7):
- [0.0, 1.0e-6, 0.0]
- [26.957523083220014, 1.0e-6, 59.597492705934215]
- [51.97089867461361, 1.0e-6, 120.03746428611659]
- [75.01425347614648, 1.0e-6, 181.25636723731242]
- [96.06812033613873, 1.0e-6, 243.18840457807227]
- [115.11961850809006, 1.0e-6, 305.76616644603797]
- [132.79574786242222, 1.0e-6, 368.747001395149]
+ [0.0, 0.0, 0.0]
+ [26.95751778658999, 0.0, 59.59749511924355]
+ [51.97088814144287, 0.0, 120.03746888266994]
+ [75.01423773175357, 0.0, 181.25637381120865]
+ [96.06809940556136, 0.0, 243.18841293054678]
+ [115.11959241520753, 0.0, 305.7661763854397]
+ [132.79571663189674, 0.0, 368.74701279158705]
+
 ```
 Print the unstretched and and stretched tether length:
 ```julia

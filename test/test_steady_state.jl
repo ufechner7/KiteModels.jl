@@ -10,13 +10,11 @@ end
 
 const dt = 0.05
 
-clear(kps)
-KiteModels.set_depower_steering(kps, kps.set.depower_offset/100.0, 0.0)
-height = sin(deg2rad(kps.set.elevation)) * kps.set.l_tether
-kps.v_wind .= kps.v_wind_gnd * calc_wind_factor(kps, height)
+clear!(kps)
+KiteModels.set_depower_steering!(kps, kps.set.depower_offset/100.0, 0.0)
 kps.stiffness_factor = 0.04
 
-@time KiteModels.find_steady_state(kps, true)
+@time KiteModels.find_steady_state!(kps, prn=true)
 
 println("\nlift, drag    [N]  : $(KiteModels.lift_drag(kps))")
 # println("\nSpring forces:")

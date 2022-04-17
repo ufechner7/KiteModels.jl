@@ -13,7 +13,7 @@ end
 
 # the following values can be changed to match your interest
 dt = 0.05
-STEPS = 1200
+STEPS = 600
 PLOT = true
 FRONT_VIEW = false
 ZOOM = true
@@ -38,7 +38,7 @@ function simulate(integrator, steps, plot=false)
             println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
         end
 
-        KiteModels.next_step(kps4, integrator)
+        KiteModels.next_step!(kps4, integrator)
         
         if plot
             reltime = i*dt
@@ -51,7 +51,7 @@ function simulate(integrator, steps, plot=false)
     (integrator.p.iter - start) / steps
 end
 
-integrator = KiteModels.init_sim(kps4, stiffness_factor=0.04, prn=STATISTIC)
+integrator = KiteModels.init_sim!(kps4, stiffness_factor=0.04, prn=STATISTIC)
 
 if PLOT
     av_steps = simulate(integrator, STEPS, true)

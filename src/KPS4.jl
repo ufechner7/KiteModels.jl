@@ -106,6 +106,8 @@ $(TYPEDFIELDS)
     lift_force::T =       zeros(S, 3)    
     "spring force of the current tether segment, output of calc_particle_forces!"
     spring_force::T =     zeros(S, 3)
+    "last winch force"
+    last_force::T =       zeros(S, 3)
     segment::T =          zeros(S, 3) 
     "a copy of the residual one (pos,vel) for debugging and unit tests"    
     res1::SVector{P, KVec3} = zeros(SVector{P, KVec3})
@@ -396,6 +398,7 @@ The result is stored in the array s.forces.
 
     @inbounds s.forces[spring.p1] .+= s.half_drag_force + s.spring_force
     @inbounds s.forces[spring.p2] .+= s.half_drag_force - s.spring_force
+    if i == 1 s.last_force .= s.forces[spring.p1] end
     nothing
 end
 
@@ -421,6 +424,13 @@ Output:
     end
     nothing
 end
+
+"""
+    winch_force(s::KPS4)
+
+Return the absolute value of the force at the winch as calculated during the last timestep. 
+"""
+function winch_force(s::KPS4) norm(s.last_force) end
 
 function acos2(alpha)
    beta = min(max(alpha, -1.0), 1.0)
