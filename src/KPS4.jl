@@ -432,11 +432,6 @@ Return the absolute value of the force at the winch as calculated during the las
 """
 function winch_force(s::KPS4) norm(s.last_force) end
 
-function acos2(alpha)
-   beta = min(max(alpha, -1.0), 1.0)
-   acos(beta)
-end
-
 """
     calc_aero_forces!(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
 

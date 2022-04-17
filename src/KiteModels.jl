@@ -32,7 +32,8 @@ Scientific background: http://arxiv.org/abs/1406.6218 =#
 module KiteModels
 
 using Dierckx, StaticArrays, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, Sundials
-using KiteUtils, KitePodModels
+using Reexport
+@reexport using KitePodModels
 import Base.zero
 
 export KPS3, KPS4, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                                  # constants and types
@@ -44,6 +45,8 @@ export winch_force, lift_drag, lift_over_drag, unstretched_length, tether_length
 export spring_forces
 
 set_zero_subnormals(true)           # required to avoid drastic slow down on Intel CPUs when numbers become very small
+KiteUtils.set_data_path("")         # this statement is only executed during precompilation and ensures that the default settings.yaml
+                                    # are used
 
 # Constants
 const G_EARTH = 9.81                # gravitational acceleration
