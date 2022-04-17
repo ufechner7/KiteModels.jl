@@ -9,7 +9,7 @@ add KitePodModels
 add KiteModels
 &lt;BACKSPACE&gt;</code></pre><h2 id="Plotting-the-initial-state"><a class="docs-heading-anchor" href="#Plotting-the-initial-state">Plotting the initial state</a><a id="Plotting-the-initial-state-1"></a><a class="docs-heading-anchor-permalink" href="#Plotting-the-initial-state" title="Permalink"></a></h2><p>First an instance of the model of the kite control unit (KCU) is created which is needed by the Kite Power System model KPS3. Then we create a kps instance, passing the kcu model as parameter. We need to declare these variables as const to achieve a decent performance.</p><pre><code class="language-julia hljs">using KiteModels, KitePodModels, KiteUtils
 const kcu = KCU(se())
-const kps = KPS4(kcu)</code></pre><p>Then we call the function find<em>steady</em>state which uses a non-linear solver to find the solution for a given elevation angle, reel-out speed and wind speed. </p><pre><code class="language-julia hljs">find_steady_state!(kps, prn=true)</code></pre><p>To plot the result in 2D we extract the vectors of the x and z coordinates of the tether particles with a for loop:</p><pre><code class="language-julia hljs">x = Float64[] 
+const kps = KPS4(kcu)</code></pre><p>Then we call the function find<em>steady</em>state which uses a non-linear solver to find the solution for a given elevation angle, reel-out speed and wind speed. </p><pre><code class="language-julia hljs">find_steady_state!(kps, prn=true)</code></pre><p>Finding the steady state of the 4 point model is difficult and it only works when we artificially reduce the stiffness by a factor of 0.035. In the function <a href="@ref"><code>init_sim</code></a> this factor is slowly increased to 1.0.</p><p>To plot the result in 2D we extract the vectors of the x and z coordinates of the tether particles with a for loop:</p><pre><code class="language-julia hljs">x = Float64[] 
 z = Float64[]
 for i in 1:length(kps.pos)
      push!(x, kps.pos[i][1])
@@ -17,33 +17,50 @@ for i in 1:length(kps.pos)
 end</code></pre><p>And finally we plot the postion of the particles in the x-z plane. When you type <code>using Plots</code> you will be ask if you want to install the Plots package. Just press \&lt;ENTER\&gt; and it gets installed.</p><pre><code class="language-julia hljs">using Plots
 plot(x,z, xlabel=&quot;x [m]&quot;, ylabel=&quot;z [m]&quot;, legend=false)
 plot!(x, z, seriestype = :scatter)</code></pre><h3 id="Inital-State"><a class="docs-heading-anchor" href="#Inital-State">Inital State</a><a id="Inital-State-1"></a><a class="docs-heading-anchor-permalink" href="#Inital-State" title="Permalink"></a></h3><p><img src="../initial_state_4p.png" alt="Initial State"/></p><h2 id="Print-other-model-outputs"><a class="docs-heading-anchor" href="#Print-other-model-outputs">Print other model outputs</a><a id="Print-other-model-outputs-1"></a><a class="docs-heading-anchor-permalink" href="#Print-other-model-outputs" title="Permalink"></a></h2><p>Print the vector of the positions of the particles:</p><pre><code class="nohighlight hljs">julia&gt; kps.pos
-7-element StaticArrays.SVector{7, StaticArrays.MVector{3, Float64}} with indices SOneTo(7):
- [0.0, 1.0e-6, 0.0]
- [26.957523083220014, 1.0e-6, 59.597492705934215]
- [51.97089867461361, 1.0e-6, 120.03746428611659]
- [75.01425347614648, 1.0e-6, 181.25636723731242]
- [96.06812033613873, 1.0e-6, 243.18840457807227]
- [115.11961850809006, 1.0e-6, 305.76616644603797]
- [132.79574786242222, 1.0e-6, 368.747001395149]</code></pre><p>Print the unstretched and and stretched tether length:</p><pre><code class="language-julia hljs">julia&gt; unstretched_length(kps)
+11-element StaticArrays.SVector{11, StaticArrays.MVector{3, Float64}} with indices SOneTo(11):
+ [0.0, 0.0, 0.0]
+ [27.956158502528176, 0.0, 61.20373231368065]
+ [54.19504320716677, 0.0, 123.16303233303098]
+ [78.43996882046399, 0.0, 185.92935677839677]
+ [100.5072692264489, 0.0, 249.49394853600091]
+ [120.24626566405448, 0.0, 313.81961163792636]
+ [137.52679164398376, 0.0, 378.84882574376326]
+ [138.4127462851352, 0.0, 383.77543513463166]
+ [139.02795801127078, 0.0, 386.0060385324739]
+ [138.8006044995987, 1.1208735809303805, 383.71585107239554]
+ [138.8006044995987, -1.1208735809303805, 383.71585107239554]
+</code></pre><p>Print the unstretched and stretched tether length and the height of the kite:</p><pre><code class="language-julia hljs">julia&gt; unstretched_length(kps)
 392.0
 
 julia&gt; tether_length(kps)
-392.4751313610764</code></pre><p>Print the force at the winch (groundstation, in Newton) and at each tether segment:</p><pre><code class="language-julia hljs">julia&gt; winch_force(kps)
-728.5567740002092
+403.71695082721294
+
+julia&gt; calc_height(kps)
+386.0060385324739</code></pre><p>Because of the the stiffness_factor of 0.035 we have a longer tether-length then when using the 1 point kite model. </p><p>Print the force at the winch (groundstation, in Newton) and at each tether segment:</p><pre><code class="language-julia hljs">julia&gt; winch_force(kps)
+643.059283146209
 
 julia&gt; spring_forces(kps)
-6-element Vector{Float64}:
- 728.4833579505422
- 734.950422647022
- 741.5051811137938
- 748.1406855651342
- 754.8497626815621
- 761.6991795967015</code></pre><p>The force increases when going upwards because the kite not only experiances the winch force, but in addition the weight of the tether.</p><p>Print the lift and drag forces of the kite (in Newton) and the lift over drag ratio:</p><pre><code class="language-julia hljs">julia&gt; lift, drag = lift_drag(kps)
-(888.5714473490408, 188.25226817881344)
+15-element Vector{Float64}:
+ 643.0081086309667
+ 642.9843324304267
+ 642.9695864010523
+ 642.9577694795955
+ 642.9475947472262
+ 642.938668170613
+ 165.89618777926103
+ -25.722507476161205
+  51.67720019071219
+ 254.61397516808276
+ 244.5988483585308
+ 244.5988483585308
+ 254.61397516808276
+ -25.722507476161205
+ 166.98431814092817</code></pre><p>Some of the forces are negative which means the segments are getting compressed. This is acceptable for the kite itself (not for the tether).</p><p>Print the lift and drag forces of the kite (in Newton) and the lift over drag ratio:</p><pre><code class="language-julia hljs">julia&gt; lift, drag = lift_drag(kps)
+(616.7473148222452, 142.89285185868704)
 
 julia&gt; lift_over_drag(kps)
-4.720110179522627</code></pre><p>Print the wind speed vector at the kite:</p><pre><code class="language-julia hljs">julia&gt; v_wind_kite(kps)
+4.316152325325367</code></pre><p>Print the wind speed vector at the kite:</p><pre><code class="language-julia hljs">julia&gt; v_wind_kite(kps)
 3-element StaticArrays.MVector{3, Float64} with indices SOneTo(3):
- 13.308227837486344
+  13.310738776362681
   0.0
-  0.0</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../examples/">« Examples_1p</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.15 on <span class="colophon-date" title="Sunday 17 April 2022 12:01">Sunday 17 April 2022</span>. Using Julia version 1.7.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+  0.0</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../examples/">« Examples_1p</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.15 on <span class="colophon-date" title="Sunday 17 April 2022 12:56">Sunday 17 April 2022</span>. Using Julia version 1.7.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
