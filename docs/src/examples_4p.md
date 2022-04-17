@@ -1,7 +1,7 @@
 ```@meta
 CurrentModule = KiteModels
 ```
-# Examples for using the one point kite model
+# Examples for using the four point kite model
 
 ## Create a test project
 ```bash
@@ -30,7 +30,7 @@ using KiteModels
 using KitePodModels
 using KiteUtils
 const kcu = KCU(se())
-const kps = KPS3(kcu)
+const kps = KPS4(kcu)
 ```
 Then we call the function find_steady_state which uses a non-linear solver to find the solution for a given elevation angle, reel-out speed and wind speed. 
 ```julia
@@ -52,7 +52,7 @@ plot(x,z, xlabel="x [m]", ylabel="z [m]", legend=false)
 plot!(x, z, seriestype = :scatter)
 ```
 ### Inital State
-![Initial State](initial_state.png)
+![Initial State](initial_state_4p.png)
 
 ## Print other model outputs
 Print the vector of the positions of the particles:

@@ -32,8 +32,16 @@ lift_over_drag
 v_wind_kite
 ```
 
-## Callback function for the DAE solver
+## High level simulation interface
 ```@docs
+init_sim
+next_step
+```
+
+## Low level simulation interface
+```@docs
+clear
+find_steady_state
 residual!
 ```
 
@@ -45,8 +53,13 @@ calc_wind_factor
 
 ## Helper functions
 ```@docs
-clear
-find_steady_state
 calc_drag
 calc_set_cl_cd
+calc_aero_forces
+calc_particle_forces
+initial_kite_ref_frame
+inner_loop
+loop
+find_steady_state_inner
+get_particles
 ```

@@ -248,7 +248,7 @@ function v_wind_kite(s::AKM) s.v_wind end
     set_v_wind_ground(s::AKM, height, v_wind_gnd=s.set.v_wind, wind_dir=0.0)
 
 Set the vector of the wind-velocity at the height of the kite. As parameter the height,
-the ground wind speed and the wind direction are needed.
+the ground wind speed [m/s] and the wind direction [radians] are needed.
 Must be called every at each timestep.
 """
 function set_v_wind_ground(s::AKM, height, v_wind_gnd=s.set.v_wind, wind_dir=0.0)
@@ -288,7 +288,21 @@ function calc_pre_tension(s::AKM)
     return res + 1.0
 end
 
-function init_sim(s; t_end=1.0, stiffness_factor=0.035, prn=false)
+"""
+    init_sim(s; t_end=1.0, stiffness_factor=0.035, prn=false)
+
+Initialises the integrator of the model.
+
+Parameters:
+- s:     an instance of an abstract kite model
+- t_end: end time of the simulation; normally not needed
+- stiffness_factor: factor applied to the tether stiffness during initialisation
+- prn: if set to true, print the detailed solver results
+
+Returns:
+An instance of a DAE integrator.
+"""
+function init_sim(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false)
     clear(s)
     s.stiffness_factor = stiffness_factor
     KiteModels.set_depower_steering(s, get_depower(s.kcu), get_steering(s.kcu))
@@ -302,6 +316,24 @@ function init_sim(s; t_end=1.0, stiffness_factor=0.035, prn=false)
     integrator = Sundials.init(prob, solver, abstol=abstol, reltol=0.001)
 end
 
+"""
+    next_step(s, integrator; v_ro = 0.0, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
+
+Calculates the next simulation step.
+
+Parameters:
+- s:          an instance of an abstract kite model
+- integrator: an integrator instances as returned by the function @ref`init_sim`
+- v_ro:       reel out speed in m/s
+- v_wind_gnd: wind speed at reference height in m/s
+- wind_dir:   wind direction in radians
+- dt:         time step in seconds
+
+Only the first two parameters are required.
+
+Returns:
+The end time of the time step in seconds.
+"""
 function next_step(s, integrator; v_ro = 0.0, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
     KitePodModels.on_timer(s.kcu)
     KiteModels.set_depower_steering(s, get_depower(s.kcu), get_steering(s.kcu))

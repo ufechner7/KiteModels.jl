@@ -1,4 +1,9 @@
 using KiteModels
+using Pkg
+if ! ("Documenter" ∈ keys(Pkg.project().dependencies))
+    using TestEnv; TestEnv.activate()
+end
+
 using Documenter
 
 DocMeta.setdocmeta!(KiteModels, :DocTestSetup, :(using KitePodSimulator); recursive=true)
@@ -18,7 +23,8 @@ makedocs(;
         "Types" => "types.md",
         "Functions" => "functions.md",
         "Parameters" => "parameters.md",
-        "Examples" => "examples.md",
+        "Examples_1p" => "examples.md",
+        "Examples_4p" => "examples_4p.md",
     ],
 )
 
