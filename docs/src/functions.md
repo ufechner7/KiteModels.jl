@@ -13,6 +13,8 @@ Or, if you want to use the 4 point kite model:
 using KiteModels, KitePodModels, KiteUtils
 const s = KPS4(KCU(se()))
 ```
+Functions with an "!" as last character of the function name modify one of more of their
+parameters, in this context mostly the variable s.
 
 ## Input functions
 ```@docs

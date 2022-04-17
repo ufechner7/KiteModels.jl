@@ -39,6 +39,9 @@ Then we call the function find_steady_state which uses a non-linear solver to fi
 ```julia
 find_steady_state!(kps, prn=true)
 ```
+Finding the steady state of the 4 point model is difficult and it only works when we artificially reduce the stiffness by a factor
+of 0.035. In the function [`init_sim`](@ref) this factor is slowly increased to 1.0.
+
 To plot the result in 2D we extract the vectors of the x and z coordinates of the tether particles with a for loop:
 ```julia
 x = Float64[] 
@@ -61,52 +64,73 @@ plot!(x, z, seriestype = :scatter)
 Print the vector of the positions of the particles:
 ```
 julia> kps.pos
-7-element StaticArrays.SVector{7, StaticArrays.MVector{3, Float64}} with indices SOneTo(7):
- [0.0, 1.0e-6, 0.0]
- [26.957523083220014, 1.0e-6, 59.597492705934215]
- [51.97089867461361, 1.0e-6, 120.03746428611659]
- [75.01425347614648, 1.0e-6, 181.25636723731242]
- [96.06812033613873, 1.0e-6, 243.18840457807227]
- [115.11961850809006, 1.0e-6, 305.76616644603797]
- [132.79574786242222, 1.0e-6, 368.747001395149]
+11-element StaticArrays.SVector{11, StaticArrays.MVector{3, Float64}} with indices SOneTo(11):
+ [0.0, 0.0, 0.0]
+ [27.956158502528176, 0.0, 61.20373231368065]
+ [54.19504320716677, 0.0, 123.16303233303098]
+ [78.43996882046399, 0.0, 185.92935677839677]
+ [100.5072692264489, 0.0, 249.49394853600091]
+ [120.24626566405448, 0.0, 313.81961163792636]
+ [137.52679164398376, 0.0, 378.84882574376326]
+ [138.4127462851352, 0.0, 383.77543513463166]
+ [139.02795801127078, 0.0, 386.0060385324739]
+ [138.8006044995987, 1.1208735809303805, 383.71585107239554]
+ [138.8006044995987, -1.1208735809303805, 383.71585107239554]
+
 ```
-Print the unstretched and and stretched tether length:
+Print the unstretched and stretched tether length and the height of the kite:
 ```julia
 julia> unstretched_length(kps)
 392.0
 
 julia> tether_length(kps)
-392.4751313610764
-``` 
+403.71695082721294
+
+julia> calc_height(kps)
+386.0060385324739
+```
+Because of the the stiffness_factor of 0.035 we have a longer tether-length then when using
+the 1 point kite model. 
+
 Print the force at the winch (groundstation, in Newton) and at each tether segment:
 ```julia
 julia> winch_force(kps)
-728.5567740002092
+643.059283146209
 
 julia> spring_forces(kps)
-6-element Vector{Float64}:
- 728.4833579505422
- 734.950422647022
- 741.5051811137938
- 748.1406855651342
- 754.8497626815621
- 761.6991795967015
+15-element Vector{Float64}:
+ 643.0081086309667
+ 642.9843324304267
+ 642.9695864010523
+ 642.9577694795955
+ 642.9475947472262
+ 642.938668170613
+ 165.89618777926103
+ -25.722507476161205
+  51.67720019071219
+ 254.61397516808276
+ 244.5988483585308
+ 244.5988483585308
+ 254.61397516808276
+ -25.722507476161205
+ 166.98431814092817
 ```
-The force increases when going upwards because the kite not only experiances the winch force, but in addition the weight of the tether.
+Some of the forces are negative which means the segments are getting compressed. This is acceptable for
+the kite itself (not for the tether).
 
 Print the lift and drag forces of the kite (in Newton) and the lift over drag ratio:
 ```julia
 julia> lift, drag = lift_drag(kps)
-(888.5714473490408, 188.25226817881344)
+(616.7473148222452, 142.89285185868704)
 
 julia> lift_over_drag(kps)
-4.720110179522627
+4.316152325325367
 ```
 Print the wind speed vector at the kite:
 ```julia
 julia> v_wind_kite(kps)
 3-element StaticArrays.MVector{3, Float64} with indices SOneTo(3):
- 13.308227837486344
+  13.310738776362681
   0.0
   0.0
 ```
