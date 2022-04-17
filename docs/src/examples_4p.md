@@ -7,28 +7,31 @@ CurrentModule = KiteModels
 ```bash
 mkdir test
 cd test
-julia --project
+julia --project="."
 ```
-and add KiteModels to the project:
+and add the KiteUtils to the project:
 ```julia
-]activate .
+]
 add KiteUtils
-add KitePodSimulator
-add KiteModels
 <BACKSPACE>
 ```
-finally, copy the default configuration files to your new project:
+Then, copy the default configuration files to your new project:
 ```julia
 using KiteUtils
 copy_settings()
+```
+Finally, add the KitePodModels and the KiteModels
+```julia
+]
+add KitePodModels
+add KiteModels
+<BACKSPACE>
 ```
 
 ## Plotting the initial state
 First an instance of the model of the kite control unit (KCU) is created which is needed by the Kite Power System model KPS3. Then we create a kps instance, passing the kcu model as parameter. We need to declare these variables as const to achieve a decent performance.
 ```julia
-using KiteModels
-using KitePodModels
-using KiteUtils
+using KiteModels, KitePodModels, KiteUtils
 const kcu = KCU(se())
 const kps = KPS4(kcu)
 ```

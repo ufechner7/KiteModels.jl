@@ -7,28 +7,31 @@ CurrentModule = KiteModels
 ```bash
 mkdir test
 cd test
-julia --project
+julia --project="."
 ```
-and add KiteModels to the project:
+and add the KiteUtils to the project:
 ```julia
-]activate .
+]
 add KiteUtils
-add KitePodSimulator
-add KiteModels
 <BACKSPACE>
 ```
-finally, copy the default configuration files to your new project:
+Then, copy the default configuration files to your new project:
 ```julia
 using KiteUtils
 copy_settings()
+```
+Finally, add the KitePodModels and the KiteModels
+```julia
+]
+add KitePodModels
+add KiteModels
+<BACKSPACE>
 ```
 
 ## Plotting the initial state
 First an instance of the model of the kite control unit (KCU) is created which is needed by the Kite Power System model KPS3. Then we create a kps instance, passing the kcu model as parameter. We need to declare these variables as const to achieve a decent performance.
 ```julia
-using KiteModels
-using KitePodModels
-using KiteUtils
+using KiteModels, KitePodModels, KiteUtils
 const kcu = KCU(se())
 const kps = KPS3(kcu)
 ```
@@ -68,43 +71,46 @@ julia> kps.pos
  [132.79571663189674, 0.0, 368.74701279158705]
 
 ```
-Print the unstretched and and stretched tether length:
+Print the unstretched and stretched tether length and the height of the kite:
 ```julia
 julia> unstretched_length(kps)
 392.0
 
 julia> tether_length(kps)
 392.4751313610764
+
+julia> calc_height(kps)
+368.74701279158705
 ``` 
 Print the force at the winch (groundstation, in Newton) and at each tether segment:
 ```julia
 julia> winch_force(kps)
-728.5567740002092
+728.5569144505084
 
 julia> spring_forces(kps)
 6-element Vector{Float64}:
- 728.4833579505422
- 734.950422647022
- 741.5051811137938
- 748.1406855651342
- 754.8497626815621
- 761.6991795967015
+ 728.4835079763607
+ 734.9505623866943
+ 741.505320143339
+ 748.1408238767988
+ 754.8499002675924
+ 761.6993164647175
 ```
 The force increases when going upwards because the kite not only experiances the winch force, but in addition the weight of the tether.
 
 Print the lift and drag forces of the kite (in Newton) and the lift over drag ratio:
 ```julia
 julia> lift, drag = lift_drag(kps)
-(888.5714473490408, 188.25226817881344)
+(888.5715658243445, 188.25229350390242)
 
 julia> lift_over_drag(kps)
-4.720110179522627
+4.720110173881757
 ```
 Print the wind speed vector at the kite:
 ```julia
 julia> v_wind_kite(kps)
 3-element StaticArrays.MVector{3, Float64} with indices SOneTo(3):
- 13.308227837486344
+  13.308227860928211
   0.0
   0.0
 ```
