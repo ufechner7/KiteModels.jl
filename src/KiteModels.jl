@@ -36,9 +36,9 @@ using KiteUtils, KitePodModels
 import Base.zero
 
 export KPS3, KPS4, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                                  # constants and types
-export calc_rho, calc_wind_factor, calc_set_cl_cd                                                 # environment and helper functions
-export clear, find_steady_state, residual!                                                        # low level worker functions
-export init_sim, next_step                                                                        # hight level worker functions
+export calc_rho, calc_wind_factor, calc_set_cl_cd!                                                # environment and helper functions
+export clear!, find_steady_state!, residual!                                                      # low level worker functions
+export init_sim!, next_step!                                                                      # hight level worker functions
 export calc_height                                                                                # getters
 export winch_force, lift_drag, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
 export spring_forces
@@ -134,7 +134,7 @@ Calculate the relative wind speed at a given height and reference height.
 end
 
 # Calculate the lift and drag coefficient as a function of the angle of attack alpha.
-function set_cl_cd(s::AKM, alpha)   
+function set_cl_cd!(s::AKM, alpha)   
     angle =  alpha * 180.0 / π
     if angle > 180.0
         angle -= 360.0
@@ -154,20 +154,20 @@ function calc_alpha(v_app, vec_z)
 end
 
 """
-    calc_set_cl_cd(s::AKM, vec_c, v_app)
+    calc_set_cl_cd!(s::AKM, vec_c, v_app)
 
 Calculate the lift over drag ratio as a function of the direction vector of the last tether
 segment, the current depower setting and the apparent wind speed.
 Set the calculated CL and CD values in the struct s. 
 """
-function calc_set_cl_cd(s::AKM, vec_c, v_app)
+function calc_set_cl_cd!(s::AKM, vec_c, v_app)
     s.vec_z .= normalize(vec_c)
     alpha = calc_alpha(v_app, s.vec_z) - s.alpha_depower
-    set_cl_cd(s, alpha)
+    set_cl_cd!(s, alpha)
 end
 
 """
-    set_depower_steering(s::AKM, depower, steering)
+    set_depower_steering!(s::AKM, depower, steering)
 
 Setter for the depower and steering model inputs. 
 
@@ -180,7 +180,7 @@ This function sets the variables s.depower, s.steering and s.alpha_depower.
 It takes the depower offset c0 and the dependency of the steering sensitivity from
 the depower settings into account.
 """
-function set_depower_steering(s::AKM, depower, steering)
+function set_depower_steering!(s::AKM, depower, steering)
     s.depower  = depower
     s.alpha_depower = calc_alpha_depower(s.kcu, depower)
     s.steering = (steering - s.set.c0) / (1.0 + s.set.k_ds * (s.alpha_depower / deg2rad(s.set.alpha_d_max)))
@@ -189,7 +189,7 @@ end
 
 
 """
-    set_v_reel_out(s::AKM, v_reel_out, t_0, period_time = 1.0 / s.set.sample_freq)
+    set_v_reel_out!(s::AKM, v_reel_out, t_0, period_time = 1.0 / s.set.sample_freq)
 
 Setter for the reel-out speed. Must be called on every timestep (before each simulation).
 It also updates the tether length, therefore it must be called even if `v_reel_out` has
@@ -197,7 +197,7 @@ not changed.
 
 - t_0 the start time of the next timestep relative to the start of the simulation [s]
 """
-function set_v_reel_out(s::AKM, v_reel_out, t_0, period_time = 1.0 / s.set.sample_freq)
+function set_v_reel_out!(s::AKM, v_reel_out, t_0, period_time = 1.0 / s.set.sample_freq)
     s.l_tether += 0.5 * (v_reel_out + s.last_v_reel_out) * period_time
     s.last_v_reel_out = s.v_reel_out
     s.v_reel_out = v_reel_out
@@ -247,13 +247,13 @@ Return the vector of the wind speed at the height of the kite.
 function v_wind_kite(s::AKM) s.v_wind end
 
 """
-    set_v_wind_ground(s::AKM, height, v_wind_gnd=s.set.v_wind, wind_dir=0.0)
+    set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind, wind_dir=0.0)
 
 Set the vector of the wind-velocity at the height of the kite. As parameter the height,
 the ground wind speed [m/s] and the wind direction [radians] are needed.
 Must be called every at each timestep.
 """
-function set_v_wind_ground(s::AKM, height, v_wind_gnd=s.set.v_wind, wind_dir=0.0)
+function set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind, wind_dir=0.0)
     if height < 6.0
         height = 6.0
     end
@@ -291,7 +291,7 @@ function calc_pre_tension(s::AKM)
 end
 
 """
-    init_sim(s; t_end=1.0, stiffness_factor=0.035, prn=false)
+    init_sim!(s; t_end=1.0, stiffness_factor=0.035, prn=false)
 
 Initialises the integrator of the model.
 
@@ -304,11 +304,11 @@ Parameters:
 Returns:
 An instance of a DAE integrator.
 """
-function init_sim(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false)
-    clear(s)
+function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false)
+    clear!(s)
     s.stiffness_factor = stiffness_factor
-    KiteModels.set_depower_steering(s, get_depower(s.kcu), get_steering(s.kcu))
-    y0, yd0 = KiteModels.find_steady_state(s; stiffness_factor=stiffness_factor, prn=prn)
+    KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
+    y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor=stiffness_factor, prn=prn)
 
     differential_vars = ones(Bool, length(y0))
     solver  = IDA(linear_solver=:Dense, max_order = 3)
@@ -319,13 +319,13 @@ function init_sim(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false)
 end
 
 """
-    next_step(s::AKM, integrator; v_ro = 0.0, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
+    next_step!(s::AKM, integrator; v_ro = 0.0, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
 
 Calculates the next simulation step.
 
 Parameters:
 - s:          an instance of an abstract kite model
-- integrator: an integrator instances as returned by the function @ref`init_sim`
+- integrator: an integrator instances as returned by the function @ref`init_sim!`
 - v_ro:       reel out speed in m/s
 - v_wind_gnd: wind speed at reference height in m/s
 - wind_dir:   wind direction in radians
@@ -336,11 +336,11 @@ Only the first two parameters are required.
 Returns:
 The end time of the time step in seconds.
 """
-function next_step(s::AKM, integrator; v_ro = 0.0, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
+function next_step!(s::AKM, integrator; v_ro = 0.0, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
     KitePodModels.on_timer(s.kcu)
-    KiteModels.set_depower_steering(s, get_depower(s.kcu), get_steering(s.kcu))
-    set_v_reel_out(s, v_ro, integrator.t)
-    set_v_wind_ground(s, calc_height(s), v_wind_gnd, wind_dir)
+    KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
+    set_v_reel_out!(s, v_ro, integrator.t)
+    set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
     Sundials.step!(integrator, dt, true)
     if s.stiffness_factor < 1.0
         s.stiffness_factor+=0.01
@@ -351,8 +351,8 @@ function next_step(s::AKM, integrator; v_ro = 0.0, v_wind_gnd=s.set.v_wind, wind
     integrator.t
 end
 
-precompile(find_steady_state, (KPS3{SimFloat, KVec3, 7},)) 
-precompile(find_steady_state, (KPS4{Float64, MVector{3, Float64}, 11, 15, KiteModels.Spring{Int16, Float64}},))
-precompile(init_sim, (KPS4{Float64, MVector{3, Float64}, 11, 15, KiteModels.Spring{Int16, Float64}}, Float64,))  
+precompile(find_steady_state!, (KPS3{SimFloat, KVec3, 7},)) 
+precompile(find_steady_state!, (KPS4{Float64, MVector{3, Float64}, 11, 15, KiteModels.Spring{Int16, Float64}},))
+precompile(init_sim!, (KPS4{Float64, MVector{3, Float64}, 11, 15, KiteModels.Spring{Int16, Float64}}, Float64,))  
 
 end

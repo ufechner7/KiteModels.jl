@@ -14,7 +14,7 @@ poss, vels = nothing, nothing
 @testset verbose = true "KPS4 tests...." begin
 
 function set_defaults()
-    KiteModels.clear(kps4)
+    KiteModels.clear!(kps4)
     kps4.set.l_tether = 150.0
     kps4.set.elevation = 60.0
     kps4.set.area = 20.0
@@ -28,7 +28,7 @@ function set_defaults()
 end
 
 function init_392()
-    KiteModels.clear(kps4)
+    KiteModels.clear!(kps4)
     kps4.set.l_tether = 392.0
     kps4.set.elevation = 70.0
     kps4.set.area = 10.0
@@ -39,7 +39,7 @@ function init_392()
 end
 
 function init_150()
-    KiteModels.clear(kps4)
+    KiteModels.clear!(kps4)
     kps4.set.l_tether = 150.0
     kps4.set.elevation = 70.0
     kps4.set.area = 10.18
@@ -54,7 +54,7 @@ end
 
 function init3()
     kps4.set.alpha =  0.08163
-    KiteModels.clear(kps4)
+    KiteModels.clear!(kps4)
     kps4.set.l_tether = 150.0 # - kps4.set.height_k - kps4.set.h_bridle
     kps4.set.area = 10.18
     kps4.set.rel_side_area = 30.6
@@ -71,7 +71,7 @@ function init3()
     height = 134.14733504839947
     kps4.v_wind .= kps4.v_wind_gnd * calc_wind_factor(kps4, height)
     kps4.stiffness_factor = 1.0
-    KiteModels.init_springs(kps4)
+    KiteModels.init_springs!(kps4)
     return pos, vel, posd, veld
 end
 
@@ -102,9 +102,9 @@ end
     @test particles[6] == [77.450000000249887,-2.4811, 134.14733504839947]   # pos_D (right as seen from GS)
 end
 
-@testset "init_springs          " begin
+@testset "init_springs!          " begin
     init_150()
-    sp = KiteModels.init_springs(kps4)
+    sp = KiteModels.init_springs!(kps4)
     # test springs
     @test length(sp) == 6 + KiteModels.KITE_SPRINGS
     @test sp[1].p1 == 1
@@ -130,9 +130,9 @@ end
     # TODO also test spring 13 .. 15
 end
 
-@testset "init_masses           " begin
+@testset "init_masses!           " begin
     init_150()
-    m = KiteModels.init_masses(kps4)
+    m = KiteModels.init_masses!(kps4)
     @test m[1] ≈ 0.1137256540599505
     for i in 2:6
         @test m[i] ≈ 0.227451308119901
@@ -144,7 +144,7 @@ end
     @test m[11] ≈ 0.98739
 end
 
-@testset "calc_particle_forces  " begin
+@testset "calc_particle_forces!  " begin
     init_150()
     pos1 = KVec3(1.0, 2.0, 3.0)
     pos2 = KVec3(2.0, 3.0, 4.0)
@@ -159,7 +159,7 @@ end
         spring = kps4.springs[i]
         kps4.stiffness_factor = 0.5
         kps4.v_wind_tether .= KVec3(8.0, 0.1, 0.0)
-        bytes = @allocated KiteModels.calc_particle_forces(kps4, pos1, pos2, vel1, vel2, spring, se().segments, se().d_tether/1000.0, rho, i)
+        bytes = @allocated KiteModels.calc_particle_forces!(kps4, pos1, pos2, vel1, vel2, spring, se().segments, se().d_tether/1000.0, rho, i)
     end
     # @test bytes == 0
     # Python output
@@ -223,7 +223,7 @@ end
     @test_broken (norm(res_vel[1:15])) < 15.0
 end
 
-@testset "inner_loop            " begin
+@testset "inner_loop!            " begin
     kps4.set.alpha = 1.0/7.0
     init_150()
     kps4.set.elevation = 60.0
@@ -236,7 +236,7 @@ end
     kps4.stiffness_factor = 0.5
     segments = kps4.set.segments
     d_tether = kps4.set.d_tether/1000.0
-    KiteModels.inner_loop(kps4, pos, vel, v_wind_gnd, segments, d_tether)
+    KiteModels.inner_loop!(kps4, pos, vel, v_wind_gnd, segments, d_tether)
     forces =  [[ -1.1039795506035208  -0.0210281466470539   0.6374018106640786]
                [ -2.6112444243501161  -0.0497374193345597   1.5075837513184493]
                [ -3.2469329482256093  -0.0618458809786162   1.8746176116987205]
@@ -253,7 +253,7 @@ end
     end
 end
 
-@testset "calc_aero_forces      " begin
+@testset "calc_aero_forces!      " begin
     kps4.set.alpha = 1.0/7.0
     init_150()
     kps4.set.elevation = 60.0
@@ -270,7 +270,7 @@ end
     for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1 
         kps4.forces[i] .= zeros(3)
     end
-    KiteModels.calc_aero_forces(kps4, pos, vel, rho, alpha_depower, rel_steering)
+    KiteModels.calc_aero_forces!(kps4, pos, vel, rho, alpha_depower, rel_steering)
     forces=[[   0.                    0.                    0.                ]
             [   0.                    0.                    0.                ]
             [   0.                    0.                    0.                ]
@@ -305,14 +305,14 @@ function init2()
     for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1 
         kps4.forces[i] .= zeros(3)
     end
-    KiteModels.init_springs(kps4)
+    KiteModels.init_springs!(kps4)
     return pos, vel, posd, veld
 end
 
 @testset "test_loop          " begin
     init2()
     pos, vel, posd, veld = init2()
-    KiteModels.loop(kps4, pos, vel, posd, veld)
+    KiteModels.loop!(kps4, pos, vel, posd, veld)
     res1=[[-0.        0.000001 -0.      ]
           [ 0.        0.        0.      ]
           [ 0.        0.        0.      ]
@@ -447,11 +447,11 @@ end
 
 @testset "test_find_steady_state" begin
     init_392()
-    clear(kps4)
-    KiteModels.set_depower_steering(kps4, kps4.set.depower_offset/100.0, 0.0)
+    clear!(kps4)
+    KiteModels.set_depower_steering!(kps4, kps4.set.depower_offset/100.0, 0.0)
     height = sin(deg2rad(kps4.set.elevation)) * kps4.set.l_tether
     kps4.v_wind .= kps4.v_wind_gnd * calc_wind_factor(kps4, height)
-    res1, res2 = find_steady_state(kps4; stiffness_factor=0.035, prn=true) 
+    res1, res2 = find_steady_state!(kps4; stiffness_factor=0.035, prn=true) 
     # TODO check why -9.81 appears in the residual
     @test sum(res2) ≈ -9.81*(se().segments+ KiteModels.KITE_PARTICLES) # velocity and acceleration must be near zero
     pre_tension = KiteModels.calc_pre_tension(kps4)
@@ -485,14 +485,14 @@ end
 function simulate(integrator, steps)
     start = integrator.p.iter
     for i in 1:steps
-        KiteModels.next_step(kps4, integrator)
+        KiteModels.next_step!(kps4, integrator)
     end
     (integrator.p.iter - start) / steps
 end
 
 @testset "test_simulate        " begin
     STEPS = 500
-    integrator = KiteModels.init_sim(kps4; stiffness_factor=0.035, prn=false)
+    integrator = KiteModels.init_sim!(kps4; stiffness_factor=0.035, prn=false)
     println("\nStarting simulation...")
     simulate(integrator, 100)
     av_steps = simulate(integrator, STEPS-100)

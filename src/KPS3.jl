@@ -140,11 +140,11 @@ $(TYPEDFIELDS)
 end
 
 """
-    clear(s::KPS3)
+    clear!(s::KPS3)
 
 Initialize the kite power model.
 """
-function clear(s::KPS3)
+function clear!(s::KPS3)
     s.t_0 = 0.0                              # relative start time of the current time interval
     s.v_reel_out = 0.0
     s.last_v_reel_out = 0.0
@@ -173,7 +173,7 @@ function KPS3(kcu::KCU)
     s.kcu = kcu
     s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
     s.calc_cd = Spline1D(s.set.alpha_cd, s.set.cd_list)       
-    clear(s)
+    clear!(s)
     return s
 end
 
@@ -314,7 +314,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
     # call core calculation routines
     vec_c = SVector{3, SimFloat}(pos[s.set.segments] - pos_kite)     # convert to SVector to avoid allocations
     v_app = SVector{3, SimFloat}(s.v_wind - v_kite)
-    calc_set_cl_cd(s, vec_c, v_app)
+    calc_set_cl_cd!(s, vec_c, v_app)
     calc_aero_forces(s, pos_kite, v_kite, s.rho, s.steering) # force at the kite
     loop(s, pos, vel, posd, veld, s.res1, s.res2)
   
@@ -351,7 +351,7 @@ function init_inner(s::KPS3, X=zeros(2 * s.set.segments); old=false, delta=0.0)
     yd0 = zeros(SVector{2*s.set.segments, KVec3})
 
     DELTA = delta
-    set_cl_cd(s, 10.0/180.0 * π)
+    set_cl_cd!(s, 10.0/180.0 * π)
 
     for i in 0:s.set.segments
         radius =  -i * s.set.l_tether / s.set.segments
@@ -378,9 +378,9 @@ function init_inner(s::KPS3, X=zeros(2 * s.set.segments); old=false, delta=0.0)
         state_y0[s.set.segments+i-1] .= vel[i]  # Initial state vector
         yd0[s.set.segments+i-1]      .= acc[i]  # Initial state vector derivative
     end
-    set_v_wind_ground(s, pos[s.set.segments+1][3])
+    set_v_wind_ground!(s, pos[s.set.segments+1][3])
     s.l_tether = s.set.l_tether
-    set_v_reel_out(s, s.set.v_reel_out, 0.0)
+    set_v_reel_out!(s, s.set.v_reel_out, 0.0)
 
     state_y0, yd0
 end
@@ -426,12 +426,12 @@ function find_steady_state_inner(s::KPS3, X, prn=false; delta=0.0)
  end
 
 """
-    find_steady_state(s::KPS3, prn=false, delta = 0.0, stiffness_factor=0.035)
+    find_steady_state!(s::KPS3, prn=false, delta = 0.0, stiffness_factor=0.035)
 
 Find an initial equilibrium, based on the inital parameters
 `l_tether`, elevation and `v_reel_out`.
 """
-function find_steady_state(s::KPS3; prn=false, delta = 0.0, stiffness_factor=0.035)
+function find_steady_state!(s::KPS3; prn=false, delta = 0.0, stiffness_factor=0.035)
     zero = zeros(SimFloat, 2*s.set.segments)
     s.stiffness_factor=stiffness_factor
     zero = find_steady_state_inner(s, zero, prn, delta=delta)

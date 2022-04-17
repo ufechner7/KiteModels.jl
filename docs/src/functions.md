@@ -16,9 +16,9 @@ const s = KPS4(KCU(se()))
 
 ## Input functions
 ```@docs
-set_v_reel_out
-set_depower_steering
-set_v_wind_ground
+set_v_reel_out!
+set_depower_steering!
+set_v_wind_ground!
 ```
 
 ## Output functions
@@ -35,14 +35,14 @@ v_wind_kite
 
 ## High level simulation interface
 ```@docs
-init_sim
-next_step
+init_sim!
+next_step!
 ```
 
 ## Low level simulation interface
 ```@docs
-clear
-find_steady_state
+clear!
+find_steady_state!
 residual!
 ```
 
@@ -55,11 +55,11 @@ calc_wind_factor
 ## Helper functions
 ```@docs
 calc_drag
-calc_set_cl_cd
-calc_aero_forces
-calc_particle_forces
+calc_set_cl_cd!
+calc_aero_forces!
+calc_particle_forces!
 initial_kite_ref_frame
-inner_loop
-loop
+inner_loop!
+loop!
 get_particles
 ```

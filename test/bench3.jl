@@ -19,7 +19,7 @@ msg=""
 @testset verbose = true "KPS3 benchmarking....   " begin
 
 function set_defaults()
-    KiteModels.clear(kps)
+    KiteModels.clear!(kps)
     kps.set.l_tether = 150.0
     kps.set.elevation = 60.0
     kps.set.area = 20.0
@@ -32,7 +32,7 @@ function set_defaults()
 end
 
 function init_392()
-    KiteModels.clear(kps)
+    KiteModels.clear!(kps)
     kps.set.l_tether = 392.0
     kps.set.elevation = 70.0
     kps.set.area = 10.0
@@ -65,7 +65,7 @@ end
     # println(yd0)
     p = kps
     t = 0.0
-    clear(kps)
+    clear!(kps)
     residual!(res, yd0, y0, p, t)
     res1 = res[1:3*SEGMENTS]
     res2 = res[3*SEGMENTS+1:end]

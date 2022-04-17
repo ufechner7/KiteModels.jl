@@ -100,11 +100,11 @@ $(TYPEDFIELDS)
     v_wind_tether::T =    zeros(S, 3)
     "apparent wind vector at the kite"
     v_apparent::T =       zeros(S, 3)
-    "drag force of kite and bridle; output of calc_aero_forces"
+    "drag force of kite and bridle; output of calc_aero_forces!"
     drag_force::T =       zeros(S, 3)
-    "lift force of the kite; output of calc_aero_forces"
+    "lift force of the kite; output of calc_aero_forces!"
     lift_force::T =       zeros(S, 3)    
-    "spring force of the current tether segment, output of calc_particle_forces"
+    "spring force of the current tether segment, output of calc_particle_forces!"
     spring_force::T =     zeros(S, 3)
     segment::T =          zeros(S, 3) 
     "a copy of the residual one (pos,vel) for debugging and unit tests"    
@@ -148,11 +148,11 @@ $(TYPEDFIELDS)
 end
 
 """
-    clear(s::KPS4)
+    clear!(s::KPS4)
 
 Initialize the kite power model.
 """
-function clear(s::KPS4)
+function clear!(s::KPS4)
     s.t_0 = 0.0                              # relative start time of the current time interval
     s.v_reel_out = 0.0
     s.last_v_reel_out = 0.0
@@ -165,8 +165,8 @@ function clear(s::KPS4)
     s.l_tether = s.set.l_tether
     s.segment_length = s.l_tether / s.set.segments
     s.beta = deg2rad(s.set.elevation)
-    init_masses(s)
-    init_springs(s)
+    init_masses!(s)
+    init_springs!(s)
     for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1 
         s.forces[i] .= zeros(3)
     end
@@ -183,7 +183,7 @@ function KPS4(kcu::KCU)
     s.kcu = kcu
     s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
     s.calc_cd = Spline1D(s.set.alpha_cd, s.set.cd_list)       
-    clear(s)
+    clear!(s)
     return s
 end
 
@@ -249,7 +249,7 @@ function calc_height(s::KPS4)
     pos_kite[3]
 end
 
-function init_springs(s::KPS4)
+function init_springs!(s::KPS4)
     l_0     = s.set.l_tether / s.set.segments 
     particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k)
     for j in 1:size(SPRINGS_INPUT)[1]
@@ -276,7 +276,7 @@ function init_springs(s::KPS4)
     s.springs
 end
 
-function init_masses(s::KPS4)
+function init_masses!(s::KPS4)
     s.masses = zeros(s.set.segments+KITE_PARTICLES+1)
     l_0 = s.set.l_tether / s.set.segments 
     for i in 1:s.set.segments
@@ -356,13 +356,13 @@ function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=fal
 end
 
 """ 
-    calc_particle_forces(s::KPS4, pos1, pos2, vel1, vel2, spring, segments, d_tether, rho, i)
+    calc_particle_forces!(s::KPS4, pos1, pos2, vel1, vel2, spring, segments, d_tether, rho, i)
 
 Calculate the drag force of the tether segment, defined by the parameters pos1, pos2, vel1 and vel2
 and distribute it equally on the two particles, that are attached to the segment.
 The result is stored in the array s.forces. 
 """
-@inline function calc_particle_forces(s, pos1, pos2, vel1, vel2, spring, segments, d_tether, rho, i)
+@inline function calc_particle_forces!(s, pos1, pos2, vel1, vel2, spring, segments, d_tether, rho, i)
     l_0 = spring.length # Unstressed length
     k = spring.c_spring * s.stiffness_factor  # Spring constant
     c = spring.damping                        # Damping coefficient    
@@ -400,7 +400,7 @@ The result is stored in the array s.forces.
 end
 
 """
-    inner_loop(s::KPS4, pos, vel, v_wind_gnd, segments, d_tether)
+    inner_loop!(s::KPS4, pos, vel, v_wind_gnd, segments, d_tether)
 
 Calculate the forces, acting on all particles.
 
@@ -408,7 +408,7 @@ Output:
 - s.forces
 - s.v_wind_tether
 """
-@inline function inner_loop(s::KPS4, pos, vel, v_wind_gnd, segments, d_tether)
+@inline function inner_loop!(s::KPS4, pos, vel, v_wind_gnd, segments, d_tether)
     for i in 1:length(s.springs)
         p1 = s.springs[i].p1  # First point nr.
         p2 = s.springs[i].p2  # Second point nr.
@@ -417,7 +417,7 @@ Output:
         @assert height > 0
 
         s.v_wind_tether .= calc_wind_factor(s, height) * v_wind_gnd
-        calc_particle_forces(s, pos[p1], pos[p2], vel[p1], vel[p2], s.springs[i], segments, d_tether, rho, i)
+        calc_particle_forces!(s, pos[p1], pos[p2], vel[p1], vel[p2], s.springs[i], segments, d_tether, rho, i)
     end
     nothing
 end
@@ -428,7 +428,7 @@ function acos2(alpha)
 end
 
 """
-    calc_aero_forces(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
+    calc_aero_forces!(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
 
 Calculates the aerodynamic forces acting on the kite particles.
 
@@ -442,7 +442,7 @@ Parameters:
 
 Updates the vector s.forces of the first parameter.
 """
-function calc_aero_forces(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
+function calc_aero_forces!(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
     rel_side_area = s.set.rel_side_area/100.0    # defined in percent
     K = 1 - rel_side_area                        # correction factor for the drag
     # pos_B, pos_C, pos_D: position of the kite particles B, C, and D
@@ -483,12 +483,12 @@ function calc_aero_forces(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
 end
 
 """
-    loop(s::KPS4, pos, vel, posd, veld)
+    loop!(s::KPS4, pos, vel, posd, veld)
 
 Calculate the vectors s.res1 and calculate s.res2 using loops
 that iterate over all tether segments. 
 """
-function loop(s::KPS4, pos, vel, posd, veld)
+function loop!(s::KPS4, pos, vel, posd, veld)
     L_0      = s.l_tether / s.set.segments
     # mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
     mass_per_meter = 0.011
@@ -508,7 +508,7 @@ function loop(s::KPS4, pos, vel, posd, veld)
         @inbounds s.masses[i] = m_tether_particle
         @inbounds s.springs[i] = SP(s.springs[i].p1, s.springs[i].p2, s.segment_length, c_spring, damping)
     end
-    inner_loop(s, pos, vel, s.v_wind_gnd, s.set.segments, s.set.d_tether/1000.0)
+    inner_loop!(s, pos, vel, s.v_wind_gnd, s.set.segments, s.set.d_tether/1000.0)
     for i in 2:particles
         s.res2[i] .= veld[i] - (SVector(0, 0, -G_EARTH) - s.forces[i] / s.masses[i])
     end
@@ -550,8 +550,8 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
     @assert ! isnan(pos[2][3])
 
     # core calculations
-    calc_aero_forces(s, pos, vel, s.rho, s.alpha_depower, s.steering)
-    loop(s, pos, vel, posd, veld)
+    calc_aero_forces!(s, pos, vel, s.rho, s.alpha_depower, s.steering)
+    loop!(s, pos, vel, posd, veld)
 
     # copy and flatten result
     for i in 2:div(T,6)+1
@@ -603,12 +603,12 @@ function spring_forces(s::KPS4)
 end
 
 """
-    find_steady_state(s::KPS4; prn=false, delta = 0.0, stiffness_factor=0.035)
+    find_steady_state!(s::KPS4; prn=false, delta = 0.0, stiffness_factor=0.035)
 
 Find an initial equilibrium, based on the inital parameters
 `l_tether`, elevation and `v_reel_out`.
 """
-function find_steady_state(s::KPS4; prn=false, delta = 0.0, stiffness_factor=0.035)
+function find_steady_state!(s::KPS4; prn=false, delta = 0.0, stiffness_factor=0.035)
     s.stiffness_factor = stiffness_factor
     res = zeros(MVector{6*(s.set.segments+KITE_PARTICLES)+2, SimFloat})
     iter = 0

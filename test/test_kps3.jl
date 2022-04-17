@@ -16,7 +16,7 @@ end
 @testset verbose = true "KPS3 tests...." begin
 
 function set_defaults()
-    KiteModels.clear(kps)
+    KiteModels.clear!(kps)
     kps.set.l_tether = 150.0
     kps.set.elevation = 60.0
     kps.set.area = 20.0
@@ -29,7 +29,7 @@ function set_defaults()
 end
 
 function init_392()
-    KiteModels.clear(kps)
+    KiteModels.clear!(kps)
     kps.set.l_tether = 392.0
     kps.set.elevation = 70.0
     kps.set.area = 10.0
@@ -156,7 +156,7 @@ end
 
 @testset "test_set_cl_cd       " begin
     alpha = deg2rad(10.0)
-    KiteModels.set_cl_cd(kps, alpha)
+    KiteModels.set_cl_cd!(kps, alpha)
     @test kps.param_cl ≈ 0.5740976324353215
     @test kps.param_cd ≈ 0.12533689264639403
 end
@@ -164,14 +164,14 @@ end
 @testset "test_calc_set_cl_cd  " begin
     v_app = KVec3(10,2,3)
     vec_c = KVec3(3,2,0)
-    KiteModels.calc_set_cl_cd(kps, vec_c, v_app)
+    KiteModels.calc_set_cl_cd!(kps, vec_c, v_app)
     @test kps.param_cl ≈ -0.09238222805380593
     @test kps.param_cd ≈ 0.8117345278100984
 end
 
 @testset "test_clear           " begin
     kps.t_0 = 10.0
-    KiteModels.clear(kps)
+    KiteModels.clear!(kps)
     @test kps.t_0 == 0.0
     @test kps.v_reel_out == 0.0
     @test kps.last_v_reel_out == 0.0
@@ -192,7 +192,7 @@ end
     # println(yd0)
     p = kps
     t = 0.0
-    clear(kps)
+    clear!(kps)
     residual!(res, yd0, y0, p, t)
     res1 = res[1:3*SEGMENTS]
     res2 = res[3*SEGMENTS+1:end]
@@ -204,16 +204,16 @@ end
 @testset "test_set_v_reel_out  " begin
     v_reel_out = 1.1
     t_0 = 5.5
-    KiteModels.set_v_reel_out(kps, v_reel_out, t_0)
+    KiteModels.set_v_reel_out!(kps, v_reel_out, t_0)
     @test kps.v_reel_out ≈ 1.1
     @test kps.t_0 ≈ 5.5
-    clear(kps)
+    clear!(kps)
 end
 
 @testset "test_set_depower_steering" begin
     depower  = 0.25
     steering = 0.1
-    KiteModels.set_depower_steering(kps, depower, steering)
+    KiteModels.set_depower_steering!(kps, depower, steering)
     @test kps.depower == depower
     @test kps.steering ≈ 0.09034121603653548
 end
@@ -251,9 +251,9 @@ z= nothing
     kps.set.area = 10.0
     kps.set.v_wind = 9.1
     kps.set.mass = 6.2
-    KiteModels.clear(my_state)
+    KiteModels.clear!(my_state)
     alpha = deg2rad(10.0)
-    KiteModels.set_cl_cd(kps, alpha)
+    KiteModels.set_cl_cd!(kps, alpha)
 
     # println("state.param_cl: $(my_state.param_cl), state.param_cd: $(my_state.param_cd)")
     # println("res2: "); display(my_state.res2)
@@ -282,8 +282,8 @@ z= nothing
 end
 
 @testset "test_find_steady_state" begin
-   KiteModels.set_depower_steering(kps, 0.25, 0.0)
-   res1, res2 = find_steady_state(kps; delta=1e-6, prn=false) 
+   KiteModels.set_depower_steering!(kps, 0.25, 0.0)
+   res1, res2 = find_steady_state!(kps; delta=1e-6, prn=false) 
    @test norm(res2) < 1e-5                            # velocity and acceleration must be near zero
    pre_tension = KiteModels.calc_pre_tension(kps)
    @test pre_tension > 1.0001
@@ -327,11 +327,11 @@ function run_benchmarks()
                             veld  = zeros(SVector{SEGMENTS+1, KVec3}); res1  = zeros(SVector{SEGMENTS+1, KVec3}); 
                             res2  = zeros(SVector{SEGMENTS+1, KVec3}) ))
     println("\nset_cl_cd")
-    show(@benchmark KPS3.set_cl_cd(state, alpha) setup= (alpha = 10.0))
+    show(@benchmark KPS3.set_cl_cd!(state, alpha) setup= (alpha = 10.0))
     println("\ncalc_alpha")
     show(@benchmark KPS3.calc_alpha(v_app, vec_z) setup=(v_app = KVec3(10,2,3); vec_z = normalize(KVec3(3,2,0))))
     println("\ncalc_set_cl_cd")
-    show(@benchmark KPS3.calc_set_cl_cd(state, vec_c, v_app) setup=(v_app = KVec3(10,2,3); vec_c = KVec3(3,2,0)))
+    show(@benchmark KPS3.calc_set_cl_cd!(state, vec_c, v_app) setup=(v_app = KVec3(10,2,3); vec_c = KVec3(3,2,0)))
     println("\nresidual!")
     show(@benchmark residual!(res, yd, y, p, t) setup = (res1 = zeros(SVector{SEGMENTS, KVec3}); res2 = deepcopy(res1); 
                                                             res = reduce(vcat, vcat(res1, res2)); pos = deepcopy(res1);
