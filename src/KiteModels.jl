@@ -290,8 +290,6 @@ end
 
 function init_sim(s; t_end=1.0, stiffness_factor=0.035, prn=false)
     clear(s)
-    height = sin(deg2rad(s.set.elevation)) * s.set.l_tether
-    s.v_wind .= s.v_wind_gnd * calc_wind_factor(s, height)
     s.stiffness_factor = stiffness_factor
     KiteModels.set_depower_steering(s, get_depower(s.kcu), get_steering(s.kcu))
     y0, yd0 = KiteModels.find_steady_state(s; stiffness_factor=stiffness_factor, prn=prn)

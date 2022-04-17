@@ -77,6 +77,7 @@ end
 @testset "test_calc_aero_forces" begin
     set_defaults()
     kps.v_apparent .= KVec3(35.1, 52.2, 69.3)
+    kps.v_wind .= kps.v_wind_gnd
     pos_kite = KVec3(30.0, 5.0, 100.0)
     v_kite = KVec3(3.0, 5.0, 2.0)
     rho = SimFloat(calc_rho(kps, 10.0))

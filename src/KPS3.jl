@@ -148,10 +148,11 @@ function clear(s::KPS3)
     s.t_0 = 0.0                              # relative start time of the current time interval
     s.v_reel_out = 0.0
     s.last_v_reel_out = 0.0
-    s.v_wind        .= [s.set.v_wind, 0, 0]    # wind vector at the height of the kite
     s.v_wind_gnd    .= [s.set.v_wind, 0, 0]    # wind vector at reference height
     s.v_wind_tether .= [s.set.v_wind, 0, 0]
     s.v_apparent    .= [s.set.v_wind, 0, 0]
+    height = sin(deg2rad(s.set.elevation)) * s.set.l_tether
+    s.v_wind .= s.v_wind_gnd * calc_wind_factor(s, height)
     s.alpha_depower = 0.0
     s.l_tether = s.set.l_tether
     s.segment_length = s.l_tether / s.set.segments
