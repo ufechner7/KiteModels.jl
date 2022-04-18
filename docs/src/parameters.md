@@ -7,14 +7,20 @@ a copy under a different name and change the name of the active configuration in
 
 ## Parameters
 The following parameters are used by this package:
-```md
+```yaml
 system:
-    sample_freq:   20              # sample frequency in Hz
+    sample_freq: 20        # sample frequency in Hz
 
 initial:
     l_tether: 392.0        # initial tether length       [m]
     elevation: 70.7        # initial elevation angle   [deg]
     v_reel_out: 0.0        # initial reel out speed    [m/s]
+    depower:   25.0        # initial depower settings    [%]
+
+solver:
+    abs_tol: 0.0006        # absolute tolerance of the DAE solver [m, m/s]
+    rel_tol: 0.001         # relative tolerance of the DAE solver [-]
+    max_iter:  200         # max number of iterations of the steady-state-solver
 
 steering:
     c0:       0.0          # steering offset   -0.0032           [-]
