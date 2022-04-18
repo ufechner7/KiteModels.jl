@@ -1,5 +1,5 @@
-using StaticArrays, LinearAlgebra, KiteUtils, Printf
-using KiteModels, KitePodModels, KiteUtils
+using Printf
+using KiteModels
 
 if ! @isdefined kcu
     const kcu = KCU(se())
@@ -22,10 +22,6 @@ PRINT = false
 STATISTIC = false
 
 if PLOT
-    using Pkg
-    if ! ("Plots" ∈ keys(Pkg.project().dependencies))
-        using TestEnv; TestEnv.activate()
-    end
     using Plots
     include("plot2d.jl")
 end
