@@ -165,6 +165,9 @@ function clear!(s::KPS3)
     s.damping  = s.set.damping / s.segment_length
     s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
     s.calc_cd = Spline1D(s.set.alpha_cd, s.set.cd_list) 
+    s.kcu.depower = s.set.depower/100.0
+    s.kcu.set_depower = s.kcu.depower
+    KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
 end
 
 function KPS3(kcu::KCU)

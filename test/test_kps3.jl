@@ -162,6 +162,9 @@ end
 end
 
 @testset "test_calc_set_cl_cd  " begin
+    kps.kcu.depower = 0.236
+    kps.kcu.set_depower = kps.kcu.depower
+    KiteModels.set_depower_steering!(kps, get_depower(kps.kcu), get_steering(kps.kcu))
     v_app = KVec3(10,2,3)
     vec_c = KVec3(3,2,0)
     KiteModels.calc_set_cl_cd!(kps, vec_c, v_app)

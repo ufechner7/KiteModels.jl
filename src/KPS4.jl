@@ -57,7 +57,6 @@ const SP = Spring{Int16, Float64}
 const KITE_PARTICLES = 4
 const KITE_SPRINGS = 9
 const KITE_ANGLE = 3.83 # angle between the kite and the last tether segment due to the mass of the control pod
-const MAX_ITER  = 1000  # max iterations for steady state finder
 const PRE_STRESS  = 0.9998   # Multiplier for the initial spring lengths.
 const KS = deg2rad(16.565 * 1.064 * 0.875 * 1.033 * 0.9757 * 1.083)  # max steering
 const DRAG_CORR = 0.93       # correction of the drag for the 4-point model
@@ -177,6 +176,9 @@ function clear!(s::KPS4)
     s.rho = s.set.rho_0
     s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
     s.calc_cd = Spline1D(s.set.alpha_cd, s.set.cd_list) 
+    s.kcu.depower = s.set.depower/100.0
+    s.kcu.set_depower = s.kcu.depower
+    KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
 end
 
 function KPS4(kcu::KCU)
@@ -644,7 +646,7 @@ function find_steady_state!(s::KPS4; prn=false, delta = 0.0, stiffness_factor=0.
         return nothing 
     end
     if prn println("\nStarted function test_nlsolve...") end
-    results = nlsolve(test_initial_condition!, X00, autoscale=true, xtol=2e-7, ftol=2e-7, iterations=MAX_ITER)
+    results = nlsolve(test_initial_condition!, X00, autoscale=true, xtol=2e-7, ftol=2e-7, iterations=s.set.max_iter)
     if prn println("\nresult: $results") end
     init(s, results.zero)
 end
