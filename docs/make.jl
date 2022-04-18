@@ -20,6 +20,7 @@ makedocs(;
         "Parameters" => "parameters.md",
         "Examples_1p" => "examples.md",
         "Examples_4p" => "examples_4p.md",
+        "Quickstart" => "quickstart.md",
     ],
 )
 

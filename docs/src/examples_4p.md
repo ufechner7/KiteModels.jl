@@ -25,13 +25,14 @@ The command "st" was not really required, but it is useful to display which vers
 of the packages we have in our project. Another important package manager command
 is the command "up", which updates all packages to the latest compatible versions.
 
-Then, copy the default configuration files to your new project:
+Then, copy the default configuration files and examples to your new project:
 ```julia
 using KiteModels
 copy_settings()
+copy_examples()
 ```
-This command copies the files settings.yaml and system.yaml to the folder data.
-They can be customized later. 
+The first command copies the files settings.yaml and system.yaml to the folder data.
+They can be customized later. The second command creates an examples folder with some examples.
 
 ## Plotting the initial state
 First an instance of the model of the kite control unit (KCU) is created which is needed by the Kite Power System model KPS3. Then we create a kps instance, passing the kcu model as parameter. We need to declare these variables as const to achieve a decent performance.
