@@ -9,24 +9,29 @@ mkdir test
 cd test
 julia --project="."
 ```
-and add the KiteUtils to the project:
+With the last command we told julia to create a new project in the current directory.
+
+Then we add the three required packages to our new project. By pressing the key "]"
+we enter the package manager mode where we can add or delete packages.
 ```julia
 ]
 add KiteUtils
-<BACKSPACE>
-```
-Then, copy the default configuration files to your new project:
-```julia
-using KiteUtils
-copy_settings()
-```
-Finally, add the KitePodModels and the KiteModels
-```julia
-]
 add KitePodModels
 add KiteModels
+st
 <BACKSPACE>
 ```
+The command "st" was not really required, but it is useful to display which versions
+of the packages we have in our project. Another important package manager command
+is the command "up", which updates all packages to the latest compatible versions.
+
+Then, copy the default configuration files to your new project:
+```julia
+using KiteModels
+copy_settings()
+```
+This command copies the files settings.yaml and system.yaml to the folder data.
+They can be customized later. 
 
 ## Plotting the initial state
 First an instance of the model of the kite control unit (KCU) is created which is needed by the Kite Power System model KPS3. Then we create a kps instance, passing the kcu model as parameter. We need to declare these variables as const to achieve a decent performance.
