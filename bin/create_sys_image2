@@ -32,7 +32,7 @@ else
     if [[ $julia_major == "1.6" ]]; then
         cp Manifest-1.7.toml.default Manifest.toml
         echo "Using Manifest-1.6.toml.default ..."
-    if [[ $julia_major == "1.7" ]]; then
+    elif [[ $julia_major == "1.7" ]]; then
         cp Manifest-1.7.toml.default Manifest.toml
         echo "Using Manifest-1.7.toml.default ..."
     else

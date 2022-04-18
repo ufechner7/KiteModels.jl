@@ -1,5 +1,5 @@
 using Printf
-using KiteModels
+using KiteModels, KitePodModels, KiteUtils
 
 if ! @isdefined kcu;  const kcu  = KCU(se()) end
 if ! @isdefined kps4; const kps4 = KPS4(kcu) end

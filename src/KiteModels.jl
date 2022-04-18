@@ -37,7 +37,7 @@ using Reexport
 import Base.zero
 
 export KPS3, KPS4, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                                  # constants and types
-export calc_rho, calc_wind_factor, calc_set_cl_cd!, copy_examples                                 # environment and helper functions
+export calc_rho, calc_wind_factor, calc_set_cl_cd!, copy_examples, copy_bin                       # environment and helper functions
 export clear!, find_steady_state!, residual!                                                      # low level worker functions
 export init_sim!, next_step!                                                                      # hight level worker functions
 export calc_height                                                                                # getters
@@ -380,8 +380,8 @@ function copy_bin()
     src_path = joinpath(dirname(pathof(@__MODULE__)), "..", PATH)
     cp(joinpath(src_path, "create_sys_image2"), joinpath(PATH, "create_sys_image"), force=true)
     cp(joinpath(src_path, "run_julia2"), joinpath(PATH, "run_julia"), force=true)
-    chmod(joinpath(PATH, "create_sys_image"), 0o664)
-    chmod(joinpath(PATH, "run_julia"), 0o664)
+    chmod(joinpath(PATH, "create_sys_image"), 0o774)
+    chmod(joinpath(PATH, "run_julia"), 0o774)
     PATH = "test"
     if ! isdir(PATH) 
         mkdir(PATH)

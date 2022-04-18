@@ -1,5 +1,5 @@
 using Printf
-using KiteModels
+using KiteModels, KitePodModels, KiteUtils
 
 # change this to KPS3 or KPS4
 const Model = KPS4
