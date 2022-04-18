@@ -1,25 +1,21 @@
 using Printf
 using KiteModels
 
-if ! @isdefined kcu
-    const kcu = KCU(se())
-end
-if ! @isdefined kps4
-    const kps4 = KPS4(kcu)
-end
-if ! @isdefined kps3
-    const kps3 = KPS3(kcu)
-end
+if ! @isdefined kcu;  const kcu  = KCU(se()) end
+if ! @isdefined kps4; const kps4 = KPS4(kcu) end
+if ! @isdefined kps3; const kps3 = KPS3(kcu) end
 
 
 # the following values can be changed to match your interest
 dt = 0.05
-STEPS = 600
+ALPHA_ZERO = 7.35 
+STEPS = round(600/dt*0.05)
 PLOT = true
 FRONT_VIEW = false
 ZOOM = true
 PRINT = false
 STATISTIC = false
+# end of user parameter section #
 
 if PLOT
     using Plots
@@ -35,7 +31,7 @@ function simulate(s, integrator, steps, plot=false)
             println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
         end
 
-        KiteModels.next_step!(s, integrator)
+        KiteModels.next_step!(s, integrator, dt=dt)
         
         if plot
             reltime = i*dt
@@ -56,7 +52,7 @@ println("KPS3")
 println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
 println("Average number of callbacks per time step: $av_steps")
 
-kps4.set.alpha_zero = 7.35
+kps4.set.alpha_zero = ALPHA_ZERO
 integrator = KiteModels.init_sim!(kps4, stiffness_factor=0.04, prn=STATISTIC)
 av_steps = simulate(kps4, integrator, STEPS, true)
 

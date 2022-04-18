@@ -1,15 +1,11 @@
-using StaticArrays, LinearAlgebra, KiteUtils, Printf
+using Printf
 using KiteModels
 
 # change this to KPS3 or KPS4
 const Model = KPS4
 
-if ! @isdefined kcu
-    const kcu = KCU(se())
-end
-if ! @isdefined kps4
-    const kps4 = Model(kcu)
-end
+if ! @isdefined kcu;  const kcu = KCU(se());   end
+if ! @isdefined kps4; const kps4 = Model(kcu); end
 
 # the following values can be changed to match your interest
 dt = 0.05
@@ -19,6 +15,7 @@ FRONT_VIEW = false
 ZOOM = true
 PRINT = false
 STATISTIC = false
+# end of user parameter section #
 
 if PLOT
     using Plots
@@ -34,7 +31,7 @@ function simulate(integrator, steps, plot=false)
             println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
         end
 
-        KiteModels.next_step!(kps4, integrator)
+        KiteModels.next_step!(kps4, integrator, dt=dt)
         
         if plot
             reltime = i*dt
