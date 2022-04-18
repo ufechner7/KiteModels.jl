@@ -103,4 +103,4 @@ You can save what you see with the command ```savefig("kite.png")```.
 Modify the variable ```ALPHA_ZERO``` in line 11 of the script until the lift force of the 1 point model and the 4 point model match.
 
 ## Questions?
-If you have any questions, please ask in the Julia Discourse forum in the section "modelling and simulation", see https://discourse.julialang.org/c/domain/models , or in in the section "First steps", see https://discourse.julialang.org/c/first-steps . The Julia community is very friendly and responsive.
+If you have any questions, please ask in the Julia Discourse forum in the section [modelling and simulation](https://discourse.julialang.org/c/domain/models) , or in in the section [First steps](https://discourse.julialang.org/c/first-steps) . The Julia community is very friendly and responsive.

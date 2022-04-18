@@ -1,0 +1,50 @@
+#!/bin/bash -eu
+update=false
+if [[ $# -gt 0 ]]; then
+    if [[ $1 != "--update" ]]; then
+        echo "Invalid parameter! Use:"
+        echo "./create_sys_image.sh"
+        echo "or"
+        echo "./create_sys_image.sh --update"
+        exit 1
+    else
+        update=true
+    fi
+fi
+
+if [[ $(basename $(pwd)) == "bin" ]]; then
+    cd ..
+fi
+
+julia_version=$(julia --version | awk '{print($3)}')
+julia_major=${julia_version:0:3} 
+if test -f "kps-image-${julia_major}.so"; then
+    mv bin/kps-image-${julia_major}.so kps-image-${julia_major}.so.bak
+fi
+
+if [[ $update == true ]]; then
+    echo "Updating packages..."
+    if test -f "Manifest.toml"; then
+        mv Manifest.toml Manifest.toml.bak
+    fi
+    julia --project -e "include(\"./test/update_packages.jl\");"
+else
+    if [[ $julia_major == "1.6" ]]; then
+        cp Manifest-1.7.toml.default Manifest.toml
+        echo "Using Manifest-1.6.toml.default ..."
+    if [[ $julia_major == "1.7" ]]; then
+        cp Manifest-1.7.toml.default Manifest.toml
+        echo "Using Manifest-1.7.toml.default ..."
+    else
+        cp Manifest-1.8.toml.default Manifest.toml
+        echo "Using Manifest-1.8.toml.default ..."
+    fi
+fi
+julia --project -e "using Pkg; Pkg.precompile()"
+julia --project -e "include(\"./test/create_sys_image.jl\");"
+mv kps-image_tmp.so bin/kps-image-${julia_major}.so
+julia --project -e "using Pkg; Pkg.precompile()"
+cd src
+touch *.jl # make sure all modules get recompiled in the next step
+cd ..
+julia --project -J bin/kps-image-${julia_major}.so -e "using KiteModels, KitePodModels, KiteUtils"

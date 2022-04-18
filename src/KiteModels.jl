@@ -366,6 +366,35 @@ function copy_examples()
     chmod(joinpath(PATH, "simulate.jl"), 0o664)
 end
 
+"""
+    copy_bin()
+
+Copy the scripts create_sys_image and run_julia to the folder "bin"
+(it will be created if it doesn't exist).
+"""
+function copy_bin()
+    PATH = "bin"
+    if ! isdir(PATH) 
+        mkdir(PATH)
+    end
+    src_path = joinpath(dirname(pathof(@__MODULE__)), "..", PATH)
+    cp(joinpath(src_path, "create_sys_image2"), joinpath(PATH, "create_sys_image"), force=true)
+    cp(joinpath(src_path, "run_julia2"), joinpath(PATH, "run_julia"), force=true)
+    chmod(joinpath(PATH, "create_sys_image"), 0o664)
+    chmod(joinpath(PATH, "run_julia"), 0o664)
+    PATH = "test"
+    if ! isdir(PATH) 
+        mkdir(PATH)
+    end
+    src_path = joinpath(dirname(pathof(@__MODULE__)), "..", PATH)
+    cp(joinpath(src_path, "create_sys_image2.jl"), joinpath(PATH, "create_sys_image.jl"), force=true)
+    cp(joinpath(src_path, "test_for_precompile.jl"), joinpath(PATH, "test_for_precompile.jl"), force=true)
+    cp(joinpath(src_path, "update_packages.jl"), joinpath(PATH, "update_packages.jl"), force=true)
+    chmod(joinpath(PATH, "create_sys_image.jl"), 0o664)
+    chmod(joinpath(PATH, "test_for_precompile.jl"), 0o664)
+    chmod(joinpath(PATH, "update_packages.jl"), 0o664)
+end
+
 precompile(find_steady_state!, (KPS3{SimFloat, KVec3, 7},)) 
 precompile(find_steady_state!, (KPS4{Float64, MVector{3, Float64}, 11, 15, KiteModels.Spring{Int16, Float64}},))
 precompile(init_sim!, (KPS4{Float64, MVector{3, Float64}, 11, 15, KiteModels.Spring{Int16, Float64}}, Float64,))  
