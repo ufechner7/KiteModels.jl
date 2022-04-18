@@ -37,7 +37,7 @@ using Reexport
 import Base.zero
 
 export KPS3, KPS4, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                                  # constants and types
-export calc_rho, calc_wind_factor, calc_set_cl_cd!                                                # environment and helper functions
+export calc_rho, calc_wind_factor, calc_set_cl_cd!, copy_examples                                 # environment and helper functions
 export clear!, find_steady_state!, residual!                                                      # low level worker functions
 export init_sim!, next_step!                                                                      # hight level worker functions
 export calc_height                                                                                # getters
@@ -344,6 +344,26 @@ function next_step!(s::AKM, integrator; v_ro = 0.0, v_wind_gnd=s.set.v_wind, win
         end
     end
     integrator.t
+end
+
+"""
+    copy_examples()
+
+Copy the example scripts to the folder "examples"
+(it will be created if it doesn't exist).
+"""
+function copy_examples()
+    PATH = "examples"
+    if ! isdir(PATH) 
+        mkdir(PATH)
+    end
+    src_path = joinpath(dirname(pathof(@__MODULE__)), "..", PATH)
+    cp(joinpath(src_path, "compare_kps3_kps4.jl"), joinpath(PATH, "compare_kps3_kps4.jl"), force=true)
+    cp(joinpath(src_path, "plot2d.jl"), joinpath(PATH, "plot2d.jl"), force=true)
+    cp(joinpath(src_path, "simulate.jl"), joinpath(PATH, "simulate.jl"), force=true)
+    chmod(joinpath(PATH, "compare_kps3_kps4.jl"), 0o664)
+    chmod(joinpath(PATH, "plot2d.jl"), 0o664)
+    chmod(joinpath(PATH, "simulate.jl"), 0o664)
 end
 
 precompile(find_steady_state!, (KPS3{SimFloat, KVec3, 7},)) 

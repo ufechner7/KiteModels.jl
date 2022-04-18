@@ -507,6 +507,13 @@ end
 end
 
 # TODO Add test for winch_force
+@testset "test_copy_examples" begin
+    cd(tempdir())
+    copy_examples()
+    @test isdir("examples")
+    cd("examples")
+    @test isfile("plot2d.jl")
+end
 
 end
 nothing

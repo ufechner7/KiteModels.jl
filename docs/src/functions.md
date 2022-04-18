@@ -56,6 +56,7 @@ calc_wind_factor
 
 ## Helper functions
 ```@docs
+copy_examples
 calc_drag
 calc_set_cl_cd!
 calc_aero_forces!
