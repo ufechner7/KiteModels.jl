@@ -9,7 +9,7 @@ and that can be done in a few minutes. On Linux, just execute the command:
 ```
 bash -ci "$(curl -fsSL https://raw.githubusercontent.com/abelsiqueira/jill/master/jill.sh)"
 ```
-On Windows you can get Julia from the Windows store, or you download and install it from https://julialang.org/downloads/ . For Mac there are also different versions available on this download site.
+On Windows you can get Julia from the Windows store, or you download and install it from [https://julialang.org/downloads/](https://julialang.org/downloads/) . For Mac there are also different versions available on this download site.
 You do NOT need administrator permissions to install Julia, but make sure to check the option "add to path" when installing.
 
 ## Create a test project
