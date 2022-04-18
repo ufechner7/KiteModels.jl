@@ -10,9 +10,10 @@ and that can be done in a few minutes. On Linux, just execute the command:
 bash -ci "$(curl -fsSL https://raw.githubusercontent.com/abelsiqueira/jill/master/jill.sh)"
 ```
 On Windows you can get Julia from the Windows store, or you download and install it from https://julialang.org/downloads/ . For Mac there are also different versions available on this download site.
+You do NOT need administrator permissions to install Julia, but make sure to check the option "add to path" when installing.
 
 ## Create a test project
-Launch a command line and create a folder with the name "test":
+Launch a command prompt and create a folder with the name "test":
 ```bash
 mkdir test
 cd test
@@ -27,6 +28,7 @@ we enter the package manager mode where we can add or delete packages.
 add KiteUtils
 add KitePodModels
 add KiteModels
+add Plots
 st
 <BACKSPACE>
 ```
@@ -59,12 +61,17 @@ shell> tree
 
 2 directories, 7 files
 ```
-On Linux you can acces the operating system command line by typing the character ";", you then get a "shell" prompt and can enter operating system commands. To leave shell mode, type \<BACKSLASH\>. 
+You can access the operating system command line by typing the character ";", you then get a "shell" prompt and can enter operating system commands. To leave shell mode, type \<BACKSLASH\>. 
+On windows you need to type ```tree /f``` instead of ```tree``` to see the files.
 
 ## Executing the first example
 From the Julia prompt you can use the command "include" to execute a script:
 ```
 include("examples/simulate.jl")
+```
+On Windows you need to type "\\" instead of "/":
+```
+include("examples\\simulate.jl")
 ```
 You will see the 4 point kite fly for 30s. If you want to change the settings of the simulation, open the file "simulate.jl" in your favourite text editor, modify the settings at the beginning of the file and execute the include command again.
 
@@ -93,6 +100,8 @@ and then execute the command
 using KiteModels
 include("examples/compare_kps3_kps4.jl")
 ```
+Use the command ```include("examples\\compare_kps3_kps4.jl")``` on Windows.
+
 The last view of the animation should look like this:
 
 ![Initial State](kite.png)
