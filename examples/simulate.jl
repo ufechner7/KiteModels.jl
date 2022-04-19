@@ -36,7 +36,7 @@ function simulate(integrator, steps, plot=false)
         if plot
             reltime = i*dt
             if mod(i, 5) == 0
-                p = plot2d(kps4.pos, reltime; zoom=ZOOM, front=FRONT_VIEW)
+                p = plot2d(kps4.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=se().segments)
                 display(p)                
             end
         end
