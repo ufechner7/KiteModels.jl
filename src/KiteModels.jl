@@ -319,12 +319,12 @@ end
 Calculates the next simulation step.
 
 Parameters:
-- s:          an instance of an abstract kite model
-- integrator: an integrator instances as returned by the function @ref`init_sim!`
-- v_ro:       reel out speed in m/s
+- s:            an instance of an abstract kite model
+- integrator:   an integrator instance as returned by the function [`init_sim!`](@ref)
+- v_ro:         reel out speed in m/s
 - `v_wind_gnd`: wind speed at reference height in m/s
-- wind_dir:   wind direction in radians
-- dt:         time step in seconds
+- wind_dir:     wind direction in radians
+- dt:           time step in seconds
 
 Only the first two parameters are required.
 

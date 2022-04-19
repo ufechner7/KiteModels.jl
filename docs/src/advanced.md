@@ -21,7 +21,7 @@ julia --project
 using KiteModels
 copy_bin()
 ```
-If you enter shell mode by pressing ";" you should see the following files:
+If you enter shell mode by pressing ";" and type the command ```tree```you should see the following files:
 ```
 shell> tree
 .
@@ -42,6 +42,7 @@ shell> tree
 ```
 Now leave Julia with the command ```exit()``` and then type:
 ```bash
+cd bin
 ./create_sys_image --update
 ```
 This will take about 6 min on a  i7-10510U CPU. You should now see a new file in the bin folder:
@@ -65,8 +66,8 @@ julia>
 ```
 A second run of this command needs about 3.5 s which means the startup time (load and compilation time of the libraries) has been reduced to about 1s.
 
-Without a system image the first time execution of the script "simulate.jl" on the same computer needs about 52 seconds
-while the time for the second execution is the same (3.5s). So we save now about 47s of time after each restart.
+Without a system image the first time execution of the script "simulate.jl" on the same computer is about 52 seconds
+while the time for the second execution is the same (3.5s). So now about 47s of time are saved after each restart.
 
 ## Outlook
 
