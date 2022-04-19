@@ -515,5 +515,13 @@ end
     @test isfile("plot2d.jl")
 end
 
+@testset "test_copy_bin" begin
+    cd(tempdir())
+    copy_bin()
+    @test isdir("bin")
+    cd("bin")
+    @test isfile("create_sys_image")
+end
+
 end
 nothing
