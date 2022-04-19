@@ -214,7 +214,8 @@ end
 @testset "initial_residual      " begin
     init3()
     res = zeros(MVector{6*(se().segments+KiteModels.KITE_PARTICLES), SimFloat})
-    y0, yd0 = KiteModels.init(kps4, KiteModels.X00)
+    X00 = zeros(SimFloat, 2*(se().segments+KiteModels.KITE_PARTICLES-1)+2)
+    y0, yd0 = KiteModels.init(kps4, X00)
     residual!(res, yd0, y0, kps4, 0.0)
     res_pos, res_vel = split_res(res)
     @test res_pos == zeros(length(res_pos))

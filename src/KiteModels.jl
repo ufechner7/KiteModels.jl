@@ -395,8 +395,10 @@ function copy_bin()
     chmod(joinpath(PATH, "update_packages.jl"), 0o664)
 end
 
-precompile(find_steady_state!, (KPS3{SimFloat, KVec3, 7},)) 
-precompile(find_steady_state!, (KPS4{Float64, MVector{3, Float64}, 11, 15, KiteModels.Spring{Int16, Float64}},))
-precompile(init_sim!, (KPS4{Float64, MVector{3, Float64}, 11, 15, KiteModels.Spring{Int16, Float64}}, Float64,))  
+precompile(find_steady_state!, (KPS3{SimFloat, KVec3, se().segments+1},)) 
+const particles = se().segments+KITE_PARTICLES+1
+const springs = se().segments+KITE_SPRINGS
+precompile(find_steady_state!, (KPS4{Float64, MVector{3, Float64}, particles, springs, KiteModels.Spring{Int16, Float64}},))
+precompile(init_sim!, (KPS4{Float64, MVector{3, Float64}, particles, springs, KiteModels.Spring{Int16, Float64}}, Float64,))  
 
 end

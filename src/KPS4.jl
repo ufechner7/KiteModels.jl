@@ -60,7 +60,6 @@ const KITE_ANGLE = 3.83 # angle between the kite and the last tether segment due
 const PRE_STRESS  = 0.9998   # Multiplier for the initial spring lengths.
 const KS = deg2rad(16.565 * 1.064 * 0.875 * 1.033 * 0.9757 * 1.083)  # max steering
 const DRAG_CORR = 0.93       # correction of the drag for the 4-point model
-const X00 = zeros(SimFloat, 2*(6+KITE_PARTICLES-1)+2)
 function zero(::Type{SP})
     SP(0,0,0,0,0)
 end
@@ -320,7 +319,7 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
         vel[i+1] .= [delta, delta, 0]
         acc[i+1] .= [delta, delta, -9.81]
     end
-    vec_c = pos[6] - pos[7]
+    vec_c = pos[s.set.segments] - pos[s.set.segments+1]
     if old
         particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k)
     else
@@ -646,6 +645,7 @@ function find_steady_state!(s::KPS4; prn=false, delta = 0.0, stiffness_factor=0.
         return nothing 
     end
     if prn println("\nStarted function test_nlsolve...") end
+    X00 = zeros(SimFloat, 2*(s.set.segments+KITE_PARTICLES-1)+2)
     results = nlsolve(test_initial_condition!, X00, autoscale=true, xtol=2e-7, ftol=2e-7, iterations=s.set.max_iter)
     if prn println("\nresult: $results") end
     init(s, results.zero)
