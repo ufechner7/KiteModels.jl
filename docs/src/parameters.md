@@ -42,6 +42,14 @@ kite:
     alpha_cd:  [-180.0, -170.0, -140.0, -90.0, -20.0, 0.0, 20.0, 90.0, 140.0, 170.0, 180.0]
     cd_list:   [   0.5,    0.5,    0.5,   1.0,   0.2, 0.1,  0.2,  1.0,   0.5,   0.5,   0.5]
     
+kps4:
+    width:         2.23     # width of the kite                      [m]
+    alpha_zero:    4.0      # should be 5                      [degrees]
+    alpha_ztip:   10.0      #                                  [degrees]
+    m_k:           0.2      # relative nose distance; increasing m_k increases C2 of the turn-rate law
+    rel_nose_mass: 0.47     # relative nose mass
+    rel_top_mass:  0.4      # mass of the top particle relative to the sum of top and side particles
+
 bridle:
     d_line:    2.5         # bridle line diameter                  [mm]
     l_bridle: 33.4         # sum of the lengths of the bridle lines [m]
