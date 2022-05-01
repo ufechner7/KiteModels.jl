@@ -306,7 +306,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false)
     y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor=stiffness_factor, prn=prn)
 
     differential_vars = ones(Bool, length(y0))
-    solver  = IDA(linear_solver=:Dense, max_order = 3)
+    solver  = IDA(linear_solver=:GMRES, max_order = 4)
     tspan   = (0.0, t_end) 
     abstol  = s.set.abs_tol # max error in m/s and m
     prob    = DAEProblem(residual!, yd0, y0, tspan, s, differential_vars=differential_vars)
