@@ -499,7 +499,7 @@ end
     simulate(integrator, 100)
     av_steps = simulate(integrator, STEPS-100)
     println(av_steps) #1102
-    @test isapprox(av_steps, 730, rtol=0.6)
+    @test isapprox(av_steps, 300, rtol=0.6)
     lift, drag = KiteModels.lift_drag(kps4)
     println(lift, " ", drag) # 703.7699568972286 161.44746368100536
     @test isapprox(lift, 703.8, rtol=0.05)
