@@ -6,6 +6,7 @@ system:
     segments:       6              # number of tether segments
     sample_freq:   20              # sample frequency in Hz
     zoom:        0.03              # zoom factor for the system view
+    kite_scale:   3.5              # relative zoom factor for the 4 point kite
     fixed_font: ""                 # name or filepath+filename of alternative fixed pitch font
 
 initial:
