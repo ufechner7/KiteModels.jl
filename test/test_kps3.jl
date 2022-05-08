@@ -284,6 +284,16 @@ z= nothing
     # println("lift force: $(norm(my_state.lift_force)) N")
 end
 
+@testset "test_getters" begin
+    x, y, z = kite_ref_frame(kps)
+    # println(x)
+    # println(y)
+    # println(z)
+    @test all(x .≈ [-0.9070010101306292, 0.0, 0.4211284455151642])
+    @test all(y .≈ [0.0, 1.0, 0.0])
+    @test all(z .≈ [-0.4211284455151642, -0.0, -0.9070010101306292])
+end
+
 @testset "test_find_steady_state" begin
    KiteModels.set_depower_steering!(kps, 0.25, 0.0)
    res1, res2 = find_steady_state!(kps; delta=1e-6, prn=false) 
@@ -299,13 +309,6 @@ end
    @test drag ≈ 94.25223134952152                     # initial drag force of the kite [N]
    @test lift_over_drag(kps) ≈ 4.706870316479931      # initlal lift-over-drag
    @test norm(v_wind_kite(kps)) ≈ 9.107670173739065   # inital wind speed at the height of the kite [m/s]
-end
-
-@testset "test_getters" begin
-    x, y, z = kite_ref_frame(kps)
-    @test all(x .≈ [-0.9421467082084313, 5.634378018314632e-8, 0.33520080580454154])
-    @test all(y .≈ [5.308410702757083e-8, 0.9999999999999984, -1.888648051946464e-8])
-    @test all(z .≈ [-0.3352008058045421, -0.0, -0.9421467082084327])
 end
 
 function run_benchmarks()

@@ -446,6 +446,16 @@ end
 
 end
 
+@testset "test_getters" begin
+    x, y, z = kite_ref_frame(kps4)
+    # println(x)
+    # println(y)
+    # println(z)
+    @test all(x .≈ [-0.8660254037549963, 0.0, 0.5000000000509957])
+    @test all(y .≈ [0.0, 1.0, 0.0])
+    @test all(z .≈ [-0.5000000000509957, -0.0, -0.8660254037549963])
+end
+
 @testset "test_find_steady_state" begin
     init_392()
     clear!(kps4)
@@ -522,13 +532,6 @@ end
     @test isdir("bin")
     cd("bin")
     @test isfile("create_sys_image")
-end
-
-@testset "test_getters" begin
-    x, y, z = kite_ref_frame(kps4)
-    @test all(x .≈ [-0.9853984796784052, -0.0010395885825447487, 0.17026084547684361])
-    @test all(y .≈ [-0.0009287012069802582, 0.9999993016345868, 0.0007309202462237141])
-    @test all(z .≈ [-0.17026148713413258, 0.0005628856205248842, -0.9853987564223186])
 end
 
 end
