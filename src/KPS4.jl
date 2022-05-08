@@ -209,8 +209,8 @@ x, y, z:  the unit vectors of the kite reference frame in the ENU reference fram
 """
 function initial_kite_ref_frame(vec_c, v_app)
     z = normalize(vec_c)
-    y = normalize(cross(v_app, vec_c))
-    x = normalize(cross(y, vec_c))
+    y = normalize(v_app × vec_c)
+    x = normalize(y × vec_c)
     x, y, z
 end
 
@@ -381,7 +381,7 @@ The result is stored in the array s.forces.
     k1 = 0.25 * k # compression stiffness kite segments
     k2 = 0.1 * k  # compression stiffness tether segments
     c1 = 6.0 * c  # damping kite segments
-    spring_vel   = dot(unit_vector, rel_vel)
+    spring_vel   = unit_vector ⋅ rel_vel
     if (norm1 - l_0) > 0.0
         if i > segments  # kite springs
              s.spring_force .= (k *  (norm1 - l_0) + (c1 * spring_vel)) * unit_vector 
@@ -397,7 +397,7 @@ The result is stored in the array s.forces.
     s.v_apparent .= s.v_wind_tether - av_vel
     # TODO: check why d_brindle is not used !!!
     area = norm1 * d_tether
-    v_app_perp = s.v_apparent - dot(s.v_apparent, unit_vector) * unit_vector
+    v_app_perp = s.v_apparent - s.v_apparent ⋅ unit_vector * unit_vector
     s.half_drag_force .= (-0.25 * rho * s.set.cd_tether * norm(v_app_perp) * area) * v_app_perp 
 
     @inbounds s.forces[spring.p1] .+= s.half_drag_force + s.spring_force
@@ -464,23 +464,23 @@ function calc_aero_forces!(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
     delta = pos_B - pos_centre
     z = -normalize(delta)
     y = normalize(pos_C - pos_D)
-    x = cross(y, z)
+    x = y × z
     s.x .= x; s.y .= y; s.z .= z # save the kite reference frame in the state
 
-    va_xz2 = va_2 - dot(va_2, y) * y
-    va_xy3 = va_3 - dot(va_3, z) * z
-    va_xy4 = va_4 - dot(va_4, z) * z
+    va_xz2 = va_2 - (va_2 ⋅ y) * y
+    va_xy3 = va_3 - (va_3 ⋅ z) * z
+    va_xy4 = va_4 - (va_4 ⋅ z) * z
 
-    alpha_2 = rad2deg(π - acos2(dot(normalize(va_xz2), x)) - alpha_depower)     + s.set.alpha_zero
-    alpha_3 = rad2deg(π - acos2(dot(normalize(va_xy3), x)) - rel_steering * KS) + s.set.alpha_ztip
-    alpha_4 = rad2deg(π - acos2(dot(normalize(va_xy4), x)) + rel_steering * KS) + s.set.alpha_ztip
+    alpha_2 = rad2deg(π - acos2(normalize(va_xz2) ⋅ x) - alpha_depower)     + s.set.alpha_zero
+    alpha_3 = rad2deg(π - acos2(normalize(va_xy3) ⋅ x) - rel_steering * KS) + s.set.alpha_ztip
+    alpha_4 = rad2deg(π - acos2(normalize(va_xy4) ⋅ x) + rel_steering * KS) + s.set.alpha_ztip
 
     CL2, CD2 = calc_cl(alpha_2), DRAG_CORR * calc_cd(alpha_2)
     CL3, CD3 = calc_cl(alpha_3), DRAG_CORR * calc_cd(alpha_3)
     CL4, CD4 = calc_cl(alpha_4), DRAG_CORR * calc_cd(alpha_4)
-    L2 = (-0.5 * rho * (norm(va_xz2))^2 * s.set.area * CL2) * normalize(cross(va_2, y))
-    L3 = (-0.5 * rho * (norm(va_xy3))^2 * s.set.area * rel_side_area * CL3) * normalize(cross(va_3, z))
-    L4 = (-0.5 * rho * (norm(va_xy4))^2 * s.set.area * rel_side_area * CL4) * normalize(cross(z, va_4))
+    L2 = (-0.5 * rho * (norm(va_xz2))^2 * s.set.area * CL2) * normalize(va_2 × y)
+    L3 = (-0.5 * rho * (norm(va_xy3))^2 * s.set.area * rel_side_area * CL3) * normalize(va_3 × z)
+    L4 = (-0.5 * rho * (norm(va_xy4))^2 * s.set.area * rel_side_area * CL4) * normalize(z × va_4)
     D2 = (-0.5 * K * rho * norm(va_2) * s.set.area * CD2) * va_2
     D3 = (-0.5 * K * rho * norm(va_3) * s.set.area * rel_side_area * CD3) * va_3
     D4 = (-0.5 * K * rho * norm(va_4) * s.set.area * rel_side_area * CD4) * va_4

@@ -153,7 +153,7 @@ end
 # Calculate the angle of attack alpha from the apparend wind velocity vector
 # v_app and the z unit vector of the kite reference frame.
 function calc_alpha(v_app, vec_z)
-    π/2.0 - acos(-dot(v_app, vec_z) / norm(v_app))
+    π/2.0 - acos(-(v_app ⋅ vec_z) / norm(v_app))
 end
 
 """

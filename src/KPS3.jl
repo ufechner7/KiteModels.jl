@@ -189,7 +189,7 @@ Return the norm of the apparent wind velocity.
 function calc_drag(s::KPS3, v_segment, unit_vector, rho, v_app_perp, area)
     s.v_apparent .= s.v_wind_tether - v_segment
     v_app_norm = norm(s.v_apparent)
-    v_app_perp .= s.v_apparent .- dot(s.v_apparent, unit_vector) .* unit_vector
+    v_app_perp .= s.v_apparent .- s.v_apparent ⋅ unit_vector .* unit_vector
     s.last_tether_drag .= -0.5 * s.set.cd_tether * rho * norm(v_app_perp) * area .* v_app_perp
     v_app_norm
 end 
@@ -215,7 +215,7 @@ function calc_aero_forces(s::KPS3, pos_kite, v_kite, rho, rel_steering)
 end
 
 """
-    kite_ref_frame(s::KPS4)
+    kite_ref_frame(s::KPS3)
 
 Returns a tuple of the x, y, and z vectors of the kite reference frame.
 """
@@ -251,7 +251,7 @@ function calc_res(s::KPS3, pos1, pos2, vel1, vel2, mass, veld, result, i)
     s.unit_vector .= normalize(s.segment) # unit vector in the direction of the tether
     # # look at: http://en.wikipedia.org/wiki/Vector_projection
     # # calculate the relative velocity in the direction of the spring (=segment)
-    spring_vel = dot(s.unit_vector, rel_vel)
+    spring_vel = s.unit_vector ⋅ rel_vel
 
     k2 = 0.05 * s.c_spring * s.stiffness_factor             # compression stiffness tether segments
     if norm1 - s.segment_length > 0.0
