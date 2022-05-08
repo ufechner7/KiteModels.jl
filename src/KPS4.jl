@@ -113,6 +113,8 @@ $(TYPEDFIELDS)
     res2::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     "a copy of the actual positions as output for the user"
     pos::SVector{P, KVec3} = zeros(SVector{P, KVec3})
+    "velocity vector of the kite"
+    vel_kite::T =          zeros(S, 3)
     "unstressed segment length [m]"
     segment_length::S =           0.0
     "lift coefficient of the kite, depending on the angle of attack"
@@ -591,6 +593,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
     for i in 1:div(T,6)+1
         @inbounds s.pos[i] .= pos[i]
     end
+    s.vel_kite .= vel[end-2]
 
     @assert ! isnan(norm(res))
     s.iter += 1

@@ -95,6 +95,8 @@ $(TYPEDFIELDS)
     res2::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     "vector of the positions of the particles"
     pos::SVector{P, KVec3} = zeros(SVector{P, KVec3})
+    "velocity vector of the kite"
+    vel_kite::T =          zeros(S, 3)
     "area of one tether segment"
     seg_area::S =         zero(S) 
     bridle_area::S =      zero(S)
@@ -337,7 +339,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
 
     # update parameters
     pos_kite = pos[div(S,6)+1]
-    v_kite   = vel[div(S,6)+1]
+    s.vel_kite .= vel[div(S,6)+1]
     delta_t = time - s.t_0
     delta_v = s.v_reel_out - s.last_v_reel_out
     s.segment_length = (s.l_tether + s.last_v_reel_out * delta_t + 0.5 * delta_v * delta_t^2) / div(S,6)
@@ -346,9 +348,9 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
 
     # call core calculation routines
     vec_c = SVector{3, SimFloat}(pos[s.set.segments] - pos_kite)     # convert to SVector to avoid allocations
-    v_app = SVector{3, SimFloat}(s.v_wind - v_kite)
+    v_app = SVector{3, SimFloat}(s.v_wind - s.vel_kite)
     calc_set_cl_cd!(s, vec_c, v_app)
-    calc_aero_forces(s, pos_kite, v_kite, s.rho, s.steering) # force at the kite
+    calc_aero_forces(s, pos_kite, s.vel_kite, s.rho, s.steering) # force at the kite
     loop(s, pos, vel, posd, veld, s.res1, s.res2)
   
     # copy and flatten result
