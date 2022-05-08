@@ -456,7 +456,7 @@ end
     @test calc_elevation(kps4) ≈ 1.0471975512013534 # 60 degrees
     @test calc_azimuth(kps4) ≈ 0
     @test calc_heading(kps4) ≈ 0
-    @test calc_course(kps4) ≈ 0
+    calc_course(kps4) # the course for vel_kite = zero is undefined
 end
 
 @testset "test_find_steady_state" begin
