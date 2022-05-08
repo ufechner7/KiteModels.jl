@@ -35,6 +35,7 @@ using Dierckx, StaticArrays, LinearAlgebra, Parameters, NLsolve, DocStringExtens
 using Reexport
 @reexport using KitePodModels
 import Base.zero
+import KiteUtils.calc_elevation
 
 export KPS3, KPS4, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                                  # constants and types
 export calc_rho, calc_wind_factor, calc_set_cl_cd!, copy_examples, copy_bin                       # environment and helper functions
