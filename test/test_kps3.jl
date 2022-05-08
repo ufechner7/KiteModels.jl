@@ -301,6 +301,13 @@ end
    @test norm(v_wind_kite(kps)) ≈ 9.107670173739065   # inital wind speed at the height of the kite [m/s]
 end
 
+@testset "test_getters" begin
+    x, y, z = kite_ref_frame(kps)
+    @test all(x .≈ [-0.9421467082084313, 5.634378018314632e-8, 0.33520080580454154])
+    @test all(y .≈ [5.308410702757083e-8, 0.9999999999999984, -1.888648051946464e-8])
+    @test all(z .≈ [-0.3352008058045421, -0.0, -0.9421467082084327])
+end
+
 function run_benchmarks()
     println("\ncalc_rho:")
     show(@benchmark calc_rho(height) setup=(height=1.0 + rand() * 200.0))

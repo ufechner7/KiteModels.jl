@@ -42,7 +42,7 @@ export clear!, find_steady_state!, residual!                                    
 export init_sim!, next_step!                                                                      # hight level worker functions
 export calc_height                                                                                # getters
 export winch_force, lift_drag, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
-export kite_ref_frame, spring_forces
+export kite_ref_frame, orient_euler, spring_forces
 
 set_zero_subnormals(true)           # required to avoid drastic slow down on Intel CPUs when numbers become very small
 KiteUtils.set_data_path("")         # this statement is only executed during precompilation and ensures that the default settings.yaml
@@ -271,6 +271,26 @@ function tether_length(s::AKM)
         length += norm(s.pos[i+1] - s.pos[i])
     end
     return length
+end
+
+"""
+    orient_euler(s::AKM)
+
+Calculate and return the orientation of the kite in euler angles (roll, pitch, yaw)
+as SVector. 
+"""
+function orient_euler(s::AKM)
+    x, y, z = kite_ref_frame(s)
+    roll = atan(y[3], z[3]) - π/2
+    if roll < -π/2
+       roll += 2π
+    end
+    pitch = asin(-x[3])
+    yaw = -atan(x[2], x[1]) - π/2
+    if yaw < -π/2
+        yaw += 2π
+    end
+    SVector(roll, pitch, yaw)
 end
 
 function calc_pre_tension(s::AKM)

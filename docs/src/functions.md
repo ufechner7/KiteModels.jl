@@ -34,6 +34,7 @@ lift_drag
 lift_over_drag
 v_wind_kite
 kite_ref_frame
+orient_euler
 ```
 
 ## High level simulation interface

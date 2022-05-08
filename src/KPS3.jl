@@ -215,6 +215,21 @@ function calc_aero_forces(s::KPS3, pos_kite, v_kite, rho, rel_steering)
 end
 
 """
+    kite_ref_frame(s::KPS4)
+
+Returns a tuple of the x, y, and z vectors of the kite reference frame.
+"""
+function kite_ref_frame(s::KPS3)
+    pos_kite = s.pos[end]
+    delta = pos_kite - s.pos[end - 1]
+    c = -delta
+    z = normalize(c)
+    y = normalize(s.v_apparent × c)
+    x = normalize(y × c)
+    x, y, z
+end
+
+"""
     calc_height(s::KPS3)
 
 Determine the height of the kite particle above ground.
