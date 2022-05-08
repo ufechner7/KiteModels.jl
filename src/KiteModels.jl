@@ -42,7 +42,7 @@ export clear!, find_steady_state!, residual!                                    
 export init_sim!, next_step!                                                                      # hight level worker functions
 export calc_height                                                                                # getters
 export winch_force, lift_drag, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
-export spring_forces
+export kite_ref_frame, spring_forces
 
 set_zero_subnormals(true)           # required to avoid drastic slow down on Intel CPUs when numbers become very small
 KiteUtils.set_data_path("")         # this statement is only executed during precompilation and ensures that the default settings.yaml

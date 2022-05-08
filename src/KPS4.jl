@@ -145,6 +145,9 @@ $(TYPEDFIELDS)
     rel_vel::T =           zeros(S, 3)
     half_drag_force::T =   zeros(S, 3)
     forces::SVector{P, KVec3} = zeros(SVector{P, KVec3})
+    x::T =                 zeros(S, 3)
+    y::T =                 zeros(S, 3)
+    z::T =                 zeros(S, 3)
 end
 
 """
@@ -208,7 +211,7 @@ function initial_kite_ref_frame(vec_c, v_app)
     z = normalize(vec_c)
     y = normalize(cross(v_app, vec_c))
     x = normalize(cross(y, vec_c))
-    return (x, y, z)    
+    x, y, z
 end
 
 """
@@ -462,6 +465,7 @@ function calc_aero_forces!(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
     z = -normalize(delta)
     y = normalize(pos_C - pos_D)
     x = cross(y, z)
+    s.x .= x; s.y .= y; s.z .= z # save the kite reference frame in the state
 
     va_xz2 = va_2 - dot(va_2, y) * y
     va_xy3 = va_3 - dot(va_3, z) * z
@@ -486,6 +490,15 @@ function calc_aero_forces!(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
     s.forces[s.set.segments + 3] .+= (L2 + D2)
     s.forces[s.set.segments + 4] .+= (L3 + D3)
     s.forces[s.set.segments + 5] .+= (L4 + D4)
+end
+
+"""
+    kite_ref_frame(s::KPS4)
+
+Returns a tuple of the x, y, and z vectors of the kite reference frame.
+"""
+function kite_ref_frame(s::KPS4)
+    s.x, s.y, s.z
 end
 
 """

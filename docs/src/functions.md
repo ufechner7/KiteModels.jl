@@ -33,6 +33,7 @@ spring_forces
 lift_drag
 lift_over_drag
 v_wind_kite
+kite_ref_frame
 ```
 
 ## High level simulation interface

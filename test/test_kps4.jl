@@ -524,5 +524,12 @@ end
     @test isfile("create_sys_image")
 end
 
+@testset "getters" begin
+    x, y, z = kite_ref_frame(kps4)
+    println(x)
+    println(y)
+    println(z)
+end
+
 end
 nothing
