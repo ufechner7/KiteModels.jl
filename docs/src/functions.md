@@ -27,6 +27,7 @@ set_v_wind_ground!
 ```@docs
 unstretched_length
 tether_length
+pos_kite
 calc_height
 winch_force
 spring_forces

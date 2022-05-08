@@ -251,8 +251,16 @@ end
 Determine the height of the topmost kite particle above ground.
 """
 function calc_height(s::KPS4)
-    pos_kite = s.pos[end-2]
-    pos_kite[3]
+    pos_kite(s)[3]
+end
+
+"""
+    pos_kite(s::KPS4)
+
+Return the position of the kite (top particle).
+"""
+function pos_kite(s::KPS4)
+    s.pos[end-2]
 end
 
 function init_springs!(s::KPS4)
