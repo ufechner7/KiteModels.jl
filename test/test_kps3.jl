@@ -292,6 +292,7 @@ end
     @test all(orient_euler(kps) .≈ [1.5707963267948966, -0.4346891114736793, 1.5707963267948966])
     @test all(pos_kite(kps) .≈ [134.97402018366216, 0.0, 366.8418273480761])
     @test calc_elevation(kps) .≈ 1.2182337959242815 # 69.8 deg
+    @test calc_azimuth(kps) ≈ 0
 end
 
 @testset "test_find_steady_state" begin

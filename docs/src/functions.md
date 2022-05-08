@@ -29,6 +29,8 @@ unstretched_length
 tether_length
 pos_kite
 calc_height
+calc_elevation
+calc_azimuth
 winch_force
 spring_forces
 lift_drag
