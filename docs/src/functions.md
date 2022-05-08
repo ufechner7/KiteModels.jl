@@ -31,6 +31,7 @@ pos_kite
 calc_height
 calc_elevation
 calc_azimuth
+calc_heading
 winch_force
 spring_forces
 lift_drag

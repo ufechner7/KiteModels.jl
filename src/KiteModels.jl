@@ -37,12 +37,13 @@ using Reexport
 import Base.zero
 import KiteUtils.calc_elevation
 import KiteUtils.calc_azimuth
+import KiteUtils.calc_heading
 
 export KPS3, KPS4, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                                  # constants and types
 export calc_rho, calc_wind_factor, calc_set_cl_cd!, copy_examples, copy_bin                       # environment and helper functions
 export clear!, find_steady_state!, residual!                                                      # low level worker functions
 export init_sim!, next_step!                                                                      # hight level worker functions
-export pos_kite, calc_height, calc_elevation, calc_azimuth                                                                                # getters
+export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading                                                                                # getters
 export winch_force, lift_drag, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
 export kite_ref_frame, orient_euler, spring_forces
 
@@ -313,11 +314,17 @@ function calc_azimuth(s::AKM)
     KiteUtils.azimuth_east(pos_kite(s))
 end
 
-# function calc_heading(s::AKM)
-#     orientation = orient_euler(s)
-#     elevation = calc_elevation()
-#     calc_heading(orientation, elevation, azimuth)
-# end
+"""
+    calc_heading(s::AKM)
+
+Determine the heading angle of the kite in radian.
+"""
+function calc_heading(s::AKM)
+    orientation = orient_euler(s)
+    elevation = calc_elevation(s)
+    azimuth = calc_azimuth(s)
+    KiteUtils.calc_heading(orientation, elevation, azimuth)
+end
 
 function calc_pre_tension(s::AKM)
     forces = spring_forces(s)
