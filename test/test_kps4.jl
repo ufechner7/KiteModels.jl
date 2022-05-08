@@ -452,6 +452,7 @@ end
     @test all(y .≈ [0.0, 1.0, 0.0])
     @test all(z .≈ [-0.5000000000509957, -0.0, -0.8660254037549963])
     @test all(orient_euler(kps4) .≈ [1.5707963267948966, -0.5235987756571836, 1.5707963267948966])
+    @test all(pos_kite(kps4) .≈ [78.56500000036361, 0.0, 136.07857169877312])
 end
 
 @testset "test_find_steady_state" begin

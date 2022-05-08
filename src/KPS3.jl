@@ -235,8 +235,16 @@ end
 Determine the height of the kite particle above ground.
 """
 function calc_height(s::KPS3)
-    pos_kite = s.pos[end]
-    pos_kite[3]
+    pos_kite(s)[3]
+end
+
+"""
+    pos_kite(s::KPS3)
+
+Return the position of the kite (top particle).
+"""
+function pos_kite(s::KPS3)
+    s.pos[end]
 end
 
 # Calculate the vector res1, that depends on the velocity and the acceleration.
