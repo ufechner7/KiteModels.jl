@@ -286,12 +286,10 @@ end
 
 @testset "test_getters" begin
     x, y, z = kite_ref_frame(kps)
-    # println(x)
-    # println(y)
-    # println(z)
     @test all(x .≈ [-0.9070010101306292, 0.0, 0.4211284455151642])
     @test all(y .≈ [0.0, 1.0, 0.0])
     @test all(z .≈ [-0.4211284455151642, -0.0, -0.9070010101306292])
+    @test all(orient_euler(kps) .≈ [1.5707963267948966, -0.4346891114736793, 1.5707963267948966])
 end
 
 @testset "test_find_steady_state" begin
