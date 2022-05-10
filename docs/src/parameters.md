@@ -20,6 +20,8 @@ initial:
 solver:
     abs_tol: 0.0006        # absolute tolerance of the DAE solver [m, m/s]
     rel_tol: 0.001         # relative tolerance of the DAE solver [-]
+    linear_solver: "GMRES" # can be GMRES or Dense
+    max_order: 4           # maximal order, usually between 3 and 5
     max_iter:  200         # max number of iterations of the steady-state-solver
 
 steering:
@@ -72,5 +74,5 @@ environment:
     rho_0:  1.225            # air density at the ground or zero       [kg/m³]
     alpha:  0.08163          # exponent of the wind profile law
     z0:     0.0002           # surface roughness                       [m]
-    profile_law: 3           # 1=EXP, 2=LOG, 3=EXPLOG
+    profile_law: 6           # 1=EXP, 2=LOG, 3=EXPLOG, 4=FAST_EXP, 5=FAST_LOG, 6=FAST_EXPLOG
 ```
