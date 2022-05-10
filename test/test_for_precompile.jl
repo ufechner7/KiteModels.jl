@@ -10,7 +10,7 @@ let
 
     if PLOT
         using Plots
-        function plot2d(pos, reltime=0.0; zoom=true, front=false, segments=se())
+        function plot2d(pos, reltime=0.0; zoom=true, front=false, segments=se().segments)
             x = Float64[] 
             z = Float64[]
             for i in 1:length(pos)
@@ -32,13 +32,13 @@ let
                 plot(x,z, xlabel="x [m]", ylabel="z [m]", legend=false)
                 annotate!(x_max-10.0, z_max-3.0, "t=$(round(reltime,digits=1)) s")
             end
-            if length(pos) > segments+1
+            if length(pos) >= segments+5
                 s=segments
                 plot!([x[s+1],x[s+4]],[z[s+1],z[s+4]], legend=false) # S6
                 plot!([x[s+2],x[s+5]],[z[s+2],z[s+5]], legend=false) # S8
                 plot!([x[s+3],x[s+5]],[z[s+3],z[s+5]], legend=false) # S7
                 plot!([x[s+2],x[s+4]],[z[s+2],z[s+4]], legend=false) # S2
-                plot!([x[s+1],x[s+5]] ,[z[s+1],z[s+5]],legend=false) # S5
+                plot!([x[s+1],x[s+5]],[z[s+1],z[s+5]], legend=false) # S5
             end
             plot!(x, z, seriestype = :scatter) 
         end
