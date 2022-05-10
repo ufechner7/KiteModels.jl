@@ -21,7 +21,8 @@ If you are using Windows, it is suggested to install git and bash, too. This is 
 The type [`AbstractKiteModel`](@ref) with the implementation [`KPS3`](@ref) and [`KPS4`](@ref), representing the model, together with the high level simulation interface consisting of the functions
 [`init_sim!`](@ref) and [`next_step!`](@ref). Other kite models can be added inside or outside of this package by implementing the non-generic methods required for an AbstractKiteModel.
 
-Additional functions to provide inputs and outputs of the model on each time step. Per time step the [`residual!`](@ref) function is called as many times as needed to find the solution at the end
+Additional functions to provide inputs and outputs of the model on each time step. In particular the constructor [`SysState`](@ref) can be called once per time step to create a SysState struct for
+logging or for displaying the state in a viewer. Per time step the [`residual!`](@ref) function is called as many times as needed to find the solution at the end
 of the time step. The formulas are based on basic physics and aerodynamics and can be quite simple because a differential algebraic notation is used.
 
 ![Four point kite power system model](kps4.png)
