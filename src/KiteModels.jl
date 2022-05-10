@@ -31,7 +31,7 @@ Scientific background: http://arxiv.org/abs/1406.6218 =#
 
 module KiteModels
 
-using Dierckx, StaticArrays, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, Sundials
+using Dierckx, StaticArrays, Rotations, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, Sundials
 using Reexport
 @reexport using KitePodModels
 @reexport using AtmosphericModels
@@ -40,6 +40,7 @@ import KiteUtils.calc_elevation
 import KiteUtils.calc_azimuth
 import KiteUtils.calc_heading
 import KiteUtils.calc_course
+import KiteUtils.SysState
 
 export KPS3, KPS4, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                                  # constants and types
 export calc_set_cl_cd!, copy_examples, copy_bin                                                   # helper functions
@@ -301,6 +302,39 @@ function calc_course(s::AKM)
     azimuth = calc_azimuth(s)
     KiteUtils.calc_course(s.vel_kite, elevation, azimuth)
 end
+
+# create a SysState from a kite model
+function SysState(s::AKM)
+    pos = s.pos
+    P = s.set.segments+1
+    X = zeros(MVector{P, MyFloat})
+    Y = zeros(MVector{P, MyFloat})
+    Z = zeros(MVector{P, MyFloat})
+    for i in 1:P
+        X[i] = pos[i][1] * se().zoom
+        Y[i] = pos[i][2] * se().zoom
+        Z[i] = pos[i][3] * se().zoom
+    end
+    
+    x, y, z = kite_ref_frame(s)
+    pos_kite_ = pos_kite(s)
+    pos_before = pos_kite_ + z
+   
+    rotation = rot(pos_kite_, pos_before, -x)
+    q = QuatRotation(rotation)
+    orient = MVector{4, Float32}(Rotations.params(q))
+
+    elevation = calc_elevation(s)
+    azimuth = calc_azimuth(s)
+    l_tether = 0.0
+    v_reelout = 0.0
+    force = winch_force(s)
+    heading = calc_heading(s)
+    course = calc_course(s)
+    v_app_norm = norm(s.v_apparent)
+    KiteUtils.SysState{P}(s.t_0, orient, elevation, azimuth, l_tether, v_reelout, force, s.depower, s.steering, heading, course, v_app_norm, s.vel_kite, X, Y, Z)
+end
+
 
 function calc_pre_tension(s::AKM)
     forces = spring_forces(s)
