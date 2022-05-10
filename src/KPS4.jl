@@ -23,11 +23,11 @@ SOFTWARE. =#
 #= Model of a kite-power system in implicit form: residual = f(y, yd)
 
 This model implements a 3D mass-spring system with reel-out. It uses six tether segments (the number can be
-configured in the file data/settings.yaml). The kite is modelled as additional using 4 point masses.
-The spring constant and the damping decrease with the segment length. The aerodynamic kite forces
+configured in the file data/settings.yaml). The kite is modelled using 4 point masses and 3 aerodynamic 
+surfaces. The spring constant and the damping decrease with the segment length. The aerodynamic kite forces
 are acting on three of the four kite point masses. 
 
-This file is included from KiteModels.jl.
+Four point kite model, included from KiteModels.jl.
 
 Scientific background: http://arxiv.org/abs/1406.6218 =#
 
@@ -134,13 +134,16 @@ $(TYPEDFIELDS)
     v_reel_out::S =        0.0
     "reel out speed at the last time step"
     last_v_reel_out::S =   0.0
+    "unstretched tether length"
     l_tether::S =          0.0
     "air density"
     rho::S =               0.0
+    "actual relative depower setting,  must be between    0 .. 1.0"
     depower::S =           0.0
+    "actual relative steering setting, must be between -1.0 .. 1.0"
     steering::S =          0.0
+    "multiplier for the stiffniss of tether and bridle"
     stiffness_factor::S =  1.0
-    log_href_over_z0::S =  log(se().h_ref / se().z0)
     "initial masses of the point masses"
     initial_masses::MVector{P, S} = ones(P)
     "current masses, depending on the total tether length"

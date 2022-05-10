@@ -20,11 +20,11 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. =#
 
-#= Model of a kite-power system in implicit form: residual = f(y, yd)
+#= Models of a kite-power system in implicit form: residual = f(y, yd)
 
-This model implements a 3D mass-spring system with reel-out. It uses five tether segments (the number can be
-configured in the file data/settings.yaml). The kite is modelled as additional mass at the end of the tether.
-The spring constant and the damping decrease with the segment length. The aerodynamic kite forces are
+This model implements a 3D mass-spring system with reel-out. It uses six tether segments (the number can be
+configured in the file data/settings.yaml). Two kite models are provided, the one point and the four point
+kite model. The spring constant and the damping decrease with the segment length. The aerodynamic kite forces are
 calculated, depending on reel-out speed, depower and steering settings. 
 
 Scientific background: http://arxiv.org/abs/1406.6218 =#

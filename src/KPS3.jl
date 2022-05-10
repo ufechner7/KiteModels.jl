@@ -22,7 +22,7 @@ SOFTWARE. =#
 
 #= Model of a kite-power system in implicit form: residual = f(y, yd)
 
-This model implements a 3D mass-spring system with reel-out. It uses five tether segments (the number can be
+This model implements a 3D mass-spring system with reel-out. It uses six tether segments (the number can be
 configured in the file data/settings.yaml). The kite is modelled as additional mass at the end of the tether.
 The spring constant and the damping decrease with the segment length. The aerodynamic kite forces are
 calculated, depending on reel-out speed, depower and steering settings. 
@@ -89,7 +89,8 @@ $(TYPEDFIELDS)
     "vector representing one tether segment (p1-p2)"
     segment::T =          zeros(S, 3)
     "vector of the drag force of the last calculated tether segment"
-    last_tether_drag::T = zeros(S, 3)  
+    last_tether_drag::T = zeros(S, 3)
+    "z vector of the kite reference frame"
     vec_z::T =            zeros(S, 3) 
     "part one of the residual, difference between pos' and vel, non-flat, mainly for unit testing"
     res1::SVector{P, KVec3} = zeros(SVector{P, KVec3})
@@ -99,8 +100,9 @@ $(TYPEDFIELDS)
     pos::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     "velocity vector of the kite"
     vel_kite::T =          zeros(S, 3)
-    "area of one tether segment"
-    seg_area::S =         zero(S) 
+    "area of one tether segment [m²]"
+    seg_area::S =         zero(S)
+    "total actual bridle area [m²]"
     bridle_area::S =      zero(S)
     "spring constant, depending on the length of the tether segment"
     c_spring::S =         zero(S)
@@ -108,17 +110,19 @@ $(TYPEDFIELDS)
     segment_length::S =           0.0
     "damping factor, depending on the length of the tether segment"
     damping::S =          zero(S)
+    "last norm of the apparent wind speed at a tether segment [m/s]"
     last_v_app_norm_tether::S = zero(S)
     "lift coefficient of the kite, depending on the angle of attack"
     param_cl::S =         0.2
     "drag coefficient of the kite, depending on the angle of attack"
     param_cd::S =         1.0
+    "correction term for the steering, in paper named i_(s,c), Eq. 30"
     cor_steering::S =     zero(S)
     "azimuth angle in radian; inital value is zero"
     psi::S =              zero(S)
     "elevation angle in radian; initial value about 70 degrees"
     beta::S =             deg2rad(se().elevation)
-    last_alpha::S =        0.1
+    " depower angle [deg]"
     alpha_depower::S =     0.0
     "relative start time of the current time interval"
     t_0::S =               0.0
@@ -130,7 +134,9 @@ $(TYPEDFIELDS)
     l_tether::S =          0.0
     "air density at the height of the kite"
     rho::S =               0.0
+    "actual relative depower setting,  must be between    0 .. 1.0"
     depower::S =           0.0
+    "actual relative steering setting, must be between -1.0 .. 1.0"
     steering::S =          0.0
     "factor for the tether stiffness, used to find the steady state with a low stiffness first"
     stiffness_factor::S =  1.0
