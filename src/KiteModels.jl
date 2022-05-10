@@ -56,7 +56,6 @@ KiteUtils.set_data_path("")         # this statement is only executed during pre
 # Constants
 const G_EARTH = 9.81                # gravitational acceleration
 const BRIDLE_DRAG = 1.1             # should probably be removed
-const am = AtmosphericModel()
 
 # Type definitions
 """
@@ -221,10 +220,10 @@ function set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind, wind_dir=0.
     if height < 6.0
         height = 6.0
     end
-    s.v_wind .= v_wind_gnd * calc_wind_factor(am, height) .* [cos(wind_dir), sin(wind_dir), 0]
+    s.v_wind .= v_wind_gnd * calc_wind_factor(s.am, height) .* [cos(wind_dir), sin(wind_dir), 0]
     s.v_wind_gnd .= [v_wind_gnd * cos(wind_dir), v_wind_gnd * sin(wind_dir), 0.0]
-    s.v_wind_tether .= v_wind_gnd * calc_wind_factor(am, height / 2.0) .* [cos(wind_dir), sin(wind_dir), 0]
-    s.rho = calc_rho(am, height)
+    s.v_wind_tether .= v_wind_gnd * calc_wind_factor(s.am, height / 2.0) .* [cos(wind_dir), sin(wind_dir), 0]
+    s.rho = calc_rho(s.am, height)
     nothing
 end
 

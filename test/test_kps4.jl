@@ -69,7 +69,7 @@ function init3()
     posd = copy(vel)
     veld = zero(vel)
     height = 134.14733504839947
-    kps4.v_wind .= kps4.v_wind_gnd * calc_wind_factor(KiteModels.am, height)
+    kps4.v_wind .= kps4.v_wind_gnd * calc_wind_factor(kps4.am, height)
     kps4.stiffness_factor = 1.0
     KiteModels.init_springs!(kps4)
     return pos, vel, posd, veld
@@ -78,8 +78,8 @@ end
 set_defaults()
 
 @testset "calc_rho              " begin
-    @test isapprox(calc_rho(KiteModels.am, 0.0), 1.225, atol=1e-5) 
-    @test isapprox(calc_rho(KiteModels.am, 100.0), 1.210756, atol=1e-5) 
+    @test isapprox(calc_rho(kps4.am, 0.0), 1.225, atol=1e-5) 
+    @test isapprox(calc_rho(kps4.am, 100.0), 1.210756, atol=1e-5) 
 end
 
 @testset "initial_kite_ref_frame" begin
@@ -250,7 +250,7 @@ end
                [  9.7854297156670409  84.4721933009509485   0.5027899265154456]
                [  9.7877962918810688 -84.5072746928884726   0.5210774922270867]]
     for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1
-        @test all(forces[i,:] .≈ kps4.forces[i])
+        @test isapprox(forces[i,:], kps4.forces[i], rtol=1e-4)
     end
 end
 
@@ -298,7 +298,7 @@ function init2()
     veld = zero(vel)
     kps4.v_wind_gnd .= [7.0, 0.1, 0.0]
     height = 134.14733504839947
-    kps4.v_wind .= kps4.v_wind_gnd * calc_wind_factor(KiteModels.am, height)
+    kps4.v_wind .= kps4.v_wind_gnd * calc_wind_factor(kps4.am, height)
     kps4.stiffness_factor = 0.5
     kps4.set.alpha = 1.0/7.0
     length = 150.0
@@ -340,7 +340,7 @@ end
             [  9.7854297156670409  84.4721933009509485   0.5027899265154456]
             [  9.7877962918810688 -84.5072746928884726   0.5210774922270867]]
     for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1 
-        @test all(forces[i,:] .≈ kps4.forces[i])
+        @test isapprox(forces[i,:], kps4.forces[i], rtol=1e-4)
     end
     res2 = [[  0.000001             0.000001             0.000001          ]
             [ -9.4954342703640595  -0.1808633430347626  15.2921227320670887]
@@ -354,7 +354,7 @@ end
             [  9.9103998578748431  85.5509913012598417  10.3192110782116959]
             [  9.9127966577351092 -85.5865207191570505  10.3377321952086678]]
     for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1
-        @test all(res2[i,:] .≈ kps4.res2[i])
+        @test isapprox(res2[i,:], kps4.res2[i], rtol=1e-4)
     end
 end
 
@@ -464,7 +464,7 @@ end
     clear!(kps4)
     KiteModels.set_depower_steering!(kps4, kps4.set.depower_offset/100.0, 0.0)
     height = sin(deg2rad(kps4.set.elevation)) * kps4.set.l_tether
-    kps4.v_wind .= kps4.v_wind_gnd * calc_wind_factor(KiteModels.am, height)
+    kps4.v_wind .= kps4.v_wind_gnd * calc_wind_factor(kps4.am, height)
     res1, res2 = find_steady_state!(kps4; stiffness_factor=0.035, prn=true) 
     # TODO check why -9.81 appears in the residual
     @test sum(res2) ≈ -9.81*(se().segments+ KiteModels.KITE_PARTICLES) # velocity and acceleration must be near zero

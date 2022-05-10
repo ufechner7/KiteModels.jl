@@ -82,9 +82,11 @@ $(TYPEDFIELDS)
 @with_kw mutable struct KPS4{S, T, P, Q, SP} <: AbstractKiteModel
     "Reference to the settings struct"
     set::Settings = se()
-    "Reference to the KCU struct (Kite Control Unit, type from the module KitePodSimulor"
+    "Reference to the KCU model (Kite Control Unit as implemented in the package KitePodModels"
     kcu::KCU = KCU()
-    "Iteration"
+    "Reference to the atmospheric model as implemented in the package AtmosphericModels"
+    am::AtmosphericModel = AtmosphericModel()
+    "Iterations, number of calls to the function residual!"
     iter:: Int64 = 0
     "Function for calculation the lift coefficent, using a spline based on the provided value pairs."
     calc_cl = Spline1D(se().alpha_cl, se().cl_list)
@@ -165,7 +167,7 @@ function clear!(s::KPS4)
     s.v_wind_tether .= [s.set.v_wind, 0, 0]
     s.v_apparent    .= [s.set.v_wind, 0, 0]
     height = sin(deg2rad(s.set.elevation)) * (s.set.l_tether)
-    s.v_wind .= s.v_wind_gnd * calc_wind_factor(am, height)
+    s.v_wind .= s.v_wind_gnd * calc_wind_factor(s.am, height)
 
     s.l_tether = s.set.l_tether
     s.segment_length = s.l_tether / s.set.segments
@@ -430,10 +432,10 @@ Output:
         p1 = s.springs[i].p1  # First point nr.
         p2 = s.springs[i].p2  # Second point nr.
         height = 0.5 * (pos[p1][3] + pos[p2][3])
-        rho = calc_rho(KiteModels.am, height)
+        rho = calc_rho(s.am, height)
         @assert height > 0
 
-        s.v_wind_tether .= calc_wind_factor(am, height) * v_wind_gnd
+        s.v_wind_tether .= calc_wind_factor(s.am, height) * v_wind_gnd
         calc_particle_forces!(s, pos[p1], pos[p2], vel[p1], vel[p2], s.springs[i], segments, d_tether, rho, i)
     end
     nothing

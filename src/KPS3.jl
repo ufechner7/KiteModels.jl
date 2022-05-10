@@ -48,9 +48,11 @@ $(TYPEDFIELDS)
 @with_kw mutable struct KPS3{S, T, P} <: AbstractKiteModel
     "Reference to the settings struct"
     set::Settings = se()
-    "Reference to the KCU struct (Kite Control Unit, type from the module KitePodSimulor"
+    "Reference to the KCU model (Kite Control Unit as implemented in the package KitePodModels"
     kcu::KCU = KCU()
-    "Iteration"
+    "Reference to the atmospheric model as implemented in the package AtmosphericModels"
+    am::AtmosphericModel = AtmosphericModel()
+    "Iterations, number of calls to the function residual!"
     iter:: Int64 = 0
     "Function for calculation the lift coefficent, using a spline based on the provided value pairs."
     calc_cl = Spline1D(se().alpha_cl, se().cl_list)
@@ -154,7 +156,7 @@ function clear!(s::KPS3)
     s.v_wind_tether .= [s.set.v_wind, 0, 0]
     s.v_apparent    .= [s.set.v_wind, 0, 0]
     height = sin(deg2rad(s.set.elevation)) * s.set.l_tether
-    s.v_wind .= s.v_wind_gnd * calc_wind_factor(am, height)
+    s.v_wind .= s.v_wind_gnd * calc_wind_factor(s.am, height)
     s.alpha_depower = 0.0
     s.l_tether = s.set.l_tether
     s.segment_length = s.l_tether / s.set.segments
@@ -254,7 +256,7 @@ end
 function calc_res(s::KPS3, pos1, pos2, vel1, vel2, mass, veld, result, i)
     s.segment .= pos1 - pos2
     height = (pos1[3] + pos2[3]) * 0.5
-    rho = calc_rho(KiteModels.am, height)               # calculate the air density
+    rho = calc_rho(s.am, height)               # calculate the air density
     rel_vel = vel1 - vel2                # calculate the relative velocity
     s.av_vel .= 0.5 * (vel1 + vel2)
     norm1 = norm(s.segment)
