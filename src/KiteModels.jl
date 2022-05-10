@@ -34,6 +34,7 @@ module KiteModels
 using Dierckx, StaticArrays, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, Sundials
 using Reexport
 @reexport using KitePodModels
+@reexport using AtmosphericModels
 import Base.zero
 import KiteUtils.calc_elevation
 import KiteUtils.calc_azimuth
@@ -41,7 +42,7 @@ import KiteUtils.calc_heading
 import KiteUtils.calc_course
 
 export KPS3, KPS4, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                                  # constants and types
-export calc_rho, calc_wind_factor, calc_set_cl_cd!, copy_examples, copy_bin                       # environment and helper functions
+export calc_set_cl_cd!, copy_examples, copy_bin                                                   # helper functions
 export clear!, find_steady_state!, residual!                                                      # low level worker functions
 export init_sim!, next_step!                                                                      # hight level worker functions
 export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course                                                                               # getters
@@ -55,6 +56,7 @@ KiteUtils.set_data_path("")         # this statement is only executed during pre
 # Constants
 const G_EARTH = 9.81                # gravitational acceleration
 const BRIDLE_DRAG = 1.1             # should probably be removed
+const am = AtmosphericModel()
 
 # Type definitions
 """
@@ -101,44 +103,6 @@ const AKM = AbstractKiteModel
 
 include("KPS4.jl") # include code, specific for the four point kite model
 include("KPS3.jl") # include code, specific for the one point kite model
-
-"""
-    calc_rho(s::AKM, height)
-
-Calculate the air densisity as function of height.
-"""
-@inline function calc_rho(s::AKM, height) s.set.rho_0 * exp(-height / 8550.0) end
-
-"""
-    ProfileLaw
-
-Enumeration to describe the wind profile low that is used.
-"""
-@enum ProfileLaw EXP=1 LOG=2 EXPLOG=3
-
-"""
-    calc_wind_factor(s::AKM, height, profile_law=s.set.profile_law)
-
-Calculate the relative wind speed at a given height and reference height.
-"""
-@inline function calc_wind_factor(s::AKM, height, profile_law=s.set.profile_law)
-    if typeof(profile_law) != ProfileLaw
-        profile_law = ProfileLaw(profile_law)
-    end
-    if height < s.set.h_ref
-        height = s.set.h_ref
-    end
-    if profile_law == EXP
-        return exp(s.set.alpha * log(height/s.set.h_ref))
-    elseif profile_law == LOG
-        return log(height / s.set.z0) / log(s.set.h_ref / s.set.z0)
-    else
-        K = 1.0
-        log1 = log(height / s.set.z0) / s.log_href_over_z0
-        exp1 = exp(s.set.alpha * log(height/s.set.h_ref))
-        return log1 +  K * (log1 - exp1)
-    end
-end
 
 # Calculate the lift and drag coefficient as a function of the angle of attack alpha.
 function set_cl_cd!(s::AKM, alpha)   
@@ -257,10 +221,10 @@ function set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind, wind_dir=0.
     if height < 6.0
         height = 6.0
     end
-    s.v_wind .= v_wind_gnd * calc_wind_factor(s, height) .* [cos(wind_dir), sin(wind_dir), 0]
+    s.v_wind .= v_wind_gnd * calc_wind_factor(am, height) .* [cos(wind_dir), sin(wind_dir), 0]
     s.v_wind_gnd .= [v_wind_gnd * cos(wind_dir), v_wind_gnd * sin(wind_dir), 0.0]
-    s.v_wind_tether .= v_wind_gnd * calc_wind_factor(s, height / 2.0) .* [cos(wind_dir), sin(wind_dir), 0]
-    s.rho = calc_rho(s, height)
+    s.v_wind_tether .= v_wind_gnd * calc_wind_factor(am, height / 2.0) .* [cos(wind_dir), sin(wind_dir), 0]
+    s.rho = calc_rho(am, height)
     nothing
 end
 

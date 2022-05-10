@@ -165,7 +165,7 @@ function clear!(s::KPS4)
     s.v_wind_tether .= [s.set.v_wind, 0, 0]
     s.v_apparent    .= [s.set.v_wind, 0, 0]
     height = sin(deg2rad(s.set.elevation)) * (s.set.l_tether)
-    s.v_wind .= s.v_wind_gnd * calc_wind_factor(s, height)
+    s.v_wind .= s.v_wind_gnd * calc_wind_factor(am, height)
 
     s.l_tether = s.set.l_tether
     s.segment_length = s.l_tether / s.set.segments
@@ -430,10 +430,10 @@ Output:
         p1 = s.springs[i].p1  # First point nr.
         p2 = s.springs[i].p2  # Second point nr.
         height = 0.5 * (pos[p1][3] + pos[p2][3])
-        rho = calc_rho(s, height)
+        rho = calc_rho(KiteModels.am, height)
         @assert height > 0
 
-        s.v_wind_tether .= calc_wind_factor(s, height) * v_wind_gnd
+        s.v_wind_tether .= calc_wind_factor(am, height) * v_wind_gnd
         calc_particle_forces!(s, pos[p1], pos[p2], vel[p1], vel[p2], s.springs[i], segments, d_tether, rho, i)
     end
     nothing
