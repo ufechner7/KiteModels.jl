@@ -11,6 +11,10 @@ The model has the following subcomponents, implement in separate packages:
 - WinchModel
 - KitePodModel
 
+This package is part of Julia Kite Power Tools, which consist of the following packages:
+<p align="center"><img src="./docs/src/kite_power_tools.png" width="500" /></p>
+
+
 ## One point model
 This model assumes the kite to be a point mass. This is sufficient to model the aerodynamic forces, but the dynamic with respect to turning action of the kite is not realistic.
 When combined with an controller for the turn rate it can be used to simulate a pumping kite power system with medium accuracy.
