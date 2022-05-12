@@ -6,6 +6,10 @@
 [![Coverage](https://codecov.io/gh/ufechner7/KiteModels.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/ufechner7/KiteModels.jl)
 
 ## Kite power system models, consisting of tether and kite
+The model has the following subcomponents, implement in separate packages:
+- AtmosphericModel
+- WinchModel
+- KitePodModel
 
 ## One point model
 This model assumes the kite to be a point mass. This is sufficient to model the aerodynamic forces, but the dynamic with respect to turning action of the kite is not realistic.
@@ -28,9 +32,9 @@ These models are described in detail in [Dynamic Model of a Pumping Kite Power S
 - the package [KiteUtils](https://github.com/ufechner7/KiteUtils.jl)
 - the package [KitePodModels](https://github.com/aenarete/KitePodModels.jl)
 - the package [WinchModels](https://github.com/aenarete/WinchModels.jl)
-- the package [KiteViewers](https://github.com/aenarete/KiteViewers.jl)
 - the package [AtmosphericModels](https://github.com/aenarete/AtmosphericModels.jl)
 - the package [KiteControllers](https://github.com/aenarete/KiteControllers.jl)
+- the package [KiteViewers](https://github.com/aenarete/KiteViewers.jl)
 
 **Documentation** [Stable Version](https://ufechner7.github.io/KiteModels.jl/stable) --- [Development Version](https://ufechner7.github.io/KiteModels.jl/dev)
 
