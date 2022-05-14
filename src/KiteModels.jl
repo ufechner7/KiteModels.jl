@@ -34,6 +34,7 @@ module KiteModels
 using Dierckx, StaticArrays, Rotations, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, Sundials
 using Reexport
 @reexport using KitePodModels
+@reexport using WinchModels
 @reexport using AtmosphericModels
 import Base.zero
 import KiteUtils.calc_elevation

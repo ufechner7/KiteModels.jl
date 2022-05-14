@@ -52,6 +52,8 @@ $(TYPEDFIELDS)
     kcu::KCU = KCU()
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
+    "Reference to winch model as implemented in the package WinchModels"
+    wm::AbstractWinchModel = AsyncMachine()
     "Iterations, number of calls to the function residual!"
     iter:: Int64 = 0
     "Function for calculation the lift coefficent, using a spline based on the provided value pairs."
