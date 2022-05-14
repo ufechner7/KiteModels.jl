@@ -218,6 +218,7 @@ end
     y0, yd0 = KiteModels.init(kps4, X00)
     residual!(res, yd0, y0, kps4, 0.0)
     res_pos, res_vel = split_res(res)
+    println(res_pos)
     @test res_pos == zeros(length(res_pos))
     # in the second test we check if the norm of the accelerations of the tether particles is low
     # println((norm(res_vel[1:15])))
@@ -358,8 +359,10 @@ end
     end
 end
 
-function unpack_add_origin(y::MVector{T, SimFloat},) where T
-    part  = reshape(SVector{T}(y),  Size(3, div(T,6), 2))
+function unpack_add_origin(y::MVector{S, SimFloat},) where S
+    T = S-2
+    y_  = @view y[1:end-2]
+    part  = reshape(SVector{T}(y_),  Size(3, div(T,6), 2))
     pos1, vel1 = part[:,:,1], part[:,:,2]
     pos = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(pos1[:,i-1]) end for i in 1:div(T,6)+1)
     vel = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(vel1[:,i-1]) end for i in 1:div(T,6)+1)
@@ -413,7 +416,7 @@ end
         @test all(vel[i] .≈ vels[i])
     end
     time = 0.0
-    @test length(res) == length(y0)
+    @test length(res) == length(y0)-2
     residual!(res, yd0, y0, kps4, time)
     res1, res2 = kps4.res1, kps4.res2
     height = calc_height(kps4)

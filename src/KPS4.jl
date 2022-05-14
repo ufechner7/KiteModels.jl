@@ -374,8 +374,8 @@ end
 # same as above, but returns a tuple of two one dimensional arrays
 function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false, delta=0.0)
     res1_, res2_ = init_inner(s, X; old=old, delta = delta)
-    res1, res2  = reduce(vcat, res1_), reduce(vcat, res2_)
-    MVector{6*(s.set.segments+KITE_PARTICLES), Float64}(res1), MVector{6*(s.set.segments+KITE_PARTICLES), Float64}(res2)
+    res1, res2  = vcat(reduce(vcat, res1_), [0,0]), vcat(reduce(vcat, res2_),[0,0])
+    MVector{6*(s.set.segments+KITE_PARTICLES)+2, Float64}(res1), MVector{6*(s.set.segments+KITE_PARTICLES)+2, Float64}(res2)
 end
 
 """ 
@@ -558,7 +558,7 @@ end
     State vector y   = pos1,  pos2, ... , posn,  vel1,  vel2, . .., veln,  length, v_reel_out
     Derivative   yd  = posd1, posd2, ..., posdn, veld1, veld2, ..., veldn, lengthd, v_reel_outd
     Output:
-    Residual     res = res1, res2 = vel1-posd1,  ..., veld1-acc1, ...
+    Residual     res = res1, res2 = vel1-posd1,  ..., veld1-acc1, ..., 
 
     Additional parameters:
     s: Struct with work variables, type KPS4
@@ -567,16 +567,19 @@ The number of the point masses of the model N = S/6, the state of each point
 is represented by two 3 element vectors.
 """
 function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
-    T = S # T: three times the number of particles excluding the origin
+    T = S-2 # T: three times the number of particles excluding the origin
     segments = div(T,6) - KITE_PARTICLES
     
     # Reset the force vector to zero.
     for i in 1:segments+KITE_PARTICLES+1
         s.forces[i] .= SVector(0.0, 0, 0)
     end
+    # extract the data of the particles
+    y_  = @view y[1:end-2]
+    yd_ = @view yd[1:end-2]
     # unpack the vectors y and yd
-    part  = reshape(SVector{T}(y),  Size(3, div(T,6), 2))
-    partd = reshape(SVector{T}(yd), Size(3, div(T,6), 2))
+    part  = reshape(SVector{T}(y_),  Size(3, div(T,6), 2))
+    partd = reshape(SVector{T}(yd_), Size(3, div(T,6), 2))
     pos1, vel1 = part[:,:,1], part[:,:,2]
     pos = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(pos1[:,i-1]) end for i in 1:div(T,6)+1)
     vel = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(vel1[:,i-1]) end for i in 1:div(T,6)+1)
