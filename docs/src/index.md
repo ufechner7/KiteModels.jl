@@ -7,7 +7,6 @@ CurrentModule = KiteModels
 Documentation for the package [KiteModels](https://github.com/ufechner7/KiteModels.jl).
 
 ## Installation
-
 Download [Julia 1.6](http://www.julialang.org) or later, if you haven't already. You can add KiteModels from  Julia's package manager, by typing 
 ```
 ] add KiteModels
@@ -17,7 +16,6 @@ at the Julia prompt.
 If you are using Windows, it is suggested to install git and bash, too. This is explained for example here: [Julia on Windows](https://github.com/ufechner7/KiteViewer/blob/main/doc/Windows.md) .
 
 ## Provides
-
 The type [`AbstractKiteModel`](@ref) with the implementation [`KPS3`](@ref) and [`KPS4`](@ref), representing the model, together with the high level simulation interface consisting of the functions
 [`init_sim!`](@ref) and [`next_step!`](@ref). Other kite models can be added inside or outside of this package by implementing the non-generic methods required for an AbstractKiteModel.
 
