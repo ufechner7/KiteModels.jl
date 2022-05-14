@@ -154,6 +154,8 @@ $(TYPEDFIELDS)
     rel_vel::T =           zeros(S, 3)
     half_drag_force::T =   zeros(S, 3)
     forces::SVector{P, KVec3} = zeros(SVector{P, KVec3})
+    "synchronous speed of the motor/ generator"
+    sync_speed::S =        0.0         
     x::T =                 zeros(S, 3)
     y::T =                 zeros(S, 3)
     z::T =                 zeros(S, 3)
@@ -374,7 +376,7 @@ end
 # same as above, but returns a tuple of two one dimensional arrays
 function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false, delta=0.0)
     res1_, res2_ = init_inner(s, X; old=old, delta = delta)
-    res1, res2  = vcat(reduce(vcat, res1_), [0,0]), vcat(reduce(vcat, res2_),[0,0])
+    res1, res2  = vcat(reduce(vcat, res1_), [s.l_tether, 0]), vcat(reduce(vcat, res2_),[0,0])
     MVector{6*(s.set.segments+KITE_PARTICLES)+2, Float64}(res1), MVector{6*(s.set.segments+KITE_PARTICLES)+2, Float64}(res2)
 end
 
@@ -574,6 +576,10 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
     for i in 1:segments+KITE_PARTICLES+1
         s.forces[i] .= SVector(0.0, 0, 0)
     end
+    length = y[end-1]
+    v_reel_out = y[end]
+    lengthd = yd[end-1]
+    v_reel_outd = yd[end]
     # extract the data of the particles
     y_  = @view y[1:end-2]
     yd_ = @view yd[1:end-2]
@@ -589,8 +595,14 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
     @assert ! isnan(pos[2][3])
 
     # core calculations
+    s.l_tether = length
+    s.segment_length = length / segments
     calc_aero_forces!(s, pos, vel, s.rho, s.alpha_depower, s.steering)
     loop!(s, pos, vel, posd, veld)
+
+    # winch calculations
+    res[end-1] = lengthd - v_reel_out
+    res[end] = v_reel_outd - calc_acceleration(s.wm, s.sync_speed, v_reel_out, norm(s.forces[1]), true)
 
     # copy and flatten result
     for i in 2:div(T,6)+1
