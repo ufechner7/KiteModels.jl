@@ -148,6 +148,8 @@ $(TYPEDFIELDS)
     initial_masses::MVector{P, S} = ones(P)
     "current masses, depending on the total tether length"
     masses::MVector{P, S}         = ones(P)
+    "synchronous speed of the motor/ generator"
+    sync_speed::S =        0.0    
 end
 
 """
