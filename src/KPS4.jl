@@ -577,10 +577,8 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
         s.forces[i] .= SVector(0.0, 0, 0)
     end
     # extract the data for the winch simulation
-    length = y[end-1]
-    v_reel_out = y[end]
-    lengthd = yd[end-1]
-    v_reel_outd = yd[end]
+    length,  v_reel_out  = y[end-1],  y[end]
+    lengthd, v_reel_outd = yd[end-1], yd[end]
     # extract the data of the particles
     y_  = @view y[1:end-2]
     yd_ = @view yd[1:end-2]
