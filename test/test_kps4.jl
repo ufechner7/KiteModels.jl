@@ -218,7 +218,6 @@ end
     y0, yd0 = KiteModels.init(kps4, X00)
     residual!(res, yd0, y0, kps4, 0.0)
     res_pos, res_vel = split_res(res)
-    println(res_pos)
     @test res_pos == zeros(length(res_pos))
     # in the second test we check if the norm of the accelerations of the tether particles is low
     # println((norm(res_vel[1:15])))

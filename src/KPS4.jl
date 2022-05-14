@@ -576,6 +576,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
     for i in 1:segments+KITE_PARTICLES+1
         s.forces[i] .= SVector(0.0, 0, 0)
     end
+    # extract the data for the winch simulation
     length = y[end-1]
     v_reel_out = y[end]
     lengthd = yd[end-1]
