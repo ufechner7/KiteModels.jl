@@ -34,11 +34,8 @@ These models are described in detail in [Dynamic Model of a Pumping Kite Power S
 - [Research Fechner](https://research.tudelft.nl/en/publications/?search=Uwe+Fechner&pageSize=50&ordering=rating&descending=true) for the scientic background of this code
 - The application [KiteViewer](https://github.com/ufechner7/KiteViewer)
 - the package [KiteUtils](https://github.com/ufechner7/KiteUtils.jl)
-- the package [KitePodModels](https://github.com/aenarete/KitePodModels.jl)
-- the package [WinchModels](https://github.com/aenarete/WinchModels.jl)
-- the package [AtmosphericModels](https://github.com/aenarete/AtmosphericModels.jl)
-- the package [KiteControllers](https://github.com/aenarete/KiteControllers.jl)
-- the package [KiteViewers](https://github.com/aenarete/KiteViewers.jl)
+- the packages [WinchModels](https://github.com/aenarete/WinchModels.jl) and [KitePodModels](https://github.com/aenarete/KitePodModels.jl) and [AtmosphericModels](https://github.com/aenarete/AtmosphericModels.jl)
+- the packages [KiteControllers](https://github.com/aenarete/KiteControllers.jl) and [KiteViewers](https://github.com/aenarete/KiteViewers.jl)
 
 **Documentation** [Stable Version](https://ufechner7.github.io/KiteModels.jl/stable) --- [Development Version](https://ufechner7.github.io/KiteModels.jl/dev)
 
