@@ -6,17 +6,30 @@ CurrentModule = KiteModels
 
 Documentation for the package [KiteModels](https://github.com/ufechner7/KiteModels.jl).
 
+The model has the following subcomponents, implement in separate packages:
+- AtmosphericModel from [AtmosphericModels](https://github.com/aenarete/AtmosphericModels.jl)
+- WinchModel from [WinchModels](https://github.com/aenarete/WinchModels.jl) 
+- KitePodModel from  [KitePodModels](https://github.com/aenarete/KitePodModels.jl)
+
+This package is part of Julia Kite Power Tools, which consist of the following packages:
+<p align="center"><img src="./kite_power_tools.png" width="500" /></p>
+
+
 ## Installation
 Download [Julia 1.6](http://www.julialang.org) or later, if you haven't already. You can add KiteModels from  Julia's package manager, by typing 
-```
-] add KiteModels
+```julia
+using Pkg
+pkg"add KiteModels"
 ``` 
-at the Julia prompt.
+at the Julia prompt. You can run the unit tests with the command:
+```julia
+pkg"test KiteModels"
+```
 
 If you are using Windows, it is suggested to install git and bash, too. This is explained for example here: [Julia on Windows](https://github.com/ufechner7/KiteViewer/blob/main/doc/Windows.md) .
 
 ## Provides
-The type [`AbstractKiteModel`](@ref) with the implementation [`KPS3`](@ref) and [`KPS4`](@ref), representing the model, together with the high level simulation interface consisting of the functions
+The type [`AbstractKiteModel`](@ref) with the implementation [`KPS3`](@ref) and [`KPS4`](@ref), representing the one point and four point kite model, together with the high level simulation interface consisting of the functions
 [`init_sim!`](@ref) and [`next_step!`](@ref). Other kite models can be added inside or outside of this package by implementing the non-generic methods required for an AbstractKiteModel.
 
 Additional functions to provide inputs and outputs of the model on each time step. In particular the constructor [`SysState`](@ref) can be called once per time step to create a SysState struct for

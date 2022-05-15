@@ -34,6 +34,7 @@ module KiteModels
 using Dierckx, StaticArrays, Rotations, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, Sundials
 using Reexport
 @reexport using KitePodModels
+@reexport using WinchModels
 @reexport using AtmosphericModels
 import Base.zero
 import KiteUtils.calc_elevation
@@ -46,7 +47,7 @@ export KPS3, KPS4, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                
 export calc_set_cl_cd!, copy_examples, copy_bin                                                   # helper functions
 export clear!, find_steady_state!, residual!                                                      # low level worker functions
 export init_sim!, next_step!                                                                      # hight level worker functions
-export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course                                                                               # getters
+export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course             # getters
 export winch_force, lift_drag, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
 export kite_ref_frame, orient_euler, spring_forces
 
@@ -103,6 +104,7 @@ const AKM = AbstractKiteModel
 
 include("KPS4.jl") # include code, specific for the four point kite model
 include("KPS3.jl") # include code, specific for the one point kite model
+include("init.jl") # functions to calculate the inital state vector, the inital masses and initial springs
 
 # Calculate the lift and drag coefficient as a function of the angle of attack alpha.
 function set_cl_cd!(s::AKM, alpha)   
@@ -122,19 +124,6 @@ end
 # v_app and the z unit vector of the kite reference frame.
 function calc_alpha(v_app, vec_z)
     π/2.0 - acos(-(v_app ⋅ vec_z) / norm(v_app))
-end
-
-"""
-    calc_set_cl_cd!(s::AKM, vec_c, v_app)
-
-Calculate the lift over drag ratio as a function of the direction vector of the last tether
-segment, the current depower setting and the apparent wind speed.
-Set the calculated CL and CD values in the struct s. 
-"""
-function calc_set_cl_cd!(s::AKM, vec_c, v_app)
-    s.vec_z .= normalize(vec_c)
-    alpha = calc_alpha(v_app, s.vec_z) - s.alpha_depower
-    set_cl_cd!(s, alpha)
 end
 
 """
@@ -168,10 +157,16 @@ not changed.
 
 - t_0 the start time of the next timestep relative to the start of the simulation [s]
 """
-function set_v_reel_out!(s::AKM, v_reel_out, t_0, period_time = 1.0 / s.set.sample_freq)
+function set_v_reel_out!(s::KPS3, v_reel_out, t_0, period_time = 1.0 / s.set.sample_freq)
     s.l_tether += 0.5 * (v_reel_out + s.last_v_reel_out) * period_time
     s.last_v_reel_out = s.v_reel_out
     s.v_reel_out = v_reel_out
+    s.t_0 = t_0
+end
+
+function set_v_reel_out!(s::KPS4, v_reel_out, t_0, period_time = 1.0 / s.set.sample_freq)
+    s.sync_speed = v_reel_out
+    s.last_v_reel_out = s.v_reel_out
     s.t_0 = t_0
 end
 
@@ -342,7 +337,6 @@ function SysState(s::AKM, zoom=1.0)
     KiteUtils.SysState{P}(s.t_0, orient, elevation, azimuth, l_tether, v_reelout, force, s.depower, s.steering, heading, course, v_app_norm, s.vel_kite, X, Y, Z)
 end
 
-
 function calc_pre_tension(s::AKM)
     forces = spring_forces(s)
     av_force = 0.0
@@ -391,7 +385,7 @@ Calculates the next simulation step.
 Parameters:
 - s:            an instance of an abstract kite model
 - integrator:   an integrator instance as returned by the function [`init_sim!`](@ref)
-- v_ro:         reel out speed in m/s
+- v_ro:         set value of reel out speed in m/s
 - `v_wind_gnd`: wind speed at reference height in m/s
 - wind_dir:     wind direction in radians
 - dt:           time step in seconds

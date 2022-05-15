@@ -52,6 +52,8 @@ $(TYPEDFIELDS)
     kcu::KCU = KCU()
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
+    "Reference to winch model as implemented in the package WinchModels"
+    wm::AbstractWinchModel = AsyncMachine()
     "Iterations, number of calls to the function residual!"
     iter:: Int64 = 0
     "Function for calculation the lift coefficent, using a spline based on the provided value pairs."
@@ -146,6 +148,8 @@ $(TYPEDFIELDS)
     initial_masses::MVector{P, S} = ones(P)
     "current masses, depending on the total tether length"
     masses::MVector{P, S}         = ones(P)
+    "synchronous speed of the motor/ generator"
+    sync_speed::S =        0.0    
 end
 
 """
@@ -316,6 +320,19 @@ end
 Return the absolute value of the force at the winch as calculated during the last timestep. 
 """
 function winch_force(s::KPS3) norm(s.last_force) end
+
+"""
+    calc_set_cl_cd!(s::KPS3, vec_c, v_app)
+
+Calculate the lift over drag ratio as a function of the direction vector of the last tether
+segment, the current depower setting and the apparent wind speed.
+Set the calculated CL and CD values in the struct s. 
+"""
+function calc_set_cl_cd!(s::KPS3, vec_c, v_app)
+    s.vec_z .= normalize(vec_c)
+    alpha = calc_alpha(v_app, s.vec_z) - s.alpha_depower
+    set_cl_cd!(s, alpha)
+end
 
 """
     residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S

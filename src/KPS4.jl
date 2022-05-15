@@ -86,6 +86,8 @@ $(TYPEDFIELDS)
     kcu::KCU = KCU()
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
+    "Reference to winch model as implemented in the package WinchModels"
+    wm::AbstractWinchModel = AsyncMachine()
     "Iterations, number of calls to the function residual!"
     iter:: Int64 = 0
     "Function for calculation the lift coefficent, using a spline based on the provided value pairs."
@@ -152,8 +154,13 @@ $(TYPEDFIELDS)
     rel_vel::T =           zeros(S, 3)
     half_drag_force::T =   zeros(S, 3)
     forces::SVector{P, KVec3} = zeros(SVector{P, KVec3})
+    "synchronous speed of the motor/ generator"
+    sync_speed::S =        0.0
+    "x vector of kite reference frame"
     x::T =                 zeros(S, 3)
+    "y vector of kite reference frame"
     y::T =                 zeros(S, 3)
+    "z vector of kite reference frame"
     z::T =                 zeros(S, 3)
 end
 
@@ -200,182 +207,6 @@ function KPS4(kcu::KCU)
     return s
 end
 
-"""
-    initial_kite_ref_frame(vec_c, v_app)
-
-Calculate the initial orientation of the kite based on the last tether segment and
-the apparent wind speed.
-
-Parameters:
-- vec_c: (pos_n-2) - (pos_n-1) n: number of particles without the three kite particles
-                                  that do not belong to the main thether (P1, P2 and P3).
-- v_app: vector of the apparent wind speed
-
-Returns:
-x, y, z:  the unit vectors of the kite reference frame in the ENU reference frame
-"""
-function initial_kite_ref_frame(vec_c, v_app)
-    z = normalize(vec_c)
-    y = normalize(v_app × vec_c)
-    x = normalize(y × vec_c)
-    x, y, z
-end
-
-"""
-    get_particles(height_k, height_b, width, m_k, pos_pod= [ 75., 0., 129.90381057], vec_c=[-15., 0., -25.98076211], v_app=[10.4855, 0, -3.08324])
-
-Calculate the initial positions of the particels representing 
-a 4-point kite, connected to a kite control unit (KCU). 
-
-Parameters:
-- height_k: height of the kite itself, not above ground [m]
-- height_b: height of the bridle [m]
-- width: width of the kite [m]
-- mk: relative nose distance
-- pos_pod: position of the control pod
-- vec_c: vector of the last tether segment
-"""
-function get_particles(height_k, height_b, width, m_k, pos_pod= [ 75., 0., 129.90381057], vec_c=[-15., 0., -25.98076211], v_app=[10.4855, 0, -3.08324])
-    # inclination angle of the kite; beta = atan(-pos_kite[2], pos_kite[1]) ???
-    beta = pi/2.0
-    x, y, z = initial_kite_ref_frame(vec_c, v_app)
-
-    h_kx = height_k * cos(beta); # print 'h_kx: ', h_kx
-    h_kz = height_k * sin(beta); # print 'h_kz: ', h_kz
-    h_bx = height_b * cos(beta)
-    h_bz = height_b * sin(beta)
-    pos_kite = pos_pod - (h_kz + h_bz) * z + (h_kx + h_bx) * x   # top,        poing B in diagram
-    pos_C = pos_kite + h_kz * z + 0.5 * width * y + h_kx * x     # side point, point C in diagram
-    pos_A = pos_kite + h_kz * z + (h_kx + width * m_k) * x       # nose,       point A in diagram
-    pos_D = pos_kite + h_kz * z - 0.5 * width * y + h_kx * x     # side point, point D in diagram
-    pos0 = pos_kite + (h_kz + h_bz) * z + (h_kx + h_bx) * x      # equal to pos_pod, P_KCU in diagram
-    [zeros(3), pos0, pos_A, pos_kite, pos_C, pos_D] # 0, p7, p8, p9, p10, p11
-end
-
-"""
-    calc_height(s::KPS4)
-
-Determine the height of the topmost kite particle above ground.
-"""
-function calc_height(s::KPS4)
-    pos_kite(s)[3]
-end
-
-"""
-    pos_kite(s::KPS4)
-
-Return the position of the kite (top particle).
-"""
-function pos_kite(s::KPS4)
-    s.pos[end-2]
-end
-
-function init_springs!(s::KPS4)
-    l_0     = s.set.l_tether / s.set.segments 
-    particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k)
-    for j in 1:size(SPRINGS_INPUT)[1]
-        # build the tether segments
-        if j == 1
-            for i in 1:s.set.segments
-                k = s.set.e_tether * (s.set.d_tether/2000.0)^2 * pi  / l_0  # Spring stiffness for this spring [N/m]
-                c = s.set.damping/l_0                                       # Damping coefficient [Ns/m]
-                s.springs[i] = SP(i, i+1, l_0, k, c)
-            end
-        # build the bridle segments
-        else
-            p0, p1 = SPRINGS_INPUT[j, 1]+1, SPRINGS_INPUT[j, 2]+1 # point 0 and 1
-            if SPRINGS_INPUT[j, 3] == -1
-                l_0 = norm(particles[Int(p1)] - particles[Int(p0)]) * PRE_STRESS
-                k = s.set.e_tether * (s.set.d_line/2000.0)^2 * pi / l_0
-                p0 += s.set.segments - 1 # correct the index for the start and end particles of the bridle
-                p1 += s.set.segments - 1
-                c = s.set.damping/ l_0
-                s.springs[j+s.set.segments-1] = SP(Int(p0), Int(p1), l_0, k, c)
-            end
-        end
-    end
-    s.springs
-end
-
-function init_masses!(s::KPS4)
-    s.masses = zeros(s.set.segments+KITE_PARTICLES+1)
-    l_0 = s.set.l_tether / s.set.segments 
-    for i in 1:s.set.segments
-        s.masses[i]   += 0.5 * l_0 * s.set.rho_tether * (s.set.d_tether/2000.0)^2 * pi
-        s.masses[i+1] += 0.5 * l_0 * s.set.rho_tether * (s.set.d_tether/2000.0)^2 * pi
-    end
-    s.masses[s.set.segments+1] += s.set.kcu_mass
-    k2 = s.set.rel_top_mass * (1.0 - s.set.rel_nose_mass)
-    k3 = 0.5 * (1.0 - s.set.rel_top_mass) * (1.0 - s.set.rel_nose_mass)
-    k4 = 0.5 * (1.0 - s.set.rel_top_mass) * (1.0 - s.set.rel_nose_mass)
-    s.masses[s.set.segments+2] += s.set.rel_nose_mass * s.set.mass
-    s.masses[s.set.segments+3] += k2 * s.set.mass
-    s.masses[s.set.segments+4] += k3 * s.set.mass
-    s.masses[s.set.segments+5] += k4 * s.set.mass  
-    s.masses 
-end
-
-# Calculate the initial vectors pos and vel. Tether with the initial elevation angle
-# se().elevation, particle zero fixed at origin.
-# X is a vector of deviations in x and z positions, to be varied to find the inital equilibrium
-function init_pos_vel(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)))
-    pos, vel, acc = init_pos_vel_acc(s, X; old=true)
-    pos, vel
-end
-
-function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1); old=false, delta = 0.0)
-    pos = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
-    vel = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
-    acc = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
-    pos[1] .= [0.0, delta, 0.0]
-    vel[1] .= [delta, delta, delta]
-    acc[1] .= [delta, delta, delta]
-    sin_el, cos_el = sin(s.set.elevation / 180.0 * pi), cos(s.set.elevation / 180.0 * pi)
-    for i in 1:s.set.segments
-        radius = -i * (s.set.l_tether/s.set.segments)
-        pos[i+1] .= [-cos_el * radius + X[i], delta, -sin_el * radius + X[s.set.segments+KITE_PARTICLES-1+i]]
-        vel[i+1] .= [delta, delta, 0]
-        acc[i+1] .= [delta, delta, -9.81]
-    end
-    vec_c = pos[s.set.segments] - pos[s.set.segments+1]
-    if old
-        particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k)
-    else
-        particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k, pos[s.set.segments+1], rotate_in_xz(vec_c, deg2rad(KITE_ANGLE)), s.v_apparent)
-    end
-    j = 1
-    for i in [1,2,3] # set p8, p9, p10
-        pos[s.set.segments+1+i] .= particles[i+2] + [X[s.set.segments+j], 0, X[2*s.set.segments+KITE_PARTICLES-1+j]]
-        vel[s.set.segments+1+i] .= [delta, delta, delta]
-        acc[s.set.segments+1+i] .= [delta, delta, -9.81]
-        j +=1
-    end
-    acc[s.set.segments+1+4] .= [delta, delta, -9.81]
-    vel[s.set.segments+1+4] .= [delta, delta, delta]
-    # set p10=C and p11=D
-    # x and z component of the right and left particle must be equal
-    pos[s.set.segments+1+4][1] = pos[s.set.segments+1+3][1]  # D.x = C.x
-    pos[s.set.segments+1+4][3] = pos[s.set.segments+1+3][3]  # D.z = C.z
-    pos[s.set.segments+1+3][2] += X[end]                     # Y position of point C
-    pos[s.set.segments+1+4][2] = -pos[s.set.segments+1+3][2] # Y position of point D
-    for i in 1:length(pos)
-        s.pos[i] .= pos[i]
-    end
-    pos, vel, acc
-end
-
-function init_inner(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false, delta=0.0)
-    pos, vel, acc = init_pos_vel_acc(s, X; old=old, delta=delta)
-    vcat(pos[2:end], vel[2:end]), vcat(vel[2:end], acc[2:end])
-end
-
-# same as above, but returns a tuple of two one dimensional arrays
-function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false, delta=0.0)
-    res1_, res2_ = init_inner(s, X; old=old, delta = delta)
-    res1, res2  = reduce(vcat, res1_), reduce(vcat, res2_)
-    MVector{6*(s.set.segments+KITE_PARTICLES), Float64}(res1), MVector{6*(s.set.segments+KITE_PARTICLES), Float64}(res2)
-end
-
 """ 
     calc_particle_forces!(s::KPS4, pos1, pos2, vel1, vel2, spring, segments, d_tether, rho, i)
 
@@ -420,36 +251,6 @@ The result is stored in the array s.forces.
     if i == 1 s.last_force .= s.forces[spring.p1] end
     nothing
 end
-
-"""
-    inner_loop!(s::KPS4, pos, vel, v_wind_gnd, segments, d_tether)
-
-Calculate the forces, acting on all particles.
-
-Output:
-- s.forces
-- `s.v_wind_tether`
-"""
-@inline function inner_loop!(s::KPS4, pos, vel, v_wind_gnd, segments, d_tether)
-    for i in 1:length(s.springs)
-        p1 = s.springs[i].p1  # First point nr.
-        p2 = s.springs[i].p2  # Second point nr.
-        height = 0.5 * (pos[p1][3] + pos[p2][3])
-        rho = calc_rho(s.am, height)
-        @assert height > 0
-
-        s.v_wind_tether .= calc_wind_factor(s.am, height) * v_wind_gnd
-        calc_particle_forces!(s, pos[p1], pos[p2], vel[p1], vel[p2], s.springs[i], segments, d_tether, rho, i)
-    end
-    nothing
-end
-
-"""
-    winch_force(s::KPS4)
-
-Return the absolute value of the force at the winch as calculated during the last timestep. 
-"""
-function winch_force(s::KPS4) norm(s.last_force) end
 
 """
     calc_aero_forces!(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
@@ -508,12 +309,26 @@ function calc_aero_forces!(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
 end
 
 """
-    kite_ref_frame(s::KPS4)
+    inner_loop!(s::KPS4, pos, vel, v_wind_gnd, segments, d_tether)
 
-Returns a tuple of the x, y, and z vectors of the kite reference frame.
+Calculate the forces, acting on all particles.
+
+Output:
+- s.forces
+- `s.v_wind_tether`
 """
-function kite_ref_frame(s::KPS4)
-    s.x, s.y, s.z
+@inline function inner_loop!(s::KPS4, pos, vel, v_wind_gnd, segments, d_tether)
+    for i in 1:length(s.springs)
+        p1 = s.springs[i].p1  # First point nr.
+        p2 = s.springs[i].p2  # Second point nr.
+        height = 0.5 * (pos[p1][3] + pos[p2][3])
+        rho = calc_rho(s.am, height)
+        @assert height > 0
+
+        s.v_wind_tether .= calc_wind_factor(s.am, height) * v_wind_gnd
+        calc_particle_forces!(s, pos[p1], pos[p2], vel[p1], vel[p2], s.springs[i], segments, d_tether, rho, i)
+    end
+    nothing
 end
 
 """
@@ -556,7 +371,7 @@ end
     State vector y   = pos1,  pos2, ... , posn,  vel1,  vel2, . .., veln,  length, v_reel_out
     Derivative   yd  = posd1, posd2, ..., posdn, veld1, veld2, ..., veldn, lengthd, v_reel_outd
     Output:
-    Residual     res = res1, res2 = vel1-posd1,  ..., veld1-acc1, ...
+    Residual     res = res1, res2 = vel1-posd1,  ..., veld1-acc1, ..., 
 
     Additional parameters:
     s: Struct with work variables, type KPS4
@@ -565,16 +380,22 @@ The number of the point masses of the model N = S/6, the state of each point
 is represented by two 3 element vectors.
 """
 function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
-    T = S # T: three times the number of particles excluding the origin
+    T = S-2 # T: three times the number of particles excluding the origin
     segments = div(T,6) - KITE_PARTICLES
     
     # Reset the force vector to zero.
     for i in 1:segments+KITE_PARTICLES+1
         s.forces[i] .= SVector(0.0, 0, 0)
     end
+    # extract the data for the winch simulation
+    length,  v_reel_out  = y[end-1],  y[end]
+    lengthd, v_reel_outd = yd[end-1], yd[end]
+    # extract the data of the particles
+    y_  = @view y[1:end-2]
+    yd_ = @view yd[1:end-2]
     # unpack the vectors y and yd
-    part  = reshape(SVector{T}(y),  Size(3, div(T,6), 2))
-    partd = reshape(SVector{T}(yd), Size(3, div(T,6), 2))
+    part  = reshape(SVector{T}(y_),  Size(3, div(T,6), 2))
+    partd = reshape(SVector{T}(yd_), Size(3, div(T,6), 2))
     pos1, vel1 = part[:,:,1], part[:,:,2]
     pos = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(pos1[:,i-1]) end for i in 1:div(T,6)+1)
     vel = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(vel1[:,i-1]) end for i in 1:div(T,6)+1)
@@ -584,8 +405,14 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
     @assert ! isnan(pos[2][3])
 
     # core calculations
+    s.l_tether = length
+    s.segment_length = length / segments
     calc_aero_forces!(s, pos, vel, s.rho, s.alpha_depower, s.steering)
     loop!(s, pos, vel, posd, veld)
+
+    # winch calculations
+    res[end-1] = lengthd - v_reel_out
+    res[end] = v_reel_outd - calc_acceleration(s.wm, s.sync_speed, v_reel_out, norm(s.forces[1]), true)
 
     # copy and flatten result
     for i in 2:div(T,6)+1
@@ -599,12 +426,51 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
         @inbounds s.pos[i] .= pos[i]
     end
     s.vel_kite .= vel[end-2]
+    s.v_reel_out = v_reel_out
 
     @assert ! isnan(norm(res))
     s.iter += 1
 
     nothing
 end
+
+# =================== getter functions ====================================================
+
+"""
+    calc_height(s::KPS4)
+
+Determine the height of the topmost kite particle above ground.
+"""
+function calc_height(s::KPS4)
+    pos_kite(s)[3]
+end
+
+"""
+    pos_kite(s::KPS4)
+
+Return the position of the kite (top particle).
+"""
+function pos_kite(s::KPS4)
+    s.pos[end-2]
+end
+
+"""
+    kite_ref_frame(s::KPS4)
+
+Returns a tuple of the x, y, and z vectors of the kite reference frame.
+"""
+function kite_ref_frame(s::KPS4)
+    s.x, s.y, s.z
+end
+
+"""
+    winch_force(s::KPS4)
+
+Return the absolute value of the force at the winch as calculated during the last timestep. 
+"""
+function winch_force(s::KPS4) norm(s.last_force) end
+
+# ==================== end of getter functions ================================================
 
 function spring_forces(s::KPS4)
     forces = zeros(SimFloat, s.set.segments+KITE_SPRINGS)
@@ -678,13 +544,4 @@ function find_steady_state!(s::KPS4; prn=false, delta = 0.0, stiffness_factor=0.
     results = nlsolve(test_initial_condition!, X00, autoscale=true, xtol=2e-7, ftol=2e-7, iterations=s.set.max_iter)
     if prn println("\nresult: $results") end
     init(s, results.zero)
-end
-
-# rotate a 3d vector around the y axis
-function rotate_in_xz(vec, angle)
-    result = similar(vec)
-    result[1] = cos(angle) * vec[1] - sin(angle) * vec[3]
-    result[2] = vec[2]
-    result[3] = cos(angle) * vec[3] + sin(angle) * vec[1]
-    result
 end

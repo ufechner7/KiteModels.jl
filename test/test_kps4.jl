@@ -93,7 +93,7 @@ end
 
 @testset "get_particles         " begin
     init_150()
-    particles = KiteModels.get_particles(kps4.set.height_k, kps4.set.h_bridle, kps4.set.width, kps4.set.m_k)
+    particles = KiteUtils.get_particles(kps4.set.height_k, kps4.set.h_bridle, kps4.set.width, kps4.set.m_k)
     @test particles[1] == zeros(3)
     @test particles[2] == [  75.,              0.    ,       129.90381057]   # P_KCU
     @test particles[3] == [76.590521748547275, 0.    , 134.64355504845008]   # pos_A
@@ -358,8 +358,10 @@ end
     end
 end
 
-function unpack_add_origin(y::MVector{T, SimFloat},) where T
-    part  = reshape(SVector{T}(y),  Size(3, div(T,6), 2))
+function unpack_add_origin(y::MVector{S, SimFloat},) where S
+    T = S-2
+    y_  = @view y[1:end-2]
+    part  = reshape(SVector{T}(y_),  Size(3, div(T,6), 2))
     pos1, vel1 = part[:,:,1], part[:,:,2]
     pos = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(pos1[:,i-1]) end for i in 1:div(T,6)+1)
     vel = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(vel1[:,i-1]) end for i in 1:div(T,6)+1)
@@ -413,7 +415,7 @@ end
         @test all(vel[i] .≈ vels[i])
     end
     time = 0.0
-    @test length(res) == length(y0)
+    @test length(res) == length(y0)-2
     residual!(res, yd0, y0, kps4, time)
     res1, res2 = kps4.res1, kps4.res2
     height = calc_height(kps4)
