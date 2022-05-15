@@ -34,7 +34,10 @@ function simulate(integrator, steps, plot=false)
             @printf "%.2f: " round(integrator.t, digits=2)
             println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
         end
-        acc = 0.1
+        acc = 0.0
+        if kps4.t_0 > 15.0
+            acc = 0.1
+        end
         v_ro = kps4.sync_speed+acc*dt
         v_time[i] = kps4.t_0
         v_speed[i] = kps4.v_reel_out
