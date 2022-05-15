@@ -615,6 +615,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
         @inbounds s.pos[i] .= pos[i]
     end
     s.vel_kite .= vel[end-2]
+    s.v_reel_out = v_reel_out
 
     @assert ! isnan(norm(res))
     s.iter += 1

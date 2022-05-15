@@ -169,10 +169,16 @@ not changed.
 
 - t_0 the start time of the next timestep relative to the start of the simulation [s]
 """
-function set_v_reel_out!(s::AKM, v_reel_out, t_0, period_time = 1.0 / s.set.sample_freq)
+function set_v_reel_out!(s::KPS3, v_reel_out, t_0, period_time = 1.0 / s.set.sample_freq)
     s.l_tether += 0.5 * (v_reel_out + s.last_v_reel_out) * period_time
     s.last_v_reel_out = s.v_reel_out
     s.v_reel_out = v_reel_out
+    s.t_0 = t_0
+end
+
+function set_v_reel_out!(s::KPS4, v_reel_out, t_0, period_time = 1.0 / s.set.sample_freq)
+    s.sync_speed = v_reel_out
+    s.last_v_reel_out = s.v_reel_out
     s.t_0 = t_0
 end
 
@@ -392,7 +398,7 @@ Calculates the next simulation step.
 Parameters:
 - s:            an instance of an abstract kite model
 - integrator:   an integrator instance as returned by the function [`init_sim!`](@ref)
-- v_ro:         reel out speed in m/s
+- v_ro:         set value of reel out speed in m/s
 - `v_wind_gnd`: wind speed at reference height in m/s
 - wind_dir:     wind direction in radians
 - dt:           time step in seconds
