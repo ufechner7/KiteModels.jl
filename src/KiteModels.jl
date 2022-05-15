@@ -313,7 +313,7 @@ according to the requirements of the viewer.
 """
 function SysState(s::AKM, zoom=1.0)
     pos = s.pos
-    P = s.set.segments+1
+    P = length(pos)
     X = zeros(MVector{P, MyFloat})
     Y = zeros(MVector{P, MyFloat})
     Z = zeros(MVector{P, MyFloat})
