@@ -93,7 +93,7 @@ end
 
 @testset "get_particles         " begin
     init_150()
-    particles = KiteModels.get_particles(kps4.set.height_k, kps4.set.h_bridle, kps4.set.width, kps4.set.m_k)
+    particles = KiteUtils.get_particles(kps4.set.height_k, kps4.set.h_bridle, kps4.set.width, kps4.set.m_k)
     @test particles[1] == zeros(3)
     @test particles[2] == [  75.,              0.    ,       129.90381057]   # P_KCU
     @test particles[3] == [76.590521748547275, 0.    , 134.64355504845008]   # pos_A

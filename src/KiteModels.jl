@@ -47,7 +47,7 @@ export KPS3, KPS4, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                
 export calc_set_cl_cd!, copy_examples, copy_bin                                                   # helper functions
 export clear!, find_steady_state!, residual!                                                      # low level worker functions
 export init_sim!, next_step!                                                                      # hight level worker functions
-export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course                                                                               # getters
+export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course             # getters
 export winch_force, lift_drag, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
 export kite_ref_frame, orient_euler, spring_forces
 
@@ -104,6 +104,7 @@ const AKM = AbstractKiteModel
 
 include("KPS4.jl") # include code, specific for the four point kite model
 include("KPS3.jl") # include code, specific for the one point kite model
+include("init.jl") # functions to calculate the inital state vector, the inital masses and initial springs
 
 # Calculate the lift and drag coefficient as a function of the angle of attack alpha.
 function set_cl_cd!(s::AKM, alpha)   
@@ -348,7 +349,6 @@ function SysState(s::AKM, zoom=1.0)
     v_app_norm = norm(s.v_apparent)
     KiteUtils.SysState{P}(s.t_0, orient, elevation, azimuth, l_tether, v_reelout, force, s.depower, s.steering, heading, course, v_app_norm, s.vel_kite, X, Y, Z)
 end
-
 
 function calc_pre_tension(s::AKM)
     forces = spring_forces(s)
