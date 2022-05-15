@@ -127,19 +127,6 @@ function calc_alpha(v_app, vec_z)
 end
 
 """
-    calc_set_cl_cd!(s::AKM, vec_c, v_app)
-
-Calculate the lift over drag ratio as a function of the direction vector of the last tether
-segment, the current depower setting and the apparent wind speed.
-Set the calculated CL and CD values in the struct s. 
-"""
-function calc_set_cl_cd!(s::AKM, vec_c, v_app)
-    s.vec_z .= normalize(vec_c)
-    alpha = calc_alpha(v_app, s.vec_z) - s.alpha_depower
-    set_cl_cd!(s, alpha)
-end
-
-"""
     set_depower_steering!(s::AKM, depower, steering)
 
 Setter for the depower and steering model inputs. 

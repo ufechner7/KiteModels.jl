@@ -322,6 +322,19 @@ Return the absolute value of the force at the winch as calculated during the las
 function winch_force(s::KPS3) norm(s.last_force) end
 
 """
+    calc_set_cl_cd!(s::KPS3, vec_c, v_app)
+
+Calculate the lift over drag ratio as a function of the direction vector of the last tether
+segment, the current depower setting and the apparent wind speed.
+Set the calculated CL and CD values in the struct s. 
+"""
+function calc_set_cl_cd!(s::KPS3, vec_c, v_app)
+    s.vec_z .= normalize(vec_c)
+    alpha = calc_alpha(v_app, s.vec_z) - s.alpha_depower
+    set_cl_cd!(s, alpha)
+end
+
+"""
     residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
 
     N-point tether model, one point kite at the top:
