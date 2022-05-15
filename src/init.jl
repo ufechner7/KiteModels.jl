@@ -105,3 +105,12 @@ function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=fal
     res1, res2  = vcat(reduce(vcat, res1_), [s.l_tether, 0]), vcat(reduce(vcat, res2_),[0,0])
     MVector{6*(s.set.segments+KITE_PARTICLES)+2, Float64}(res1), MVector{6*(s.set.segments+KITE_PARTICLES)+2, Float64}(res2)
 end
+
+# rotate a 3d vector around the y axis
+function rotate_in_xz(vec, angle)
+    result = similar(vec)
+    result[1] = cos(angle) * vec[1] - sin(angle) * vec[3]
+    result[2] = vec[2]
+    result[3] = cos(angle) * vec[3] + sin(angle) * vec[1]
+    result
+end

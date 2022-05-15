@@ -545,12 +545,3 @@ function find_steady_state!(s::KPS4; prn=false, delta = 0.0, stiffness_factor=0.
     if prn println("\nresult: $results") end
     init(s, results.zero)
 end
-
-# rotate a 3d vector around the y axis
-function rotate_in_xz(vec, angle)
-    result = similar(vec)
-    result[1] = cos(angle) * vec[1] - sin(angle) * vec[3]
-    result[2] = vec[2]
-    result[3] = cos(angle) * vec[3] + sin(angle) * vec[1]
-    result
-end
