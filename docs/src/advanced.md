@@ -73,7 +73,7 @@ while the time for the second execution is the same (3.5s). So now about 47s of 
 
 The next steps are:
 - add the possibility to create log files of the simulation
-- add winch model
 - add controllers
+- add export as FMI for co-simulation component
 
 Because the code for this already fully exists in Python and partially in Julia these steps will be in place soon.
