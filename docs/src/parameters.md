@@ -12,7 +12,7 @@ system:
     sample_freq: 20        # sample frequency in Hz
 
 initial:
-    l_tether: 392.0        # initial tether length       [m]
+    l_tether: 150.0        # initial tether length       [m]
     elevation: 70.7        # initial elevation angle   [deg]
     v_reel_out: 0.0        # initial reel out speed    [m/s]
     depower:   25.0        # initial depower settings    [%]
@@ -45,7 +45,7 @@ kite:
     cd_list:   [   0.5,    0.5,    0.5,   1.0,   0.2, 0.1,  0.2,  1.0,   0.5,   0.5,   0.5]
     
 kps4:
-    width:         2.23     # width of the kite                      [m]
+    width:         5.77     # width of the kite                      [m]
     alpha_zero:    4.0      # should be 5                      [degrees]
     alpha_ztip:   10.0      #                                  [degrees]
     m_k:           0.2      # relative nose distance; increasing m_k increases C2 of the turn-rate law
