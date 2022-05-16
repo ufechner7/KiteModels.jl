@@ -56,12 +56,6 @@ find_steady_state!
 residual!
 ```
 
-## Environment
-```@docs
-calc_rho
-calc_wind_factor
-```
-
 ## Helper functions
 ```@docs
 copy_examples
@@ -70,8 +64,6 @@ calc_drag
 calc_set_cl_cd!
 calc_aero_forces!
 calc_particle_forces!
-initial_kite_ref_frame
 inner_loop!
 loop!
-get_particles
 ```

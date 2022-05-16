@@ -3,7 +3,6 @@ CurrentModule = KiteModels
 ```
 
 # KiteModels
-
 Documentation for the package [KiteModels](https://github.com/ufechner7/KiteModels.jl).
 
 The model has the following subcomponents, implement in separate packages:
@@ -12,8 +11,8 @@ The model has the following subcomponents, implement in separate packages:
 - KitePodModel from  [KitePodModels](https://github.com/aenarete/KitePodModels.jl)
 
 This package is part of Julia Kite Power Tools, which consist of the following packages:
-<p align="center"><img src="./kite_power_tools.png" width="500" /></p>
 
+![Julia Kite Power Tools](kite_power_tools.png)
 
 ## Installation
 Download [Julia 1.6](http://www.julialang.org) or later, if you haven't already. You can add KiteModels from  Julia's package manager, by typing 
