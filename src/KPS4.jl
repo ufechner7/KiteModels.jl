@@ -152,7 +152,6 @@ $(TYPEDFIELDS)
     masses::MVector{P, S}         = zeros(P)
     springs::MVector{Q, SP}       = zeros(SP, Q)
     rel_vel::T =           zeros(S, 3)
-    half_drag_force::T =   zeros(S, 3)
     forces::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     "synchronous speed of the motor/ generator"
     sync_speed::S =        0.0
@@ -244,10 +243,10 @@ The result is stored in the array s.forces.
     # TODO: check why d_brindle is not used !!!
     area = norm1 * d_tether
     v_app_perp = s.v_apparent - s.v_apparent ⋅ unit_vector * unit_vector
-    s.half_drag_force .= (-0.25 * rho * s.set.cd_tether * norm(v_app_perp) * area) * v_app_perp 
+    half_drag_force = (-0.25 * rho * s.set.cd_tether * norm(v_app_perp) * area) * v_app_perp 
 
-    @inbounds s.forces[spring.p1] .+= s.half_drag_force + s.spring_force
-    @inbounds s.forces[spring.p2] .+= s.half_drag_force - s.spring_force
+    @inbounds s.forces[spring.p1] .+= half_drag_force + s.spring_force
+    @inbounds s.forces[spring.p2] .+= half_drag_force - s.spring_force
     if i == 1 s.last_force .= s.forces[spring.p1] end
     nothing
 end
