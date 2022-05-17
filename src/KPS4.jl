@@ -151,7 +151,6 @@ $(TYPEDFIELDS)
     "current masses, depending on the total tether length"
     masses::MVector{P, S}         = zeros(P)
     springs::MVector{Q, SP}       = zeros(SP, Q)
-    rel_vel::T =           zeros(S, 3)
     forces::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     "synchronous speed of the motor/ generator"
     sync_speed::S =        0.0
