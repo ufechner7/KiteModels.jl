@@ -150,7 +150,9 @@ $(TYPEDFIELDS)
     initial_masses::MVector{P, S} = ones(P)
     "current masses, depending on the total tether length"
     masses::MVector{P, S}         = zeros(P)
+    "vector of the springs, defined as struct"
     springs::MVector{Q, SP}       = zeros(SP, Q)
+    "vector of the forces, acting on the particles"
     forces::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     "synchronous speed of the motor/ generator"
     sync_speed::S =        0.0
