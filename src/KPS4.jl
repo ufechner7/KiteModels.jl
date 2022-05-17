@@ -318,7 +318,7 @@ Output:
 - `s.v_wind_tether`
 """
 @inline function inner_loop!(s::KPS4, pos, vel, v_wind_gnd, segments, d_tether)
-    for i in 1:length(s.springs)
+    for i in eachindex(s.springs)
         p1 = s.springs[i].p1  # First point nr.
         p2 = s.springs[i].p2  # Second point nr.
         height = 0.5 * (pos[p1][3] + pos[p2][3])

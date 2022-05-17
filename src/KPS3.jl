@@ -386,7 +386,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
     end
     if norm(res) < 1e5
         # println(norm(res))
-        for i in 1:length(pos)
+        for i in eachindex(pos)
             @inbounds s.pos[i] .= pos[i]
         end
     end
@@ -424,8 +424,8 @@ function init_inner(s::KPS3, X=zeros(2 * s.set.segments); old=false, delta=0.0)
         vel[i+1] .= SVec3(DELTA, DELTA, DELTA)
         acc[i+1] .= SVec3(DELTA, DELTA, DELTA)
     end
-    for i in 1:length(pos)
-        s.pos[i] .= pos[i]
+    for i in eachindex(pos)
+        @inbounds s.pos[i] .= pos[i]
     end
 
     for i in 2:s.set.segments+1
