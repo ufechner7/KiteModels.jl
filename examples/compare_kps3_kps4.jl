@@ -8,7 +8,7 @@ if ! @isdefined kps3; const kps3 = KPS3(kcu) end
 
 # the following values can be changed to match your interest
 dt = 0.05
-ALPHA_ZERO = 7.35 
+ALPHA_ZERO = 8.8 
 STEPS = round(600/dt*0.05)
 PLOT = true
 FRONT_VIEW = false
@@ -52,6 +52,7 @@ av_steps = simulate(kps3, integrator, STEPS, true)
 lift, drag = KiteModels.lift_drag(kps3)
 println("KPS3")
 println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
+println("winch_force [N]: $(round(winch_force(kps3), digits=2))")
 println("Average number of callbacks per time step: $av_steps")
 
 kps4.set.alpha_zero = ALPHA_ZERO
@@ -61,4 +62,5 @@ av_steps = simulate(kps4, integrator, STEPS, true)
 lift, drag = KiteModels.lift_drag(kps4)
 println("KPS4")
 println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
+println("winch_force [N]: $(round(winch_force(kps4), digits=2))")
 println("Average number of callbacks per time step: $av_steps")

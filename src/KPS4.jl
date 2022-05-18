@@ -238,8 +238,11 @@ The result is stored in the array s.forces.
     end
 
     s.v_apparent .= s.v_wind_tether - av_vel
-    # TODO: check why d_brindle is not used !!!
-    area = norm1 * d_tether
+    if s.set.version == 1
+        area = norm1 * d_tether
+    else
+        area = norm1 * s.set.d_line * 0.001
+    end
     v_app_perp = s.v_apparent - s.v_apparent ⋅ unit_vector * unit_vector
     half_drag_force = (-0.25 * rho * s.set.cd_tether * norm(v_app_perp) * area) * v_app_perp 
 
@@ -336,8 +339,12 @@ that iterate over all tether segments.
 """
 function loop!(s::KPS4, pos, vel, posd, veld)
     L_0      = s.l_tether / s.set.segments
-    # mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
-    mass_per_meter = 0.011
+    if s.set.version == 1
+        # for compatibility with the python code and paper
+        mass_per_meter = 0.011
+    else
+        mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
+    end
     s.res1[1] .= pos[1]
     s.res2[1] .= vel[1]
     particles = s.set.segments + KITE_PARTICLES + 1
