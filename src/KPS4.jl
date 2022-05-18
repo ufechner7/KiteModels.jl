@@ -127,8 +127,7 @@ $(TYPEDFIELDS)
     param_cd::S =         1.0
     "azimuth angle in radian; inital value is zero"
     psi::S =              zero(S)
-    "elevation angle in radian; initial value about 70 degrees"
-    beta::S =             deg2rad(se().elevation)
+    "depower angle [deg]"
     alpha_depower::S =     0.0
     "relative start time of the current time interval"
     t_0::S =               0.0
@@ -181,7 +180,6 @@ function clear!(s::KPS4)
 
     s.l_tether = s.set.l_tether
     s.segment_length = s.l_tether / s.set.segments
-    s.beta = deg2rad(s.set.elevation)
     init_masses!(s)
     init_springs!(s)
     for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1 
