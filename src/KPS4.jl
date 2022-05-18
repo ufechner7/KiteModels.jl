@@ -110,7 +110,6 @@ $(TYPEDFIELDS)
     spring_force::T =     zeros(S, 3)
     "last winch force"
     last_force::T =       zeros(S, 3)
-    segment::T =          zeros(S, 3) 
     "a copy of the residual one (pos,vel) for debugging and unit tests"    
     res1::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     "a copy of the residual two (vel,acc) for debugging and unit tests"
@@ -216,11 +215,11 @@ The result is stored in the array s.forces.
     l_0 = spring.length # Unstressed length
     k = spring.c_spring * s.stiffness_factor  # Spring constant
     c = spring.damping                        # Damping coefficient    
-    s.segment .= pos1 - pos2
+    segment = pos1 - pos2
     rel_vel = vel1 - vel2
     av_vel = 0.5 * (vel1 + vel2)
-    norm1 = norm(s.segment)
-    unit_vector = s.segment / norm1
+    norm1 = norm(segment)
+    unit_vector = segment / norm1
 
     k1 = 0.25 * k # compression stiffness kite segments
     k2 = 0.1 * k  # compression stiffness tether segments
@@ -485,8 +484,8 @@ function spring_forces(s::KPS4)
         spring = s.springs[i+s.set.segments]
         l_0 = spring.length # Unstressed length
         k = spring.c_spring * s.stiffness_factor       # Spring constant 
-        s.segment .= pos1 - pos2
-        norm1 = norm(s.segment)
+        segment = pos1 - pos2
+        norm1 = norm(segment)
         k1 = 0.25 * k # compression stiffness kite segments
         if (norm1 - l_0) > 0.0
             spring_force = k *  (norm1 - l_0) 
