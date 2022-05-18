@@ -124,7 +124,7 @@ $(TYPEDFIELDS)
     psi::S =              zero(S)
     "elevation angle in radian; initial value about 70 degrees"
     beta::S =             deg2rad(se().elevation)
-    " depower angle [deg]"
+    "depower angle [deg]"
     alpha_depower::S =     0.0
     "relative start time of the current time interval"
     t_0::S =               0.0
@@ -369,6 +369,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
     s.segment_length = (s.l_tether + s.last_v_reel_out * delta_t + 0.5 * delta_v * delta_t^2) / div(S,6)
     s.c_spring = s.set.c_spring / s.segment_length
     s.damping  = s.set.damping / s.segment_length
+    s.beta = calc_elevation(s)
 
     # call core calculation routines
     vec_c = SVector{3, SimFloat}(pos[s.set.segments] - pos_kite)     # convert to SVector to avoid allocations
