@@ -17,6 +17,8 @@ PRINT = false
 STATISTIC = false
 # end of user parameter section #
 
+se().version = 2
+
 if PLOT
     using Plots
     include("plot2d.jl")
