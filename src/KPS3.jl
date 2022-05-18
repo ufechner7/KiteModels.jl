@@ -170,7 +170,7 @@ function clear!(s::KPS3)
     s.l_tether = s.set.l_tether
     s.segment_length = s.l_tether / s.set.segments
     s.beta = deg2rad(s.set.elevation)
-    s.rho = s.set.rho_0
+    s.rho = calc_rho(s.am, height)  
     mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
     mass_per_meter = 0.011
     s.initial_masses .= ones(s.set.segments+1) * mass_per_meter * s.set.l_tether / s.set.segments # Dyneema: 1.1 kg/ 100m

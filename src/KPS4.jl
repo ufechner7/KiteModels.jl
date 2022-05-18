@@ -137,7 +137,7 @@ $(TYPEDFIELDS)
     last_v_reel_out::S =   0.0
     "unstretched tether length"
     l_tether::S =          0.0
-    "air density"
+    "air density at the height of the kite"
     rho::S =               0.0
     "actual relative depower setting,  must be between    0 .. 1.0"
     depower::S =           0.0
