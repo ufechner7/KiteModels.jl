@@ -14,6 +14,9 @@ The model has the following subcomponents, implement in separate packages:
 This package is part of Julia Kite Power Tools, which consist of the following packages:
 <p align="center"><img src="./docs/src/kite_power_tools.png" width="500" /></p>
 
+## What to install
+If you want to run simulations and see the results in 3D, please install the meta package  [KiteSimulators](https://github.com/aenarete/KiteSimulators.jl) . If you are not interested in 3D visualization or control you can just install this package.
+
 ## Installation
 Download [Julia 1.6](http://www.julialang.org) or later, if you haven't already. You can add KiteModels from  Julia's package manager, by typing 
 ```julia
@@ -41,9 +44,12 @@ Dyneema or simular high strenght materials for the tether the resulting system i
 ## Further reading
 These models are described in detail in [Dynamic Model of a Pumping Kite Power System](http://arxiv.org/abs/1406.6218).
 
+## Replaying log files
+If you want to replay flight log files to understand and explain better how kite power systems work, please have a look at [KiteViewer](https://github.com/ufechner7/KiteViewer) .
+
 ## See also
 - [Research Fechner](https://research.tudelft.nl/en/publications/?search=Fechner+wind&pageSize=50&ordering=rating&descending=true) for the scientic background of this code
-- The application [KiteViewer](https://github.com/ufechner7/KiteViewer)
+- The meta-package  [KiteSimulators](https://github.com/aenarete/KiteSimulators.jl)
 - the package [KiteUtils](https://github.com/ufechner7/KiteUtils.jl)
 - the packages [WinchModels](https://github.com/aenarete/WinchModels.jl) and [KitePodModels](https://github.com/aenarete/KitePodModels.jl) and [AtmosphericModels](https://github.com/aenarete/AtmosphericModels.jl)
 - the packages [KiteControllers](https://github.com/aenarete/KiteControllers.jl) and [KiteViewers](https://github.com/aenarete/KiteViewers.jl)
