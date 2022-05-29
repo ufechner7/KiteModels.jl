@@ -12,6 +12,9 @@ For Ubuntu Linux I use the following ppa to install vscode and to keep it up-to-
 ## Creating a custom system image
 To reduce the startup time it is suggested to use a custom system image that contains all the packages you use on a daily base in compiled form.
 
+For end users, follow the instructions on [KiteSimulators](https://github.com/aenarete/KiteSimulators.jl) .
+Package developers can follow these instructions:
+
 From a bash prompt you can create one using the following commands, assuming you created a folder "test" as explained on the Quickstart page:
 ```bash
 cd test
@@ -71,9 +74,8 @@ while the time for the second execution is the same (3.5s). So now about 47s of 
 
 ## Outlook
 
-The next steps are:
-- add the possibility to create log files of the simulation
-- add controllers
+The next steps:
+- test and integrate the package  [KiteControllers](https://github.com/aenarete/KiteControllers.jl) 
+- integrate the winch with the one point model
 - add export as FMI for co-simulation component
 
-Because the code for this already fully exists in Python and partially in Julia these steps will be in place soon.
