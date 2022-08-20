@@ -126,7 +126,7 @@ time = 0.0
 t = @benchmark residual!($res, $yd0, $y0, $kps4, $time)
 push!(msg, ("Mean time residual!:           $(round(mean(t.times), digits=1)) ns"))
 @test t.memory == 0
-# time using Python/ Numba: 8.94 µs, time using Julia 1.7.2: 1.6µs
+# time using Python/ Numba: 8.94 µs, time using Julia 1.7.2: 1.6µs, Julia 1.8.0: 1.244µs
 
 end
 for i in 1:length(msg)
