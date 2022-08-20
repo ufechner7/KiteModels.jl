@@ -475,7 +475,7 @@ end
     @test pre_tension < 1.01
     @test unstretched_length(kps4) ≈ 392.0              # initial, unstreched tether lenght
     println("length: ", tether_length(kps4))
-    @test isapprox(tether_length(kps4), 410.8, rtol=1e-2) # real, streched tether length was: 406.4
+    @test isapprox(tether_length(kps4), 408.74, rtol=1e-2) # real, streched tether length was: 406.4
 #    @test winch_force(kps) ≈ 276.25776695110034        # initial force at the winch [N]
 #    lift, drag = lift_drag(kps)
 #    @test lift ≈ 443.63303000106197                    # initial lift force of the kite [N]
