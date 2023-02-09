@@ -79,6 +79,11 @@ tether:
     e_tether: 55000000000.0 # axial tensile modulus of Dyneema (M.B. Ruppert) [Pa]
                            # SK75: 109 to 132 GPa according to datasheet
 
+winch:
+    max_force: 4000        # maximal (nominal) tether force; short overload allowed [N]
+    v_ro_max:  8.0         # maximal reel-out speed                      [m/s]
+    v_ro_min: -8.0         # minimal reel-out speed (=max reel-in speed) [m/s]
+
 environment:
     v_wind: 9.51             # wind speed at reference height          [m/s]
     v_wind_ref: [9.51, 0.0]  # wind speed vector at reference height   [m/s]
