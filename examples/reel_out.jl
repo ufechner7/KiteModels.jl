@@ -18,6 +18,10 @@ STATISTIC = false
 # end of user parameter section #
 
 if PLOT
+    using Pkg
+    if ! ("Plots" ∈ keys(Pkg.project().dependencies))
+        using TestEnv; TestEnv.activate()
+    end
     using Plots
     include("plot2d.jl")
 end
