@@ -23,6 +23,7 @@ if PLOT
         using TestEnv; TestEnv.activate()
     end
     using Plots
+    Plots.__init__()
     include("plot2d.jl")
 end
 
