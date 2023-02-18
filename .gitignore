@@ -7,3 +7,6 @@ bin/kps-image-1.7-initial.so
 bin/kps-image-1.6-main.so
 bin/kps-image-1.7-main.so
 bin/kps-image-1.8-main.so
+test/data/kite.obj
+test/data/settings.yaml
+test/data/system.yaml
