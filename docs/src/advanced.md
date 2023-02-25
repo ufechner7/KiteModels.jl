@@ -16,7 +16,7 @@ For end users, follow the instructions on [KiteSimulators](https://github.com/ae
 Package developers can follow these instructions:
 
 1. Go to the website https://github.com/ufechner7/KiteModels.jl and click on the **Fork** button at the top right.
-2. clone the new repository which is owned by you with a command similar to this one: ```git clone https://github.com/aenarete/KiteModels.jl``` You own git user name must appear in the URL, otherwise you will not be able to push your changes.
+2. clone the new repository which is owned by you with a command similar to this one: ```git clone https://github.com/aenarete/KiteModels.jl``` Your own git user name must appear in the URL, otherwise you will not be able to push your changes.
 
 From a bash prompt you can create one using the following commands, assuming you created a folder "test" as explained on the Quickstart page:
 ```bash
