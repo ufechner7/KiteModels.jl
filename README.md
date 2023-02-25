@@ -2,7 +2,7 @@
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://ufechner7.github.io/KiteModels.jl/stable)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://ufechner7.github.io/KiteModels.jl/dev)
-[![Build Status](https://github.com/ufechner7/KiteModels.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/ufechner7/KiteModels.jl/actions/workflows/CI.yml?query=branch%3Amain)
+[![CI](https://github.com/ufechner7/KiteModels.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/ufechner7/KiteModels.jl/actions/workflows/CI.yml)
 [![Coverage](https://codecov.io/gh/ufechner7/KiteModels.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/ufechner7/KiteModels.jl)
 
 ## Kite power system models, consisting of tether and kite
