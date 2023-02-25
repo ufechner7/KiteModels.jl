@@ -10,3 +10,4 @@ bin/kps-image-1.8-main.so
 test/data/kite.obj
 test/data/settings.yaml
 test/data/system.yaml
+bin/kps-image-1.9-main.so
