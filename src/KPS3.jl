@@ -31,7 +31,7 @@ One point kite model, included from KiteModels.jl.
 
 Scientific background: http://arxiv.org/abs/1406.6218 =#
 
-const USE_WINCH = false
+const USE_WINCH = true
 
 """
     mutable struct KPS3{S, T, P} <: AbstractKiteModel
@@ -150,6 +150,8 @@ $(TYPEDFIELDS)
     initial_masses::MVector{P, S} = ones(P)
     "current masses, depending on the total tether length"
     masses::MVector{P, S}         = ones(P)
+    "vector of the forces, acting on the particles"
+    forces::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     "synchronous speed of the motor/ generator"
     sync_speed::S =        0.0    
 end
@@ -180,6 +182,11 @@ function clear!(s::KPS3)
         mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
     end
     s.initial_masses .= ones(s.set.segments+1) * mass_per_meter * s.set.l_tether / s.set.segments # Dyneema: 1.1 kg/ 100m
+    if USE_WINCH
+        for i in 1:se().segments + 1 
+            s.forces[i] .= zeros(3)
+        end
+    end
     s.c_spring = s.set.c_spring / s.segment_length
     s.damping  = s.set.damping / s.segment_length
     s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
@@ -298,6 +305,7 @@ function calc_res(s::KPS3, pos1, pos2, vel1, vel2, mass, veld, result, i)
    
     s.total_forces .= s.force + s.last_force
     s.last_force .= 0.5 * s.last_tether_drag - s.spring_force
+    s.forces[i] .= s.total_forces
     acc = s.total_forces ./ mass # create the vector of the spring acceleration
     # result .= veld - (s.acc + SVector(0,0, -G_EARTH)) # Python code, wrong
     result .= veld - (SVector(0, 0, -G_EARTH) - acc)
@@ -419,6 +427,11 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
             @inbounds s.pos[i] .= pos[i]
         end
     end
+    if USE_WINCH
+        # winch calculations
+        res[end-1] = lengthd - v_reel_out
+        res[end] = v_reel_outd - calc_acceleration(s.wm, s.sync_speed, v_reel_out, norm(s.forces[1]), true)
+    end
     # @assert ! isnan(norm(res))
     s.iter += 1
     nothing
@@ -476,8 +489,13 @@ end
 # same as above, but returns a tuple of two one dimensional arrays
 function init(s::KPS3, X=zeros(2 * (s.set.segments)); old=false, delta = 0.0)
     res1_, res2_ = init_inner(s, X; old=old, delta = delta)
-    res1, res2  = reduce(vcat, res1_), reduce(vcat, res2_)
-    MVector{6*(s.set.segments), Float64}(res1), MVector{6*(s.set.segments), Float64}(res2)
+    if ! USE_WINCH
+        res1, res2  = reduce(vcat, res1_), reduce(vcat, res2_)
+        MVector{6*(s.set.segments), Float64}(res1), MVector{6*(s.set.segments), Float64}(res2)
+    else
+        res1, res2  = vcat(reduce(vcat, res1_), [s.l_tether, 0]), vcat(reduce(vcat, res2_),[0,0])
+        MVector{6*(s.set.segments)+2, Float64}(res1), MVector{6*(s.set.segments)+2, Float64}(res2)
+    end
 end
 
 """
@@ -494,7 +512,11 @@ function spring_forces(s::KPS3)
 end
 
 function find_steady_state_inner(s::KPS3, X, prn=false; delta=0.0)
-    res = zeros(MVector{6*s.set.segments, SimFloat})
+    if USE_WINCH
+        res = zeros(MVector{6*s.set.segments+2, SimFloat})
+    else
+        res = zeros(MVector{6*s.set.segments, SimFloat})
+    end
 
     # helper function for the steady state finder
     function test_initial_condition!(F, x::Vector)

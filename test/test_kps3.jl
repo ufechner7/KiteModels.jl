@@ -2,7 +2,7 @@ using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils
 
 using KiteModels, KitePodModels
 
-const USE_WINCH = false
+const USE_WINCH = true
 
 const SEGMENTS = se().segments
 if ! @isdefined kcu
@@ -191,6 +191,9 @@ end
     res1 = zeros(SVector{SEGMENTS, KVec3})
     res2 = deepcopy(res1)
     res = reduce(vcat, vcat(res1, res2))
+    if USE_WINCH
+        res = vcat(res, zeros(2))
+    end
     X = zeros(SimFloat, 2*kps.set.segments)
     y0, yd0 = KiteModels.init(kps, X)
     # println(y0)
@@ -226,9 +229,15 @@ end
 @testset "test_init            " begin
     my_state = deepcopy(kps)
     y0, yd0 = KiteModels.init(my_state, zeros(SimFloat, 2*SEGMENTS), delta=1e-6)
-    @test length(y0)  == (SEGMENTS) * 6
-    @test length(yd0) == (SEGMENTS) * 6
-    @test sum(y0)  ≈ 717.163369868302
+    if ! USE_WINCH
+        @test length(y0)  == (SEGMENTS) * 6
+        @test length(yd0) == (SEGMENTS) * 6
+        @test sum(y0)  ≈ 717.163369868302
+    else
+        @test length(y0)  == (SEGMENTS) * 6 + 2
+        @test length(yd0) == (SEGMENTS) * 6 + 2
+        @test sum(y0[1:end-2])  ≈ 717.163369868302
+    end
     @test sum(yd0) ≈ 3.6e-5
     @test isapprox(my_state.param_cl, 0.574103590856, atol=1e-4)
     @test isapprox(my_state.param_cd, 0.125342896308, atol=1e-4)

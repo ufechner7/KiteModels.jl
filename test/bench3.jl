@@ -12,7 +12,7 @@ end
 res1 = zeros(SVector{SEGMENTS+1, KiteModels.KVec3})
 res2 = deepcopy(res1)
 if ! @isdefined res3
-    const res3 = reduce(vcat, vcat(res1, res2))
+    const res3 = vcat(reduce(vcat, vcat(res1, res2), zeros(2)))
 end
 
 msg=""
@@ -75,7 +75,7 @@ end
 end
 
 t = @benchmark residual!(res, yd, y, p, t) setup = (res1 = zeros(SVector{SEGMENTS, KVec3}); res2 = deepcopy(res1); 
-                                                               res = reduce(vcat, vcat(res1, res2)); pos = deepcopy(res1);
+                                                               res = vcat(reduce(vcat, vcat(res1, res2)), zeros(2)); pos = deepcopy(res1);
                                                                pos[1] .= [1.0,2,3]; vel = deepcopy(res1); y = reduce(vcat, vcat(pos, vel));
                                                                der_pos = deepcopy(res1); der_vel = deepcopy(res1); yd = reduce(vcat, vcat(der_pos, der_vel));
                                                                p = kps; t = 0.0)
