@@ -2,7 +2,7 @@ using Printf
 using KiteModels, KitePodModels, KiteUtils
 
 # change this to KPS3 or KPS4
-const Model = KPS4
+const Model = KPS3
 
 if ! @isdefined kcu;  const kcu = KCU(se());   end
 if ! @isdefined kps4; const kps4 = Model(kcu); end

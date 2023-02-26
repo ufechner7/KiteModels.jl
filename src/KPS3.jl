@@ -31,6 +31,8 @@ One point kite model, included from KiteModels.jl.
 
 Scientific background: http://arxiv.org/abs/1406.6218 =#
 
+const USE_WINCH = false
+
 """
     mutable struct KPS3{S, T, P} <: AbstractKiteModel
 
@@ -355,15 +357,37 @@ The number of the point masses of the model N = S/6, the state of each point
 is represented by two 3 element vectors.
 """
 function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
-    # unpack the vectors y and yd
-    part = reshape(SVector{S}(y),  Size(3, div(S,6), 2))
-    partd = reshape(SVector{S}(yd),  Size(3, div(S,6), 2))
-    pos1, vel1 = part[:,:,1], part[:,:,2]
-    pos = SVector{div(S,6)+1}(if i==1 SVector(0.0,0,0) else SVector(pos1[:,i-1]) end for i in 1:div(S,6)+1)
-    vel = SVector{div(S,6)+1}(if i==1 SVector(0.0,0,0) else SVector(vel1[:,i-1]) end for i in 1:div(S,6)+1)
-    posd1, veld1 = partd[:,:,1], partd[:,:,2]
-    posd = SVector{div(S,6)+1}(if i==1 SVector(0.0,0,0) else SVector(posd1[:,i-1]) end for i in 1:div(S,6)+1)
-    veld = SVector{div(S,6)+1}(if i==1 SVector(0.0,0,0) else SVector(veld1[:,i-1]) end for i in 1:div(S,6)+1)
+    if USE_WINCH
+        T = S-2 # T: three times the number of particles excluding the origin
+        segments = div(T,6) - KITE_PARTICLES
+        # unpack the vectors y and yd
+        # extract the data for the winch simulation
+        length,  v_reel_out  = y[end-1],  y[end]
+        lengthd, v_reel_outd = yd[end-1], yd[end]
+        # extract the data of the particles
+        y_  = @view y[1:end-2]
+        yd_ = @view yd[1:end-2]
+        # unpack the vectors y and yd
+        part  = reshape(SVector{T}(y_),  Size(3, div(T,6), 2))
+        partd = reshape(SVector{T}(yd_), Size(3, div(T,6), 2))
+        pos1 = part[:,:,1]
+        pos1, vel1 = part[:,:,1], part[:,:,2]
+        pos = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(pos1[:,i-1]) end for i in 1:div(T,6)+1)
+        vel = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(vel1[:,i-1]) end for i in 1:div(T,6)+1)
+        posd1, veld1 = partd[:,:,1], partd[:,:,2]
+        posd = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(posd1[:,i-1]) end for i in 1:div(T,6)+1)
+        veld = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(veld1[:,i-1]) end for i in 1:div(T,6)+1)
+    else
+        part = reshape(SVector{S}(y),  Size(3, div(S,6), 2))
+        partd = reshape(SVector{S}(yd),  Size(3, div(S,6), 2))
+        pos1, vel1 = part[:,:,1], part[:,:,2]
+        pos = SVector{div(S,6)+1}(if i==1 SVector(0.0,0,0) else SVector(pos1[:,i-1]) end for i in 1:div(S,6)+1)
+        vel = SVector{div(S,6)+1}(if i==1 SVector(0.0,0,0) else SVector(vel1[:,i-1]) end for i in 1:div(S,6)+1)
+        posd1, veld1 = partd[:,:,1], partd[:,:,2]
+        posd = SVector{div(S,6)+1}(if i==1 SVector(0.0,0,0) else SVector(posd1[:,i-1]) end for i in 1:div(S,6)+1)
+        veld = SVector{div(S,6)+1}(if i==1 SVector(0.0,0,0) else SVector(veld1[:,i-1]) end for i in 1:div(S,6)+1)
+    end
+
 
     # update parameters
     pos_kite = pos[div(S,6)+1]

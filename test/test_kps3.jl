@@ -2,6 +2,8 @@ using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils
 
 using KiteModels, KitePodModels
 
+const USE_WINCH = false
+
 const SEGMENTS = se().segments
 if ! @isdefined kcu
     const kcu = KCU(se())
