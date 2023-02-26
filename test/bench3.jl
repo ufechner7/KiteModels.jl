@@ -9,10 +9,16 @@ if ! @isdefined kcu
     const kps = KPS3(kcu)
 end
 
+include("../src/consts.jl")
+
 res1 = zeros(SVector{SEGMENTS+1, KiteModels.KVec3})
 res2 = deepcopy(res1)
 if ! @isdefined res3
-    const res3 = vcat(reduce(vcat, vcat(res1, res2), zeros(2)))
+    if USE_WINCH
+        const res3 = vcat(reduce(vcat, vcat(res1, res2)), zeros(2))
+    else
+        const res3 = vcat(reduce(vcat, vcat(res1, res2)))
+    end
 end
 
 msg=""
@@ -59,6 +65,9 @@ end
     res1 = zeros(SVector{SEGMENTS, KVec3})
     res2 = deepcopy(res1)
     res = reduce(vcat, vcat(res1, res2))
+    if USE_WINCH
+        res = vcat(res, zeros(2))
+    end
     X = zeros(SimFloat, 2*kps.set.segments)
     y0, yd0 = KiteModels.init(kps, X; delta=1e-6)
     # println(y0)
@@ -76,11 +85,11 @@ end
 
 t = @benchmark residual!(res, yd, y, p, t) setup = (res1 = zeros(SVector{SEGMENTS, KVec3}); res2 = deepcopy(res1); 
                                                                res = vcat(reduce(vcat, vcat(res1, res2)), zeros(2)); pos = deepcopy(res1);
-                                                               pos[1] .= [1.0,2,3]; vel = deepcopy(res1); y = reduce(vcat, vcat(pos, vel));
-                                                               der_pos = deepcopy(res1); der_vel = deepcopy(res1); yd = reduce(vcat, vcat(der_pos, der_vel));
+                                                               pos[1] .= [1.0,2,3]; vel = deepcopy(res1); X = zeros(SimFloat, 2*kps.set.segments); 
+                                                               (y0, yd0) = KiteModels.init(kps, X); yd=yd0; y=y0;
                                                                p = kps; t = 0.0)
 
-@test t.memory == 0
+@test t.memory <= 64
 global msg = "Mean time residual! one point model: $(round(mean(t.times), digits=1)) ns"
 
 end

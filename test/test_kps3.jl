@@ -2,7 +2,7 @@ using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils
 
 using KiteModels, KitePodModels
 
-const USE_WINCH = true
+include("../src/consts.jl")
 
 const SEGMENTS = se().segments
 if ! @isdefined kcu
@@ -12,7 +12,11 @@ end
 res1 = zeros(SVector{SEGMENTS+1, KiteModels.KVec3})
 res2 = deepcopy(res1)
 if ! @isdefined res3
-    const res3 = reduce(vcat, vcat(res1, res2))
+    if USE_WINCH
+        const res3 = vcat(reduce(vcat, vcat(res1, res2)), zeros(2))
+    else
+        const res3 = vcat(reduce(vcat, vcat(res1, res2)))
+    end
 end
 
 @testset verbose = true "KPS3 tests...." begin
