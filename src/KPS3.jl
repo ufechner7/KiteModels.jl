@@ -395,13 +395,12 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
         veld = SVector{div(S,6)+1}(if i==1 SVector(0.0,0,0) else SVector(veld1[:,i-1]) end for i in 1:div(S,6)+1)
     end
 
-
     # update parameters
     pos_kite = pos[segments+1]
     s.vel_kite .= vel[segments+1]
-    delta_t = time - s.t_0
-    delta_v = s.v_reel_out - s.last_v_reel_out
-    s.segment_length = (s.l_tether + s.last_v_reel_out * delta_t + 0.5 * delta_v * delta_t^2) / segments
+    s.l_tether = length
+    s.segment_length = length / segments
+
     s.c_spring = s.set.c_spring / s.segment_length
     s.damping  = s.set.damping / s.segment_length
     s.beta = calc_elevation(s)
@@ -431,6 +430,8 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
         res[end-1] = lengthd - v_reel_out
         res[end] = v_reel_outd - calc_acceleration(s.wm, s.sync_speed, v_reel_out, norm(s.forces[1]), true)
     end
+    s.vel_kite .= vel[end-2]
+    s.v_reel_out = v_reel_out
     # @assert ! isnan(norm(res))
     s.iter += 1
     nothing
