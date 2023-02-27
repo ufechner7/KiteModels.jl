@@ -384,7 +384,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
         posd1_, veld1_ = partd[:,:,1], partd[:,:,2]
         posd = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(posd1_[:,i-1]) end for i in 1:div(T,6)+1)
         veld = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(veld1_[:,i-1]) end for i in 1:div(T,6)+1)
-    else
+    else T = S
         part = reshape(SVector{S}(y),  Size(3, div(S,6), 2))
         partd = reshape(SVector{S}(yd),  Size(3, div(S,6), 2))
         pos1, vel1 = part[:,:,1], part[:,:,2]
@@ -397,11 +397,11 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
 
 
     # update parameters
-    pos_kite = pos[div(S,6)+1]
-    s.vel_kite .= vel[div(S,6)+1]
+    pos_kite = pos[segments+1]
+    s.vel_kite .= vel[segments+1]
     delta_t = time - s.t_0
     delta_v = s.v_reel_out - s.last_v_reel_out
-    s.segment_length = (s.l_tether + s.last_v_reel_out * delta_t + 0.5 * delta_v * delta_t^2) / div(S,6)
+    s.segment_length = (s.l_tether + s.last_v_reel_out * delta_t + 0.5 * delta_v * delta_t^2) / segments
     s.c_spring = s.set.c_spring / s.segment_length
     s.damping  = s.set.damping / s.segment_length
     s.beta = calc_elevation(s)
@@ -414,7 +414,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
     loop(s, pos, vel, posd, veld, s.res1, s.res2)
   
     # copy and flatten result
-    for i in 2:div(S,6)+1
+    for i in 2:segments+1
         for j in 1:3
            @inbounds res[3*(i-2)+j]              = s.res1[i][j]
            @inbounds res[3*(div(S,6))+3*(i-2)+j] = s.res2[i][j]
