@@ -9,16 +9,10 @@ if ! @isdefined kcu
     const kps = KPS3(kcu)
 end
 
-include("../src/consts.jl")
-
 res1 = zeros(SVector{SEGMENTS+1, KiteModels.KVec3})
 res2 = deepcopy(res1)
 if ! @isdefined res3
-    if USE_WINCH
-        const res3 = vcat(reduce(vcat, vcat(res1, res2)), zeros(2))
-    else
-        const res3 = vcat(reduce(vcat, vcat(res1, res2)))
-    end
+    const res3 = vcat(reduce(vcat, vcat(res1, res2)), zeros(2))
 end
 
 msg=""
@@ -65,9 +59,7 @@ end
     res1 = zeros(SVector{SEGMENTS, KVec3})
     res2 = deepcopy(res1)
     res = reduce(vcat, vcat(res1, res2))
-    if USE_WINCH
-        res = vcat(res, zeros(2))
-    end
+    res = vcat(res, zeros(2))
     X = zeros(SimFloat, 2*kps.set.segments)
     y0, yd0 = KiteModels.init(kps, X; delta=1e-6)
     # println(y0)

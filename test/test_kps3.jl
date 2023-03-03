@@ -2,8 +2,6 @@ using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils
 
 using KiteModels, KitePodModels
 
-include("../src/consts.jl")
-
 const SEGMENTS = se().segments
 if ! @isdefined kcu
     const kcu = KCU(se())
@@ -12,11 +10,7 @@ end
 res1 = zeros(SVector{SEGMENTS+1, KiteModels.KVec3})
 res2 = deepcopy(res1)
 if ! @isdefined res3
-    if USE_WINCH
-        const res3 = vcat(reduce(vcat, vcat(res1, res2)), zeros(2))
-    else
-        const res3 = vcat(reduce(vcat, vcat(res1, res2)))
-    end
+    const res3 = vcat(reduce(vcat, vcat(res1, res2)), zeros(2))
 end
 
 @testset verbose = true "KPS3 tests...." begin
@@ -195,9 +189,8 @@ end
     res1 = zeros(SVector{SEGMENTS, KVec3})
     res2 = deepcopy(res1)
     res = reduce(vcat, vcat(res1, res2))
-    if USE_WINCH
-        res = vcat(res, zeros(2))
-    end
+
+    res = vcat(res, zeros(2))
     X = zeros(SimFloat, 2*kps.set.segments)
     y0, yd0 = KiteModels.init(kps, X)
     # println(y0)
@@ -233,15 +226,9 @@ end
 @testset "test_init            " begin
     my_state = deepcopy(kps)
     y0, yd0 = KiteModels.init(my_state, zeros(SimFloat, 2*SEGMENTS), delta=1e-6)
-    if ! USE_WINCH
-        @test length(y0)  == (SEGMENTS) * 6
-        @test length(yd0) == (SEGMENTS) * 6
-        @test sum(y0)  ≈ 717.163369868302
-    else
-        @test length(y0)  == (SEGMENTS) * 6 + 2
-        @test length(yd0) == (SEGMENTS) * 6 + 2
-        @test sum(y0[1:end-2])  ≈ 717.163369868302
-    end
+    @test length(y0)  == (SEGMENTS) * 6 + 2
+    @test length(yd0) == (SEGMENTS) * 6 + 2
+    @test sum(y0[1:end-2])  ≈ 717.163369868302
     @test sum(yd0) ≈ 3.6e-5
     @test isapprox(my_state.param_cl, 0.574103590856, atol=1e-4)
     @test isapprox(my_state.param_cd, 0.125342896308, atol=1e-4)
