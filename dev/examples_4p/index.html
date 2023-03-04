@@ -20,48 +20,48 @@ plot(x,z, xlabel=&quot;x [m]&quot;, ylabel=&quot;z [m]&quot;, legend=false)
 plot!(x, z, seriestype = :scatter)</code></pre><h3 id="Inital-State"><a class="docs-heading-anchor" href="#Inital-State">Inital State</a><a id="Inital-State-1"></a><a class="docs-heading-anchor-permalink" href="#Inital-State" title="Permalink"></a></h3><p><img src="../initial_state_4p.png" alt="Initial State"/></p><h2 id="Print-other-model-outputs"><a class="docs-heading-anchor" href="#Print-other-model-outputs">Print other model outputs</a><a id="Print-other-model-outputs-1"></a><a class="docs-heading-anchor-permalink" href="#Print-other-model-outputs" title="Permalink"></a></h2><p>Print the vector of the positions of the particles:</p><pre><code class="nohighlight hljs">julia&gt; kps.pos
 11-element StaticArrays.SVector{11, StaticArrays.MVector{3, Float64}} with indices SOneTo(11):
  [0.0, 0.0, 0.0]
- [27.956158502528176, 0.0, 61.20373231368065]
- [54.19504320716677, 0.0, 123.16303233303098]
- [78.43996882046399, 0.0, 185.92935677839677]
- [100.5072692264489, 0.0, 249.49394853600091]
- [120.24626566405448, 0.0, 313.81961163792636]
- [137.52679164398376, 0.0, 378.84882574376326]
- [138.4127462851352, 0.0, 383.77543513463166]
- [139.02795801127078, 0.0, 386.0060385324739]
- [138.8006044995987, 1.1208735809303805, 383.71585107239554]
- [138.8006044995987, -1.1208735809303805, 383.71585107239554]
+ [9.179237622840555, 0.0, 23.842235605018427]
+ [18.04995989861643, 0.0, 47.800963572571995]
+ [26.562156210544767, 0.0, 71.88939923189402]
+ [34.68610302268368, 0.0, 96.11152960655927]
+ [42.39897331360162, 0.0, 120.4676716318371]
+ [49.681585065247006, 0.0, 144.95590371155842]
+ [50.19560621291923, 0.0, 150.01396766608025]
+ [51.447158096922415, 0.0, 152.22064860101747]
+ [51.269841233250816, 2.823293379900761, 149.7849943282592]
+ [51.269841233250816, -2.823293379900761, 149.7849943282592]
 </code></pre><p>Print the unstretched and stretched tether length and the height of the kite:</p><pre><code class="language-julia hljs">julia&gt; unstretched_length(kps)
-392.0
+150.0
 
 julia&gt; tether_length(kps)
-403.71695082721294
+153.28916318946136
 
 julia&gt; calc_height(kps)
-386.0060385324739</code></pre><p>Because of the the stiffness_factor of 0.035 we have a longer tether-length then when using the 1 point kite model. </p><p>Print the force at the winch (groundstation, in Newton) and at each tether segment:</p><pre><code class="language-julia hljs">julia&gt; winch_force(kps)
-643.059283146209
+152.22064860101747</code></pre><p>Because of the the stiffness_factor of 0.035 we have a longer tether-length then when using the 1 point kite model. </p><p>Print the force at the winch (groundstation, in Newton) and at each tether segment:</p><pre><code class="language-julia hljs">julia&gt; winch_force(kps)
+471.70242280223385
 
 julia&gt; spring_forces(kps)
 15-element Vector{Float64}:
- 643.0081086309667
- 642.9843324304267
- 642.9695864010523
- 642.9577694795955
- 642.9475947472262
- 642.938668170613
- 165.89618777926103
- -25.722507476161205
-  51.67720019071219
- 254.61397516808276
- 244.5988483585308
- 244.5988483585308
- 254.61397516808276
- -25.722507476161205
- 166.98431814092817</code></pre><p>Some of the forces are negative which means the segments are getting compressed. This is acceptable for the kite itself (not for the tether).</p><p>Print the lift and drag forces of the kite (in Newton) and the lift over drag ratio:</p><pre><code class="language-julia hljs">julia&gt; lift, drag = lift_drag(kps)
-(616.7473148222452, 142.89285185868704)
+ 471.6945339755092
+ 471.690450982437
+ 471.6880774303635
+ 471.68627774821994
+ 471.68477542957345
+ 471.68345917403485
+  95.87508612176553
+ -58.70207142208335
+ -50.06490404375146
+ 226.23422847228494
+ 215.8389386786939
+ 215.8389386786939
+ 226.23422847228494
+ -58.70207142208335
+  99.72953663093385</code></pre><p>Some of the forces are negative which means the segments are getting compressed. This is acceptable for the kite itself (not for the tether).</p><p>Print the lift and drag forces of the kite (in Newton) and the lift over drag ratio:</p><pre><code class="language-julia hljs">julia&gt; lift, drag = lift_drag(kps)
+(382.18880762331327, 117.58827293691883)
 
 julia&gt; lift_over_drag(kps)
-4.316152325325367</code></pre><p>Print the wind speed vector at the kite:</p><pre><code class="language-julia hljs">julia&gt; v_wind_kite(kps)
+3.250228939312184</code></pre><p>Print the wind speed vector at the kite:</p><pre><code class="language-julia hljs">julia&gt; v_wind_kite(kps)
 3-element StaticArrays.MVector{3, Float64} with indices SOneTo(3):
-  13.310738776362681
+ 12.542508333667467
   0.0
-  0.0</code></pre><h2 id="Example-for-reeling-out-the-tether"><a class="docs-heading-anchor" href="#Example-for-reeling-out-the-tether">Example for reeling out the tether</a><a id="Example-for-reeling-out-the-tether-1"></a><a class="docs-heading-anchor-permalink" href="#Example-for-reeling-out-the-tether" title="Permalink"></a></h2><pre><code class="language-julia hljs">include(&quot;examples/reel_out_4p.jl&quot;)</code></pre><p>In this example we first keep the tether length constant and at 15 s start to reel out the winch with an acceleration of 0.1 m/s².</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../examples/">« Examples_1p</a><a class="docs-footer-nextpage" href="../quickstart/">Quickstart »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Saturday 4 March 2023 12:57">Saturday 4 March 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+  0.0</code></pre><h2 id="Example-for-reeling-out-the-tether"><a class="docs-heading-anchor" href="#Example-for-reeling-out-the-tether">Example for reeling out the tether</a><a id="Example-for-reeling-out-the-tether-1"></a><a class="docs-heading-anchor-permalink" href="#Example-for-reeling-out-the-tether" title="Permalink"></a></h2><pre><code class="language-julia hljs">include(&quot;examples/reel_out_4p.jl&quot;)</code></pre><p>In this example we first keep the tether length constant and at 15 s start to reel out the winch with an acceleration of 0.1 m/s².</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../examples/">« Examples_1p</a><a class="docs-footer-nextpage" href="../quickstart/">Quickstart »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Saturday 4 March 2023 13:10">Saturday 4 March 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
