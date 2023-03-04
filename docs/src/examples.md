@@ -120,3 +120,9 @@ julia> v_wind_kite(kps)
   0.0
   0.0
 ```
+## Example for reeling out the tether
+```julia
+include("examples/reel_out_1p.jl")
+```
+In this example we first keep the tether length constant and at 15 s start to reel out the winch with an acceleration
+of 0.1 m/s².
