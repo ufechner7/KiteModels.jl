@@ -131,6 +131,6 @@ while the time for the second execution is the same (5.5s). So now about 47s of 
 ## Outlook
 
 The next steps:
-- integrate the winch with the one point model
+- reduce memory allocations
 - add export as FMI for co-simulation component
 
