@@ -44,7 +44,7 @@ fi
 julia --project -e "using Pkg; Pkg.precompile()"
 julia --project -e "include(\"./test/create_sys_image.jl\");"
 mv kps-image_tmp.so bin/kps-image-${julia_major}-${branch}.so
-julia --project -e "using Pkg; Pkg.precompile()"
+julia --project -e "using Pkg; Pkg.precompile(); Pkg.resolve()"
 cd src
 touch *.jl # make sure all modules get recompiled in the next step
 cd ..
