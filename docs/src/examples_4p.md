@@ -41,7 +41,7 @@ using KiteModels
 const kcu = KCU(se())
 const kps = KPS4(kcu)
 ```
-Then we call the function find_steady_state which uses a non-linear solver to find the solution for a given elevation angle, reel-out speed and wind speed. 
+Then we call the function `find_steady_state` which uses a non-linear solver to find the solution for a given elevation angle, reel-out speed and wind speed. 
 ```julia
 find_steady_state!(kps, prn=true)
 ```
@@ -57,7 +57,7 @@ for i in 1:length(kps.pos)
      push!(z, kps.pos[i][3])
 end
 ```
-And finally we plot the postion of the particles in the x-z plane. When you type ```using Plots``` you will be ask if you want to install the Plots package. Just press \<ENTER\> and it gets installed.
+And finally we plot the position of the particles in the x-z plane. When you type ```using Plots``` you will be ask if you want to install the Plots package. Just press \<ENTER\> and it gets installed.
 ```julia
 using Plots
 plot(x,z, xlabel="x [m]", ylabel="z [m]", legend=false)

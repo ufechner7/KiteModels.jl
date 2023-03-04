@@ -41,7 +41,7 @@ using KiteModels
 const kcu = KCU(se())
 const kps = KPS3(kcu)
 ```
-Then we call the function find_steady_state which uses a non-linear solver to find the solution for a given elevation angle, reel-out speed and wind speed. 
+Then we call the function `find_steady_state` which uses a non-linear solver to find the solution for a given elevation angle, reel-out speed and wind speed. 
 ```julia
 find_steady_state!(kps, prn=true)
 ```
@@ -54,7 +54,7 @@ for i in 1:length(kps.pos)
      push!(z, kps.pos[i][3])
 end
 ```
-And finally we plot the postion of the particles in the x-z plane. When you type ```using Plots``` you will be ask if you want to install the Plots package. Just press \<ENTER\> and it gets installed.
+And finally we plot the position of the particles in the x-z plane. When you type ```using Plots``` you will be ask if you want to install the Plots package. Just press \<ENTER\> and it gets installed.
 ```julia
 using Plots
 plot(x,z, xlabel="x [m]", ylabel="z [m]", legend=false)
@@ -80,43 +80,43 @@ julia> kps.pos
 Print the unstretched and stretched tether length and the height of the kite:
 ```julia
 julia> unstretched_length(kps)
-392.0
+150.0
 
 julia> tether_length(kps)
-392.4751313610764
+150.1461801769623
 
 julia> calc_height(kps)
-368.74701279158705
+142.78102261557189
 ``` 
 Print the force at the winch (groundstation, in Newton) and at each tether segment:
 ```julia
 julia> winch_force(kps)
-728.5569144505084
+592.5649922210812
 
 julia> spring_forces(kps)
 6-element Vector{Float64}:
- 728.4835079763607
- 734.9505623866943
- 741.505320143339
- 748.1408238767988
- 754.8499002675924
- 761.6993164647175
+ 592.5534481632459
+ 595.0953689567787
+ 597.6497034999358
+ 600.215921248686
+ 602.793488771366
+ 605.3855398009119
 ```
 The force increases when going upwards because the kite not only experiances the winch force, but in addition the weight of the tether.
 
 Print the lift and drag forces of the kite (in Newton) and the lift over drag ratio:
 ```julia
 julia> lift, drag = lift_drag(kps)
-(888.5715658243445, 188.25229350390242)
+(730.5877517655691, 157.36420900755007)
 
 julia> lift_over_drag(kps)
-4.720110173881757
+4.64265512706588
 ```
 Print the wind speed vector at the kite:
 ```julia
 julia> v_wind_kite(kps)
 3-element StaticArrays.MVector{3, Float64} with indices SOneTo(3):
-  13.308227860928211
+ 12.54966091924401
   0.0
   0.0
 ```
