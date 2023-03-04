@@ -1,11 +1,8 @@
 using Printf
 using KiteModels, KitePodModels, KiteUtils
 
-# change this to KPS3 or KPS4
-const Model = KPS4
-
 if ! @isdefined kcu;  const kcu = KCU(se());   end
-if ! @isdefined kps4; const kps4 = Model(kcu); end
+if ! @isdefined kps4; const kps4 = KPS4(kcu); end
 
 # the following values can be changed to match your interest
 dt = 0.05

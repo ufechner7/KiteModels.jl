@@ -148,6 +148,8 @@ $(TYPEDFIELDS)
     initial_masses::MVector{P, S} = ones(P)
     "current masses, depending on the total tether length"
     masses::MVector{P, S}         = ones(P)
+    "vector of the forces, acting on the particles"
+    forces::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     "synchronous speed of the motor/ generator"
     sync_speed::S =        0.0    
 end
@@ -178,6 +180,9 @@ function clear!(s::KPS3)
         mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
     end
     s.initial_masses .= ones(s.set.segments+1) * mass_per_meter * s.set.l_tether / s.set.segments # Dyneema: 1.1 kg/ 100m
+    for i in 1:se().segments + 1 
+        s.forces[i] .= zeros(3)
+    end
     s.c_spring = s.set.c_spring / s.segment_length
     s.damping  = s.set.damping / s.segment_length
     s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
@@ -296,6 +301,7 @@ function calc_res(s::KPS3, pos1, pos2, vel1, vel2, mass, veld, result, i)
    
     s.total_forces .= s.force + s.last_force
     s.last_force .= 0.5 * s.last_tether_drag - s.spring_force
+    s.forces[i] .= s.total_forces
     acc = s.total_forces ./ mass # create the vector of the spring acceleration
     # result .= veld - (s.acc + SVector(0,0, -G_EARTH)) # Python code, wrong
     result .= veld - (SVector(0, 0, -G_EARTH) - acc)
@@ -355,22 +361,31 @@ The number of the point masses of the model N = S/6, the state of each point
 is represented by two 3 element vectors.
 """
 function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
+    T = S-2 # T: three times the number of particles excluding the origin
+    segments = div(T,6)
     # unpack the vectors y and yd
-    part = reshape(SVector{S}(y),  Size(3, div(S,6), 2))
-    partd = reshape(SVector{S}(yd),  Size(3, div(S,6), 2))
-    pos1, vel1 = part[:,:,1], part[:,:,2]
-    pos = SVector{div(S,6)+1}(if i==1 SVector(0.0,0,0) else SVector(pos1[:,i-1]) end for i in 1:div(S,6)+1)
-    vel = SVector{div(S,6)+1}(if i==1 SVector(0.0,0,0) else SVector(vel1[:,i-1]) end for i in 1:div(S,6)+1)
-    posd1, veld1 = partd[:,:,1], partd[:,:,2]
-    posd = SVector{div(S,6)+1}(if i==1 SVector(0.0,0,0) else SVector(posd1[:,i-1]) end for i in 1:div(S,6)+1)
-    veld = SVector{div(S,6)+1}(if i==1 SVector(0.0,0,0) else SVector(veld1[:,i-1]) end for i in 1:div(S,6)+1)
+    # extract the data for the winch simulation
+    length,  v_reel_out  = y[end-1],  y[end]
+    lengthd, v_reel_outd = yd[end-1], yd[end]
+    # extract the data of the particles
+    y_  = @view y[1:end-2]
+    yd_ = @view yd[1:end-2]
+    # unpack the vectors y and yd
+    part  = reshape(SVector{T}(y_),  Size(3, div(T,6), 2))
+    partd = reshape(SVector{T}(yd_), Size(3, div(T,6), 2))
+    pos1_, vel1_ = part[:,:,1], part[:,:,2]
+    pos = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(pos1_[:,i-1]) end for i in 1:div(T,6)+1)
+    vel = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(vel1_[:,i-1]) end for i in 1:div(T,6)+1)
+    posd1_, veld1_ = partd[:,:,1], partd[:,:,2]
+    posd = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(posd1_[:,i-1]) end for i in 1:div(T,6)+1)
+    veld = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(veld1_[:,i-1]) end for i in 1:div(T,6)+1)
 
     # update parameters
-    pos_kite = pos[div(S,6)+1]
-    s.vel_kite .= vel[div(S,6)+1]
-    delta_t = time - s.t_0
-    delta_v = s.v_reel_out - s.last_v_reel_out
-    s.segment_length = (s.l_tether + s.last_v_reel_out * delta_t + 0.5 * delta_v * delta_t^2) / div(S,6)
+    pos_kite = pos[segments+1]
+    s.vel_kite .= vel[segments+1]
+    s.l_tether = length
+    s.segment_length = length / segments
+
     s.c_spring = s.set.c_spring / s.segment_length
     s.damping  = s.set.damping / s.segment_length
     s.beta = calc_elevation(s)
@@ -383,7 +398,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
     loop(s, pos, vel, posd, veld, s.res1, s.res2)
   
     # copy and flatten result
-    for i in 2:div(S,6)+1
+    for i in 2:segments+1
         for j in 1:3
            @inbounds res[3*(i-2)+j]              = s.res1[i][j]
            @inbounds res[3*(div(S,6))+3*(i-2)+j] = s.res2[i][j]
@@ -395,6 +410,11 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
             @inbounds s.pos[i] .= pos[i]
         end
     end
+    # winch calculations
+    res[end-1] = lengthd - v_reel_out
+    res[end] = v_reel_outd - calc_acceleration(s.wm, s.sync_speed, v_reel_out, norm(s.forces[1]), true)
+    s.vel_kite .= vel[end-2]
+    s.v_reel_out = v_reel_out
     # @assert ! isnan(norm(res))
     s.iter += 1
     nothing
@@ -452,8 +472,8 @@ end
 # same as above, but returns a tuple of two one dimensional arrays
 function init(s::KPS3, X=zeros(2 * (s.set.segments)); old=false, delta = 0.0)
     res1_, res2_ = init_inner(s, X; old=old, delta = delta)
-    res1, res2  = reduce(vcat, res1_), reduce(vcat, res2_)
-    MVector{6*(s.set.segments), Float64}(res1), MVector{6*(s.set.segments), Float64}(res2)
+    res1, res2  = vcat(reduce(vcat, res1_), [s.l_tether, 0]), vcat(reduce(vcat, res2_),[0,0])
+    MVector{6*(s.set.segments)+2, Float64}(res1), MVector{6*(s.set.segments)+2, Float64}(res2)
 end
 
 """
@@ -470,7 +490,7 @@ function spring_forces(s::KPS3)
 end
 
 function find_steady_state_inner(s::KPS3, X, prn=false; delta=0.0)
-    res = zeros(MVector{6*s.set.segments, SimFloat})
+    res = zeros(MVector{6*s.set.segments+2, SimFloat})
 
     # helper function for the steady state finder
     function test_initial_condition!(F, x::Vector)
