@@ -1,6 +1,9 @@
 using Printf
 using KiteModels, KitePodModels, KiteUtils
 
+se().abs_tol=0.000006
+se().rel_tol=0.0000001
+
 if ! @isdefined kcu;  const kcu = KCU(se());   end
 if ! @isdefined kps; const kps = KPS3(kcu); end
 
