@@ -150,4 +150,4 @@ In this example we first keep the tether length constant and at 15 s start to re
 of 0.1 m/s². At a set speed below 2.2 m/s the brake of the winch is active, therefore the "jump" in the v_reelout at 
 the beginning of the reel-out phase.
 
-It is not a real jump, but a high acceleration compared to the acceleration afterwords.
+It is not a real jump, but a high acceleration compared to the acceleration afterwards.
