@@ -124,5 +124,10 @@ julia> v_wind_kite(kps)
 ```julia
 include("examples/reel_out_1p.jl")
 ```
+![Reel out 1p model](reelout_force_1p.png)
+
 In this example we first keep the tether length constant and at 15 s start to reel out the winch with an acceleration
-of 0.1 m/s².
+of 0.1 m/s². At a set speed below 2.2 m/s the brake of the winch is active, therefore the "jump" in the v_reelout at 
+the beginning of the reel-out phase.
+
+It is not a real jump, but a high acceleration compared to the acceleration afterwords.
