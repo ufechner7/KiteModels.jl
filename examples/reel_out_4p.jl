@@ -15,7 +15,11 @@ FRONT_VIEW = false
 ZOOM = false
 PRINT = false
 STATISTIC = false
+ALPHA_ZERO = 8.8 
 # end of user parameter section #
+
+kps4.set.alpha_zero = ALPHA_ZERO
+se().version = 2
 
 if PLOT
     using Pkg
