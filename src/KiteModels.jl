@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+
 #= MIT License
 
 Copyright (c) 2020, 2021, 2022 Uwe Fechner
@@ -42,6 +44,8 @@ import KiteUtils.calc_azimuth
 import KiteUtils.calc_heading
 import KiteUtils.calc_course
 import KiteUtils.SysState
+import Sundials.init
+import Sundials.step!
 
 export KPS3, KPS4, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                                  # constants and types
 export calc_set_cl_cd!, copy_examples, copy_bin                                                   # helper functions

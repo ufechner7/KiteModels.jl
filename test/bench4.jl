@@ -129,7 +129,7 @@ push!(msg, ("Mean time residual!:           $(round(mean(t.times), digits=1)) ns
 # time using Python/ Numba: 8.94 µs, time using Julia 1.7.2: 1.6µs, Julia 1.8.0: 1.244µs
 
 end
-for i in 1:length(msg)
+for i in eachindex(msg)
     println(msg[i])
 end
 
