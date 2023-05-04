@@ -80,7 +80,7 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
     pos[s.set.segments+1+4][3] = pos[s.set.segments+1+3][3]  # D.z = C.z
     pos[s.set.segments+1+3][2] += X[end]                     # Y position of point C
     pos[s.set.segments+1+4][2] = -pos[s.set.segments+1+3][2] # Y position of point D
-    for i in 1:length(pos)
+    for i in eachindex(pos)
         s.pos[i] .= pos[i]
     end
     pos, vel, acc
