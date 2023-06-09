@@ -28,7 +28,7 @@ if [[ $update == true ]]; then
     if test -f "Manifest.toml"; then
         mv Manifest.toml Manifest.toml.bak
     fi
-    julia --project -e "include(\"./test/update_packages.jl\");"
+    julia  --pkgimages=no --project -e "include(\"./test/update_packages.jl\");"
 else
     if [[ $julia_major == "1.7" ]]; then
         cp Manifest-1.7.toml.default Manifest.toml
@@ -41,11 +41,13 @@ else
         echo "Using Manifest-1.9.toml.default ..."
     fi
 fi
-julia --project -e "using Pkg; Pkg.precompile()"
-julia --project -e "include(\"./test/create_sys_image.jl\");"
+# julia --project -e "using Pkg; Pkg.precompile()"
+julia --pkgimages=no --project -e "include(\"./test/create_sys_image.jl\");"
 mv kps-image_tmp.so bin/kps-image-${julia_major}-${branch}.so
-julia --project -e "using Pkg; Pkg.precompile(); Pkg.resolve()"
+julia  --project -e "using Pkg; Pkg.precompile(); Pkg.resolve()"
 cd src
 touch *.jl # make sure all modules get recompiled in the next step
 cd ..
 julia --project -J bin/kps-image-${julia_major}-${branch}.so -e "using KiteModels, KitePodModels, KiteUtils"
+echo "Precompiling package Plots..."
+julia --project -J bin/kps-image-${julia_major}-${branch}.so -e "using TestEnv; TestEnv.activate(); using Plots"
