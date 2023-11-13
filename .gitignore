@@ -11,3 +11,4 @@ test/data/kite.obj
 test/data/settings.yaml
 test/data/system.yaml
 bin/kps-image-1.9-main.so
+.vscode/settings.json
