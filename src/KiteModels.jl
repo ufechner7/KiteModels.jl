@@ -47,12 +47,12 @@ import KiteUtils.SysState
 import Sundials.init
 import Sundials.step!
 
-export KPS3, KPS4, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                                  # constants and types
-export calc_set_cl_cd!, copy_examples, copy_bin                                                   # helper functions
-export clear!, find_steady_state!, residual!                                                      # low level worker functions
-export init_sim!, next_step!                                                                      # hight level worker functions
-export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course             # getters
-export winch_force, lift_drag, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
+export KPS3, KPS4, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                              # constants and types
+export calc_set_cl_cd!, copy_examples, copy_bin                                               # helper functions
+export clear!, find_steady_state!, residual!                                                  # low level workers
+export init_sim!, next_step!                                                                  # high level workers
+export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course         # getters
+export winch_force, lift_drag, lift_over_drag, unstretched_length, tether_length, v_wind_kite # getters
 export kite_ref_frame, orient_euler, spring_forces
 
 set_zero_subnormals(true)           # required to avoid drastic slow down on Intel CPUs when numbers become very small
@@ -329,7 +329,8 @@ function SysState(s::AKM, zoom=1.0)
     heading = calc_heading(s)
     course = calc_course(s)
     v_app_norm = norm(s.v_apparent)
-    KiteUtils.SysState{P}(s.t_0, orient, elevation, azimuth, s.l_tether, s.v_reel_out, force, s.depower, s.steering, heading, course, v_app_norm, s.vel_kite, X, Y, Z)
+    KiteUtils.SysState{P}(s.t_0, orient, elevation, azimuth, s.l_tether, s.v_reel_out, force, s.depower, s.steering, 
+                          heading, course, v_app_norm, s.vel_kite, X, Y, Z)
 end
 
 function calc_pre_tension(s::AKM)
@@ -461,7 +462,9 @@ end
 precompile(find_steady_state!, (KPS3{SimFloat, KVec3, se().segments+1},)) 
 const particles = se().segments+KITE_PARTICLES+1
 const springs = se().segments+KITE_SPRINGS
-precompile(find_steady_state!, (KPS4{Float64, MVector{3, Float64}, particles, springs, KiteModels.Spring{Int16, Float64}},))
-precompile(init_sim!, (KPS4{Float64, MVector{3, Float64}, particles, springs, KiteModels.Spring{Int16, Float64}}, Float64,))  
+precompile(find_steady_state!, (KPS4{Float64, MVector{3, Float64}, particles, springs, KiteModels.Spring{Int16,
+           Float64}},))
+precompile(init_sim!, (KPS4{Float64, MVector{3, Float64}, particles, springs, KiteModels.Spring{Int16, Float64}}, 
+                       Float64,))  
 
 end
