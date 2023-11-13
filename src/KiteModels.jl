@@ -55,13 +55,13 @@ export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_c
 export winch_force, lift_drag, lift_over_drag, unstretched_length, tether_length, v_wind_kite # getters
 export kite_ref_frame, orient_euler, spring_forces
 
-set_zero_subnormals(true)           # required to avoid drastic slow down on Intel CPUs when numbers become very small
-KiteUtils.set_data_path("")         # this statement is only executed during precompilation and ensures that the default settings.yaml
-                                    # are used
+set_zero_subnormals(true)       # required to avoid drastic slow down on Intel CPUs when numbers become very small
+KiteUtils.set_data_path("")     # only executed during precompilation and ensures that the default settings.yaml
+                                # are used
 
 # Constants
-const G_EARTH = 9.81                # gravitational acceleration
-const BRIDLE_DRAG = 1.1             # should probably be removed
+const G_EARTH = 9.81            # gravitational acceleration
+const BRIDLE_DRAG = 1.1         # should probably be removed
 
 # Type definitions
 """
