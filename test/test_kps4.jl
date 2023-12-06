@@ -515,9 +515,9 @@ end
     av_steps = simulate(integrator, STEPS-100)
     println(av_steps) #1102
     expected_steps = 300
-    if Sys.isapple()
-        expected_steps = 1000
-    end
+    # if Sys.isapple()
+    #     expected_steps = 1000
+    # end
     @test isapprox(av_steps, expected_steps, rtol=0.6)
     lift, drag = KiteModels.lift_drag(kps4)
     println(lift, " ", drag) # 703.7699568972286 161.44746368100536
