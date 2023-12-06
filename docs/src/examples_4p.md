@@ -140,7 +140,7 @@ julia> v_wind_kite(kps)
   0.0
   0.0
 ```
-## Example for reeling out the tether
+## Example of reeling out the tether
 ```julia
 include("examples/reel_out_4p.jl")
 ```
