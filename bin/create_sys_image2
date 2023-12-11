@@ -3,9 +3,9 @@ update=false
 if [[ $# -gt 0 ]]; then
     if [[ $1 != "--update" ]]; then
         echo "Invalid parameter! Use:"
-        echo "./create_sys_image.sh"
+        echo "./create_sys_image"
         echo "or"
-        echo "./create_sys_image.sh --update"
+        echo "./create_sys_image --update"
         exit 1
     else
         update=true
@@ -18,6 +18,9 @@ fi
 
 julia_version=$(julia --version | awk '{print($3)}')
 julia_major=${julia_version:0:3} 
+if [[ $julia_major == "1.1" ]]; then
+    julia_major=${julia_version:0:4} 
+fi
 if test -f "kps-image-${julia_major}.so"; then
     mv bin/kps-image-${julia_major}.so kps-image-${julia_major}.so.bak
 fi
