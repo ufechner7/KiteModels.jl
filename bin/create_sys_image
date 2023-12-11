@@ -3,9 +3,9 @@ update=false
 if [[ $# -gt 0 ]]; then
     if [[ $1 != "--update" ]]; then
         echo "Invalid parameter! Use:"
-        echo "./create_sys_image.sh"
+        echo "./create_sys_image"
         echo "or"
-        echo "./create_sys_image.sh --update"
+        echo "./create_sys_image --update"
         exit 1
     else
         update=true
