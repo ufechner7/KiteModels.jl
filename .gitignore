@@ -13,3 +13,4 @@ test/data/system.yaml
 bin/kps-image-1.9-main.so
 .vscode/settings.json
 bin/kps-image-1.1-main.so
+bin/kps-image-1.10-main.so
