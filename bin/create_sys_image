@@ -39,9 +39,12 @@ else
     elif [[ $julia_major == "1.8" ]]; then
         cp Manifest-1.8.toml.default Manifest.toml
         echo "Using Manifest-1.8.toml.default ..."
-    else
-        cp Manifest-1.9.toml.default Manifest.toml
+    elif [[ $julia_major == "1.9" ]]; then
+        cp Manifest-1.8.toml.default Manifest.toml
         echo "Using Manifest-1.9.toml.default ..."
+    else
+        cp Manifest-1.10.toml.default Manifest.toml
+        echo "Using Manifest-1.10.toml.default ..."
     fi
 fi
 # julia --project -e "using Pkg; Pkg.precompile()"
