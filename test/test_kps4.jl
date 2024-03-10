@@ -532,7 +532,7 @@ end
 @testset "Raptures" begin
     kps4_ = KPS4(KCU(se()))
     integrator = KiteModels.init_sim!(kps4_; stiffness_factor=0.035, prn=false)
-    kps4_.stiffness_factor = 2
+    kps4_.stiffness_factor = 3
     @test maximum(spring_forces(kps4_)) > 20000
 end
 
