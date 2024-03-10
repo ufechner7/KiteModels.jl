@@ -17,7 +17,10 @@ if [[ $(basename $(pwd)) == "bin" ]]; then
 fi
 
 julia_version=$(julia --version | awk '{print($3)}')
-julia_major=${julia_version:0:3} 
+julia_major=${julia_version:0:3}
+if [[ $julia_major == "1.1" ]]; then
+    julia_major=${julia_version:0:4} 
+fi
 branch=$(git rev-parse --abbrev-ref HEAD)
 if test -f "kps-image-${julia_major}-${branch}.so"; then
     mv bin/kps-image-${julia_major}-${branch}.so kps-image-${julia_major}-${branch}.so.bak
@@ -36,9 +39,12 @@ else
     elif [[ $julia_major == "1.8" ]]; then
         cp Manifest-1.8.toml.default Manifest.toml
         echo "Using Manifest-1.8.toml.default ..."
+    elif [[ $julia_major == "1.9" ]]; then
+        cp Manifest-1.8.toml.default Manifest.toml
+        echo "Using Manifest-1.9.toml.default ..."        
     else
-        cp Manifest-1.9.toml.default Manifest.toml
-        echo "Using Manifest-1.9.toml.default ..."
+        cp Manifest-1.10.toml.default Manifest.toml
+        echo "Using Manifest-1.10.toml.default ..."
     fi
 fi
 # julia --project -e "using Pkg; Pkg.precompile()"
