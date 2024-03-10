@@ -18,7 +18,7 @@ This package is part of Julia Kite Power Tools, which consist of the following p
 If you want to run simulations and see the results in 3D, please install the meta package  [KiteSimulators](https://github.com/aenarete/KiteSimulators.jl) which contains all other packages. If you are not interested in 3D visualization or control you can just install this package. When you have installed the package KiteSimulators, use the command `using KiteSimulators` instead of `using KiteModels` when this is mentioned in the documentation.
 
 ## Installation
-Download [Julia 1.6](http://www.julialang.org) or later, if you haven't already. You can add KiteModels from  Julia's package manager, by typing 
+Download [Julia 1.9](http://www.julialang.org) or later, if you haven't already. You can add KiteModels from  Julia's package manager, by typing 
 ```julia
 using Pkg
 pkg"add KiteModels"
