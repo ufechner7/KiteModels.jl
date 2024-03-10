@@ -363,7 +363,8 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false)
     clear!(s)
     s.stiffness_factor = stiffness_factor
     y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor=stiffness_factor, prn=prn)
-
+    y0  = Vector{Float64}(y0)
+    yd0 = Vector{Float64}(yd0)
     differential_vars = ones(Bool, length(y0))
     solver  = IDA(linear_solver=Symbol(s.set.linear_solver), max_order = s.set.max_order)
     tspan   = (0.0, t_end) 
