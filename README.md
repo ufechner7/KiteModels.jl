@@ -6,7 +6,7 @@
 [![Coverage](https://codecov.io/gh/ufechner7/KiteModels.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/ufechner7/KiteModels.jl)
 
 ## Kite power system models, consisting of tether and kite
-The model has the following subcomponents, implement in separate packages:
+The model has the following subcomponents, implemented in separate packages:
 - AtmosphericModel from [AtmosphericModels](https://github.com/aenarete/AtmosphericModels.jl)
 - WinchModel from [WinchModels](https://github.com/aenarete/WinchModels.jl) 
 - KitePodModel from  [KitePodModels](https://github.com/aenarete/KitePodModels.jl)
@@ -29,17 +29,17 @@ pkg"test KiteModels"
 ```
 
 ## One point model
-This model assumes the kite to be a point mass. This is sufficient to model the aerodynamic forces, but the dynamic with respect to turning action of the kite is not realistic.
-When combined with an controller for the turn rate it can be used to simulate a pumping kite power system with medium accuracy.
+This model assumes the kite to be a point mass. This is sufficient to model the aerodynamic forces, but the dynamic concerning the turning action of the kite is not realistic.
+When combined with a controller for the turn rate it can be used to simulate a pumping kite power system with medium accuracy.
 
 ## Four point model
-This model assumes the kite to consist of four point masses with aerodynamic forces acting on point B, C and D. It reacts much more realistically than the one point model because it has rotational inertia in every axis.
+This model assumes the kite to consist of four-point masses with aerodynamic forces acting on points B, C and D. It reacts much more realistically than the one-point model because it has rotational inertia in every axis.
 <p align="center"><img src="./docs/src/4-point-kite.png" width="200" /></p>
 
 ## Tether
-The tether is modeled as point masses, connected by spring-damper elements. Aerodynamic drag is modelled realistically. When reeling out or in the unstreched length of the spring-damper elements
+The tether is modeled as point masses, connected by spring-damper elements. Aerodynamic drag is modeled realistically. When reeling out or in the unstreched length of the spring-damper elements
 is varied. This does not translate into physics directly, but it avoids adding point masses at run-time, which would be even worse because it would introduce discontinuities. When using
-Dyneema or simular high strenght materials for the tether the resulting system is very stiff which is a challenge for the solver.
+Dyneema or similar high strength materials for the tether the resulting system is very stiff which is a challenge for the solver.
 
 ## Further reading
 These models are described in detail in [Dynamic Model of a Pumping Kite Power System](http://arxiv.org/abs/1406.6218).

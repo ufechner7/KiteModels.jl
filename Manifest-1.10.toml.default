@@ -14,6 +14,7 @@ deps = ["LinearAlgebra", "Requires"]
 git-tree-sha1 = "cea4ac3f5b4bc4b3000aa55afb6e5626518948fa"
 uuid = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 version = "4.0.3"
+
 weakdeps = ["StaticArrays"]
 
     [deps.Adapt.extensions]
@@ -330,7 +331,6 @@ deps = ["ArrayInterface", "LinearAlgebra", "Requires", "Setfield", "SparseArrays
 git-tree-sha1 = "73d1214fec245096717847c62d389a5d2ac86504"
 uuid = "6a86dc24-6348-571c-b903-95158fe2bd41"
 version = "2.22.0"
-
     [deps.FiniteDiff.extensions]
     FiniteDiffBandedMatricesExt = "BandedMatrices"
     FiniteDiffBlockBandedMatricesExt = "BlockBandedMatrices"

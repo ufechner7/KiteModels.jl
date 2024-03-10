@@ -9,7 +9,7 @@ mkdir test
 cd test
 julia --project="."
 ```
-With the last command we told julia to create a new project in the current directory.
+With the last command, we told Julia to create a new project in the current directory.
 
 Then we add the three required packages to our new project. By pressing the key "]"
 we enter the package manager mode where we can add or delete packages.
@@ -35,7 +35,7 @@ The first command copies the files settings.yaml and system.yaml to the folder d
 They can be customized later. The second command creates an examples folder with some examples.
 
 ## Plotting the initial state
-First an instance of the model of the kite control unit (KCU) is created which is needed by the Kite Power System model KPS3. Then we create a kps instance, passing the kcu model as parameter. We need to declare these variables as const to achieve a decent performance.
+First, an instance of the model of the kite control unit (KCU) is created which is needed by the Kite Power System model KPS3. Then we create a kps instance, passing the kcu model as parameter. We need to declare these variables as const to achieve a decent performance.
 ```julia
 using KiteModels
 const kcu = KCU(se())
@@ -45,7 +45,7 @@ Then we call the function `find_steady_state` which uses a non-linear solver to 
 ```julia
 find_steady_state!(kps, prn=true)
 ```
-Finding the steady state of the 4 point model is difficult and it only works when we artificially reduce the stiffness by a factor
+Finding the steady state of the 4-point model is difficult and it only works when we artificially reduce the stiffness by a factor
 of 0.035. In the function [`init_sim!`](@ref) this factor is slowly increased to 1.0.
 
 To plot the result in 2D we extract the vectors of the x and z coordinates of the tether particles with a for loop:
@@ -57,13 +57,13 @@ for i in 1:length(kps.pos)
      push!(z, kps.pos[i][3])
 end
 ```
-And finally we plot the position of the particles in the x-z plane. When you type ```using Plots``` you will be ask if you want to install the Plots package. Just press \<ENTER\> and it gets installed.
+And finally, we plot the position of the particles in the x-z plane. When you type ```using Plots``` you will be asked if you want to install the Plots package. Just press \<ENTER\> and it gets installed.
 ```julia
 using Plots
 plot(x,z, xlabel="x [m]", ylabel="z [m]", legend=false)
 plot!(x, z, seriestype = :scatter)
 ```
-### Inital State
+### Initial State
 ![Initial State](initial_state_4p.png)
 
 ## Print other model outputs
@@ -124,7 +124,7 @@ julia> spring_forces(kps)
 Some of the forces are negative which means the segments are getting compressed. This is acceptable for
 the kite itself (not for the tether).
 
-Print the lift and drag forces of the kite (in Newton) and the lift over drag ratio:
+Print the lift and drag forces of the kite (in Newton) and the lift-over-drag ratio:
 ```julia
 julia> lift, drag = lift_drag(kps)
 (382.18880762331327, 117.58827293691883)
@@ -140,14 +140,13 @@ julia> v_wind_kite(kps)
   0.0
   0.0
 ```
-## Example for reeling out the tether
+## Example of reeling out the tether
 ```julia
 include("examples/reel_out_4p.jl")
 ```
 ![Reel out 4p model](reelout_force_4p.png)
 
-In this example we first keep the tether length constant and at 15 s start to reel out the winch with an acceleration
-of 0.1 m/s². At a set speed below 2.2 m/s the brake of the winch is active, therefore the "jump" in the v_reelout at 
+In this example, we first keep the tether length constant and at 15 s start to reel out the winch with an acceleration of 0.1 m/s². At a set speed below 2.2 m/s the brake of the winch is active, therefore the "jump" in the v_reelout at 
 the beginning of the reel-out phase.
 
-It is not a real jump, but a high acceleration compared to the acceleration afterwards.
+It is not a real jump, but a high acceleration compared to the acceleration afterward.

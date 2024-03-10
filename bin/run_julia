@@ -6,11 +6,24 @@ fi
 
 julia_version=$(julia --version | awk '{print($3)}')
 julia_major=${julia_version:0:3} 
+if [[ $julia_major == "1.1" ]]; then
+    julia_major=${julia_version:0:4} 
+fi
 branch=$(git rev-parse --abbrev-ref HEAD)
+
+if [[ $julia_major == "1.10" ]]; then
+    if [[ $HOSTNAME == "ufryzen" || $HOSTNAME == "TUD262682" ]]; then
+        GCT="--gcthreads=8,1"
+    else
+        GCT="--gcthreads=4,1"
+    fi
+else
+    GCT=""
+fi
 
 if test -f "bin/kps-image-${julia_major}-${branch}.so"; then
     echo "Found system image!"
-    julia -J  bin/kps-image-${julia_major}-${branch}.so -t 1 --project
+    julia -J  bin/kps-image-${julia_major}-${branch}.so -t 1 $GCT --project
 else
-    julia --project
+    julia $GCT --project
 fi
