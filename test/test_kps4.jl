@@ -514,16 +514,27 @@ end
     simulate(integrator, 100)
     av_steps = simulate(integrator, STEPS-100)
     println(av_steps) #1102
-    expected_steps = 300
-    # if Sys.isapple()
-    #     expected_steps = 1000
-    # end
-    @test isapprox(av_steps, expected_steps, rtol=0.6)
+    if Sys.isapple()
+        println("isapple")
+        @test isapprox(av_steps, 1000, rtol=0.6)
+    else
+        println("not apple")
+        @test isapprox(av_steps, 300, rtol=0.6)
+    end
+  
     lift, drag = KiteModels.lift_drag(kps4)
     println(lift, " ", drag) # 703.7699568972286 161.44746368100536
     @test isapprox(lift, 703.8, rtol=0.05)
     sys_state = SysState(kps4)
     # TODO Add testcase with varying reelout speed 
+end
+
+@testset "Raptures" begin
+    kps4_ = KPS4(KCU(se()))
+    integrator = KiteModels.init_sim!(kps4_; stiffness_factor=0.035, prn=false)
+    kps4_.set.version = 2
+    kps4_.stiffness_factor = 3
+    @test maximum(spring_forces(kps4_)) > 20000
 end
 
 # TODO Add test for winch_force
