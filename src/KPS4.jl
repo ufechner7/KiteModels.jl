@@ -387,7 +387,7 @@ function residual!(res, yd, y::Vector{SimFloat}, s::KPS4, time)
     S = length(y)
     y_ =  MVector{S, SimFloat}(y)
     yd_ =  MVector{S, SimFloat}(yd)
-    residual!(res, yd_, y_, s::KPS4, time)
+    residual!(res, yd_, y_, s, time)
 end
 function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
     T = S-2 # T: three times the number of particles excluding the origin
