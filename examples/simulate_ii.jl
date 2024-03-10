@@ -1,11 +1,8 @@
 using Printf
 using KiteModels, KitePodModels, KiteUtils
 
-# change this to KPS3 or KPS4
-const Model = KPS3
-
 if ! @isdefined kcu;  const kcu = KCU(se());   end
-if ! @isdefined kps4; const kps4 = Model(kcu); end
+if ! @isdefined kps3; const kps3 = KPS3(kcu); end
 
 # the following values can be changed to match your interest
 dt = 0.05
@@ -31,26 +28,26 @@ function simulate(integrator, steps, plot=false)
     start = integrator.p.iter
     for i in 1:steps
         if PRINT
-            lift, drag = KiteModels.lift_drag(kps4)
+            lift, drag = KiteModels.lift_drag(kps3)
             @printf "%.2f: " round(integrator.t, digits=2)
             println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
         end
 
         if i == 300
-            set_depower_steering(kps4.kcu, 0.25, 0.1)
+            set_depower_steering(kps3.kcu, 0.25, 0.1)
         elseif i == 302
-            set_depower_steering(kps4.kcu, 0.25, -0.1)
+            set_depower_steering(kps3.kcu, 0.25, -0.1)
         elseif i == 304
-            set_depower_steering(kps4.kcu, 0.25, 0.0)            
+            set_depower_steering(kps3.kcu, 0.25, 0.0)            
         end
 
 
-        KiteModels.next_step!(kps4, integrator, dt=dt)
+        KiteModels.next_step!(kps3, integrator, dt=dt)
 
         if plot
             reltime = i*dt
             if mod(i, 5) == 0
-                p = plot2d(kps4.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=se().segments)
+                p = plot2d(kps3.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=se().segments)
                 display(p)                
             end
         end
@@ -58,7 +55,7 @@ function simulate(integrator, steps, plot=false)
     (integrator.p.iter - start) / steps
 end
 
-integrator = KiteModels.init_sim!(kps4, stiffness_factor=0.04, prn=STATISTIC)
+integrator = KiteModels.init_sim!(kps3, stiffness_factor=0.04, prn=STATISTIC)
 
 if PLOT
     av_steps = simulate(integrator, STEPS, true)
@@ -70,7 +67,7 @@ else
     speed = (STEPS-100) / runtime * dt
     println("Simulation speed: $(round(speed, digits=2)) times realtime.")
 end
-lift, drag = KiteModels.lift_drag(kps4)
+lift, drag = KiteModels.lift_drag(kps3)
 println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
 println("Average number of callbacks per time step: $av_steps")
 
