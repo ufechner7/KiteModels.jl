@@ -33,13 +33,7 @@ if [[ $update == true ]]; then
     fi
     julia  --pkgimages=no --project -e "include(\"./test/update_packages.jl\");"
 else
-    if [[ $julia_major == "1.7" ]]; then
-        cp Manifest-1.7.toml.default Manifest.toml
-        echo "Using Manifest-1.7.toml.default ..."
-    elif [[ $julia_major == "1.8" ]]; then
-        cp Manifest-1.8.toml.default Manifest.toml
-        echo "Using Manifest-1.8.toml.default ..."
-    elif [[ $julia_major == "1.9" ]]; then
+    if [[ $julia_major == "1.9" ]]; then
         cp Manifest-1.9.toml.default Manifest.toml
         echo "Using Manifest-1.9.toml.default ..."        
     else
