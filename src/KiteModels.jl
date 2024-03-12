@@ -475,9 +475,11 @@ end
     # list = [OtherType("hello"), OtherType("world!")]
     set_data_path()
     kps4_::KPS4 = KPS4(KCU(se()))
+    kps3_::KPS3 = KPS3(KCU(se()))
     @compile_workload begin
         # all calls in this block will be precompiled, regardless of whether
         # they belong to your package or not (on Julia 1.8 and higher)
+        integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
         integrator = KiteModels.init_sim!(kps4_; stiffness_factor=0.035, prn=false)
         nothing
     end
