@@ -461,14 +461,6 @@ function copy_bin()
     chmod(joinpath(PATH, "update_packages.jl"), 0o664)
 end
 
-# precompile(find_steady_state!, (KPS3{SimFloat, KVec3, se().segments+1},)) 
-# const particles = se().segments+KITE_PARTICLES+1
-# const springs = se().segments+KITE_SPRINGS
-# precompile(find_steady_state!, (KPS4{Float64, MVector{3, Float64}, particles, springs, KiteModels.Spring{Int16,
-#            Float64}},))
-# precompile(init_sim!, (KPS4{Float64, MVector{3, Float64}, particles, springs, KiteModels.Spring{Int16, Float64}}, 
-#                        Float64,))  
-
 @setup_workload begin
     # Putting some things in `@setup_workload` instead of `@compile_workload` can reduce the size of the
     # precompile file and potentially make loading faster.
