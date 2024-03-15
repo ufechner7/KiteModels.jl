@@ -57,8 +57,6 @@ export winch_force, lift_drag, lift_over_drag, unstretched_length, tether_length
 export kite_ref_frame, orient_euler, spring_forces
 
 set_zero_subnormals(true)       # required to avoid drastic slow down on Intel CPUs when numbers become very small
-KiteUtils.set_data_path("")     # only executed during precompilation and ensures that the default settings.yaml
-                                # are used
 
 # Constants
 const G_EARTH = 9.81            # gravitational acceleration
@@ -106,6 +104,10 @@ abstract type AbstractKiteModel end
 Short alias for the AbstractKiteModel. 
 """
 const AKM = AbstractKiteModel
+
+function __init__()
+    set_data_path(joinpath(pwd(), "data"))
+end
 
 include("KPS4.jl") # include code, specific for the four point kite model
 include("KPS3.jl") # include code, specific for the one point kite model
@@ -472,7 +474,7 @@ end
         # all calls in this block will be precompiled, regardless of whether
         # they belong to your package or not (on Julia 1.8 and higher)
         integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
-        integrator = KiteModels.init_sim!(kps4_; stiffness_factor=0.035, prn=false)
+        integrator = KiteModels.init_sim!(kps4_; stiffness_factor=0.035, prn=false)       
         nothing
     end
 end
