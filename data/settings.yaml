@@ -18,7 +18,7 @@ initial:
 solver:
     abs_tol: 0.0006        # absolute tolerance of the DAE solver [m, m/s]
     rel_tol: 0.001         # relative tolerance of the DAE solver [-]
-    linear_solver: "LapackDense" # can be GMRES or Dense or LapackDense
+    linear_solver: "GMRES" # can be GMRES or Dense or LapackDense
     max_order: 4           # maximal order, usually between 3 and 5
     max_iter:  200         # max number of iterations of the steady-state-solver
 
