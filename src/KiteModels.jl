@@ -106,7 +106,9 @@ Short alias for the AbstractKiteModel.
 const AKM = AbstractKiteModel
 
 function __init__()
-    set_data_path(joinpath(pwd(), "data"))
+    if isdir(joinpath(pwd(), "data")) && isfile(joinpath(pwd(), "data", "system.yaml"))
+        set_data_path(joinpath(pwd(), "data"))
+    end
 end
 
 include("KPS4.jl") # include code, specific for the four point kite model
