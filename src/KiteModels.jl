@@ -335,8 +335,8 @@ function SysState(s::AKM, zoom=1.0)
     course = calc_course(s)
     v_app_norm = norm(s.v_apparent)
     t_sim = 0
-    KiteUtils.SysState{P}(s.t_0, t_sim, orient, elevation, azimuth, s.l_tether, s.v_reel_out, force, s.depower, s.steering, 
-                          heading, course, v_app_norm, s.vel_kite, X, Y, Z)
+    KiteUtils.SysState{P}(s.t_0, t_sim, 0, 0, orient, elevation, azimuth, s.l_tether, s.v_reel_out, force, s.depower, s.steering, 
+                          heading, course, v_app_norm, s.vel_kite, X, Y, Z, 0, 0, 0, 0, 0)
 end
 
 function calc_pre_tension(s::AKM)
