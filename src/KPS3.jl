@@ -142,8 +142,6 @@ $(TYPEDFIELDS)
     steering::S =          0.0
     "factor for the tether stiffness, used to find the steady state with a low stiffness first"
     stiffness_factor::S =  1.0
-    "pre-calculated constant for the wind profile law calcuation"
-    log_href_over_z0::S =  log(se().h_ref / se().z0)
     "initial masses of the point masses"
     initial_masses::MVector{P, S} = ones(P)
     "current masses, depending on the total tether length"
@@ -180,7 +178,7 @@ function clear!(s::KPS3)
         mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
     end
     s.initial_masses .= ones(s.set.segments+1) * mass_per_meter * s.set.l_tether / s.set.segments # Dyneema: 1.1 kg/ 100m
-    for i in 1:se().segments + 1 
+    for i in 1:s.set.segments + 1 
         s.forces[i] .= zeros(3)
     end
     s.c_spring = s.set.c_spring / s.segment_length
@@ -195,9 +193,7 @@ end
 function KPS3(kcu::KCU)
     s = KPS3{SimFloat, KVec3, kcu.set.segments+1}()
     s.set = kcu.set
-    s.kcu = kcu
-    s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
-    s.calc_cd = Spline1D(s.set.alpha_cd, s.set.cd_list)       
+    s.kcu = kcu  
     clear!(s)
     return s
 end
@@ -427,7 +423,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
 end
 
 # Calculate the initial conditions y0 and yd0. Tether with the initial elevation angle
-# se().elevation, particle zero fixed at origin.
+# s.set.elevation, particle zero fixed at origin.
 # Parameters:
 # x: vector of deviations of the tether particle positions from a straight line in x and z
 # length(x) == 2*SEGMENTS
