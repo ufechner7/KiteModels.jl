@@ -526,6 +526,7 @@ end
     println(lift, " ", drag) # 703.7699568972286 161.44746368100536
     @test isapprox(lift, 703.8, rtol=0.05)
     sys_state = SysState(kps4)
+    update_sys_state!(sys_state, kps4)
     # TODO Add testcase with varying reelout speed 
 end
 

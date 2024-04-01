@@ -49,7 +49,7 @@ import Sundials.init
 import Sundials.step!
 
 export KPS3, KPS4, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                              # constants and types
-export calc_set_cl_cd!, copy_examples, copy_bin                                               # helper functions
+export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                            # helper functions
 export clear!, find_steady_state!, residual!                                                  # low level workers
 export init_sim!, next_step!                                                                  # high level workers
 export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course         # getters
@@ -299,6 +299,76 @@ function calc_course(s::AKM)
     elevation = calc_elevation(s)
     azimuth = calc_azimuth(s)
     KiteUtils.calc_course(s.vel_kite, elevation, azimuth)
+end
+
+# mutable struct SysState{P}
+#     "time since start of simulation in seconds"
+#     time::Float64
+#     "time needed for one simulation timestep"
+#     t_sim::Float64
+#     "state of system state control"
+#     sys_state::Int16
+#     "mechanical energy [Wh]"
+#     e_mech::Float64
+#     "orientation of the kite (quaternion, order w,x,y,z)"
+#     orient::MVector{4, Float32}
+#     "elevation angle in radians"
+#     elevation::MyFloat
+#     "azimuth angle in radians"
+#     azimuth::MyFloat
+#     "tether length [m]"
+#     l_tether::MyFloat
+#     "reel out velocity [m/s]"
+#     v_reelout::MyFloat
+#     "tether force [N]"
+#     force::MyFloat
+#     "depower settings [0..1]"
+#     depower::MyFloat
+#     "steering settings [-1..1]"
+#     steering::MyFloat
+#     "heading angle in radian"
+#     heading::MyFloat
+#     "course angle in radian"
+#     course::MyFloat
+#     "norm of apparent wind speed [m/s]"
+#     v_app::MyFloat
+#     "velocity vector of the kite"
+#     vel_kite::MVector{3, MyFloat}
+#     "vector of particle positions in x"
+#     X::MVector{P, MyFloat}
+#     "vector of particle positions in y"
+#     Y::MVector{P, MyFloat}
+#     "vector of particle positions in z"
+#     Z::MVector{P, MyFloat}
+#     var_01::MyFloat
+#     var_02::MyFloat
+#     var_03::MyFloat
+#     var_04::MyFloat
+#     var_05::MyFloat
+# end 
+
+function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
+    ss.time = s.t_0
+    pos = s.pos
+    P = length(pos)
+    for i in 1:P
+        ss.X[i] = pos[i][1] * zoom
+        ss.Y[i] = pos[i][2] * zoom
+        ss.Z[i] = pos[i][3] * zoom
+    end
+    x, y, z = kite_ref_frame(s)
+    pos_kite_ = pos_kite(s)
+    pos_before = pos_kite_ + z
+   
+    rotation = rot(pos_kite_, pos_before, -x)
+    q = QuatRotation(rotation)
+    ss.orient .= Rotations.params(q)
+    ss.elevation = calc_elevation(s)
+    ss.azimuth = calc_azimuth(s)
+    ss.force = winch_force(s)
+    ss.heading = calc_heading(s)
+    ss.course = calc_course(s)
+    ss.v_app = norm(s.v_apparent)
 end
 
 """
