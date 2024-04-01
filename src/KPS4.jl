@@ -162,6 +162,13 @@ $(TYPEDFIELDS)
     z::T =                 zeros(S, 3)
 end
 
+@inline @inbounds function norm(vec::SVector{3, Float64})
+    sqrt(vec[1]*vec[1]+vec[2]*vec[2]+vec[3]*vec[3])
+end
+@inline @inbounds function norm(vec::MVector{3, Float64})
+    sqrt(vec[1]*vec[1]+vec[2]*vec[2]+vec[3]*vec[3])
+end
+
 """
     clear!(s::KPS4)
 
