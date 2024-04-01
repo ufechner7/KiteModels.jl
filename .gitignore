@@ -15,3 +15,4 @@ bin/kps-image-1.9-main.so
 bin/kps-image-1.1-main.so
 bin/kps-image-1.10-main.so
 bin/kps-image-1.10-dev2.so
+statprof/
