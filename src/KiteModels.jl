@@ -55,6 +55,7 @@ export init_sim!, next_step!                                                    
 export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course         # getters
 export winch_force, lift_drag, lift_over_drag, unstretched_length, tether_length, v_wind_kite # getters
 export kite_ref_frame, orient_euler, spring_forces
+import LinearAlgebra: norm
 
 set_zero_subnormals(true)       # required to avoid drastic slow down on Intel CPUs when numbers become very small
 
