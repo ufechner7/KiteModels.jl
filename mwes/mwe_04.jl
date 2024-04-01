@@ -1,3 +1,7 @@
+using Pkg
+if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
+    using TestEnv; TestEnv.activate()
+end
 using Sundials, ControlPlots
 
 G_EARTH  = [0.0, 0.0, -9.81] # gravitational acceleration
@@ -32,22 +36,22 @@ function run_example()
     dt = 0.05
     pos_z=Float64[]
     vel_z=Float64[]
+    time=Float64[]
     for t in 0:0.05:t_final    
+        push!(time, t)
         Sundials.step!(integrator, dt, true)
         push!(pos_z, integrator.u[3])
         push!(vel_z, integrator.u[6])
     end
     
     # plot the result
-
-    # plt.ax1 = plt.subplot(111) 
-    # plt.ax1.set_xlabel('time [s]')
-    # plt.plot(time, pos_z, color="green")
-    # plt.ax1.set_ylabel('pos_z [m]')  
-    # plt.ax1.grid(True) 
-    # plt.ax2 = plt.twinx()  
-    # plt.ax2.set_ylabel('vel_z [m/s]')   
-    # plt.plot(time, vel_z, color="red")    
-    # plt.show()
-    integrator
+    plt.ax1 = plt.subplot(111) 
+    plt.ax1.set_xlabel("time [s]")
+    plt.plot(time, pos_z, color="green")
+    plt.ax1.set_ylabel("pos_z [m]")  
+    plt.ax1.grid(true) 
+    plt.ax2 = plt.twinx()  
+    plt.ax2.set_ylabel("vel_z [m/s]")   
+    plt.plot(time, vel_z, color="red")
 end
+run_example()
