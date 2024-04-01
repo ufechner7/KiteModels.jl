@@ -369,6 +369,12 @@ function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
     ss.heading = calc_heading(s)
     ss.course = calc_course(s)
     ss.v_app = norm(s.v_apparent)
+    ss.l_tether = s.l_tether
+    ss.v_reelout = s.v_reel_out
+    ss.depower = s.depower
+    ss.steering = s.steering
+    ss.vel_kite .= s.vel_kite
+    nothing
 end
 
 """
