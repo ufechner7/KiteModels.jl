@@ -15,6 +15,19 @@ function res!(res, yd, y, p, time)
     res[4:6] .= yd[4:6] - G_EARTH 
 end
 
+function solve(integrator, dt, t_final)
+    pos_z=Float64[]
+    vel_z=Float64[]
+    time=Float64[]
+    for t in 0:0.05:t_final    
+        push!(time, t)
+        Sundials.step!(integrator, dt, true)
+        push!(pos_z, integrator.u[3])
+        push!(vel_z, integrator.u[6])
+    end
+    time, pos_z, vel_z
+end
+
 function run_example()
     # Set the initial conditions
     t_final = 10.0              # Final simulation time
@@ -34,15 +47,8 @@ function run_example()
     integrator = Sundials.init(prob, solver, abstol, reltol=0.001)
 
     dt = 0.05
-    pos_z=Float64[]
-    vel_z=Float64[]
-    time=Float64[]
-    for t in 0:0.05:t_final    
-        push!(time, t)
-        Sundials.step!(integrator, dt, true)
-        push!(pos_z, integrator.u[3])
-        push!(vel_z, integrator.u[6])
-    end
+
+    time, pos_z, vel_z = solve(integrator, dt, t_final)
     
     # plot the result
     plt.ax1 = plt.subplot(111) 
