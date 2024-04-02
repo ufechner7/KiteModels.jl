@@ -47,7 +47,7 @@ function init()
 
     differential_vars = ones(Bool, length(y0))
     solver  = IDA(linear_solver=:GMRES, max_order = 4)
-    tspan   = (0.0, t_final) 
+    tspan   = (0.0, 2*t_final) 
     abstol  = 0.0006 # max error in m/s and m
     s = nothing
 
