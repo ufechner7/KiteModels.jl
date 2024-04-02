@@ -82,5 +82,8 @@ res=Result(t_final)
 bytes = @allocated solve!(res, integrator, dt, t_final)
 n=Int64(round(t_final/dt+1))
 println("Allocated $(Int64(round(bytes/n))) bytes per iteration!")
+integrator=init()
+res=Result(t_final)
+@timev solve!(res, integrator, dt, t_final)
 # plot(res)
-# Allocated 938 bytes per iteration!
+# Allocated 575 bytes per iteration!
