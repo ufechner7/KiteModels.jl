@@ -56,10 +56,11 @@ function init()
     
     tspan   = (0.0, t_final) 
     abstol  = 0.0006 # max error in m/s and m
+    reltol=0.001 * ones(length(y0))
     s = nothing
 
     prob    = DAEProblem(res!, yd0, y0, tspan, s, differential_vars=differential_vars)
-    integrator = OrdinaryDiffEq.init(prob, solver, abstol, reltol=0.001)
+    integrator = OrdinaryDiffEq.init(prob, solver; abstol, reltol)
 end
 
 function plot(res::Result)
