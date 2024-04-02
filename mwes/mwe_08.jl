@@ -55,7 +55,6 @@ function init(res)
     yd0 = append!(vel_0, acc_0) # Initial vel, acc
     res.pos_z[1] = y0[3]
     res.vel_z[1] = y0[6]
-    differential_vars = ones(Bool, length(y0))
     solver = Rodas5(autodiff=true)
     tspan   = (0.0, dt) 
     prob = ODEProblem(ode!, y0, tspan)
