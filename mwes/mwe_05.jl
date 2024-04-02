@@ -47,7 +47,7 @@ function init(res)
     res.vel_z[1] = y0[6]
     differential_vars = ones(Bool, length(y0))
     solver  = IDA(linear_solver=:GMRES, max_order = 4)
-    tspan   = (0.0, t_final) 
+    tspan   = (0.0, dt) 
     s = nothing
     prob = DAEProblem(res!, yd0, y0, tspan, s, differential_vars=differential_vars)
     prob, solver
@@ -79,5 +79,5 @@ bytes=@allocated solve!(res, prob, solver)
 n=Int64(round(t_final/dt+1))
 println("Allocated $(Int64(round(bytes/n))) bytes per iteration!")
 # plot(res)
-
 nothing
+# Allocated 12991 bytes per iteration!
