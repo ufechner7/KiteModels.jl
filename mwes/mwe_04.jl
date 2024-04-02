@@ -13,8 +13,8 @@ const t_final = 10.0
 # Derivative   yd  = mass.vel, mass.acc
 # Residual     res = (y.vel - yd.vel), (yd.acc - G_EARTH)     
 function res!(res, yd, y, p, time)
-    res[1:3] .= y[4:6] .- yd[1:3]
-    res[4:6] .= yd[4:6] .- G_EARTH 
+    @views res[1:3] .= y[4:6] .- yd[1:3]
+    @views res[4:6] .= yd[4:6] .- G_EARTH 
 end
 
 struct Result
@@ -58,6 +58,8 @@ end
 integrator=init()
 res=Result(2*t_final)
 @time solve!(res, integrator, dt, t_final)
-@allocated solve!(res, integrator, dt, 2*t_final)
+bytes = @allocated solve!(res, integrator, dt, 2*t_final)
+n=Int64(round(t_final/dt+1))
+println("Allocated $(Int64(round(bytes/n))) bytes per iteration!")
 
-# 454864
+# 252064
