@@ -13,8 +13,8 @@ const t_final = 10.0
 # Derivative   yd  = mass.vel, mass.acc
 # Residual     res = (y.vel - yd.vel), (yd.acc - G_EARTH)     
 function res!(res, yd, y, p, time)
-    @view res[1:3] .= y[4:6] .- yd[1:3]
-    @view res[4:6] .= yd[4:6] .- G_EARTH
+    @views res[1:3] .= y[4:6] .- yd[1:3]
+    @views res[4:6] .= yd[4:6] .- G_EARTH
     nothing
 end
 
@@ -47,7 +47,7 @@ function init()
 
     differential_vars = ones(Bool, length(y0))
     solver  = IDA(linear_solver=:GMRES, max_order = 4)
-    tspan   = (0.0, 2*t_final) 
+    tspan   = (0.0, t_final) 
     abstol  = 0.0006 # max error in m/s and m
     s = nothing
 
@@ -67,8 +67,11 @@ function plot(res::Result)
 end
 
 integrator=init()
-res=Result(2*t_final)
+res=Result(t_final)
 @time solve!(res, integrator, dt, t_final)
-bytes = @allocated solve!(res, integrator, dt, 2*t_final)
+integrator=init()
+res=Result(t_final)
+bytes = @allocated solve!(res, integrator, dt, t_final)
 n=Int64(round(t_final/dt+1))
 println("Allocated $(Int64(round(bytes/n))) bytes per iteration!")
+# plot(res)

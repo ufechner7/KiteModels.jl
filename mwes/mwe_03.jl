@@ -12,8 +12,8 @@ const dt = 0.05
 # Derivative   yd  = mass.vel, mass.acc
 # Residual     res = (y.vel - yd.vel), (yd.acc - G_EARTH)     
 function res!(res, yd, y, p, time)
-    res[1:3] .= y[4:6] .- yd[1:3]
-    res[4:6] .= yd[4:6] .- G_EARTH 
+    @views res[1:3] .= y[4:6] .- yd[1:3]
+    @views res[4:6] .= yd[4:6] .- G_EARTH 
 end
 
 struct Result
