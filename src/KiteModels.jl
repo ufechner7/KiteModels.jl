@@ -34,7 +34,7 @@ Scientific background: http://arxiv.org/abs/1406.6218 =#
 module KiteModels
 
 using PrecompileTools: @setup_workload, @compile_workload 
-using Dierckx, StaticArrays, Rotations, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, Sundials
+using Dierckx, StaticArrays, Rotations, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, OrdinaryDiffEq
 using Reexport
 @reexport using KitePodModels
 @reexport using WinchModels
@@ -45,8 +45,10 @@ import KiteUtils.calc_azimuth
 import KiteUtils.calc_heading
 import KiteUtils.calc_course
 import KiteUtils.SysState
-import Sundials.init
-import Sundials.step!
+# import Sundials.init
+# import Sundials.step!
+import OrdinaryDiffEq.init
+import OrdinaryDiffEq.step!
 
 export KPS3, KPS4, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                              # constants and types
 export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                            # helper functions
@@ -450,11 +452,14 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false)
     y0  = Vector{Float64}(y0)
     yd0 = Vector{Float64}(yd0)
     differential_vars = ones(Bool, length(y0))
-    solver  = IDA(linear_solver=Symbol(s.set.linear_solver), max_order = s.set.max_order)
+    # solver  = IDA(linear_solver=Symbol(s.set.linear_solver), max_order = s.set.max_order)
+    solver  = DFBDF(autodiff=false)
+    # t_end = 0.05
     tspan   = (0.0, t_end) 
     abstol  = s.set.abs_tol # max error in m/s and m
+    reltol = ones(length(y0)) * s.set.rel_tol
     prob    = DAEProblem{true}(residual!, yd0, y0, tspan, s, differential_vars=differential_vars)
-    integrator = Sundials.init(prob, solver, abstol=abstol, reltol=s.set.rel_tol)
+    integrator = OrdinaryDiffEq.init(prob, solver, abstol=abstol)
 end
 
 """
@@ -480,7 +485,7 @@ function next_step!(s::AKM, integrator; v_ro = 0.0, v_wind_gnd=s.set.v_wind, win
     KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
     set_v_reel_out!(s, v_ro, integrator.t)
     set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
-    Sundials.step!(integrator, dt, true)
+    OrdinaryDiffEq.step!(integrator, dt, true)
     if s.stiffness_factor < 1.0
         s.stiffness_factor+=0.01
         if s.stiffness_factor > 1.0
