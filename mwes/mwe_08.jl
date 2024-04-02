@@ -62,13 +62,13 @@ function init(res)
     prob, solver
 end
 function my_solve!(res, prob, solver)
-    global sol
+    local sol
     abstol  = 0.0006 # max error in m/s and m
     for (i,t) in pairs(dt:dt:t_final)
         tspan2 = (t-dt, t)
         prob2   = remake(prob; tspan=tspan2)
         if i > 1
-            y0  =sol.u[end]
+            y0      = sol.u[end]
             prob2   = remake(prob2; u0=y0)
         end
         sol = solve(prob2, solver; abstol, reltol=0.001)
