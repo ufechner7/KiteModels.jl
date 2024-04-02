@@ -16,3 +16,4 @@ bin/kps-image-1.1-main.so
 bin/kps-image-1.10-main.so
 bin/kps-image-1.10-dev2.so
 statprof/
+bin/kps-image-1.10-new_solver.so
