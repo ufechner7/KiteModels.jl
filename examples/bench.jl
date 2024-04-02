@@ -51,3 +51,8 @@ println("Average number of callbacks per time step: $av_steps")
 # Simulation speed: 11.28 times realtime.
 # lift, drag  [N]: 597.56, 129.31
 # Average number of callbacks per time step: 1413.298
+
+# Total simulation time: 0.348 s
+# Simulation speed: 71.92 times realtime.
+# lift, drag  [N]: 733.94, 141.21
+# Average number of callbacks per time step: 233.528
