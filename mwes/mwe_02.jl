@@ -14,4 +14,5 @@ end
 bytes = @allocated nsteps(kps4, integrator)
 println("Bytes per step: $(Int64(round(bytes/STEPS)))")
 nothing
-# 3.125 ms, 1.175 MB
+# 3.125 ms, 2.452 MB with IDA
+# 7.38  ms, 0.804 MB with DFBDF
