@@ -59,11 +59,11 @@ function solve!(res, prob, solver)
         tspan2 = (t-dt, t)
         prob2   = remake(prob; tspan=tspan2)
         if i > 1
-            y0=sol.u[end]
-            yd0=sol.du[end]
+            y0  =sol.u[end]
+            yd0 =sol.du[end]
             prob2   = remake(prob2; u0=y0, du0=yd0)
         end
-        sol     = solve(prob2, solver; abstol, reltol=0.001)
+        sol = solve(prob2, solver; abstol, reltol=0.001)
         res.time[i+1]  = t
         res.pos_z[i+1] = sol.u[end][3]
         res.vel_z[i+1] = sol.u[end][6]
@@ -73,8 +73,11 @@ end
 res = Result(t_final)
 prob::DAEProblem, solver::IDA=init(res)
 solve!(res, prob, solver)
-plot(res)
+res = Result(t_final)
+prob::DAEProblem, solver::IDA=init(res)
+bytes=@allocated solve!(res, prob, solver)
+n=Int64(round(t_final/dt+1))
+println("Allocated $(Int64(round(bytes/n))) bytes per iteration!")
+# plot(res)
 
-# @time time_, pos_z, vel_z = solve(integrator, dt, t_final)
-# @time time_, pos_z, vel_z = solve(integrator, dt, 2*t_final)
 nothing
