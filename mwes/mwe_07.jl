@@ -57,7 +57,7 @@ function init(res)
     prob, solver
 end
 function my_solve!(res, prob, solver)
-    global sol
+    local sol
     abstol  = 0.0006 # max error in m/s and m
     for (i,t) in pairs(dt:dt:t_final)
         tspan2 = (t-dt, t)
