@@ -19,23 +19,13 @@ function res!(res, yd, y, p, t)
     nothing
 end
 
-# yd.vel = vel - res1
-# yd.acc = G_EARTH + res2  
+# yd.vel = y.vel
+# yd.acc = G_EARTH  
 function ode!(yd, y, p, t)
-    @views yd[1:3] .= y[1:3]
+    @views yd[1:3] .= y[4:6]
     @views yd[4:6] .= G_EARTH
     nothing
 end
-
-# $$ M \frac{du}{dt} = f(u,p,t) $$
-# function lorenz!(du, u, p, t)
-#     du[1] = 10.0 * (u[2] - u[1])
-#     du[2] = u[1] * (28.0 - u[3]) - u[2]
-#     du[3] = u[1] * u[2] - (8 / 3) * u[3]
-#     nothing
-# end
-
-# TODO reformulate as ODE problem
 
 struct Result
     time::Vector{Float64}
@@ -66,8 +56,7 @@ function init(res)
     res.pos_z[1] = y0[3]
     res.vel_z[1] = y0[6]
     differential_vars = ones(Bool, length(y0))
-    # solver  = IDA(linear_solver=:GMRES, max_order = 4) # 15206
-    solver = Rodas4(autodiff=false)
+    solver = Rodas5(autodiff=true)
     tspan   = (0.0, dt) 
     prob = ODEProblem(ode!, y0, tspan)
     prob, solver
@@ -92,10 +81,10 @@ end
 result = Result(t_final)
 prob, solver=init(result)
 my_solve!(res, prob, solver)
-# res = Result(t_final)
-# prob::DAEProblem, solver=init(res)
-# bytes=@allocated my_solve!(res, prob, solver)
-# n=Int64(round(t_final/dt+1))
-# println("Allocated $(Int64(round(bytes/n))) bytes per iteration!")
+result = Result(t_final)
+prob, solver=init(result)
+bytes=@allocated my_solve!(res, prob, solver)
+n=Int64(round(t_final/dt+1))
+println("Allocated $(Int64(round(bytes/n))) bytes per iteration!")
 plot(result)
 nothing
