@@ -13,8 +13,8 @@ const t_final = 10.0
 # Derivative   yd  = mass.vel, mass.acc
 # Residual     res = (y.vel - yd.vel), (yd.acc - G_EARTH)     
 function res!(res, yd, y, p, time)
-    @views res[1:3] .= y[4:6] .- yd[1:3]
-    @views res[4:6] .= yd[4:6] .- G_EARTH
+    @view res[1:3] .= y[4:6] .- yd[1:3]
+    @view res[4:6] .= yd[4:6] .- G_EARTH
     nothing
 end
 
@@ -53,6 +53,17 @@ function init()
 
     prob    = DAEProblem(res!, yd0, y0, tspan, s, differential_vars=differential_vars)
     integrator = Sundials.init(prob, solver, abstol, reltol=0.001)
+end
+
+function plot(res::Result)
+    plt.ax1 = plt.subplot(111) 
+    plt.ax1.set_xlabel("time [s]")
+    plt.plot(res.time, res.pos_z, color="green")
+    plt.ax1.set_ylabel("pos_z [m]")  
+    plt.ax1.grid(true) 
+    plt.ax2 = plt.twinx()  
+    plt.ax2.set_ylabel("vel_z [m/s]")   
+    plt.plot(res.time, res.vel_z, color="red")
 end
 
 integrator=init()
