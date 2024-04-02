@@ -2,7 +2,7 @@ using Pkg
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
     using TestEnv; TestEnv.activate()
 end
-using ControlPlots, OrdinaryDiffEq, Sundials, DASKR
+using ControlPlots, OrdinaryDiffEq, Sundials #, DASKR
 
 const G_EARTH  = [0.0, 0.0, -9.81] # gravitational acceleration
 const dt = 0.05
@@ -47,10 +47,10 @@ function init(res)
     res.vel_z[1] = y0[6]
     differential_vars = ones(Bool, length(y0))
     # solver  = IDA(linear_solver=:GMRES, max_order = 4) # 15206
-    # solver = DFBDF()                                 # 30124
+    solver = DFBDF()                                 # 30124
     # solver = DImplicitEuler()                        # 27589
     # solver = DABDF2()                                # 27855
-    solver = daskr()                                   # 37059
+    # solver = daskr()                                   # 37059
     tspan   = (0.0, dt) 
     s = nothing
     prob = DAEProblem(res!, yd0, y0, tspan, s, differential_vars=differential_vars)
