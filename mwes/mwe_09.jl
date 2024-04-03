@@ -52,8 +52,8 @@ function init()
 
     differential_vars = ones(Bool, length(y0))
     # solver  = IDA(linear_solver=:GMRES, max_order = 4) # 938 bytes, 0.228 ms
-    # solver = DImplicitEuler()                          # 677 bytes, 0.561 ms 0.472 0.609 604
-    solver = DFBDF(autodiff=false)                       # 453 bytes, 0.323 ms
+    solver = DImplicitEuler(autodiff=false)              # 535 bytes, 0.341 ms
+    # solver = DFBDF(autodiff=false)                     # 453 bytes, 0.323 ms
     # solver = DABDF2(autodiff=false)                    # 475 bytes, 0.345 ms
     
     tspan   = (0.0, t_final) 
