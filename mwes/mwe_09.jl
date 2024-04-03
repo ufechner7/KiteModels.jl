@@ -51,10 +51,10 @@ function init()
     yd0 = append!(vel_0, acc_0) # Initial vel, acc
 
     differential_vars = ones(Bool, length(y0))
-    # solver  = IDA(linear_solver=:GMRES, max_order = 4)
-    # solver = DImplicitEuler() # 677 bytes, 0.561 ms 0.472 0.609 604
-    solver = DFBDF()            # 575 bytes, 0.768 ms 1037 665 603
-    # solver = DABDF2()         # 598 bytes, 0.652 ms 641 651 663
+    # solver  = IDA(linear_solver=:GMRES, max_order = 4) # 938 bytes, 0.228 ms
+    # solver = DImplicitEuler()                          # 677 bytes, 0.561 ms 0.472 0.609 604
+    solver = DFBDF(autodiff=false)                       # 453 bytes, 0.323 ms
+    # solver = DABDF2(autodiff=false)                    # 475 bytes, 0.345 ms
     
     tspan   = (0.0, t_final) 
     abstol  = 0.0006 # max error in m/s and m
