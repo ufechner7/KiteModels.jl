@@ -1,14 +1,15 @@
 using Printf
 using KiteModels, KitePodModels, KiteUtils
 
-se().abs_tol=0.000006
-se().rel_tol=0.0000001
+set = deepcopy(se())
 
-if ! @isdefined kcu;  const kcu = KCU(se());   end
-if ! @isdefined kps; const kps = KPS3(kcu); end
+# for the IDA solver a low tolerance is needed to be stable during reel-out
+# set.abs_tol=0.00006
+# set.rel_tol=0.000001
 
 # the following values can be changed to match your interest
 dt = 0.05
+set.solver="DFBDF" # IDA or DFBDF
 STEPS = 600
 PLOT = true
 FRONT_VIEW = false
@@ -16,6 +17,10 @@ ZOOM = false
 PRINT = false
 STATISTIC = false
 # end of user parameter section #
+
+kcu::KCU = KCU(set)
+kps4::KPS4 = KPS4(kcu)
+kps3::KPS3 = KPS3(kcu)
 
 if PLOT
     using Pkg
@@ -35,24 +40,24 @@ function simulate(integrator, steps, plot=false)
     start = integrator.p.iter
     for i in 1:steps
         if PRINT
-            lift, drag = KiteModels.lift_drag(kps)
+            lift, drag = KiteModels.lift_drag(kps3)
             @printf "%.2f: " round(integrator.t, digits=2)
             println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
         end
         acc = 0.0
-        if kps.t_0 > 15.0
+        if kps3.t_0 > 15.0
             acc = 0.1
         end
-        v_ro = kps.sync_speed+acc*dt
-        v_time[i] = kps.t_0
-        v_speed[i] = kps.v_reel_out
-        v_force[i] = winch_force(kps)
-        KiteModels.next_step!(kps, integrator, v_ro = v_ro, dt=dt)
+        v_ro = kps3.sync_speed+acc*dt
+        v_time[i] = kps3.t_0
+        v_speed[i] = kps3.v_reel_out
+        v_force[i] = winch_force(kps3)
+        KiteModels.next_step!(kps3, integrator, v_ro = v_ro, dt=dt)
         
         if plot
             reltime = i*dt
             if mod(i, 5) == 0
-                p = plot2d(kps.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=se().segments)
+                p = plot2d(kps3.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=se().segments)
                 display(p)                
             end
         end
@@ -60,8 +65,8 @@ function simulate(integrator, steps, plot=false)
     (integrator.p.iter - start) / steps
 end
 
-integrator = KiteModels.init_sim!(kps, stiffness_factor=0.04, prn=STATISTIC)
-kps.sync_speed = 0.0
+integrator = KiteModels.init_sim!(kps3, stiffness_factor=0.04, prn=STATISTIC)
+kps3.sync_speed = 0.0
 
 if PLOT
     av_steps = simulate(integrator, STEPS, true)
@@ -73,7 +78,7 @@ else
     speed = (STEPS-100) / runtime * dt
     println("Simulation speed: $(round(speed, digits=2)) times realtime.")
 end
-lift, drag = KiteModels.lift_drag(kps)
+lift, drag = KiteModels.lift_drag(kps3)
 println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
 println("Average number of callbacks per time step: $av_steps")
 

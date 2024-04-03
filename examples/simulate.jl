@@ -1,11 +1,14 @@
 using Printf
 using KiteModels, KitePodModels, KiteUtils
 
-if ! @isdefined kcu;  const kcu = KCU(se());   end
-if ! @isdefined kps4; const kps4 = KPS4(kcu); end
+set = deepcopy(se())
+
+set.abs_tol=0.0006
+set.rel_tol=0.00001
 
 # the following values can be changed to match your interest
 dt = 0.05
+set.solver="DFBDF" # IDA or DFBDF
 STEPS = 600
 PLOT = true
 FRONT_VIEW = false
@@ -13,6 +16,9 @@ ZOOM = true
 PRINT = false
 STATISTIC = false
 # end of user parameter section #
+
+kcu::KCU = KCU(set)
+kps4::KPS4 = KPS4(kcu)
 
 if PLOT
     using Pkg

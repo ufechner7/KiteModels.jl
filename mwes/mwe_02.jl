@@ -1,6 +1,10 @@
 using KiteModels
 
-kps4::KPS4 = KPS4(KCU(se()))
+set = deepcopy(se())
+# set.solver="IDA"
+set.solver="DFBDF"
+
+kps4::KPS4 = KPS4(KCU(set))
 STEPS = 200
 
 integrator = KiteModels.init_sim!(kps4; stiffness_factor=0.035, prn=false)
@@ -14,5 +18,5 @@ end
 bytes = @allocated nsteps(kps4, integrator)
 println("Bytes per step: $(Int64(round(bytes/STEPS)))")
 nothing
-# 3.125 ms, 1.175 MB with IDA
-# 4.616 ms, 0.804 MB with DFBDF on desktop
+# 1.79 ms, 1.175 MB with IDA   on desktop
+# 4.40 ms, 0.804 MB with DFBDF on desktop

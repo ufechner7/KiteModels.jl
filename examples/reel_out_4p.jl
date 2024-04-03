@@ -1,16 +1,16 @@
 using Printf
 using KiteModels, KitePodModels, KiteUtils
 
-se().abs_tol=0.00006
-se().rel_tol=0.000001
-
-if ! @isdefined kcu;  const kcu = KCU(se());   end
-if ! @isdefined kps4; const kps4 = KPS4(kcu); end
+set = deepcopy(se())
+# for the IDA solver a low tolerance is needed to be stable during reel-out
+# set.abs_tol=0.00006
+# set.rel_tol=0.000001
 
 # the following values can be changed to match your interest
 dt = 0.05
+set.solver="DFBDF" # IDA or DFBDF
 STEPS = 600
-PLOT = true
+PLOT = false
 FRONT_VIEW = false
 ZOOM = false
 PRINT = false
@@ -18,8 +18,11 @@ STATISTIC = false
 ALPHA_ZERO = 8.8 
 # end of user parameter section #
 
-kps4.set.alpha_zero = ALPHA_ZERO
-se().version = 2
+set.alpha_zero = ALPHA_ZERO
+set.version = 2
+
+kcu::KCU = KCU(set)
+kps4::KPS4 = KPS4(kcu)
 
 if PLOT
     using Pkg
@@ -73,7 +76,8 @@ else
     println("\nStarting simulation...")
     simulate(integrator, 100)
     runtime = @elapsed av_steps = simulate(integrator, STEPS-100)
-    println("\nTotal simulation time: $(round(runtime, digits=3)) s")
+    println("\nSolver: $(set.solver)")
+    println("Total simulation time: $(round(runtime, digits=3)) s")
     speed = (STEPS-100) / runtime * dt
     println("Simulation speed: $(round(speed, digits=2)) times realtime.")
 end
@@ -81,7 +85,27 @@ lift, drag = KiteModels.lift_drag(kps4)
 println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
 println("Average number of callbacks per time step: $av_steps")
 
-p1 = plot(v_time, v_speed, ylabel="v_reelout  [m/s]", legend=false)
-p2 = plot(v_time, v_force, ylabel="tether_force [N]", legend=false)
-plot(p1, p2, layout = (2, 1), legend = false)
+if PLOT
+    p1 = plot(v_time, v_speed, ylabel="v_reelout  [m/s]", legend=false)
+    p2 = plot(v_time, v_force, ylabel="tether_force [N]", legend=false)
+    plot(p1, p2, layout = (2, 1), legend = false)
+end
 # savefig("docs/src/reelout_force_4p.png")
+
+# Solver: DFBDF, reltol=0.000001
+# Total simulation time: 1.049 s
+# Simulation speed: 23.83 times realtime.
+# lift, drag  [N]: 545.24, 102.55
+# Average number of callbacks per time step: 625.604
+
+# Solver: DFBDF, reltol=0.001
+# Total simulation time: 0.178 s
+# Simulation speed: 140.08 times realtime.
+# lift, drag  [N]: 558.69, 105.3
+# Average number of callbacks per time step: 114.64
+
+# Solver: IDA
+# Total simulation time: 1.385 s
+# Simulation speed: 18.05 times realtime.
+# lift, drag  [N]: 543.58, 102.19
+# Average number of callbacks per time step: 756.074
