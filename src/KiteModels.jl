@@ -35,6 +35,7 @@ module KiteModels
 
 using PrecompileTools: @setup_workload, @compile_workload 
 using Dierckx, StaticArrays, Rotations, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, OrdinaryDiffEq
+import Sundials
 using Reexport
 @reexport using KitePodModels
 @reexport using WinchModels
@@ -452,8 +453,16 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false)
     y0  = Vector{Float64}(y0)
     yd0 = Vector{Float64}(yd0)
     differential_vars = ones(Bool, length(y0))
-    # solver  = IDA(linear_solver=Symbol(s.set.linear_solver), max_order = s.set.max_order)
-    solver  = DFBDF(autodiff=false)
+    if s.set.solver=="IDA"
+        solver  = Sundials.IDA(linear_solver=Symbol(s.set.linear_solver), max_order = s.set.max_order)
+    elseif s.set.solver=="DImplicitEuler"
+        solver  = DImplicitEuler(autodiff=false)
+    elseif s.set.solver=="DFBDF"
+        solver  = DFBDF(autodiff=false)
+    else
+        println("Error! Invalid solver in settings.yaml: $(s.set.solver)")
+        return nothing
+    end
     # t_end = 0.05
     tspan   = (0.0, t_end) 
     abstol  = s.set.abs_tol # max error in m/s and m
@@ -484,7 +493,11 @@ function next_step!(s::AKM, integrator; v_ro = 0.0, v_wind_gnd=s.set.v_wind, win
     KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
     set_v_reel_out!(s, v_ro, integrator.t)
     set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
-    OrdinaryDiffEq.step!(integrator, dt, true)
+    if s.set.solver == "IDA"
+        Sundials.step!(integrator, dt, true)
+    else
+        OrdinaryDiffEq.step!(integrator, dt, true)
+    end
     if s.stiffness_factor < 1.0
         s.stiffness_factor+=0.01
         if s.stiffness_factor > 1.0
