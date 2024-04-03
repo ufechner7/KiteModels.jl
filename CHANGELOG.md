@@ -16,3 +16,15 @@ The new solver is much faster (4x average, 1.8x worst case), has a lot less memo
 
 #### Added
 - new, non-allocating function `update_sys_state()`
+
+### KiteModels v0.5.7
+
+#### Changed
+- improved performance by 10% by implementing custom norm() function for 3D vectors
+
+### KiteModels v0.5.6
+
+#### Fixed
+- fix the method `clear!()` which failed for models with less than 6 tether segments
+
+Simulations should work fine now for one to about 28 tether segments (no hard upper limit, but things become slow and the visualization ugly if you have too many segments).
