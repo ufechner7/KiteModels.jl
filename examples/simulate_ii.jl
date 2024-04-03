@@ -1,8 +1,10 @@
 using Printf
 using KiteModels, KitePodModels, KiteUtils
 
-if ! @isdefined kcu;  const kcu = KCU(se());   end
-if ! @isdefined kps3; const kps3 = KPS3(kcu); end
+set = deepcopy(se())
+
+set.abs_tol=0.0006
+set.rel_tol=0.00001
 
 # the following values can be changed to match your interest
 dt = 0.05
@@ -13,6 +15,9 @@ ZOOM = true
 PRINT = false
 STATISTIC = false
 # end of user parameter section #
+
+kcu::KCU = KCU(set)
+kps3::KPS3 = KPS3(kcu)
 
 if PLOT
     using Pkg

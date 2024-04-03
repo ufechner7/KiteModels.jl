@@ -1,10 +1,7 @@
 using Printf
 using KiteModels, KitePodModels, KiteUtils
 
-if ! @isdefined kcu;  const kcu  = KCU(se()) end
-if ! @isdefined kps4; const kps4 = KPS4(kcu) end
-if ! @isdefined kps3; const kps3 = KPS3(kcu) end
-
+set = deepcopy(se())
 
 # the following values can be changed to match your interest
 dt = 0.05
@@ -17,7 +14,11 @@ PRINT = false
 STATISTIC = false
 # end of user parameter section #
 
-se().version = 2
+kcu::KCU = KCU(set)
+kps4::KPS4 = KPS4(kcu)
+kps3::KPS3 = KPS3(kcu)
+
+set.version = 2
 
 if PLOT
     using Pkg
@@ -69,3 +70,12 @@ println("KPS4")
 println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
 println("winch_force [N]: $(round(winch_force(kps4), digits=2))")
 println("Average number of callbacks per time step: $av_steps")
+
+# KPS3
+# lift, drag  [N]: 730.25, 157.31
+# winch_force [N]: 594.89
+# Average number of callbacks per time step: 40.475
+# KPS4
+# lift, drag  [N]: 743.35, 143.21
+# winch_force [N]: 607.2
+# Average number of callbacks per time step: 171.185
