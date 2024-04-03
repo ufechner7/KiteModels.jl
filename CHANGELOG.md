@@ -19,7 +19,7 @@ The new solver is much faster (4x average, 1.8x worst case), has a lot less memo
 ### KiteModels v0.5.7 - 2024-04-01
 
 #### Changed
-- improved performance by 10% by implementing custom norm() function for 3D vectors
+- improved performance by 10% by implementing custom `norm()` function for 3D vectors
 
 ### KiteModels v0.5.6 - 2024-03-30
 
