@@ -453,7 +453,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false)
     yd0 = Vector{Float64}(yd0)
     differential_vars = ones(Bool, length(y0))
     # solver  = IDA(linear_solver=Symbol(s.set.linear_solver), max_order = s.set.max_order)
-    solver  = DImplicitEuler(autodiff=false)
+    solver  = DFBDF(autodiff=false)
     # t_end = 0.05
     tspan   = (0.0, t_end) 
     abstol  = s.set.abs_tol # max error in m/s and m
