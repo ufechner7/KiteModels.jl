@@ -5,7 +5,7 @@ end
 if ! ("OrdinaryDiffEq" ∈ keys(Pkg.project().dependencies))
     Pkg.add("OrdinaryDiffEq")
 end
-using OrdinaryDiffEq, ControlPlots
+using OrdinaryDiffEq, ControlPlots, Sundials
 
 # TODO use solver = DFBDF()
 
@@ -51,18 +51,18 @@ function init()
     yd0 = append!(vel_0, acc_0) # Initial vel, acc
 
     differential_vars = ones(Bool, length(y0))
-    # solver  = IDA(linear_solver=:GMRES, max_order = 4) # 938 bytes, 0.228 ms
-    solver = DImplicitEuler(autodiff=false)              # 535 bytes, 0.341 ms
-    # solver = DFBDF(autodiff=false)                     # 453 bytes, 0.323 ms
-    # solver = DABDF2(autodiff=false)                    # 475 bytes, 0.345 ms
+    # solver  = IDA(linear_solver=:GMRES, max_order = 4) # 525 bytes, 0.228 ms
+    # solver = DImplicitEuler(autodiff=false)            # 321 bytes, 0.341 ms
+    solver = DFBDF(autodiff=false)                       #  87 bytes, 0.315 ms
+    # solver = DABDF2(autodiff=false)                    #   1 bytes, 0.319 ms
     
     tspan   = (0.0, t_final) 
     abstol  = 0.0006 # max error in m/s and m
-    reltol=0.001 * ones(length(y0))
+    reltol=0.001 #* ones(length(y0))
     s = nothing
 
     prob    = DAEProblem(res!, yd0, y0, tspan, s, differential_vars=differential_vars)
-    integrator = OrdinaryDiffEq.init(prob, solver; abstol, reltol)
+    integrator = OrdinaryDiffEq.init(prob, solver; abstol, reltol, save_everystep=false)
 end
 
 function plot(res::Result)
@@ -88,4 +88,4 @@ integrator=init()
 res=Result(t_final)
 @timev solve!(res, integrator, dt, t_final)
 # plot(res)
-# Allocated 575 bytes per iteration!
+# Allocated 321 bytes per iteration!
