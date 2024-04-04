@@ -52,7 +52,7 @@ function init()
     s = nothing
 
     prob    = DAEProblem(res!, yd0, y0, tspan, s, differential_vars=differential_vars)
-    integrator = Sundials.init(prob, solver, abstol, reltol=0.001)
+    integrator = Sundials.init(prob, solver, abstol, reltol=0.001, save_everystep=false)
 end
 
 function plot(res::Result)
