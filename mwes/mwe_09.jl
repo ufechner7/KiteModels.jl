@@ -5,11 +5,14 @@ end
 if ! ("OrdinaryDiffEq" ∈ keys(Pkg.project().dependencies))
     Pkg.add("OrdinaryDiffEq")
 end
-using OrdinaryDiffEq, ControlPlots, Sundials
+using OrdinaryDiffEq, ControlPlots, Sundials, StaticArrays
 
-# TODO use solver = DFBDF()
-
-const G_EARTH  = [0.0, 0.0, -9.81] # gravitational acceleration
+STATIC_ARRAYS::Bool = true
+if STATIC_ARRAYS
+    const G_EARTH  = SA[0.0, 0.0, -9.81] # gravitational acceleration
+else
+    const G_EARTH  = [0.0, 0.0, -9.81] # gravitational acceleration
+end
 const dt = 0.05
 const t_final = 10.0
   
@@ -49,8 +52,12 @@ function init()
     acc_0 = [0.0, 0.0, -9.81]   # Initial acceleration
     y0 = append!(pos_0, vel_0)  # Initial pos, vel
     yd0 = append!(vel_0, acc_0) # Initial vel, acc
+    if STATIC_ARRAYS
+        y0 = MVector{6}(y0)
+        yd0 = MVector{6}(yd0)
+    end
+    println(typeof(y0))
 
-    differential_vars = ones(Bool, length(y0))
     # solver  = IDA(linear_solver=:GMRES, max_order = 4) # 525 bytes, 0.228 ms
     # solver = DImplicitEuler(autodiff=false)            # 321 bytes, 0.341 ms
     solver = DFBDF(autodiff=false)                       #  87 bytes, 0.315 ms
@@ -61,7 +68,7 @@ function init()
     reltol=0.001 #* ones(length(y0))
     s = nothing
 
-    prob    = DAEProblem(res!, yd0, y0, tspan, s, differential_vars=differential_vars)
+    prob    = DAEProblem(res!, yd0, y0, tspan, s)
     integrator = OrdinaryDiffEq.init(prob, solver; abstol, reltol, save_everystep=false)
 end
 
@@ -88,4 +95,5 @@ integrator=init()
 res=Result(t_final)
 @timev solve!(res, integrator, dt, t_final)
 # plot(res)
-# Allocated 321 bytes per iteration!
+# Allocated   87 bytes per iteration! (STATIC_ARRAYS=false)
+# Allocated 3052 bytes per iteration! (STATIC_ARRAYS=true)
