@@ -457,7 +457,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false)
     elseif s.set.solver=="DImplicitEuler"
         solver  = DImplicitEuler(autodiff=false)
     elseif s.set.solver=="DFBDF"
-        solver  = DFBDF(autodiff=false)
+        solver  = DFBDF(autodiff=false, max_order=Val{s.set.max_order}())
     else
         println("Error! Invalid solver in settings.yaml: $(s.set.solver)")
         return nothing

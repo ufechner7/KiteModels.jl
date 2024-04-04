@@ -60,7 +60,7 @@ function init()
 
     # solver  = IDA(linear_solver=:GMRES, max_order = 4) # 525 bytes, 0.228 ms
     # solver = DImplicitEuler(autodiff=false)            # 321 bytes, 0.341 ms
-    solver = DFBDF(autodiff=false)                       #  87 bytes, 0.315 ms
+    solver = DFBDF(autodiff=false, max_order=Val{4}())   #  87 bytes, 0.261 ms
     # solver = DABDF2(autodiff=false)                    #   1 bytes, 0.319 ms
     
     tspan   = (0.0, t_final) 
