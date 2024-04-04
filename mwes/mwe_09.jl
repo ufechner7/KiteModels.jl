@@ -7,7 +7,7 @@ if ! ("OrdinaryDiffEq" ∈ keys(Pkg.project().dependencies))
 end
 using OrdinaryDiffEq, ControlPlots, Sundials, StaticArrays
 
-STATIC_ARRAYS::Bool = true
+STATIC_ARRAYS::Bool = false
 if STATIC_ARRAYS
     const G_EARTH  = SA[0.0, 0.0, -9.81] # gravitational acceleration
 else
