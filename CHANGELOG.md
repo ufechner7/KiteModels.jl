@@ -1,9 +1,16 @@
 ## Changelog
 
+### KiteModels v0.5.11 - 2024-04-04
+#### Added
+- document the support for the `DImplicitEuler` solver, which is not very accurate,
+  but because it is well known it can serve as reference
+- support changing `max_order` for the `DFBDF`
+- further reduced the memory usage
+
 ### KiteModels v0.5.10 - 2024-04-03
 #### Added
 
--    it is now possible (and suggested) to use the DAE solver DFBDF.
+- it is now possible (and suggested) to use the DAE solver DFBDF.
 
 This requires adding the following line to the settings.yaml file: 
 
