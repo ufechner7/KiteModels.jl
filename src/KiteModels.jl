@@ -452,7 +452,6 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false)
     y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor=stiffness_factor, prn=prn)
     y0  = Vector{Float64}(y0)
     yd0 = Vector{Float64}(yd0)
-    differential_vars = ones(Bool, length(y0))
     if s.set.solver=="IDA"
         solver  = Sundials.IDA(linear_solver=Symbol(s.set.linear_solver), max_order = s.set.max_order)
     elseif s.set.solver=="DImplicitEuler"
@@ -466,7 +465,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false)
     # t_end = 0.05
     tspan   = (0.0, t_end) 
     abstol  = s.set.abs_tol # max error in m/s and m
-    prob    = DAEProblem{true}(residual!, yd0, y0, tspan, s, differential_vars=differential_vars)
+    prob    = DAEProblem{true}(residual!, yd0, y0, tspan, s)
     integrator = OrdinaryDiffEq.init(prob, solver; abstol=abstol, reltol= s.set.rel_tol, save_everystep=false)
 end
 
