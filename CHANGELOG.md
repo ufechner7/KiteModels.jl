@@ -1,4 +1,4 @@
-## Changelog
+# Changelog
 
 ### KiteModels v0.5.11 - 2024-04-04
 #### Added
