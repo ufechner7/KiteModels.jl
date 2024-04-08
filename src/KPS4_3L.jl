@@ -65,7 +65,7 @@ function zero(::Type{SP})
 end
 
 """
-    mutable struct KPS4{S, T, P, Q, SP} <: AbstractKiteModel
+    mutable struct KPS4_3L{S, T, P, Q, SP} <: AbstractKiteModel
 
 State of the kite power system, using a 4 point kite model. Parameters:
 - S: Scalar type, e.g. SimFloat
@@ -79,7 +79,7 @@ use the input and output functions instead.
 
 $(TYPEDFIELDS)
 """
-@with_kw mutable struct KPS4_3L{S, T, P, Q, SP} <: AbstractKiteModel
+@with_kw mutable struct KPS4_3L_3L{S, T, P, Q, SP} <: AbstractKiteModel
     "Reference to the settings struct"
     set::Settings = se()
     "Reference to the KCU model (Kite Control Unit as implemented in the package KitePodModels"
@@ -170,11 +170,11 @@ end
 end
 
 """
-    clear!(s::KPS4)
+    clear!(s::KPS4_3L)
 
 Initialize the kite power model.
 """
-function clear!(s::KPS4)
+function clear!(s::KPS4_3L)
     s.t_0 = 0.0                              # relative start time of the current time interval
     s.v_reel_out = 0.0
     s.last_v_reel_out = 0.0
@@ -201,8 +201,8 @@ function clear!(s::KPS4)
     KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
 end
 
-function KPS4(kcu::KCU)
-    s = KPS4{SimFloat, KVec3, kcu.set.segments+KITE_PARTICLES+1, kcu.set.segments+KITE_SPRINGS, SP}()
+function KPS4_3L(kcu::KCU)
+    s = KPS4_3L{SimFloat, KVec3, kcu.set.segments+KITE_PARTICLES+1, kcu.set.segments+KITE_SPRINGS, SP}()
     s.set = kcu.set
     s.kcu = kcu
     s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
@@ -212,7 +212,7 @@ function KPS4(kcu::KCU)
 end
 
 """ 
-    calc_particle_forces!(s::KPS4, pos1, pos2, vel1, vel2, spring, segments, d_tether, rho, i)
+    calc_particle_forces!(s::KPS4_3L, pos1, pos2, vel1, vel2, spring, segments, d_tether, rho, i)
 
 Calculate the drag force of the tether segment, defined by the parameters pos1, pos2, vel1 and vel2
 and distribute it equally on the two particles, that are attached to the segment.
@@ -260,7 +260,7 @@ The result is stored in the array s.forces.
 end
 
 """
-    calc_aero_forces!(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
+    calc_aero_forces!(s::KPS4_3L, pos, vel, rho, alpha_depower, rel_steering)
 
 Calculates the aerodynamic forces acting on the kite particles.
 
@@ -274,7 +274,7 @@ Parameters:
 
 Updates the vector s.forces of the first parameter.
 """
-function calc_aero_forces!(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
+function calc_aero_forces!(s::KPS4_3L, pos, vel, rho, alpha_depower, rel_steering)
     rel_side_area = s.set.rel_side_area/100.0    # defined in percent
     K = 1 - rel_side_area                        # correction factor for the drag
     # pos_B, pos_C, pos_D: position of the kite particles B, C, and D
@@ -316,7 +316,7 @@ function calc_aero_forces!(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
 end
 
 """
-    inner_loop!(s::KPS4, pos, vel, v_wind_gnd, segments, d_tether)
+    inner_loop!(s::KPS4_3L, pos, vel, v_wind_gnd, segments, d_tether)
 
 Calculate the forces, acting on all particles.
 
@@ -324,7 +324,7 @@ Output:
 - s.forces
 - `s.v_wind_tether`
 """
-@inline function inner_loop!(s::KPS4, pos, vel, v_wind_gnd, segments, d_tether)
+@inline function inner_loop!(s::KPS4_3L, pos, vel, v_wind_gnd, segments, d_tether)
     for i in eachindex(s.springs)
         p1 = s.springs[i].p1  # First point nr.
         p2 = s.springs[i].p2  # Second point nr.
@@ -339,12 +339,12 @@ Output:
 end
 
 """
-    loop!(s::KPS4, pos, vel, posd, veld)
+    loop!(s::KPS4_3L, pos, vel, posd, veld)
 
 Calculate the vectors s.res1 and calculate s.res2 using loops
 that iterate over all tether segments. 
 """
-function loop!(s::KPS4, pos, vel, posd, veld)
+function loop!(s::KPS4_3L, pos, vel, posd, veld)
     L_0      = s.l_tether / s.set.segments
     if s.set.version == 1
         # for compatibility with the python code and paper
@@ -375,7 +375,7 @@ function loop!(s::KPS4, pos, vel, posd, veld)
 end
 
 """
-    residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
+    residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
 
     N-point tether model, four points for the kite on top:
     Inputs:
@@ -385,18 +385,18 @@ end
     Residual     res = res1, res2 = vel1-posd1,  ..., veld1-acc1, ..., 
 
     Additional parameters:
-    s: Struct with work variables, type KPS4
+    s: Struct with work variables, type KPS4_3L
     S: The dimension of the state vector
 The number of the point masses of the model N = S/6, the state of each point 
 is represented by two 3 element vectors.
 """
-function residual!(res, yd, y::Vector{SimFloat}, s::KPS4, time)
+function residual!(res, yd, y::Vector{SimFloat}, s::KPS4_3L, time)
     S = length(y)
     y_ =  MVector{S, SimFloat}(y)
     yd_ =  MVector{S, SimFloat}(yd)
     residual!(res, yd_, y_, s, time)
 end
-function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
+function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
     T = S-2 # T: three times the number of particles excluding the origin
     segments = div(T,6) - KITE_PARTICLES
     
@@ -454,42 +454,42 @@ end
 # =================== getter functions ====================================================
 
 """
-    calc_height(s::KPS4)
+    calc_height(s::KPS4_3L)
 
 Determine the height of the topmost kite particle above ground.
 """
-function calc_height(s::KPS4)
+function calc_height(s::KPS4_3L)
     pos_kite(s)[3]
 end
 
 """
-    pos_kite(s::KPS4)
+    pos_kite(s::KPS4_3L)
 
 Return the position of the kite (top particle).
 """
-function pos_kite(s::KPS4)
+function pos_kite(s::KPS4_3L)
     s.pos[end-2]
 end
 
 """
-    kite_ref_frame(s::KPS4)
+    kite_ref_frame(s::KPS4_3L)
 
 Returns a tuple of the x, y, and z vectors of the kite reference frame.
 """
-function kite_ref_frame(s::KPS4)
+function kite_ref_frame(s::KPS4_3L)
     s.x, s.y, s.z
 end
 
 """
-    winch_force(s::KPS4)
+    winch_force(s::KPS4_3L)
 
 Return the absolute value of the force at the winch as calculated during the last timestep. 
 """
-function winch_force(s::KPS4) norm(s.last_force) end
+function winch_force(s::KPS4_3L) norm(s.last_force) end
 
 # ==================== end of getter functions ================================================
 
-function spring_forces(s::KPS4)
+function spring_forces(s::KPS4_3L)
     forces = zeros(SimFloat, s.set.segments+KITE_SPRINGS)
     for i in 1:s.set.segments
         forces[i] =  s.springs[i].c_spring * (norm(s.pos[i+1] - s.pos[i]) - s.segment_length) * s.stiffness_factor
@@ -521,12 +521,12 @@ function spring_forces(s::KPS4)
 end
 
 """
-    find_steady_state!(s::KPS4; prn=false, delta = 0.0, stiffness_factor=0.035)
+    find_steady_state!(s::KPS4_3L; prn=false, delta = 0.0, stiffness_factor=0.035)
 
 Find an initial equilibrium, based on the inital parameters
 `l_tether`, elevation and `v_reel_out`.
 """
-function find_steady_state!(s::KPS4; prn=false, delta = 0.0, stiffness_factor=0.035)
+function find_steady_state!(s::KPS4_3L; prn=false, delta = 0.0, stiffness_factor=0.035)
     s.stiffness_factor = stiffness_factor
     res = zeros(MVector{6*(s.set.segments+KITE_PARTICLES)+2, SimFloat})
     iter = 0
