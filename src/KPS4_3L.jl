@@ -33,7 +33,7 @@ Scientific background: http://arxiv.org/abs/1406.6218 =#
 
 # Array of connections of bridlepoints.
 # First point, second point, unstressed length.
-const SPRINGS_INPUT = [0.    1.  150.
+const SPRINGS_INPUT_3L = [0.    1.  150.
                        1.    2.   -1. # s1, p7, p8
                        4.    2.   -1. # s2, p10, p8                        
                        4.    5.   -1. # s3, p10, p11
@@ -44,25 +44,8 @@ const SPRINGS_INPUT = [0.    1.  150.
                        5.    2.   -1. # s8, p11, p8
                        2.    3.   -1.] # s9, p8, p9
 
-# struct, defining the phyical parameters of one spring
-@with_kw struct Spring{I, S}
-    p1::I = 1         # number of the first point
-    p2::I = 2         # number of the second point
-    length::S = 1.0   # current unstressed spring length
-    c_spring::S = 1.0 # spring constant [N/m]
-    damping::S  = 0.1 # damping coefficent [Ns/m]
-end
 
-const SP = Spring{Int16, Float64}
-const KITE_PARTICLES = 4
-const KITE_SPRINGS = 9
-const KITE_ANGLE = 3.83 # angle between the kite and the last tether segment due to the mass of the control pod
-const PRE_STRESS  = 0.9998   # Multiplier for the initial spring lengths.
-const KS = deg2rad(16.565 * 1.064 * 0.875 * 1.033 * 0.9757 * 1.083)  # max steering
-const DRAG_CORR = 0.93       # correction of the drag for the 4-point model
-function zero(::Type{SP})
-    SP(0,0,0,0,0)
-end
+const KITE_SPRINGS_3L = 9
 
 """
     mutable struct KPS4_3L{S, T, P, Q, SP} <: AbstractKiteModel
@@ -79,7 +62,7 @@ use the input and output functions instead.
 
 $(TYPEDFIELDS)
 """
-@with_kw mutable struct KPS4_3L_3L{S, T, P, Q, SP} <: AbstractKiteModel
+@with_kw mutable struct KPS4_3L{S, T, P, Q, SP} <: AbstractKiteModel
     "Reference to the settings struct"
     set::Settings = se()
     "Reference to the KCU model (Kite Control Unit as implemented in the package KitePodModels"
@@ -162,13 +145,6 @@ $(TYPEDFIELDS)
     z::T =                 zeros(S, 3)
 end
 
-@inline @inbounds function norm(vec::SVector{3, Float64})
-    sqrt(vec[1]*vec[1]+vec[2]*vec[2]+vec[3]*vec[3])
-end
-@inline @inbounds function norm(vec::MVector{3, Float64})
-    sqrt(vec[1]*vec[1]+vec[2]*vec[2]+vec[3]*vec[3])
-end
-
 """
     clear!(s::KPS4_3L)
 
@@ -202,7 +178,7 @@ function clear!(s::KPS4_3L)
 end
 
 function KPS4_3L(kcu::KCU)
-    s = KPS4_3L{SimFloat, KVec3, kcu.set.segments+KITE_PARTICLES+1, kcu.set.segments+KITE_SPRINGS, SP}()
+    s = KPS4_3L{SimFloat, KVec3, kcu.set.segments+KITE_PARTICLES+1, kcu.set.segments+KITE_SPRINGS_3L, SP}()
     s.set = kcu.set
     s.kcu = kcu
     s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
@@ -218,7 +194,7 @@ Calculate the drag force of the tether segment, defined by the parameters pos1, 
 and distribute it equally on the two particles, that are attached to the segment.
 The result is stored in the array s.forces. 
 """
-@inline function calc_particle_forces!(s, pos1, pos2, vel1, vel2, spring, segments, d_tether, rho, i)
+@inline function calc_particle_forces!(s::KPS4_3L, pos1, pos2, vel1, vel2, spring, segments, d_tether, rho, i)
     l_0 = spring.length # Unstressed length
     k = spring.c_spring * s.stiffness_factor  # Spring constant
     c = spring.damping                        # Damping coefficient    
@@ -490,14 +466,14 @@ function winch_force(s::KPS4_3L) norm(s.last_force) end
 # ==================== end of getter functions ================================================
 
 function spring_forces(s::KPS4_3L)
-    forces = zeros(SimFloat, s.set.segments+KITE_SPRINGS)
+    forces = zeros(SimFloat, s.set.segments+KITE_SPRINGS_3L)
     for i in 1:s.set.segments
         forces[i] =  s.springs[i].c_spring * (norm(s.pos[i+1] - s.pos[i]) - s.segment_length) * s.stiffness_factor
         if forces[i] > 4000.0
             println("Tether raptures for segment $i !")
         end
     end
-    for i in 1:KITE_SPRINGS
+    for i in 1:KITE_SPRINGS_3L
         p1 = s.springs[i+s.set.segments].p1  # First point nr.
         p2 = s.springs[i+s.set.segments].p2  # Second point nr.
         pos1, pos2 = s.pos[p1], s.pos[p2]

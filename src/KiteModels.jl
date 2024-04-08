@@ -51,7 +51,7 @@ import KiteUtils.SysState
 import OrdinaryDiffEq.init
 import OrdinaryDiffEq.step!
 
-export KPS3, KPS4, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                              # constants and types
+export KPS3, KPS4, KPS4_3L, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                              # constants and types
 export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                            # helper functions
 export clear!, find_steady_state!, residual!                                                  # low level workers
 export init_sim!, next_step!                                                                  # high level workers
@@ -116,6 +116,7 @@ function __init__()
 end
 
 include("KPS4.jl") # include code, specific for the four point kite model
+include("KPS4_3L.jl") # include code, specific for the four point kite model
 include("KPS3.jl") # include code, specific for the one point kite model
 include("init.jl") # functions to calculate the inital state vector, the inital masses and initial springs
 
