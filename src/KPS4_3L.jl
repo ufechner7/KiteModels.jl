@@ -79,7 +79,7 @@ use the input and output functions instead.
 
 $(TYPEDFIELDS)
 """
-@with_kw mutable struct KPS4{S, T, P, Q, SP} <: AbstractKiteModel
+@with_kw mutable struct KPS4_3L{S, T, P, Q, SP} <: AbstractKiteModel
     "Reference to the settings struct"
     set::Settings = se()
     "Reference to the KCU model (Kite Control Unit as implemented in the package KitePodModels"
