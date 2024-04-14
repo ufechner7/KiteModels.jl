@@ -51,7 +51,7 @@ import KiteUtils.SysState
 import OrdinaryDiffEq.init
 import OrdinaryDiffEq.step!
 
-export KPS3, KPS4, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                              # constants and types
+export KPS3, KPS4, KPS4_3L, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                              # constants and types
 export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                            # helper functions
 export clear!, find_steady_state!, residual!                                                  # low level workers
 export init_sim!, next_step!                                                                  # high level workers
@@ -116,6 +116,7 @@ function __init__()
 end
 
 include("KPS4.jl") # include code, specific for the four point kite model
+include("KPS4_3L.jl") # include code, specific for the four point kite model
 include("KPS3.jl") # include code, specific for the one point kite model
 include("init.jl") # functions to calculate the inital state vector, the inital masses and initial springs
 
@@ -416,7 +417,7 @@ function SysState(s::AKM, zoom=1.0)
     v_app_norm = norm(s.v_apparent)
     t_sim = 0
     KiteUtils.SysState{P}(s.t_0, t_sim, 0, 0, orient, elevation, azimuth, s.l_tether, s.v_reel_out, force, s.depower, s.steering, 
-                          heading, course, v_app_norm, s.vel_kite, X, Y, Z, 0, 0, 0, 0, 0)
+                          heading, course, v_app_norm, s.vel_kite, X, Y, Z, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 end
 
 function calc_pre_tension(s::AKM)
