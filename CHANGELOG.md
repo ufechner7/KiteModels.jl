@@ -1,5 +1,11 @@
 # Changelog
 
+### KiteModels v0.5.11 - 2024-04-14
+- update KiteUtils to v0.6.7
+- update Documenter to v1.0
+- add type `KPS4_3L`, which is now only a copy of `KPS4`, but shall implement a kite with the steering
+  lines going to the ground
+
 ### KiteModels v0.5.11 - 2024-04-04
 #### Added
 - document the support for the `DImplicitEuler` solver, which is not very accurate,
