@@ -50,7 +50,7 @@ const KITE_SPRINGS_3L = 9
 """
     mutable struct KPS4_3L{S, T, P, Q, SP} <: AbstractKiteModel
 
-State of the kite power system, using a 4 point kite model. Parameters:
+State of the kite power system, using a 4 point kite model and three steering lines to the ground. Parameters:
 - S: Scalar type, e.g. SimFloat
   In the documentation mentioned as Any, but when used in this module it is always SimFloat and not Any.
 - T: Vector type, e.g. MVector{3, SimFloat}
