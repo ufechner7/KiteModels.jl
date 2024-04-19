@@ -62,7 +62,7 @@ println("winch_force [N]: $(round(winch_force(kps3), digits=2))")
 println("Average number of callbacks per time step: $av_steps")
 
 kps4.set.alpha_zero = ALPHA_ZERO
-integrator = KiteModels.init_sim!(kps4, stiffness_factor=0.04, prn=STATISTIC)
+integrator = KiteModels.init_sim!(kps4, stiffness_factor=1, prn=STATISTIC)
 av_steps = simulate(kps4, integrator, STEPS, true)
 
 lift, drag = KiteModels.lift_drag(kps4)
