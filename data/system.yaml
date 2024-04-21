@@ -1,3 +1,3 @@
 system:
-    project: "settings.yaml"  # simulator settings
+    sim_settings: "settings.yaml"  # simulator settings
  
