@@ -1,10 +1,10 @@
 # Changelog
 
-### KiteModels v0.5.12 - 2024-04-14
+### KiteModels v0.5.13 - 2024-04-14
 #### Changed
 - use `rel_compr_stiffness` and `rel_damping` from settings.yaml 
 
-### KiteModels v0.5.11 - 2024-04-14
+### KiteModels v0.5.12 - 2024-04-14
 #### Changed
 - update KiteUtils to v0.6.7
 - update Documenter to v1.0
