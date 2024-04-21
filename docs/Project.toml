@@ -6,6 +6,6 @@ KiteUtils = "90980105-b163-44e5-ba9f-8b1c83bb0533"
 
 [compat]
 julia = "1.9, 1.10"
-KiteUtils = "0.6"
+KiteUtils = "0.6.10"
 KitePodModels = "0.3"
 Documenter = "0.27"

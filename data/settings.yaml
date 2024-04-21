@@ -60,6 +60,8 @@ bridle:
     d_line:    2.5         # bridle line diameter                  [mm]
     l_bridle: 33.4         # sum of the lengths of the bridle lines [m]
     h_bridle:  4.9         # height of bridle                       [m]
+    rel_compr_stiffness: 0.25 # relative compression stiffness of the kite springs
+    rel_damping: 6.0          # relative damping of the kite spring (relative to main tether)
 
 kcu:
     kcu_mass: 8.4                # mass of the kite control unit   [kg]

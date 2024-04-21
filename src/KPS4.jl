@@ -228,9 +228,9 @@ The result is stored in the array s.forces.
     norm1 = norm(segment)
     unit_vector = segment / norm1
 
-    k1 = 0.25 * k # compression stiffness kite segments
-    k2 = 0.1 * k  # compression stiffness tether segments
-    c1 = 6.0 * c  # damping kite segments
+    k1 = s.set.rel_compr_stiffness * k # compression stiffness kite springs
+    k2 = 0.1 * k                       # compression stiffness tether springs
+    c1 = s.set.rel_damping * c         # damping kite springs
     spring_vel   = unit_vector ⋅ rel_vel
     if (norm1 - l_0) > 0.0
         if i > segments  # kite springs
