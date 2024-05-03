@@ -26,8 +26,7 @@ function plot2d(pos, reltime=0.0; zoom=true, front=false, segments=6)
 
     xlabel = "x [m]"
     ann = (x_max-10.0, z_max-3.0, "t=$(round(reltime,digits=1)) s")
-    ControlPlots.plot(x, z; xlabel, ylabel="z [m]", xlims = (x_max-15.0, x_max+5), ylims = (z_max-15.0, z_max+5), ann)
-    # annotate!(x_max-10.0, z_max-3.0, "t=$(round(reltime,digits=1)) s")
+    ControlPlots.plot(x, z; xlabel, ylabel="z [m]", xlims = (x_max-15.0, x_max+5), ylims = (z_max-15.0, z_max+5), ann, scatter=true)
 
     # if length(pos) > segments+1
     #     s=segments
@@ -37,7 +36,6 @@ function plot2d(pos, reltime=0.0; zoom=true, front=false, segments=6)
     #     plot!([x[s+2],x[s+4]],[z[s+2],z[s+4]], legend=false) # S2
     #     plot!([x[s+1],x[s+5]] ,[z[s+1],z[s+5]],legend=false) # S5
     # end
-    # plot!(x, z, seriestype = :scatter) 
 end
 
 reltime = 0.0

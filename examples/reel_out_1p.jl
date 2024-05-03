@@ -22,15 +22,15 @@ kcu::KCU = KCU(set)
 kps4::KPS4 = KPS4(kcu)
 kps3::KPS3 = KPS3(kcu)
 
-if PLOT
+# if PLOT
     using Pkg
-    if ! ("Plots" ∈ keys(Pkg.project().dependencies))
+    if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
         using TestEnv; TestEnv.activate()
+        pkg"add ControlPlots#main"
     end
-    using Plots
-    Plots.__init__()
-    include("plot2d.jl")
-end
+    using ControlPlots
+    include("plot2D.jl")
+# end
 
 v_time = zeros(STEPS)
 v_speed = zeros(STEPS)
@@ -38,6 +38,7 @@ v_force = zeros(STEPS)
 
 function simulate(integrator, steps, plot=false)
     start = integrator.p.iter
+    line, sc, txt = nothing, nothing, nothing
     for i in 1:steps
         if PRINT
             lift, drag = KiteModels.lift_drag(kps3)
@@ -53,12 +54,11 @@ function simulate(integrator, steps, plot=false)
         v_speed[i] = kps3.v_reel_out
         v_force[i] = winch_force(kps3)
         KiteModels.next_step!(kps3, integrator, v_ro = v_ro, dt=dt)
-        
         if plot
+            
             reltime = i*dt
             if mod(i, 5) == 0
-                p = plot2d(kps3.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=se().segments)
-                display(p)                
+                line, sc, txt = plot2d_(kps3.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=se().segments, line, sc, txt)             
             end
         end
     end
@@ -82,7 +82,7 @@ lift, drag = KiteModels.lift_drag(kps3)
 println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
 println("Average number of callbacks per time step: $av_steps")
 
-p1 = plot(v_time, v_speed, ylabel="v_reelout  [m/s]", legend=false)
-p2 = plot(v_time, v_force, ylabel="tether_force [N]", legend=false)
-plot(p1, p2, layout = (2, 1), legend = false)
+# p1 = plot(v_time, v_speed, ylabel="v_reelout  [m/s]")
+# p2 = plot(v_time, v_force, ylabel="tether_force [N]")
+# plot(p1, p2, layout = (2, 1))
 # savefig("docs/src/reelout_force_1p.png")
