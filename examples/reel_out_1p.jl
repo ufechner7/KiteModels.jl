@@ -3,10 +3,6 @@ using KiteModels, KitePodModels, KiteUtils
 
 set = deepcopy(se())
 
-# for the IDA solver a low tolerance is needed to be stable during reel-out
-# set.abs_tol=0.00006
-# set.rel_tol=0.000001
-
 # the following values can be changed to match your interest
 dt = 0.05
 set.solver="DFBDF" # IDA or DFBDF
@@ -22,15 +18,14 @@ kcu::KCU = KCU(set)
 kps4::KPS4 = KPS4(kcu)
 kps3::KPS3 = KPS3(kcu)
 
-# if PLOT
+if PLOT
     using Pkg
     if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
         using TestEnv; TestEnv.activate()
-        pkg"add ControlPlots#main"
     end
     using ControlPlots
     include("plot2D.jl")
-# end
+end
 
 v_time = zeros(STEPS)
 v_speed = zeros(STEPS)
@@ -54,8 +49,7 @@ function simulate(integrator, steps, plot=false)
         v_speed[i] = kps3.v_reel_out
         v_force[i] = winch_force(kps3)
         KiteModels.next_step!(kps3, integrator, v_ro = v_ro, dt=dt)
-        if plot
-            
+        if plot 
             reltime = i*dt
             if mod(i, 5) == 0
                 line, sc, txt = plot2d_(kps3.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=se().segments, line, sc, txt)             
