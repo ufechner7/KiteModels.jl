@@ -55,6 +55,8 @@ function plot2d_(pos, reltime=0.0; zoom=true, front=false, segments=6, line, sc,
                             xy=(x_max, z_max+8.0), fontsize = 14)
         plt.xlim(0, x_max+20)
         plt.ylim(0, z_max+20)
+        plt.xlabel(xlabel, fontsize=14)
+        plt.ylabel("z [m]", fontsize=14)
         plt.grid(true)
         plt.grid(which="major", color="#DDDDDD")
     else
