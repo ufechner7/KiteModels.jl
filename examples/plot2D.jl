@@ -51,10 +51,17 @@ function plot2d_(pos, reltime=0.0; zoom=true, front=false, segments=6, line, sc,
     if isnothing(line)
         line, = plt.plot(x,z; linewidth="1")
         sc  = plt.scatter(x, z; s=25, color="red") 
-        txt = plt.annotate("t=$(round(reltime,digits=1)) s",  
-                            xy=(x_max, z_max+8.0), fontsize = 14)
-        plt.xlim(0, x_max+20)
-        plt.ylim(0, z_max+20)
+        if zoom
+            txt = plt.annotate("t=$(round(reltime,digits=1)) s",  
+                xy=(x_max, z_max+2.7), fontsize = 14)
+            plt.xlim(x_max-15.0, x_max+20)
+            plt.ylim(z_max-15.0, z_max+5)
+        else
+            txt = plt.annotate("t=$(round(reltime,digits=1)) s",  
+            xy=(x_max, z_max+8.0), fontsize = 14)
+            plt.xlim(0, x_max+20)
+            plt.ylim(0, z_max+20)
+        end
         plt.xlabel(xlabel, fontsize=14)
         plt.ylabel("z [m]", fontsize=14)
         plt.grid(true)
