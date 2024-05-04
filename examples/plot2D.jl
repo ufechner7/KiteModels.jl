@@ -83,10 +83,14 @@ function plot2d_(pos, reltime=0.0; zoom=true, front=false, segments=6, lines, sc
             s=segments
             line[2].set_xdata([x[s+1],x[s+4]]) # S6
             line[2].set_ydata([z[s+1],z[s+4]]) # S6
-            # line = plt.plot([x[s+2],x[s+5]],[z[s+2],z[s+5]], linewidth="1") # S8
-            # line = plt.plot([x[s+3],x[s+5]],[z[s+3],z[s+5]], linewidth="1") # S7
-            # line = plt.plot([x[s+2],x[s+4]],[z[s+2],z[s+4]], linewidth="1") # S2
-            # line = plt.plot([x[s+1],x[s+5]],[z[s+1],z[s+5]], linewidth="1") # S5
+            line[3].set_xdata([x[s+2],x[s+5]]) # S8
+            line[3].set_ydata([z[s+2],z[s+5]]) # S8
+            line[4].set_xdata([x[s+3],x[s+5]]) # S7
+            line[4].set_ydata([z[s+3],z[s+5]]) # S7
+            line[5].set_xdata([x[s+2],x[s+4]]) # S2
+            line[5].set_ydata([z[s+2],z[s+4]]) # S2
+            line[6].set_xdata([x[s+1],x[s+5]]) # S5
+            line[6].set_ydata([z[s+1],z[s+5]]) # S5
         end
         sc.set_offsets(hcat(x,z))
         txt.set_text("t=$(round(reltime,digits=1)) s")
