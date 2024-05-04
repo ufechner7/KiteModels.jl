@@ -66,11 +66,11 @@ function plot2d_(pos, reltime=0.0; zoom=true, front=false, segments=6, lines, sc
         end
         if length(pos) > segments+1
             s=segments
-            line = plt.plot([x[s+1],x[s+4]],[z[s+1],z[s+4]], linewidth="1"); push!(lines, line) # S6
-            line = plt.plot([x[s+2],x[s+5]],[z[s+2],z[s+5]], linewidth="1"); push!(lines, line) # S8
-            line = plt.plot([x[s+3],x[s+5]],[z[s+3],z[s+5]], linewidth="1"); push!(lines, line) # S7
-            line = plt.plot([x[s+2],x[s+4]],[z[s+2],z[s+4]], linewidth="1"); push!(lines, line) # S2
-            line = plt.plot([x[s+1],x[s+5]],[z[s+1],z[s+5]], linewidth="1"); push!(lines, line) # S5
+            line, = plt.plot([x[s+1],x[s+4]],[z[s+1],z[s+4]], linewidth="1"); push!(lines, line) # S6
+            line, = plt.plot([x[s+2],x[s+5]],[z[s+2],z[s+5]], linewidth="1"); push!(lines, line) # S8
+            line, = plt.plot([x[s+3],x[s+5]],[z[s+3],z[s+5]], linewidth="1"); push!(lines, line) # S7
+            line, = plt.plot([x[s+2],x[s+4]],[z[s+2],z[s+4]], linewidth="1"); push!(lines, line) # S2
+            line, = plt.plot([x[s+1],x[s+5]],[z[s+1],z[s+5]], linewidth="1"); push!(lines, line) # S5
         end
         plt.xlabel(xlabel, fontsize=14)
         plt.ylabel("z [m]", fontsize=14)
@@ -81,16 +81,16 @@ function plot2d_(pos, reltime=0.0; zoom=true, front=false, segments=6, lines, sc
         lines[1].set_ydata(z)
         if length(pos) > segments+1
             s=segments
-            line[2].set_xdata([x[s+1],x[s+4]]) # S6
-            line[2].set_ydata([z[s+1],z[s+4]]) # S6
-            line[3].set_xdata([x[s+2],x[s+5]]) # S8
-            line[3].set_ydata([z[s+2],z[s+5]]) # S8
-            line[4].set_xdata([x[s+3],x[s+5]]) # S7
-            line[4].set_ydata([z[s+3],z[s+5]]) # S7
-            line[5].set_xdata([x[s+2],x[s+4]]) # S2
-            line[5].set_ydata([z[s+2],z[s+4]]) # S2
-            line[6].set_xdata([x[s+1],x[s+5]]) # S5
-            line[6].set_ydata([z[s+1],z[s+5]]) # S5
+            lines[2].set_xdata([x[s+1],x[s+4]]) # S6
+            lines[2].set_ydata([z[s+1],z[s+4]]) # S6
+            lines[3].set_xdata([x[s+2],x[s+5]]) # S8
+            lines[3].set_ydata([z[s+2],z[s+5]]) # S8
+            lines[4].set_xdata([x[s+3],x[s+5]]) # S7
+            lines[4].set_ydata([z[s+3],z[s+5]]) # S7
+            lines[5].set_xdata([x[s+2],x[s+4]]) # S2
+            lines[5].set_ydata([z[s+2],z[s+4]]) # S2
+            lines[6].set_xdata([x[s+1],x[s+5]]) # S5
+            lines[6].set_ydata([z[s+1],z[s+5]]) # S5
         end
         sc.set_offsets(hcat(x,z))
         txt.set_text("t=$(round(reltime,digits=1)) s")

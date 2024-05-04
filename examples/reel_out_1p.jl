@@ -9,13 +9,12 @@ set.solver="DFBDF" # IDA or DFBDF
 STEPS = 600
 PLOT = true
 FRONT_VIEW = false
-ZOOM = true
+ZOOM = false
 PRINT = false
 STATISTIC = false
 # end of user parameter section #
 
 kcu::KCU = KCU(set)
-kps4::KPS4 = KPS4(kcu)
 kps3::KPS3 = KPS3(kcu)
 
 if PLOT
@@ -52,7 +51,7 @@ function simulate(integrator, steps, plot=false)
         if plot 
             reltime = i*dt
             if mod(i, 5) == 0
-                line, sc, txt = plot2d_(kps3.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=se().segments, lines, sc, txt)             
+                lines, sc, txt = plot2d_(kps3.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=se().segments, lines, sc, txt)             
             end
         end
     end
