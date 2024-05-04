@@ -15,6 +15,6 @@ include("../examples/plot2D.jl")
 reltime = 0.0
 integrator = KiteModels.init_sim!(kps4, stiffness_factor=0.5)
 
-line, sc, txt = nothing, nothing, nothing
-plot2d_(kps4.pos, reltime; zoom=true, front=false, segments=set.segments, line, sc, txt)
+lines, sc, txt = nothing, nothing, nothing
+plot2d_(kps4.pos, reltime; zoom=true, front=false, segments=set.segments, lines, sc, txt)
 nothing

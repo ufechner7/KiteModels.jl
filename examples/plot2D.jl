@@ -33,7 +33,7 @@ function plot2d(pos, reltime=0.0; zoom=true, front=false, segments=6)
     sleep(0.001)
 end
 
-function plot2d_(pos, reltime=0.0; zoom=true, front=false, segments=6, line, sc, txt)
+function plot2d_(pos, reltime=0.0; zoom=true, front=false, segments=6, lines, sc, txt)
     x = Float64[] 
     z = Float64[]
     for i in eachindex(pos)
@@ -48,8 +48,10 @@ function plot2d_(pos, reltime=0.0; zoom=true, front=false, segments=6, line, sc,
     z_max = maximum(z)
     xlabel = "x [m]"
     if front xlabel = "y [m]" end
-    if isnothing(line)
+    if isnothing(lines)
+        lines=[]
         line, = plt.plot(x,z; linewidth="1")
+        push!(lines, line)
         sc  = plt.scatter(x, z; s=25, color="red") 
         if zoom
             txt = plt.annotate("t=$(round(reltime,digits=1)) s",  
@@ -67,12 +69,12 @@ function plot2d_(pos, reltime=0.0; zoom=true, front=false, segments=6, line, sc,
         plt.grid(true)
         plt.grid(which="major", color="#DDDDDD")
     else
-        line.set_xdata(x)
-        line.set_ydata(z)
+        lines[1].set_xdata(x)
+        lines[1].set_ydata(z)
         sc.set_offsets(hcat(x,z))
         txt.set_text("t=$(round(reltime,digits=1)) s")
         plt.gcf().canvas.draw()
     end
     sleep(0.01)
-    line, sc, txt
+    lines, sc, txt
 end
