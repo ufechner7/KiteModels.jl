@@ -26,7 +26,7 @@ if PLOT
         using TestEnv; TestEnv.activate()
     end
     using ControlPlots
-    include("plot2D.jl")
+    include("plot2d.jl")
 end
 
 function simulate(s, integrator, steps, plot=false; fig="")
