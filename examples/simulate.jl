@@ -22,16 +22,16 @@ kps4::KPS4 = KPS4(kcu)
 
 if PLOT
     using Pkg
-    if ! ("Plots" ∈ keys(Pkg.project().dependencies))
+    if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
         using TestEnv; TestEnv.activate()
     end
-    using Plots
-    Plots.__init__()
-    include("plot2d.jl")
+    using ControlPlots
+    include("plot2D.jl")
 end
 
 function simulate(integrator, steps, plot=false)
     start = integrator.p.iter
+    lines, sc, txt = nothing, nothing, nothing
     for i in 1:steps
         if PRINT
             lift, drag = KiteModels.lift_drag(kps4)
@@ -44,8 +44,7 @@ function simulate(integrator, steps, plot=false)
         if plot
             reltime = i*dt
             if mod(i, 5) == 0
-                p = plot2d(kps4.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=se().segments)
-                display(p)                
+                lines, sc, txt = plot2d_(kps4.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=set.segments, lines, sc, txt)                       
             end
         end
     end
