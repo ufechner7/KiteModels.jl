@@ -64,6 +64,14 @@ function plot2d_(pos, reltime=0.0; zoom=true, front=false, segments=6, lines, sc
             plt.xlim(0, x_max+20)
             plt.ylim(0, z_max+20)
         end
+        if length(pos) > segments+1
+            s=segments
+            line = plt.plot([x[s+1],x[s+4]],[z[s+1],z[s+4]], linewidth="1"); push!(lines, line) # S6
+            line = plt.plot([x[s+2],x[s+5]],[z[s+2],z[s+5]], linewidth="1"); push!(lines, line) # S8
+            line = plt.plot([x[s+3],x[s+5]],[z[s+3],z[s+5]], linewidth="1"); push!(lines, line) # S7
+            line = plt.plot([x[s+2],x[s+4]],[z[s+2],z[s+4]], linewidth="1"); push!(lines, line) # S2
+            line = plt.plot([x[s+1],x[s+5]],[z[s+1],z[s+5]], linewidth="1"); push!(lines, line) # S5
+        end
         plt.xlabel(xlabel, fontsize=14)
         plt.ylabel("z [m]", fontsize=14)
         plt.grid(true)
