@@ -82,9 +82,8 @@ println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
 println("Average number of callbacks per time step: $av_steps")
 
 if PLOT
-    # p1 = plot(v_time, v_speed, ylabel="v_reelout  [m/s]", legend=false)
-    # p2 = plot(v_time, v_force, ylabel="tether_force [N]", legend=false)
-    # plot(p1, p2, layout = (2, 1), legend = false)
+    p = plotx(v_time, v_speed, v_force, ylabels=["v_reelout  [m/s]","tether_force [N]"])
+    display(p)
 end
 # savefig("docs/src/reelout_force_4p.png")
 
