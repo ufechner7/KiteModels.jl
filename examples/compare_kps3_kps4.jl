@@ -44,7 +44,7 @@ function simulate(s, integrator, steps, plot=false; fig="")
         if plot
             reltime = i*dt
             if mod(i, 5) == 0
-                lines, sc, txt = plot2d_(s.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=set.segments, fig, lines, sc, txt)    
+                lines, sc, txt = plot2d(s.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=set.segments, fig, lines, sc, txt)    
             end
         end
     end

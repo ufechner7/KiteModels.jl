@@ -1,4 +1,4 @@
-function plot2d_(pos, reltime=0.0; zoom=true, front=false, segments=6, fig="", lines, sc, txt)
+function plot2d(pos, reltime=0.0; zoom=true, front=false, segments=6, fig="", lines, sc, txt)
     x = Float64[] 
     z = Float64[]
     for i in eachindex(pos)

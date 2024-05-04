@@ -51,7 +51,7 @@ function simulate(integrator, steps, plot=false)
         if plot 
             reltime = i*dt
             if mod(i, 5) == 0
-                lines, sc, txt = plot2d_(kps3.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=set.segments, lines, sc, txt)             
+                lines, sc, txt = plot2d(kps3.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=set.segments, lines, sc, txt)             
             end
         end
     end
