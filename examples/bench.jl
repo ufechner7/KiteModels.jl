@@ -7,9 +7,6 @@ set = deepcopy(se())
 dt = 0.05
 set.solver="DFBDF" # IDA or DFBDF
 STEPS = 600
-PLOT = false
-FRONT_VIEW = false
-ZOOM = true
 PRINT = false
 STATISTIC = false
 # end of user parameter section #
