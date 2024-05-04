@@ -1,4 +1,4 @@
-function plot2d_(pos, reltime=0.0; zoom=true, front=false, segments=6, lines, sc, txt)
+function plot2d_(pos, reltime=0.0; zoom=true, front=false, segments=6, fig="", lines, sc, txt)
     x = Float64[] 
     z = Float64[]
     for i in eachindex(pos)
@@ -14,6 +14,9 @@ function plot2d_(pos, reltime=0.0; zoom=true, front=false, segments=6, lines, sc
     xlabel = "x [m]"
     if front xlabel = "y [m]" end
     if isnothing(lines)
+        if fig != ""
+            plt.figure(fig)
+        end
         lines=[]
         line, = plt.plot(x,z; linewidth="1")
         push!(lines, line)
