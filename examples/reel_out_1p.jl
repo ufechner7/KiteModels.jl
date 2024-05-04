@@ -9,7 +9,7 @@ set.solver="DFBDF" # IDA or DFBDF
 STEPS = 600
 PLOT = true
 FRONT_VIEW = false
-ZOOM = false
+ZOOM = true
 PRINT = false
 STATISTIC = false
 # end of user parameter section #
