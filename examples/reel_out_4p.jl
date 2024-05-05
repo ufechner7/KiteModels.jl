@@ -26,7 +26,6 @@ kps4::KPS4 = KPS4(kcu)
     if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
         using TestEnv; TestEnv.activate()
     end
-    pkg"add ControlPlots#main"
     using ControlPlots
 # end
 
