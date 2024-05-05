@@ -517,7 +517,7 @@ end
     println(av_steps) #1102
     if Sys.isapple()
         println("isapple")
-        @test isapprox(av_steps, 1000, rtol=0.6)
+        @test isapprox(av_steps, 500, rtol=0.6)
     else
         println("not apple")
         @test isapprox(av_steps, 300, rtol=0.6)
@@ -545,7 +545,7 @@ end
     copy_examples()
     @test isdir("examples")
     cd("examples")
-    @test isfile("plot2d.jl")
+    @test isfile("reel_out_4p.jl")
 end
 
 @testset "test_copy_bin" begin

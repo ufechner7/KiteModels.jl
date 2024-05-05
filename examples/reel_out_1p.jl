@@ -3,10 +3,6 @@ using KiteModels, KitePodModels, KiteUtils
 
 set = deepcopy(se())
 
-# for the IDA solver a low tolerance is needed to be stable during reel-out
-# set.abs_tol=0.00006
-# set.rel_tol=0.000001
-
 # the following values can be changed to match your interest
 dt = 0.05
 set.solver="DFBDF" # IDA or DFBDF
@@ -19,17 +15,14 @@ STATISTIC = false
 # end of user parameter section #
 
 kcu::KCU = KCU(set)
-kps4::KPS4 = KPS4(kcu)
 kps3::KPS3 = KPS3(kcu)
 
 if PLOT
     using Pkg
-    if ! ("Plots" ∈ keys(Pkg.project().dependencies))
+    if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
         using TestEnv; TestEnv.activate()
     end
-    using Plots
-    Plots.__init__()
-    include("plot2d.jl")
+    using ControlPlots
 end
 
 v_time = zeros(STEPS)
@@ -53,12 +46,11 @@ function simulate(integrator, steps, plot=false)
         v_speed[i] = kps3.v_reel_out
         v_force[i] = winch_force(kps3)
         KiteModels.next_step!(kps3, integrator, v_ro = v_ro, dt=dt)
-        
-        if plot
-            reltime = i*dt
-            if mod(i, 5) == 0
-                p = plot2d(kps3.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=se().segments)
-                display(p)                
+        if plot 
+            reltime = i*dt-dt
+            if mod(i, 5) == 1
+                plot2d(kps3.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, 
+                                        segments=set.segments, fig="side_view")             
             end
         end
     end
@@ -82,7 +74,6 @@ lift, drag = KiteModels.lift_drag(kps3)
 println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
 println("Average number of callbacks per time step: $av_steps")
 
-p1 = plot(v_time, v_speed, ylabel="v_reelout  [m/s]", legend=false)
-p2 = plot(v_time, v_force, ylabel="tether_force [N]", legend=false)
-plot(p1, p2, layout = (2, 1), legend = false)
+p1 = plotx(v_time, v_speed, v_force; ylabels=["v_reelout  [m/s]", "tether_force [N]"], fig="winch")
+display(p1)
 # savefig("docs/src/reelout_force_1p.png")

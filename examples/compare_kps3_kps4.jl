@@ -22,16 +22,15 @@ set.version = 2
 
 if PLOT
     using Pkg
-    if ! ("Plots" ∈ keys(Pkg.project().dependencies))
+    if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
         using TestEnv; TestEnv.activate()
     end
-    using Plots
-    Plots.__init__()
-    include("plot2d.jl")
+    using ControlPlots
 end
 
-function simulate(s, integrator, steps, plot=false)
+function simulate(s, integrator, steps, plot=false; fig="")
     start = integrator.p.iter
+    lines, sc, txt = nothing, nothing, nothing
     for i in 1:steps
         if PRINT
             lift, drag = KiteModels.lift_drag(s)
@@ -42,10 +41,9 @@ function simulate(s, integrator, steps, plot=false)
         KiteModels.next_step!(s, integrator, dt=dt)
         
         if plot
-            reltime = i*dt
-            if mod(i, 5) == 0
-                p = plot2d(s.pos, reltime; zoom=ZOOM, front=FRONT_VIEW)
-                display(p)                
+            reltime = i*dt-dt
+            if mod(i, 5) == 1
+                lines, sc, txt = plot2d(s.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=set.segments, fig, lines, sc, txt)    
             end
         end
     end
@@ -53,7 +51,7 @@ function simulate(s, integrator, steps, plot=false)
 end
 
 integrator = KiteModels.init_sim!(kps3, stiffness_factor=0.04, prn=STATISTIC)
-av_steps = simulate(kps3, integrator, STEPS, true)
+av_steps = simulate(kps3, integrator, STEPS, true; fig="kps3")
 
 lift, drag = KiteModels.lift_drag(kps3)
 println("KPS3")
@@ -63,7 +61,7 @@ println("Average number of callbacks per time step: $av_steps")
 
 kps4.set.alpha_zero = ALPHA_ZERO
 integrator = KiteModels.init_sim!(kps4, stiffness_factor=0.04, prn=STATISTIC)
-av_steps = simulate(kps4, integrator, STEPS, true)
+av_steps = simulate(kps4, integrator, STEPS, true; fig="kps4")
 
 lift, drag = KiteModels.lift_drag(kps4)
 println("KPS4")

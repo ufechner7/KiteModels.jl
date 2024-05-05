@@ -49,5 +49,5 @@ cd src
 touch *.jl # make sure all modules get recompiled in the next step
 cd ..
 julia --project -J bin/kps-image-${julia_major}-${branch}.so -e "using KiteModels, KitePodModels, KiteUtils"
-echo "Precompiling package Plots..."
-julia --project -J bin/kps-image-${julia_major}-${branch}.so -e "using TestEnv; TestEnv.activate(); using Plots"
+echo "Precompiling package ControlPlots..."
+julia --project -J bin/kps-image-${julia_major}-${branch}.so -e "using TestEnv; TestEnv.activate(); using ControlPlots"
