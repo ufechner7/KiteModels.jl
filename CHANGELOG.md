@@ -1,5 +1,9 @@
 # Changelog
 
+### KiteModels v0.5.14 - 2024-05-05
+#### Changed
+- replace Plots with ControlPlots in the examples
+
 ### KiteModels v0.5.13 - 2024-04-14
 #### Changed
 - use `rel_compr_stiffness` and `rel_damping` from settings.yaml 
