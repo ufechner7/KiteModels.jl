@@ -545,7 +545,7 @@ end
     copy_examples()
     @test isdir("examples")
     cd("examples")
-    @test isfile("plot2d.jl")
+    @test isfile("reel_out_4p.jl")
 end
 
 @testset "test_copy_bin" begin
