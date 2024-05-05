@@ -21,14 +21,14 @@ set.version = 2
 kcu::KCU = KCU(set)
 kps4::KPS4 = KPS4(kcu)
 
-if PLOT
+# if PLOT
     using Pkg
     if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
         using TestEnv; TestEnv.activate()
     end
+    pkg"add ControlPlots#main"
     using ControlPlots
-    include("plot2d.jl")
-end
+# end
 
 v_time = zeros(STEPS)
 v_speed = zeros(STEPS)
@@ -53,8 +53,8 @@ function simulate(integrator, steps, plot=false)
         KiteModels.next_step!(kps4, integrator, v_ro = v_ro, dt=dt)
         
         if plot
-            reltime = i*dt
-            if mod(i, 5) == 0
+            reltime = i*dt-dt
+            if mod(i, 5) == 1
                 plot2d(kps4.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, 
                                         segments=set.segments, fig="side_view")            
             end

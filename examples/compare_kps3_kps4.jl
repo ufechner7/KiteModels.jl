@@ -26,7 +26,6 @@ if PLOT
         using TestEnv; TestEnv.activate()
     end
     using ControlPlots
-    include("plot2d.jl")
 end
 
 function simulate(s, integrator, steps, plot=false; fig="")
@@ -42,8 +41,8 @@ function simulate(s, integrator, steps, plot=false; fig="")
         KiteModels.next_step!(s, integrator, dt=dt)
         
         if plot
-            reltime = i*dt
-            if mod(i, 5) == 0
+            reltime = i*dt-dt
+            if mod(i, 5) == 1
                 lines, sc, txt = plot2d(s.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=set.segments, fig, lines, sc, txt)    
             end
         end

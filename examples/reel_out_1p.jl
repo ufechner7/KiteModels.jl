@@ -23,7 +23,6 @@ if PLOT
         using TestEnv; TestEnv.activate()
     end
     using ControlPlots
-    include("plot2d.jl")
 end
 
 v_time = zeros(STEPS)
@@ -48,8 +47,8 @@ function simulate(integrator, steps, plot=false)
         v_force[i] = winch_force(kps3)
         KiteModels.next_step!(kps3, integrator, v_ro = v_ro, dt=dt)
         if plot 
-            reltime = i*dt
-            if mod(i, 5) == 0
+            reltime = i*dt-dt
+            if mod(i, 5) == 1
                 plot2d(kps3.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, 
                                         segments=set.segments, fig="side_view")             
             end
