@@ -36,7 +36,6 @@ v_force = zeros(STEPS)
 
 function simulate(integrator, steps, plot=false)
     start = integrator.p.iter
-    lines, sc, txt = nothing, nothing, nothing
     for i in 1:steps
         if PRINT
             lift, drag = KiteModels.lift_drag(kps4)
@@ -56,8 +55,8 @@ function simulate(integrator, steps, plot=false)
         if plot
             reltime = i*dt
             if mod(i, 5) == 0
-                lines, sc, txt = plot2d(kps4.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, 
-                                        segments=set.segments, lines, sc, txt, fig="side_view")            
+                plot2d(kps4.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, 
+                                        segments=set.segments, fig="side_view")            
             end
         end
     end

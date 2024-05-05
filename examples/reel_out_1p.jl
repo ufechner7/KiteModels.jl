@@ -32,7 +32,6 @@ v_force = zeros(STEPS)
 
 function simulate(integrator, steps, plot=false)
     start = integrator.p.iter
-    lines, sc, txt = nothing, nothing, nothing
     for i in 1:steps
         if PRINT
             lift, drag = KiteModels.lift_drag(kps3)
@@ -51,7 +50,8 @@ function simulate(integrator, steps, plot=false)
         if plot 
             reltime = i*dt
             if mod(i, 5) == 0
-                lines, sc, txt = plot2d(kps3.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=set.segments, lines, sc, txt)             
+                plot2d(kps3.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, 
+                                        segments=set.segments, fig="side_view")             
             end
         end
     end
@@ -75,6 +75,6 @@ lift, drag = KiteModels.lift_drag(kps3)
 println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
 println("Average number of callbacks per time step: $av_steps")
 
-p1 = plotx(v_time, v_speed, v_force; ylabels=["v_reelout  [m/s]", "tether_force [N]"])
+p1 = plotx(v_time, v_speed, v_force; ylabels=["v_reelout  [m/s]", "tether_force [N]"], fig="winch")
 display(p1)
 # savefig("docs/src/reelout_force_1p.png")
