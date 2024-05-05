@@ -1,4 +1,4 @@
-function plot2d_(pos, reltime; zoom=true, front=false, segments=6, fig="", lines, sc, txt)
+function plot2d_(pos, reltime; zoom=true, front=false, segments=6, fig="", dz_zoom= 1.5, dz=-5.0, dx=-16.0, lines, sc, txt)
     x = Float64[] 
     z = Float64[]
     for i in eachindex(pos)
@@ -23,14 +23,14 @@ function plot2d_(pos, reltime; zoom=true, front=false, segments=6, fig="", lines
         sc  = plt.scatter(x, z; s=25, color="red") 
         if zoom
             txt = plt.annotate("t=$(round(reltime,digits=1)) s",  
-                xy=(x_max, z_max+4.7), fontsize = 14)
-            plt.xlim(x_max-15.0, x_max+20)
-            plt.ylim(z_max-15.0, z_max+8)
+                xy=(x_max, z_max+dz_zoom), fontsize = 14)
+            plt.xlim(x_max-15.0, x_max+5)
+            plt.ylim(z_max-15.0, z_max+5)
         else
             txt = plt.annotate("t=$(round(reltime,digits=1)) s",  
-            xy=(x_max, z_max+8.0), fontsize = 14)
-            plt.xlim(0, x_max+20)
-            plt.ylim(0, z_max+20)
+            xy=(x_max+dx, z_max+dz), fontsize = 14)
+            plt.xlim(0, x_max+5)
+            plt.ylim(0, z_max+5)
         end
         if length(pos) > segments+1
             s=segments
@@ -61,13 +61,18 @@ function plot2d_(pos, reltime; zoom=true, front=false, segments=6, fig="", lines
             lines[6].set_ydata([z[s+1],z[s+5]]) # S5
         end
         sc.set_offsets(hcat(x,z))
+        # xy=(x_max, z_max+8.0)
         txt.set_text("t=$(round(reltime,digits=1)) s")
         if zoom
-            plt.xlim(x_max-15.0, x_max+20)
-            plt.ylim(z_max-15.0, z_max+8)
+            txt.set_x(x_max)
+            txt.set_y(z_max+dz_zoom)
+            plt.xlim(x_max-15.0, x_max+5)
+            plt.ylim(z_max-15.0, z_max+5)
         else
-            plt.xlim(0, x_max+20)
-            plt.ylim(0, z_max+20)
+            txt.set_x(x_max+dx)
+            txt.set_y(z_max+dz)
+            plt.xlim(0, x_max+5)
+            plt.ylim(0, z_max+5)
         end
         plt.gcf().canvas.draw()
     end
