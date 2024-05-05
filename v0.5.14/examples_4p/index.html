@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Examples_4p · KiteModels.jl</title><script data-outdated-warner src="../assets/warner.js"></script><link rel="canonical" href="https://ufechner7.github.io/KiteModels.jl/examples_4p/"/><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../"><img src="../assets/logo.png" alt="KiteModels.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../">KiteModels.jl</a></span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><a class="tocitem" href="../types/">Types</a></li><li><a class="tocitem" href="../functions/">Functions</a></li><li><a class="tocitem" href="../parameters/">Parameters</a></li><li><a class="tocitem" href="../examples/">Examples_1p</a></li><li class="is-active"><a class="tocitem" href>Examples_4p</a><ul class="internal"><li><a class="tocitem" href="#Create-a-test-project"><span>Create a test project</span></a></li><li><a class="tocitem" href="#Plotting-the-initial-state"><span>Plotting the initial state</span></a></li><li><a class="tocitem" href="#Print-other-model-outputs"><span>Print other model outputs</span></a></li><li><a class="tocitem" href="#Example-of-reeling-out-the-tether"><span>Example of reeling out the tether</span></a></li></ul></li><li><a class="tocitem" href="../quickstart/">Quickstart</a></li><li><a class="tocitem" href="../advanced/">Advanced usage</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Examples_4p</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Examples_4p</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/ufechner7/KiteModels.jl/blob/main/docs/src/examples_4p.md#" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Examples-for-using-the-four-point-kite-model"><a class="docs-heading-anchor" href="#Examples-for-using-the-four-point-kite-model">Examples for using the four point kite model</a><a id="Examples-for-using-the-four-point-kite-model-1"></a><a class="docs-heading-anchor-permalink" href="#Examples-for-using-the-four-point-kite-model" title="Permalink"></a></h1><h2 id="Create-a-test-project"><a class="docs-heading-anchor" href="#Create-a-test-project">Create a test project</a><a id="Create-a-test-project-1"></a><a class="docs-heading-anchor-permalink" href="#Create-a-test-project" title="Permalink"></a></h2><pre><code class="language-bash hljs">mkdir test
+cd test
+julia --project=&quot;.&quot;</code></pre><p>With the last command, we told Julia to create a new project in the current directory.</p><p>Then we add the three required packages to our new project. By pressing the key &quot;]&quot; we enter the package manager mode where we can add or delete packages.</p><pre><code class="language-julia hljs">]
+add KiteUtils
+add KitePodModels
+add KiteModels
+st
+&lt;BACKSPACE&gt;</code></pre><p>The command &quot;st&quot; was not really required, but it is useful to display which versions of the packages we have in our project. Another important package manager command is the command &quot;up&quot;, which updates all packages to the latest compatible versions.</p><p>Then, copy the default configuration files and examples to your new project:</p><pre><code class="language-julia hljs">using KiteModels
+copy_settings()
+copy_examples()</code></pre><p>The first command copies the files settings.yaml and system.yaml to the folder data. They can be customized later. The second command creates an examples folder with some examples.</p><h2 id="Plotting-the-initial-state"><a class="docs-heading-anchor" href="#Plotting-the-initial-state">Plotting the initial state</a><a id="Plotting-the-initial-state-1"></a><a class="docs-heading-anchor-permalink" href="#Plotting-the-initial-state" title="Permalink"></a></h2><p>First, an instance of the model of the kite control unit (KCU) is created which is needed by the Kite Power System model KPS3. Then we create a kps instance, passing the kcu model as parameter. We need to declare these variables as const to achieve a decent performance.</p><pre><code class="language-julia hljs">using KiteModels
+const kcu = KCU(se())
+const kps = KPS4(kcu)</code></pre><p>Then we call the function <code>find_steady_state</code> which uses a non-linear solver to find the solution for a given elevation angle, reel-out speed and wind speed. </p><pre><code class="language-julia hljs">find_steady_state!(kps, prn=true)</code></pre><p>Finding the steady state of the 4-point model is difficult and it only works when we artificially reduce the stiffness by a factor of 0.035. In the function <a href="../functions/#KiteModels.init_sim!"><code>init_sim!</code></a> this factor is slowly increased to 1.0.</p><p>To plot the result in 2D we extract the vectors of the x and z coordinates of the tether particles with a for loop:</p><pre><code class="language-julia hljs">x = Float64[] 
+z = Float64[]
+for i in 1:length(kps.pos)
+     push!(x, kps.pos[i][1])
+     push!(z, kps.pos[i][3])
+end</code></pre><p>And finally, we plot the position of the particles in the x-z plane. When you type <code>using Plots</code> you will be asked if you want to install the Plots package. Just press \&lt;ENTER\&gt; and it gets installed.</p><pre><code class="language-julia hljs">using Plots
+plot(x,z, xlabel=&quot;x [m]&quot;, ylabel=&quot;z [m]&quot;, legend=false)
+plot!(x, z, seriestype = :scatter)</code></pre><h3 id="Initial-State"><a class="docs-heading-anchor" href="#Initial-State">Initial State</a><a id="Initial-State-1"></a><a class="docs-heading-anchor-permalink" href="#Initial-State" title="Permalink"></a></h3><p><img src="../initial_state_4p.png" alt="Initial State"/></p><h2 id="Print-other-model-outputs"><a class="docs-heading-anchor" href="#Print-other-model-outputs">Print other model outputs</a><a id="Print-other-model-outputs-1"></a><a class="docs-heading-anchor-permalink" href="#Print-other-model-outputs" title="Permalink"></a></h2><p>Print the vector of the positions of the particles:</p><pre><code class="nohighlight hljs">julia&gt; kps.pos
+11-element StaticArrays.SVector{11, StaticArrays.MVector{3, Float64}} with indices SOneTo(11):
+ [0.0, 0.0, 0.0]
+ [9.179237622840555, 0.0, 23.842235605018427]
+ [18.04995989861643, 0.0, 47.800963572571995]
+ [26.562156210544767, 0.0, 71.88939923189402]
+ [34.68610302268368, 0.0, 96.11152960655927]
+ [42.39897331360162, 0.0, 120.4676716318371]
+ [49.681585065247006, 0.0, 144.95590371155842]
+ [50.19560621291923, 0.0, 150.01396766608025]
+ [51.447158096922415, 0.0, 152.22064860101747]
+ [51.269841233250816, 2.823293379900761, 149.7849943282592]
+ [51.269841233250816, -2.823293379900761, 149.7849943282592]
+</code></pre><p>Print the unstretched and stretched tether length and the height of the kite:</p><pre><code class="language-julia hljs">julia&gt; unstretched_length(kps)
+150.0
+
+julia&gt; tether_length(kps)
+153.28916318946136
+
+julia&gt; calc_height(kps)
+152.22064860101747</code></pre><p>Because of the the stiffness_factor of 0.035 we have a longer tether-length then when using the 1 point kite model. </p><p>Print the force at the winch (groundstation, in Newton) and at each tether segment:</p><pre><code class="language-julia hljs">julia&gt; winch_force(kps)
+471.70242280223385
+
+julia&gt; spring_forces(kps)
+15-element Vector{Float64}:
+ 471.6945339755092
+ 471.690450982437
+ 471.6880774303635
+ 471.68627774821994
+ 471.68477542957345
+ 471.68345917403485
+  95.87508612176553
+ -58.70207142208335
+ -50.06490404375146
+ 226.23422847228494
+ 215.8389386786939
+ 215.8389386786939
+ 226.23422847228494
+ -58.70207142208335
+  99.72953663093385</code></pre><p>Some of the forces are negative which means the segments are getting compressed. This is acceptable for the kite itself (not for the tether).</p><p>Print the lift and drag forces of the kite (in Newton) and the lift-over-drag ratio:</p><pre><code class="language-julia hljs">julia&gt; lift, drag = lift_drag(kps)
+(382.18880762331327, 117.58827293691883)
+
+julia&gt; lift_over_drag(kps)
+3.250228939312184</code></pre><p>Print the wind speed vector at the kite:</p><pre><code class="language-julia hljs">julia&gt; v_wind_kite(kps)
+3-element StaticArrays.MVector{3, Float64} with indices SOneTo(3):
+ 12.542508333667467
+  0.0
+  0.0</code></pre><h2 id="Example-of-reeling-out-the-tether"><a class="docs-heading-anchor" href="#Example-of-reeling-out-the-tether">Example of reeling out the tether</a><a id="Example-of-reeling-out-the-tether-1"></a><a class="docs-heading-anchor-permalink" href="#Example-of-reeling-out-the-tether" title="Permalink"></a></h2><pre><code class="language-julia hljs">include(&quot;examples/reel_out_4p.jl&quot;)</code></pre><p><img src="../reelout_force_4p.png" alt="Reel out 4p model"/></p><p>In this example, we first keep the tether length constant and at 15 s start to reel out the winch with an acceleration of 0.1 m/s². At a set speed below 2.2 m/s the brake of the winch is active, therefore the &quot;jump&quot; in the v_reelout at  the beginning of the reel-out phase.</p><p>It is not a real jump, but a high acceleration compared to the acceleration afterward.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../examples/">« Examples_1p</a><a class="docs-footer-nextpage" href="../quickstart/">Quickstart »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.25 on <span class="colophon-date" title="Sunday 5 May 2024 21:06">Sunday 5 May 2024</span>. Using Julia version 1.10.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
