@@ -62,6 +62,13 @@ function plot2d_(pos, reltime; zoom=true, front=false, segments=6, fig="", lines
         end
         sc.set_offsets(hcat(x,z))
         txt.set_text("t=$(round(reltime,digits=1)) s")
+        if zoom
+            plt.xlim(x_max-15.0, x_max+20)
+            plt.ylim(z_max-15.0, z_max+8)
+        else
+            plt.xlim(0, x_max+20)
+            plt.ylim(0, z_max+20)
+        end
         plt.gcf().canvas.draw()
     end
     sleep(0.01)
