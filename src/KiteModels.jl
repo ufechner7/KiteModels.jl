@@ -34,7 +34,7 @@ Scientific background: http://arxiv.org/abs/1406.6218 =#
 module KiteModels
 
 using PrecompileTools: @setup_workload, @compile_workload 
-using Dierckx, StaticArrays, Rotations, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, OrdinaryDiffEq
+using Dierckx, StaticArrays, Rotations, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, OrdinaryDiffEq, Serialization
 import Sundials
 using Reexport
 @reexport using KitePodModels
@@ -434,6 +434,18 @@ function calc_pre_tension(s::AKM)
 end
 
 """
+helper function for init sim
+"""
+function fields_equal(a, b)
+    for field in fieldnames(typeof(a))
+        if getfield(a, field) != getfield(b, field)
+            return false
+        end
+    end
+    return true
+end
+
+"""
     init_sim!(s; t_end=1.0, stiffness_factor=0.035, prn=false)
 
 Initialises the integrator of the model.
@@ -447,9 +459,28 @@ Parameters:
 Returns:
 An instance of a DAE integrator.
 """
-function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false)
+function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, save=true)
     clear!(s)
     s.stiffness_factor = stiffness_factor
+
+    akm_integrator_pairs = []
+    save_file = joinpath(get_data_path(), ".akm_integrator_pairs.bin")
+    if prn println("Save file ", save_file) end
+
+    if isfile(save_file) && save
+        akm_integrator_pairs = deserialize(save_file)[1:min(end, 1000)]
+        if prn println("Found $(length(akm_integrator_pairs)) old steady states.") end
+        for akm_integrator_pair in akm_integrator_pairs
+            if fields_equal(akm_integrator_pair[1].set, s.set)
+                if prn println("Found similar steady state.") end
+                for field in fieldnames(typeof(s))
+                    setfield!(s, field, getfield(akm_integrator_pair[1], field))
+                end
+                return akm_integrator_pair[2]
+            end
+        end
+    end
+
     y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor=stiffness_factor, prn=prn)
     y0  = Vector{Float64}(y0)
     yd0 = Vector{Float64}(yd0)
@@ -469,6 +500,12 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false)
     differential_vars = ones(Bool, length(y0))
     prob    = DAEProblem{true}(residual!, yd0, y0, tspan, s; differential_vars)
     integrator = OrdinaryDiffEq.init(prob, solver; abstol=abstol, reltol= s.set.rel_tol, save_everystep=false)
+
+    if !any(pair -> fields_equal(pair[1].set, s.set), akm_integrator_pairs)
+        push!(akm_integrator_pairs, (s, integrator))
+        serialize(save_file, akm_integrator_pairs)
+    end
+    return integrator
 end
 
 """
@@ -569,8 +606,8 @@ end
     @compile_workload begin
         # all calls in this block will be precompiled, regardless of whether
         # they belong to your package or not (on Julia 1.8 and higher)
-        integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
-        integrator = KiteModels.init_sim!(kps4_; stiffness_factor=0.035, prn=false)       
+        integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false, save=false)
+        integrator = KiteModels.init_sim!(kps4_; stiffness_factor=0.035, prn=false, save=false)       
         nothing
     end
 end
