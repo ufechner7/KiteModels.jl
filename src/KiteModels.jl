@@ -55,8 +55,9 @@ export KPS3, KPS4, KPS4_3L, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG       
 export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                            # helper functions
 export clear!, find_steady_state!, residual!                                                  # low level workers
 export init_sim!, next_step!                                                                  # high level workers
-export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course         # getters
+export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, load_history  # getters
 export winch_force, lift_drag, lift_over_drag, unstretched_length, tether_length, v_wind_kite # getters
+export save_history # setter / saver
 export kite_ref_frame, orient_euler, spring_forces
 import LinearAlgebra: norm
 
@@ -114,6 +115,8 @@ function __init__()
         set_data_path(joinpath(pwd(), "data"))
     end
 end
+
+integrator_history_file = joinpath(get_data_path(), ".integrator_history.bin")
 
 include("KPS4.jl") # include code, specific for the four point kite model
 include("KPS4_3L.jl") # include code, specific for the four point kite model
@@ -445,6 +448,20 @@ function fields_equal(a, b)
     return true
 end
 
+function load_history()
+    if isfile(integrator_history_file)
+        history = deserialize(integrator_history_file)
+    else
+        history = Vector{Tuple}()
+    end
+    return history
+end
+
+function save_history(history::Vector{Tuple})
+    serialize(integrator_history_file, history)
+end
+
+
 """
     init_sim!(s; t_end=1.0, stiffness_factor=0.035, prn=false)
 
@@ -459,20 +476,19 @@ Parameters:
 Returns:
 An instance of a DAE integrator.
 """
-function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, save=true)
+function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, integrator_history=nothing)
     clear!(s)
     s.stiffness_factor = stiffness_factor
 
-    akm_integrator_pairs = []
-    save_file = joinpath(get_data_path(), ".akm_integrator_pairs.bin")
-    if prn println("Save file ", save_file) end
-
-    if isfile(save_file) && save
-        akm_integrator_pairs = deserialize(save_file)[1:min(end, 1000)]
-        if prn println("Found $(length(akm_integrator_pairs)) old steady states.") end
-        for akm_integrator_pair in akm_integrator_pairs
+    if !isnothing(integrator_history)
+        while length(integrator_history) > 10_000 # around 10MB, 10ms per for loop?
+            pop!(integrator_history)
+        end
+        if prn println("Found $(length(integrator_history)) old steady states.") end
+        println("Found $(length(integrator_history)) old steady states.")
+        @time for akm_integrator_pair in integrator_history
             if fields_equal(akm_integrator_pair[1].set, s.set)
-                if prn println("Found similar steady state.") end
+                if prn println("Found similar steady state, ") end
                 for field in fieldnames(typeof(s))
                     setfield!(s, field, getfield(akm_integrator_pair[1], field))
                 end
@@ -501,9 +517,8 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, save=tr
     prob    = DAEProblem{true}(residual!, yd0, y0, tspan, s; differential_vars)
     integrator = OrdinaryDiffEq.init(prob, solver; abstol=abstol, reltol= s.set.rel_tol, save_everystep=false)
 
-    if !any(pair -> fields_equal(pair[1].set, s.set), akm_integrator_pairs)
-        push!(akm_integrator_pairs, (s, integrator))
-        serialize(save_file, akm_integrator_pairs)
+    if !isnothing(integrator_history) && !any(pair -> fields_equal(pair[1].set, s.set), integrator_history)
+        pushfirst!(integrator_history, (deepcopy(s), deepcopy(integrator)))
     end
     return integrator
 end
@@ -606,8 +621,8 @@ end
     @compile_workload begin
         # all calls in this block will be precompiled, regardless of whether
         # they belong to your package or not (on Julia 1.8 and higher)
-        integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false, save=false)
-        integrator = KiteModels.init_sim!(kps4_; stiffness_factor=0.035, prn=false, save=false)       
+        integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false, integrator_history=nothing)
+        integrator = KiteModels.init_sim!(kps4_; stiffness_factor=0.035, prn=false, integrator_history=nothing)       
         nothing
     end
 end
