@@ -448,16 +448,18 @@ function fields_equal(a, b)
     return true
 end
 
+
+const IntegratorHistory = Vector{Tuple{AbstractKiteModel, Any}}
 function load_history()
+    history = IntegratorHistory()
     if isfile(integrator_history_file)
-        history = deserialize(integrator_history_file)
-    else
-        history = Vector{Tuple}()
+        println(typeof(deserialize(integrator_history_file)))
+        append!(history, deserialize(integrator_history_file))
     end
     return history
 end
 
-function save_history(history::Vector{Tuple})
+function save_history(history::IntegratorHistory)
     serialize(integrator_history_file, history)
 end
 
@@ -480,13 +482,12 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, integra
     clear!(s)
     s.stiffness_factor = stiffness_factor
 
-    if !isnothing(integrator_history)
-        while length(integrator_history) > 10_000 # around 10MB, 10ms per for loop?
+    if isa(integrator_history, IntegratorHistory)
+        while length(integrator_history) > 1000 # around 1MB, 1ms max per for loop
             pop!(integrator_history)
         end
         if prn println("Found $(length(integrator_history)) old steady states.") end
-        println("Found $(length(integrator_history)) old steady states.")
-        @time for akm_integrator_pair in integrator_history
+        for akm_integrator_pair in integrator_history
             if fields_equal(akm_integrator_pair[1].set, s.set)
                 if prn println("Found similar steady state, ") end
                 for field in fieldnames(typeof(s))
@@ -517,7 +518,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, integra
     prob    = DAEProblem{true}(residual!, yd0, y0, tspan, s; differential_vars)
     integrator = OrdinaryDiffEq.init(prob, solver; abstol=abstol, reltol= s.set.rel_tol, save_everystep=false)
 
-    if !isnothing(integrator_history) && !any(pair -> fields_equal(pair[1].set, s.set), integrator_history)
+    if isa(integrator_history, IntegratorHistory) && !any(pair -> fields_equal(pair[1].set, s.set), integrator_history)
         pushfirst!(integrator_history, (deepcopy(s), deepcopy(integrator)))
     end
     return integrator
