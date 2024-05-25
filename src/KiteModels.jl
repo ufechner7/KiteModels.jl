@@ -439,9 +439,12 @@ end
 """
 helper function for init sim
 """
-function fields_equal(a, b)
-    for field in fieldnames(typeof(a))
-        if getfield(a, field) != getfield(b, field)
+function fields_equal(a::AKM, b::AKM)
+    if typeof(a) != typeof(b)
+        return false
+    end
+    for field in fieldnames(typeof(a.set))
+        if getfield(a.set, field) != getfield(b.set, field)
             return false
         end
     end
@@ -495,7 +498,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, integra
         end
         if prn println("Found $(length(integrator_history)) old steady states.") end
         for akm_integrator_pair in integrator_history
-            if fields_equal(akm_integrator_pair[1].set, s.set)
+            if fields_equal(akm_integrator_pair[1], s)
                 if prn println("Found similar steady state, ") end
                 for field in fieldnames(typeof(s))
                     setfield!(s, field, getfield(akm_integrator_pair[1], field))
@@ -525,7 +528,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, integra
     prob    = DAEProblem{true}(residual!, yd0, y0, tspan, s; differential_vars)
     integrator = OrdinaryDiffEq.init(prob, solver; abstol=abstol, reltol= s.set.rel_tol, save_everystep=false)
 
-    if isa(integrator_history, IntegratorHistory) && !any(pair -> fields_equal(pair[1].set, s.set), integrator_history)
+    if isa(integrator_history, IntegratorHistory) && !any(pair -> fields_equal(pair[1], s), integrator_history)
         pushfirst!(integrator_history, (deepcopy(s), deepcopy(integrator)))
     end
     return integrator
