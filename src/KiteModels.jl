@@ -450,15 +450,21 @@ end
 
 
 const IntegratorHistory = Vector{Tuple{AbstractKiteModel, Any}}
+"""
+Load the saved pairs of abstract kite models and corresponding integrators. It is assumed that a certain set of settings
+always leads to the same integrator.
+"""
 function load_history()
     history = IntegratorHistory()
     if isfile(integrator_history_file)
-        println(typeof(deserialize(integrator_history_file)))
         append!(history, deserialize(integrator_history_file))
     end
     return history
 end
 
+"""
+In order to delete the integrator history: just delete data/.integrator_history.bin
+"""
 function save_history(history::IntegratorHistory)
     serialize(integrator_history_file, history)
 end
@@ -474,6 +480,7 @@ Parameters:
 - t_end: end time of the simulation; normally not needed
 - stiffness_factor: factor applied to the tether stiffness during initialisation
 - prn: if set to true, print the detailed solver results
+- integrator_history: an instance of IntegratorHistory containing old pairs of AKM objects and integrators
 
 Returns:
 An instance of a DAE integrator.
