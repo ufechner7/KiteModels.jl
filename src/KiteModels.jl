@@ -74,7 +74,7 @@ const BRIDLE_DRAG = 1.1         # should probably be removed
 This type is used for all real variables, used in the Simulation. Possible alternatives: Float32, Double64, Dual
 Other types than Float64 or Float32 do require support of Julia types by the solver. 
 """
-const SimFloat = Float64
+const SimFloat = Float32
 
 """
    const KVec3    = MVector{3, SimFloat}
