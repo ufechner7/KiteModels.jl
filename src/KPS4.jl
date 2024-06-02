@@ -53,7 +53,7 @@ const SPRINGS_INPUT = [0.    1.  150.
     damping::S  = 0.1 # damping coefficent [Ns/m]
 end
 
-const SP = Spring{Int16, Float64}
+const SP = Spring{Int16, SimFloat}
 const KITE_PARTICLES = 4
 const KITE_SPRINGS = 9
 const KITE_ANGLE = 3.83 # angle between the kite and the last tether segment due to the mass of the control pod
@@ -162,10 +162,10 @@ $(TYPEDFIELDS)
     z::T =                 zeros(S, 3)
 end
 
-@inline @inbounds function norm(vec::SVector{3, Float64})
+@inline @inbounds function norm(vec::SVector{3, SimFloat})
     sqrt(vec[1]*vec[1]+vec[2]*vec[2]+vec[3]*vec[3])
 end
-@inline @inbounds function norm(vec::MVector{3, Float64})
+@inline @inbounds function norm(vec::MVector{3, SimFloat})
     sqrt(vec[1]*vec[1]+vec[2]*vec[2]+vec[3]*vec[3])
 end
 

@@ -475,7 +475,7 @@ end
 function init(s::KPS3, X=zeros(2 * (s.set.segments)); old=false, delta = 0.0)
     res1_, res2_ = init_inner(s, X; old=old, delta = delta)
     res1, res2  = vcat(reduce(vcat, res1_), [s.l_tether, 0]), vcat(reduce(vcat, res2_),[0,0])
-    MVector{6*(s.set.segments)+2, Float64}(res1), MVector{6*(s.set.segments)+2, Float64}(res2)
+    MVector{6*(s.set.segments)+2, SimFloat}(res1), MVector{6*(s.set.segments)+2, SimFloat}(res2)
 end
 
 """

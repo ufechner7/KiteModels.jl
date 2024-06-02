@@ -509,8 +509,8 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, integra
     end
 
     y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor=stiffness_factor, prn=prn)
-    y0  = Vector{Float64}(y0)
-    yd0 = Vector{Float64}(yd0)
+    y0  = Vector{SimFloat}(y0)
+    yd0 = Vector{SimFloat}(yd0)
     if s.set.solver=="IDA"
         solver  = Sundials.IDA(linear_solver=Symbol(s.set.linear_solver), max_order = s.set.max_order)
     elseif s.set.solver=="DImplicitEuler"
