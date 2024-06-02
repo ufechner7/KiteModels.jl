@@ -419,7 +419,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
     posd1, veld1 = partd[:,:,1], partd[:,:,2]
     posd = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(posd1[:,i-1]) end for i in 1:div(T,6)+1)
     veld = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(veld1[:,i-1]) end for i in 1:div(T,6)+1)
-    @assert ! isnan(pos[2][3])
+    @assert isfinite(pos[2][3])
 
     # core calculations
     s.l_tether = length

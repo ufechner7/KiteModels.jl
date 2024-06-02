@@ -74,7 +74,7 @@ const BRIDLE_DRAG = 1.1         # should probably be removed
 This type is used for all real variables, used in the Simulation. Possible alternatives: Float32, Double64, Dual
 Other types than Float64 or Float32 do require support of Julia types by the solver. 
 """
-const SimFloat = Float32
+const SimFloat = Float64
 
 """
    const KVec3    = MVector{3, SimFloat}
@@ -526,7 +526,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, integra
     abstol  = s.set.abs_tol # max error in m/s and m
     differential_vars = ones(Bool, length(y0))
     prob    = DAEProblem{true}(residual!, yd0, y0, tspan, s; differential_vars)
-    integrator = OrdinaryDiffEq.init(prob, solver; abstol=abstol, reltol= s.set.rel_tol, save_everystep=false)
+    integrator = OrdinaryDiffEq.init(prob, solver; abstol=abstol, reltol=s.set.rel_tol, save_everystep=false)
 
     if isa(integrator_history, IntegratorHistory) && !any(pair -> fields_equal(pair[1], s), integrator_history)
         pushfirst!(integrator_history, (deepcopy(s), deepcopy(integrator)))
@@ -633,7 +633,7 @@ end
         # all calls in this block will be precompiled, regardless of whether
         # they belong to your package or not (on Julia 1.8 and higher)
         integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false, integrator_history=nothing)
-        integrator = KiteModels.init_sim!(kps4_; stiffness_factor=0.035, prn=false, integrator_history=nothing)       
+        integrator = KiteModels.init_sim!(kps4_; stiffness_factor=0.035, prn=false, integrator_history=nothing)
         nothing
     end
 end
