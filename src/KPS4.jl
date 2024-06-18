@@ -44,6 +44,8 @@ const SPRINGS_INPUT = [0.    1.  150.
                        5.    2.   -1. # s8, p11, p8
                        2.    3.   -1.] # s9, p8, p9
 
+# KCU = p7, A = p8, B = p9, C = p10, D = p11
+
 # struct, defining the phyical parameters of one spring
 @with_kw struct Spring{I, S}
     p1::I = 1         # number of the first point
