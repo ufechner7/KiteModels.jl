@@ -1,5 +1,9 @@
 # Changelog
 
+### KiteModels v0.5.15 - 2024-05-05
+- bump KiteUtils to version 0.6.12
+- drop support for Julia 1.9
+
 ### KiteModels v0.5.14 - 2024-05-05
 #### Changed
 - replace Plots with ControlPlots in the examples
@@ -20,7 +24,7 @@
 ### KiteModels v0.5.11 - 2024-04-04
 #### Added
 - document the support for the `DImplicitEuler` solver, which is not very accurate,
-  but because it is well known it can serve as reference
+  but because it is well known it can serve as a reference
 - support changing `max_order` for the `DFBDF`
 - further reduced the memory usage
 
