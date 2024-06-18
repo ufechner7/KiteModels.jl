@@ -1,6 +1,7 @@
 # Changelog
 
 ### KiteModels v0.5.15 - 2024-05-05
+#### Changed
 - bump KiteUtils to version 0.6.12
 - drop support for Julia 1.9
 
