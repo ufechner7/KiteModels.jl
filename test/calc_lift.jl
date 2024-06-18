@@ -1,6 +1,6 @@
 using LinearAlgebra
-using QuadGK
 using Dierckx
+using Plots
 
 # Define constants
 rho = 1.0
@@ -70,8 +70,6 @@ function calc_lift(; n=10, left_line=150.0, right_line=150.0)
 
     function d(α)
         if α < α_l
-            # println(α)
-            # println(middle_line - left_line)
             return middle_line - left_line
         elseif α > α_r
             return middle_line - right_line
@@ -82,7 +80,6 @@ function calc_lift(; n=10, left_line=150.0, right_line=150.0)
     aoa(α) = v_a_xr(α) != [0.0, 0.0, 0.0] ?
         π - acos2(normalize(v_a_xr(α)) ⋅ e_x) + atan(d(α)/length(α)) :
         atan(d(α)/length(α))
-    println("aoa ", aoa(pi/2))
 
     dL_dα(α) = 0.5*rho*(norm(v_a_xr(α)))^2*r*length(α)*c_l(aoa(α)) .* normalize(v_a_xr(α) × (e_r(α) × e_x))
     dD_dα(α) = 0.5*rho*norm(v_a_xr(α))*r*length(α)*c_d(aoa(α)) .* v_a_xr(α) # the sideways drag cannot be calculated with the C_d formula
@@ -95,6 +92,7 @@ function calc_lift(; n=10, left_line=150.0, right_line=150.0)
     L_D = sum(dL_dα(pi - (α_0 + dα/2 + i*dα)) * dα for i in 1:n)
     D_C = sum(dD_dα(α_0 + dα/2 + i*dα) * dα for i in 1:n)
     D_D = sum(dD_dα(pi - (α_0 + dα/2 + i*dα)) * dα for i in 1:n)
+    display(plot(1:n, norm.(dL_dα(α_0 + dα/2 + i*dα) * dα for i in 1:n), title="Lift vs angle"))
     return L_C, L_D, D_C, D_D
 end
 
