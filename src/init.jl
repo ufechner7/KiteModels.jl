@@ -1,3 +1,5 @@
+using Plots
+
 # Functions to calculate the inital state vector, the inital masses and initial springs
 
 function init_springs!(s::KPS4)
@@ -27,62 +29,70 @@ function init_springs!(s::KPS4)
     s.springs
 end
 
+# "get the azimuth of the steering tethers"
+# function get_tether_azimuth(width, radius, tip_length, middle_length)
+#     α_0 = pi/2 - width/2/radius
+#     α_c = α_0 + width*(-2*tip_length + sqrt(2*middle_length^2 + 2*tip_length^2))/(4*(middle_length - tip_length)) / radius
+#     distance_c = cos(α_c)*radius
+#     α_tether = atan(distance_c/l_tether)
+#     return α_tether
+# end
+
 # implemented
-function get_particles(height_k, height_b, width, m_k, pos_E = [ 75., 0., 129.90381057], 
+function get_particles(width, radius, middle_length, tip_length, bridle_center_distance, pos_kite = [ 75., 0., 129.90381057], 
     vec_c=[-15., 0., -25.98076211], v_app=[10.4855, 0, -3.08324])
     # inclination angle of the kite; beta = atan(-pos_kite[2], pos_kite[1]) ???
     beta = pi/2.0
 
     e_z = normalize(vec_c) # vec_c is the direction of the last two particles
     e_y = normalize(cross(v_app, vec_c))
-    e_x = normalize(cross(y, vec_c))
+    e_x = normalize(cross(e_y, vec_c))
 
-    α_c = α_0 + s.set.width*(-2*s.set.tip_length + sqrt(2*s.set.middle_length^2 + 2*s.set*tip_length^2))/(4*(s.set.middle_length - s.set.tip_length)) / s.set.radius
+    α_0 = pi/2 - width/2/radius
+    α_c = α_0 + width*(-2*tip_length + sqrt(2*middle_length^2 + 2*tip_length^2))/(4*(middle_length - tip_length)) / radius
     α_d = π - α_c
 
-    E = pos_E
-    C = E + e_y*cos(α_c)*r - e_z*sin(α_c)*r
-    D = E + e_y*cos(α_d)*r - e_z*sin(α_d)*r
+    E = pos_kite
+    println(bridle_center_distance)
+    E_c = pos_kite - e_z * bridle_center_distance # E at center of circle on which the kite shape lies
+    C = E_c + e_y*cos(α_c)*radius - e_z*sin(α_c)*radius
+    D = E_c + e_y*cos(α_d)*radius - e_z*sin(α_d)*radius
 
     length(α) = α < π/2 ?
-        (s.set.tip_length + (s.set.middle_length-s.set.tip_length)*α*s.set.radius/(0.5*s.set.width)) :
-        (s.set.tip_length + (s.set.middle_length-s.set.tip_length)*(π-α)*s.set.radius/(0.5*s.set.width))
+        (tip_length + (middle_length-tip_length)*α*radius/(0.5*width)) :
+        (tip_length + (middle_length-tip_length)*(π-α)*radius/(0.5*width))
     P_c = (C+D)./2
     A = P_c + e_x.*length(α_c)*(-3/4 + 1/4)
 
-    [zeros(3), E, C, D, A] # 0, E, A, C, D
+    # println("E\t$E C\t$C D\t$D A\t$A")
+    [E, C, D, A] # important to have the order E = 1, C = 2, D = 3, A = 4
 end
 
-# implemented
+# implemented - looks good
 function init_springs!(s::KPS4_3L)
     l_0 = s.set.l_tether / s.set.segments
     
-    particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k)
+    particles = get_particles(s.set.width, s.set.radius, s.set.middle_length, s.set.tip_length, s.set.bridle_center_distance)
     
+    # build the tether segments of the three tethers
     k = s.set.e_tether * (s.set.d_tether/2000.0)^2 * pi  / l_0  # Spring stiffness for this spring [N/m]
     c = s.set.damping/l_0                                       # Damping coefficient [Ns/m]
-
-    # build the tether segments of the three tethers
-    [s.springs[i] = SP(1, i, l_0, k, c) for i in 2:4]
-    for i in 2:3:s.set.segments*3
-        s.springs[i+1] = SP(i, i+3, l_0, k, c) # left line
-        s.springs[i+2] = SP(i+1, i+4, l_0, k, c) # right line
-        s.springs[i] = SP(i+2, i+5, l_0, k, c) # middle line
+    for i in 1:s.set.segments*3
+        s.springs[i] = SP(i, i+3, l_0, k, c)
     end
-
+    
     # build the bridle segments
-    for j in 4:size(SPRINGS_INPUT_3L)[1] # 4th input is the first bridle segment
-        p0, p1 = SPRINGS_INPUT_3L[j, 1]+1, SPRINGS_INPUT_3L[j, 2]+1 # point 0 and 1
-        if SPRINGS_INPUT_3L[j, 3] == -1
-            l_0 = norm(particles[Int(p1)] - particles[Int(p0)]) * PRE_STRESS
-            k = s.set.e_tether * (s.set.d_line/2000.0)^2 * pi / l_0
-            p0 += s.set.segments*3 - 1 # correct the index for the start and end particles of the bridle
-            p1 += s.set.segments*3 - 1
-            c = s.set.damping/ l_0
-            s.springs[j+s.set.segments*3-1] = SP(Int(p0), Int(p1), l_0, k, c)
-        end
+    for i in 1:KITE_SPRINGS_3L
+        p0, p1 = SPRINGS_INPUT_3L[i, 1], SPRINGS_INPUT_3L[i, 2] # bridle points
+        l_0 = norm(particles[Int(p1)] - particles[Int(p0)]) * PRE_STRESS
+        k = s.set.e_tether * (s.set.d_line/2000.0)^2 * pi / l_0
+        p0 += s.num_E-1 # correct the index for the start and end particles of the bridle
+        p1 += s.num_E-1
+        c = s.set.damping/ l_0
+        s.springs[i+s.set.segments*3] = SP(Int(p0), Int(p1), l_0, k, c)
     end
-    s.springs
+    # println(s.springs)
+    return s.springs
 end
 
 
@@ -106,19 +116,17 @@ end
 
 # implemented
 function init_masses!(s::KPS4_3L)
-    s.masses = zeros(s.set.segments+KITE_PARTICLES_3L+1)
+    s.masses = zeros(s.num_A)
     l_0 = s.set.l_tether / s.set.segments 
-    for i in 1:s.set.segments
+    for i in 1:s.set.segments*3
         s.masses[i]   += 0.5 * l_0 * s.set.rho_tether * (s.set.d_tether/2000.0)^2 * pi
-        s.masses[i+1] += 0.5 * l_0 * s.set.rho_tether * (s.set.d_tether/2000.0)^2 * pi
+        s.masses[i+3] += 0.5 * l_0 * s.set.rho_tether * (s.set.d_tether/2000.0)^2 * pi
     end
-    m_a = s.set.mass/2
-    m_c = s.set.mass/4
-    m_d = s.set.mass/4
-    s.masses[s.set.segments+4] += m_a
-    s.masses[s.set.segments+2] += m_c
-    s.masses[s.set.segments+3] += m_d
-    s.masses 
+    s.masses[s.num_A] += s.set.mass/2
+    s.masses[s.num_C] += s.set.mass/4
+    s.masses[s.num_D] += s.set.mass/4
+    println(s.masses)
+    return s.masses 
 end
 
 function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1); old=false, delta = 0.0)
@@ -163,46 +171,58 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
 end
 
 # implemented
-function init_pos_vel_acc(s::KPS4_3L, X=zeros(2 * (s.set.segments+KITE_PARTICLES_3L)+1); delta = 0.0)
-    pos = zeros(SVector{s.set.segments*3+KITE_PARTICLES_3L, KVec3})
-    vel = zeros(SVector{s.set.segments*3+KITE_PARTICLES_3L, KVec3})
-    acc = zeros(SVector{s.set.segments*3+KITE_PARTICLES_3L, KVec3})
-    pos[1] .= [0.0, delta, 0.0]
-    vel[1] .= [delta, delta, delta]
-    acc[1] .= [delta, delta, delta]
+function init_pos_vel_acc(s::KPS4_3L, X=zeros(s.set.segments*6+5); delta = 0.0)
+    pos = zeros(SVector{s.num_A, KVec3})
+    vel = zeros(SVector{s.num_A, KVec3})
+    acc = zeros(SVector{s.num_A, KVec3})
+    # ground points
+    [pos[i] .= [0.0, delta, 0.0] for i in 1:3]
+    [vel[i] .= [delta, delta, delta] for i in 1:3]
+    [acc[i] .= [delta, delta, delta] for i in 1:3]
+
+    # wire points
     sin_el, cos_el = sin(deg2rad(s.set.elevation)), cos(deg2rad(s.set.elevation))
-
     radius = -1 * (s.set.l_tether/s.set.segments)
-    pos[2:4] .= [[-cos_el * radius + X[i], delta, -sin_el * radius + X[s.set.segments*3+KITE_PARTICLES_3L-1+i]]]
-    vel[2:4] .= [[delta, delta, 0]]
-    acc[2:4] .= [[delta, delta, -9.81]]
-    for i in 2:s.set.segments*3-2
-        radius = -i * (s.set.l_tether/s.set.segments)
-        pos[i+3] .= [-cos_el * radius + X[i], delta, -sin_el * radius + X[s.set.segments*3+KITE_PARTICLES_3L-1+i]]
-        vel[i+3] .= [delta, delta, 0]
-        acc[i+3] .= [delta, delta, -9.81]
+    for i in range(1, step=3, length=s.set.segments)
+        for j in i:i+2
+            radius = -i * (s.set.l_tether/s.set.segments)
+            # TODO: could be one x for 3 wire points?
+            pos[j+1] .= [-cos_el * radius + X[j], delta, -sin_el * radius + X[s.set.segments*3+j]]
+            vel[j+1] .= [delta, delta, 0]
+            acc[j+1] .= [delta, delta, -9.81]
+        end
     end
 
-    vec_c = pos[s.set.segments*3-2] - pos[s.set.segments*3+1]
-    particles = get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k, pos[s.set.segments*3+1], rotate_in_xz(vec_c, deg2rad(KITE_ANGLE_3L)), s.v_apparent)
+    # kite points
+    vec_c = pos[s.num_E-3] - pos[s.num_E]
+    particles = get_particles(s.set.width, s.set.radius, s.set.middle_length, s.set.tip_length, s.set.bridle_center_distance, pos[s.num_E], rotate_in_xz(vec_c, deg2rad(KITE_ANGLE)), s.v_apparent)
+    pos[s.num_A] .= particles[4] + [X[s.set.segments*6+1], 0, X[s.set.segments*6+2]]
+    vel[s.num_A] .= [delta, delta, delta]
+    acc[s.num_A] .= [delta, delta, -9.81]
+    pos[s.num_C] .= particles[2] + [X[s.set.segments*6+3], 0, X[s.set.segments*6+4]]
+    vel[s.num_C] .= [delta, delta, delta]
+    acc[s.num_C] .= [delta, delta, -9.81]
 
-    for i in [2,4] # set A, B, C
-        pos[s.set.segments*3+i] .= particles[i+1] + [X[s.set.segments*3+i-1], 0, X[2*s.set.segments*3+KITE_PARTICLES_3L-2+i]]
-        vel[s.set.segments*3+i] .= [delta, delta, delta]
-        acc[s.set.segments*3+i] .= [delta, delta, -9.81]
-    end
-    acc[s.set.segments*3+3] .= [delta, delta, -9.81]
-    vel[s.set.segments*3+3] .= [delta, delta, delta]
-    # set p10=C and p11=D
+    acc[s.num_D] .= [delta, delta, -9.81]
+    vel[s.num_D] .= [delta, delta, delta]
+
     # x and z component of the right and left particle must be equal
-    pos[s.set.segments*3+2][1] = pos[s.set.segments*3+1+3][1]  # D.x = C.x
-    pos[s.set.segments*3+3][3] = pos[s.set.segments*3+1+3][3]  # D.z = C.z
-    pos[s.set.segments*3+2][2] += X[end]                     # Y position of point C
-    pos[s.set.segments*3+3][2] = -pos[s.set.segments*3+1+3][2] # Y position of point D
+    pos[s.num_D][1] = pos[s.num_C][1]  # D.x = C.x
+    pos[s.num_D][3] = pos[s.num_C][3]  # D.z = C.z
+    pos[s.num_C][2] += X[s.set.segments*6+5]          # Y position of point C
+    pos[s.num_D][2] = -pos[s.num_C][2] # Y position of point D
+
+    # move the left and right tether
+    for i in range(2, step=3, length=s.set.segments)
+        pos[i][2] += (pos[i][1]-pos[i-1][1])/pos[s.num_C][1] * pos[s.num_C][2] # left tether
+        pos[i+1][2] += (pos[i+1][1]-pos[i][1])/pos[s.num_D][1] * pos[s.num_D][2] # right tether
+    end
+
     for i in eachindex(pos)
         s.pos[i] .= pos[i]
     end
-    pos, vel, acc
+    println("pos vel acc\t", pos, vel, acc)
+    return pos, vel, acc
 end
 
 
@@ -219,9 +239,9 @@ function init_inner(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); o
     vcat(pos[2:end], vel[2:end]), vcat(vel[2:end], acc[2:end])
 end
 
-function init_inner(s::KPS4_3L, X=zeros(2 * (s.set.segments+KITE_PARTICLES_3L-1)+1);delta=0.0)
+function init_inner(s::KPS4_3L, X=zeros(s.set.segments*6+5);delta=0.0)
     pos, vel, acc = init_pos_vel_acc(s, X; delta=delta)
-    vcat(pos[2:end], vel[2:end]), vcat(vel[2:end], acc[2:end])
+    vcat(pos[4:end], vel[4:end]), vcat(vel[4:end], acc[4:end])
 end
 
 # same as above, but returns a tuple of two one dimensional arrays
@@ -233,14 +253,18 @@ end
 
 
 """
-State vector y   = pos1,  pos2, ... , posn,  vel1,  vel2, . .., veln,  length1, length2, length3, v_reel_out1, v_reel_out2, v_reel_out3
-Derivative   yd  = posd1, posd2, ..., posdn, veld1, veld2, ..., veldn, lengthd1, lengthd2, lengthd3, v_reel_outd1, v_reel_outd2, v_reel_outd3
+State vector y   = pos1,  pos2, ... , posn,  vel1,  vel2, . .., veln,  length1, length2, length3, reel_out_speed1, reel_out_speed2, reel_out_speed3
+Derivative   yd  = posd1, posd2, ..., posdn, veld1, veld2, ..., veldn, lengthd1, lengthd2, lengthd3, reel_out_speedd1, reel_out_speedd2, reel_out_speedd3
+Without points 1 2 and 3, because they are stationary.
 """
-# same as above, but returns a tuple of two one dimensional arrays
-function init(s::KPS4_3L, X=zeros(2 * (s.set.segments+KITE_PARTICLES_3L-1)+1); delta=0.0)
+# implemented
+function init(s::KPS4_3L, X=zeros(s.set.segments*6+5); delta=0.0)
     y_, yd_ = init_inner(s, X; delta = delta)
-    y, yd  = vcat(reduce(vcat, y_), [s.l_tether, 0]), vcat(reduce(vcat, yd_),[0,0])
-    MVector{6*(s.set.segments+KITE_PARTICLES_3L)+2, SimFloat}(y), MVector{6*(s.set.segments+KITE_PARTICLES_3L)+2, SimFloat}(yd)
+    y = vcat(reduce(vcat, y_), reduce(vcat,[s.l_tethers, zeros(3)]))
+    yd = vcat(reduce(vcat, yd_), zeros(6))
+    println("y\t",y)
+    println("yd\t", yd)
+    MVector{6*(s.num_A-3)+6, SimFloat}(y), MVector{6*(s.num_A-3)+6, SimFloat}(yd)
 end
 
 # rotate a 3d vector around the y axis
