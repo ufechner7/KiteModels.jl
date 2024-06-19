@@ -18,7 +18,7 @@ E = [0; 101; 100]
 C = [-1; 101.1; 101]
 D = [1; 101.1; 101]
 v_c = [0; -1; 0]
-v_d = [0; -1; 0]
+v_d = [0; -5; 0]
 v_e = [0; -1; 0]
 v_wind = [0; 10; 0]
 
@@ -92,11 +92,11 @@ function calc_lift(; n=10, left_line=150.0, right_line=150.0)
     L_D = sum(dL_dα(pi - (α_0 + dα/2 + i*dα)) * dα for i in 1:n)
     D_C = sum(dD_dα(α_0 + dα/2 + i*dα) * dα for i in 1:n)
     D_D = sum(dD_dα(pi - (α_0 + dα/2 + i*dα)) * dα for i in 1:n)
-    display(plot(1:n, norm.(dL_dα(α_0 + dα/2 + i*dα) * dα for i in 1:n), title="Lift vs angle"))
-    return L_C, L_D, D_C, D_D
+    println(L_C, L_D, D_C, D_D);
+    return plot(1:n*2, norm.(dL_dα(α_0 + dα/2 + i*dα) * dα for i in 1:n*2), title="Lift per segment")
 end
 
-println(calc_lift())
-println(calc_lift(n=10, left_line=149, right_line=149.9))
-println(calc_lift(n=10, left_line=149.9, right_line=149))
-println(calc_lift(n=10, left_line=160.9, right_line=160.9))
+# println(calc_lift())
+# println(calc_lift(n=10, left_line=149, right_line=149.9))
+savefig(calc_lift(n=100, left_line=149.9, right_line=149), "n=100")
+savefig(calc_lift(n=5, left_line=149.9, right_line=149), "n=5")
