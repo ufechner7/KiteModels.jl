@@ -229,51 +229,6 @@ function KPS4_3L()
     return s
 end
 
-""" 
-    calc_particle_forces!(s::KPS4_3L, pos1, pos2, vel1, vel2, spring, segments, d_tether, rho, i)
-
-Calculate the drag force and spring force of the tether segment, defined by the parameters pos1, pos2, vel1 and vel2
-and distribute it equally on the two particles, that are attached to the segment.
-The result is stored in the array s.forces. 
-"""
-@inline function calc_particle_forces!(s::KPS4_3L, pos1, pos2, vel1, vel2, spring, d_tether, rho, i)
-    l_0 = spring.length # Unstressed length
-    k = spring.c_spring * s.stiffness_factor  # Spring constant
-    c = spring.damping                        # Damping coefficient    
-    segment = pos1 - pos2
-    rel_vel = vel1 - vel2
-    av_vel = 0.5 * (vel1 + vel2)
-    norm1 = norm(segment)
-    unit_vector = segment / norm1
-
-    k1 = 0.25 * k # compression stiffness kite segments
-    k2 = 0.1 * k  # compression stiffness tether segments
-    c1 = 6.0 * c  # damping kite segments
-    spring_vel   = unit_vector ⋅ rel_vel
-    if (norm1 - l_0) > 0.0
-        if i > s.num_E  # kite springs
-             s.spring_force .= (k *  (norm1 - l_0) + (c1 * spring_vel)) * unit_vector 
-        else
-             s.spring_force .= (k *  (norm1 - l_0) + (c * spring_vel)) * unit_vector
-        end
-    elseif i > s.num_E # kite spring
-        s.spring_force .= (k1 *  (norm1 - l_0) + (c * spring_vel)) * unit_vector
-    else
-        s.spring_force .= (k2 *  (norm1 - l_0) + (c * spring_vel)) * unit_vector
-    end
-
-    s.v_apparent .= s.v_wind_tether - av_vel
-    area = norm1 * d_tether
-    
-    v_app_perp = s.v_apparent - s.v_apparent ⋅ unit_vector * unit_vector
-    half_drag_force = (-0.25 * rho * s.set.cd_tether * norm(v_app_perp) * area) * v_app_perp 
-
-    @inbounds s.forces[spring.p1] .+= half_drag_force + s.spring_force
-    @inbounds s.forces[spring.p2] .+= half_drag_force - s.spring_force
-    if i <= 3 s.last_forces[i] .= s.forces[spring.p1] end
-    nothing
-end
-
 function calc_kite_ref_frame!(s::KPS4_3L, E, C, D)
     P_c = 0.5 .* (C+D)
     s.e_y = normalize(C - D)
@@ -304,7 +259,8 @@ function calc_aero_forces!(s::KPS4_3L, pos, vel)
     n = s.set.aero_surfaces
     d_s = s.set.minimum_steering_line_distance
 
-    middle_line, left_line, right_line = s.l_tethers
+    δ_left = s.l_connections[1]
+    δ_right = s.l_connections[2]
     w = s.set.width
 
     ρ = s.rho
@@ -350,11 +306,11 @@ function calc_aero_forces!(s::KPS4_3L, pos, vel)
 
     function d(α)
         if α < α_l
-            return middle_line - left_line
+            return δ_left
         elseif α > α_r
-            return middle_line - right_line
+            return δ_right
         else
-            return (-right_line + left_line) / (α_r - α_l) * (α - α_l) + (middle_line - left_line)
+            return (δ_right - δ_left) / (α_r - α_l) * (α - α_l) + (δ_left)
         end
     end
     aoa(α) = v_a_xr(α) != [0.0, 0.0, 0.0] ?
@@ -385,6 +341,51 @@ function calc_aero_forces!(s::KPS4_3L, pos, vel)
     s.forces[s.num_D] .+= (L_D + D_D) - F_steering_d
     s.forces[s.num_E-2] .+= F_steering_c
     s.forces[s.num_E-1] .+= F_steering_d
+end
+
+""" 
+    calc_particle_forces!(s::KPS4_3L, pos1, pos2, vel1, vel2, spring, segments, d_tether, rho, i)
+
+Calculate the drag force and spring force of the tether segment, defined by the parameters pos1, pos2, vel1 and vel2
+and distribute it equally on the two particles, that are attached to the segment.
+The result is stored in the array s.forces. 
+"""
+@inline function calc_particle_forces!(s::KPS4_3L, pos1, pos2, vel1, vel2, spring, d_tether, rho, i)
+    l_0 = spring.length # Unstressed length
+    k = spring.c_spring * s.stiffness_factor  # Spring constant
+    c = spring.damping                        # Damping coefficient    
+    segment = pos1 - pos2
+    rel_vel = vel1 - vel2
+    av_vel = 0.5 * (vel1 + vel2)
+    norm1 = norm(segment)
+    unit_vector = segment / norm1
+
+    k1 = 0.25 * k # compression stiffness kite segments
+    k2 = 0.1 * k  # compression stiffness tether segments
+    c1 = 6.0 * c  # damping kite segments
+    spring_vel   = unit_vector ⋅ rel_vel
+    if (norm1 - l_0) > 0.0
+        if i > s.num_E  # kite springs
+             s.spring_force .= (k *  (norm1 - l_0) + (c1 * spring_vel)) * unit_vector 
+        else
+             s.spring_force .= (k *  (norm1 - l_0) + (c * spring_vel)) * unit_vector
+        end
+    elseif i > s.num_E # kite spring
+        s.spring_force .= (k1 *  (norm1 - l_0) + (c * spring_vel)) * unit_vector
+    else
+        s.spring_force .= (k2 *  (norm1 - l_0) + (c * spring_vel)) * unit_vector
+    end
+
+    s.v_apparent .= s.v_wind_tether - av_vel
+    area = norm1 * d_tether
+    
+    v_app_perp = s.v_apparent - s.v_apparent ⋅ unit_vector * unit_vector
+    half_drag_force = (-0.25 * rho * s.set.cd_tether * norm(v_app_perp) * area) * v_app_perp 
+
+    @inbounds s.forces[spring.p1] .+= half_drag_force + s.spring_force
+    @inbounds s.forces[spring.p2] .+= half_drag_force - s.spring_force
+    if i <= 3 s.last_forces[i%3+1] .= s.forces[spring.p1] end
+    nothing
 end
 
 """
@@ -421,6 +422,7 @@ function loop!(s::KPS4_3L, pos, vel, posd, veld)
     
     mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
 
+    # TODO: remove these two lines
     [s.res1[i] .= pos[i] for i in 1:3] # pos = 0
     [s.res2[i] .= vel[i] for i in 1:3] # vel = 0
     for i in 4:s.num_A
@@ -437,6 +439,11 @@ function loop!(s::KPS4_3L, pos, vel, posd, veld)
         s.springs[i] = SP(s.springs[i].p1, s.springs[i].p2, s.segment_lengths[i%3+1], c_spring, damping)
     end
     inner_loop!(s, pos, vel, s.v_wind_gnd, s.set.d_tether/1000.0)
+    for i in [s.num_E-2, s.num_E-1]
+        F_xy = SVector(s.forces[i] - (s.forces[i] ⋅ s.e_z) * s.e_z)
+        s.forces[i] .+= -F_xy
+        s.forces[i+3] .+= F_xy
+    end
     for i in 4:s.num_A
         s.res2[i] .= veld[i] - (SVector(0, 0, -G_EARTH) - s.forces[i] / s.masses[i])
     end
@@ -447,14 +454,14 @@ end
 
     N-point tether model, four points for the kite on top:
     Inputs:
-        State vector y   = pos1,  pos2, ... , posn, connection_length1-2, vel1,  vel2, . .., veln, connection_vel1-2, length1-3, reel_out_speed1-3
-        Derivative   yd  = posd1, posd2, ..., posdn, connection_length1-2, veld1, veld2, ..., veldn, connection_veld1-2, lengthd1-3, reel_out_speedd1-3
+        State vector y   = pos1,  pos2, ... , posn, vel1,  vel2, . .., veln, connection_length1-2, connection_vel1-2, length1-3, reel_out_speed1-3
+        Derivative   yd  = posd1, posd2, ..., posdn, veld1, veld2, ..., veldn, connection_lengthd1-2, connection_veld1-2, lengthd1-3, reel_out_speedd1-3
         - Without points 1 2 and 3, because they are stationary.
         - With left and right tether points replaced by connection lengths, so they are described by only 1 number instead of 3.
     Output:
     Residual     res = (res1, res2)
-        res1 = vel1-posd1,  ..., 
-        res2 = veld1-acc1, ..., 
+        res1 = vel1-posd1,  ..., connection_vel1-connection_vel2
+        res2 = veld1-acc1, ..., connection_veld1-connection_veld2
     Will be solved so that res --> 0
 
     Additional parameters:
@@ -475,6 +482,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
     # segments = div(T,6) - KITE_PARTICLES_3L + 1 # should equal s.segments
     # println("segments\t", segments)
     # Reset the force vector to zero.
+    # println("res length\t", length(res))
     for i in 1:s.num_A
         s.forces[i] .= SVector(0.0, 0, 0)
     end
@@ -487,75 +495,74 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
     yd_ = @view yd[1:end-6]
 
     # unpack the vector y
-    pos11 = reshape(SVector{3*num_particles}(y_[1:3*num_particles]), Size(3, num_particles))
-    pos12 = reshape(SVector{2}(y_[num_particles*3+1:num_particles*3+2]),  Size(1, 2))
-    vel11 = reshape(SVector{3*num_particles}(y_[3*num_particles+3:end-2]), Size(3, num_particles))
-    vel12 = reshape(SVector{2}(y_[end-1:end]),  Size(1, 2))
+    coordinates = reshape(SVector{6*num_particles}(y_[1:6*num_particles]), Size(3, num_particles, 2))
+    line_lengths = reshape(SVector{4}(y_[6*num_particles+1:6*num_particles+4]), Size(2, 2))
 
     # unpack the vector yd
-    posd11 = reshape(SVector{3*num_particles}(yd_[1:3*num_particles]), Size(3, num_particles))
-    posd12 = reshape(SVector{2}(yd_[num_particles*3+1:num_particles*3+2]),  Size(1, 2))
-    veld11 = reshape(SVector{3*num_particles}(yd_[3*num_particles+3:end-2]),  Size(3, num_particles))
-    veld12 = reshape(SVector{2}(yd_[end-1:end]),  Size(1, 2))
+    coordinatesd = reshape(SVector{6*num_particles}(yd_[1:6*num_particles]), Size(3, num_particles, 2))
+    line_lengthsd = reshape(SVector{4}(yd_[6*num_particles+1:6*num_particles+4]), Size(2, 2))
 
-    E, C, D = SVector(pos11[:,end-3]), SVector(pos11[:,end-2]), SVector(pos11[:,end-1])
+    E, C, D = SVector(coordinates[:,num_particles-3,1]), SVector(coordinates[:,num_particles-2,1]), SVector(coordinates[:,num_particles-1,1])
+    # println("E first \t", E)
     _, _, e_z = calc_kite_ref_frame!(s, E, C, D)
-    connection_lengths = SVector(pos12)
+    connection_lengths = SVector(line_lengths[:,1])
 
-    # move the right and left tether connection points to the right places
+    # convert y and yd to a nice list of coordinates
     pos = SVector{s.num_A}(
         if i<=3
             SVector(0.0,0,0)
         elseif 4 <= i <= s.num_E-3 # tether points
-            SVector(pos11[:,i-3])
+            SVector(coordinates[:,i-3,1])
         elseif i == s.num_E-2 # left tether connection
-            SVector(C + e_z*pos12[1])
+            SVector(C + e_z*line_lengths[1,1])
         elseif i == s.num_E-1 # right tether connection
-            SVector(D + e_z*pos12[2])
+            SVector(D + e_z*line_lengths[2,1])
         elseif i >= s.num_E # kite points
-            SVector(pos11[:,i-5])
+            SVector(coordinates[:,i-5,1])
         end for i in 1:s.num_A
     )
     vel = SVector{s.num_A}(
         if i<=3
             SVector(0.0,0,0)
         elseif 4 <= i <= s.num_E-3 # tether points
-            SVector(vel11[:,i-3])
+            SVector(coordinates[:,i-3,2])
         elseif i == s.num_E-2 # left tether connection
-            SVector(C + e_z*vel12[1])
+            SVector(C + e_z*line_lengths[1,2])
         elseif i == s.num_E-1 # right tether connection
-            SVector(D + e_z*vel12[2])
+            SVector(D + e_z*line_lengths[2,2])
         elseif i >= s.num_E # kite points
-            SVector(vel11[:,i-5])
+            SVector(coordinates[:,i-5,2])
         end for i in 1:s.num_A
     )
     posd = SVector{s.num_A}(
         if i<=3
             SVector(0.0,0,0)
         elseif 4 <= i <= s.num_E-3 # tether points
-            SVector(posd11[:,i-3])
+            SVector(coordinatesd[:,i-3,1])
         elseif i == s.num_E-2 # left tether connection
-            SVector(C + e_z*posd12[1])
+            SVector(C + e_z.*line_lengthsd[1,1])
         elseif i == s.num_E-1 # right tether connection
-            SVector(D + e_z*posd12[2])
+            SVector(D + e_z.*line_lengthsd[2,1])
         elseif i >= s.num_E # kite points
-            SVector(posd11[:,i-5])
+            SVector(coordinatesd[:,i-5,1])
         end for i in 1:s.num_A
     )
     veld = SVector{s.num_A}(
         if i<=3
             SVector(0.0,0,0)
         elseif 4 <= i <= s.num_E-3 # tether points
-            SVector(veld11[:,i-3])
+            SVector(coordinatesd[:,i-3,2])
         elseif i == s.num_E-2 # left tether connection
-            SVector(C + e_z*veld12[1])
+            SVector(C + e_z*line_lengthsd[1,2])
         elseif i == s.num_E-1 # right tether connection
-            SVector(D + e_z*veld12[2])
+            SVector(D + e_z*line_lengthsd[2,2])
         elseif i >= s.num_E # kite points
-            SVector(veld11[:,i-5])
+            SVector(coordinatesd[:,i-5,2])
         end for i in 1:s.num_A
     )
     @assert isfinite(pos[4][3])
+
+    # println("E second\t", pos[s.num_E])
 
     # core calculations
     s.l_tethers = lengths
@@ -569,17 +576,26 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
     res[end-2:end] .= reel_out_speedsd - calc_acceleration.(s.motors, s.sync_speeds, reel_out_speeds, norm(s.forces[1]), true)
 
     # copy and flatten result
-    for i in 2:div(T,6)+1
-        for j in 1:3
-            @inbounds res[3*(i-2)+j]              = s.res1[i][j]
-            @inbounds res[3*(div(T,6))+3*(i-2)+j] = s.res2[i][j]
-        end
+    # for i in 2:div(T,6)+1
+    #     for j in 1:3
+    #         @inbounds res[3*(i-2)+j]              = s.res1[i][j]
+    #         @inbounds res[3*(div(T,6))+3*(i-2)+j] = s.res2[i][j]
+    #     end
+    # end
+    for (i, j) in enumerate(vcat(4:s.num_E-3, s.num_E:s.num_A))
+        [@inbounds res[3*(i-1)+k] = s.res1[j][k] for k in 1:3]
+        [@inbounds res[3*num_particles+3*(i-1)+k] = s.res2[j][k] for k in 1:3]
     end
+    # add connection residuals
+    res[6*num_particles+1] = norm(s.res1[s.num_E-2])
+    res[6*num_particles+2] = norm(s.res1[s.num_E-1])
+
+    # println("res\n", res)
     # copy the position vector for easy debugging
-    for i in 1:div(T,6)+1
+    for i in 1:s.num_A
         @inbounds s.pos[i] .= pos[i]
     end
-    s.vel_kite .= vel[end-2]
+    s.vel_kite .= vel[s.num_A]
     s.reel_out_speeds = reel_out_speeds
 
     @assert isfinite(norm(res))
@@ -665,7 +681,10 @@ end
 Find an initial equilibrium, based on the inital parameters
 `l_tether`, elevation and `reel_out_speeds`.
 
-    X00: parameters that change the shape of the kite system. There are s.set.segments*6+5 params in total
+    X00: parameters that change the shape of the kite system. There are s.set.segments*4+5 params in total
+        - s.set.segments*2 parameters for middle_tether
+        - 5 parameters for bridlepoints
+        - s.set.segments*2 parameters for left_tether
 
 """
 function find_steady_state!(s::KPS4_3L; prn=false, delta = 0.0, stiffness_factor=0.035)
@@ -678,28 +697,25 @@ function find_steady_state!(s::KPS4_3L; prn=false, delta = 0.0, stiffness_factor
         x1 = copy(x)
         y0, yd0 = init(s, x1)
         residual!(res, yd0, y0, s, 0.0)
-        for i in 1:s.set.segments+KITE_PARTICLES_3L-1
-            if i != s.set.segments+KITE_PARTICLES_3L-1
-                j = i
-            else
-                j = i + 1
-            end
-            # copy the x-component of the residual res2 (acceleration)
-            F[i]                               = res[1 + 3*(j-1) + 3*(s.set.segments+KITE_PARTICLES_3L)]
-            # copy the z-component of the residual res2
-            F[i+s.set.segments+KITE_PARTICLES_3L] = res[3 + 3*(j-1) + 3*(s.set.segments+KITE_PARTICLES_3L)]
+        
+        for (i, j) in enumerate(range(6, step=3, length=s.set.segments))
+            F[i] = s.res2[j][1]
+            F[i+s.set.segments] = s.res2[j][3]
         end
-        # copy the acceleration of point KCU in x direction
-        i = s.set.segments+1
-        F[end-1]                               = res[1 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES_3L)] 
-        # copy the acceleration of point C in y direction
-        i = s.set.segments+3 
-        F[end]                                 = res[2 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES_3L)] 
+        F[2*s.set.segments+1] = s.res2[s.num_A][1]
+        F[2*s.set.segments+2] = s.res2[s.num_A][3]
+        F[2*s.set.segments+3 : 2*s.set.segments+5] = s.res2[s.num_C]
+
+        for (i, j) in enumerate(range(4, step=3, length=s.set.segments))
+            F[2*s.set.segments+5+i] = s.res2[j][1]
+            F[3*s.set.segments+5+i] = s.res2[j][3]
+        end
+        println("F\t",F[end])
         iter += 1
         return nothing 
     end
     if prn println("\nStarted function test_nlsolve...") end
-    X00 = zeros(SimFloat, s.set.segments*6+5)
+    X00 = zeros(SimFloat, s.set.segments*4+5)
     results = nlsolve(test_initial_condition!, X00, autoscale=true, xtol=2e-7, ftol=2e-7, iterations=s.set.max_iter)
     if prn println("\nresult: $results") end
     init(s, results.zero)

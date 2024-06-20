@@ -62,7 +62,7 @@ function get_particles(width, radius, middle_length, tip_length, bridle_center_d
         (tip_length + (middle_length-tip_length)*α*radius/(0.5*width)) :
         (tip_length + (middle_length-tip_length)*(π-α)*radius/(0.5*width))
     P_c = (C+D)./2
-    A = P_c + e_x.*length(α_c)*(-3/4 + 1/4)
+    A = P_c - e_x.*(length(α_c)*(3/4 - 1/4))
 
     # println("E\t$E C\t$C D\t$D A\t$A")
     [E, C, D, A] # important to have the order E = 1, C = 2, D = 3, A = 4
@@ -173,7 +173,7 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
 end
 
 # implemented
-function init_pos_vel_acc(s::KPS4_3L, X=zeros(s.set.segments*6+5); delta = 0.0)
+function init_pos_vel_acc(s::KPS4_3L, X=zeros(s.set.segments*4+5); delta = 0.0)
     pos = zeros(SVector{s.num_A, KVec3})
     vel = zeros(SVector{s.num_A, KVec3})
     acc = zeros(SVector{s.num_A, KVec3})
@@ -182,42 +182,30 @@ function init_pos_vel_acc(s::KPS4_3L, X=zeros(s.set.segments*6+5); delta = 0.0)
     [vel[i] .= [delta, delta, delta] for i in 1:3]
     [acc[i] .= [delta, delta, delta] for i in 1:3]
 
-    # wire points
+    # middle tether
     sin_el, cos_el = sin(deg2rad(s.set.elevation)), cos(deg2rad(s.set.elevation))
-    radius = -1 * (s.set.l_tether/s.set.segments)
-    for i in range(1, step=3, length=s.set.segments)
-        for j in i:i+2
-            radius = -i * (s.set.l_tether/s.set.segments)
-            # TODO: could be 1 or 2 x for 3 wire points?
-            pos[j+3] .= [-cos_el * radius + X[j], delta, -sin_el * radius + X[s.set.segments*3+j]]
-            vel[j+3] .= [delta, delta, 0]
-            acc[j+3] .= [delta, delta, -9.81]
-        end
+    for (i, j) in enumerate(range(6, step=3, length=s.set.segments))
+        radius = i * (s.set.l_tether/s.set.segments)
+        pos[j] .= [cos_el*radius + X[i], delta, sin_el*radius + X[s.set.segments+i]]
+        vel[j] .= [delta, delta, 0]
+        acc[j] .= [delta, delta, -9.81]
     end
 
     # kite points
     vec_c = pos[s.num_E-3] - pos[s.num_E]
-    particles = get_particles(s.set.width, s.set.radius, s.set.middle_length, s.set.tip_length, s.set.bridle_center_distance, pos[s.num_E], rotate_in_xz(vec_c, deg2rad(KITE_ANGLE)), s.v_apparent)
-    pos[s.num_A] .= particles[4] + [X[s.set.segments*6+1], 0, X[s.set.segments*6+2]]
-    vel[s.num_A] .= [delta, delta, delta]
-    acc[s.num_A] .= [delta, delta, -9.81]
-    pos[s.num_C] .= particles[2] + [X[s.set.segments*6+3], 0, X[s.set.segments*6+4]]
-    vel[s.num_C] .= [delta, delta, delta]
-    acc[s.num_C] .= [delta, delta, -9.81]
+    particles = get_particles(s.set.width, s.set.radius, s.set.middle_length, s.set.tip_length, s.set.bridle_center_distance, pos[s.num_E], vec_c, s.v_apparent)
+    pos[s.num_A] .= particles[4] + [X[s.set.segments*2+1], 0, X[s.set.segments*2+2]]
+    pos[s.num_C] .= particles[2] + X[s.set.segments*2+3 : s.set.segments*2+5]
+    pos[s.num_D] .= [pos[s.num_C][1], -pos[s.num_C][2], pos[s.num_C][3]]
+    for i in s.num_E:s.num_A
+        vel[i] .= [delta, delta, delta]
+        acc[i] .= [delta, delta, -9.81]
+    end
 
-    acc[s.num_D] .= [delta, delta, -9.81]
-    vel[s.num_D] .= [delta, delta, delta]
-
-    # x and z component of the right and left particle must be equal
-    pos[s.num_D][1] = pos[s.num_C][1]  # D.x = C.x
-    pos[s.num_D][3] = pos[s.num_C][3]  # D.z = C.z
-    pos[s.num_C][2] += X[s.set.segments*6+5]          # Y position of point C
-    pos[s.num_D][2] = -pos[s.num_C][2] # Y position of point D
-
-    # move the left and right tether
-    for i in range(2, step=3, length=s.set.segments)
-        pos[i][2] += (pos[i][1]-pos[i-1][1])/pos[s.num_C][1] * pos[s.num_C][2] # left tether
-        pos[i+1][2] += -pos[i][2] # right tether
+    # left and right tether
+    for (i, j) in enumerate(range(4, step=3, length=s.set.segments))
+        pos[j] .= pos[j+2] + [X[s.set.segments*2+5+i], (pos[j+2][1]-pos[1][1])/pos[s.num_E][1] * pos[s.num_C][2], X[s.set.segments*3+5+i]]
+        pos[j+1] .= [pos[j][1], -pos[j][2], pos[j][3]]
     end
 
     for i in eachindex(pos)
@@ -225,9 +213,20 @@ function init_pos_vel_acc(s::KPS4_3L, X=zeros(s.set.segments*6+5); delta = 0.0)
     end  
 
     # println("pos vel acc\t", pos, vel, acc)
-    # plt3d = Plots.plot([p[1] for p in pos],[p[2] for p in pos], [p[3] for p in pos],
-    #     seriestype=:scatter, markersize = 7)
-    # display(plt3d)
+    plt3d = Plots.plot([p[1] for p in pos],[p[2] for p in pos], [p[3] for p in pos],
+        xlim = (0, 150),
+        ylim = (-20, 20),
+        zlim = (0, 200),
+        seriestype=:scatter,
+        markersize=0,
+        size=(800,800)
+        )
+    for i in eachindex(pos)
+        annotate!(plt3d, pos[i][1], pos[i][2], pos[i][3], 
+            text("$i", :red, :right, 7))
+    end
+
+    display(plt3d)
     return pos, vel, acc
 end
 
@@ -245,7 +244,7 @@ function init_inner(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); o
     vcat(pos[2:end], vel[2:end]), vcat(vel[2:end], acc[2:end])
 end
 
-function init_inner(s::KPS4_3L, X=zeros(s.set.segments*6+5);delta=0.0)
+function init_inner(s::KPS4_3L, X=zeros(s.set.segments*4+5);delta=0.0)
     pos_, vel_, acc_ = init_pos_vel_acc(s, X; delta=delta)
     # remove last left and right tether point and replace them by the length from C and D
     pos = vcat(
@@ -275,14 +274,8 @@ function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=fal
 end
 
 
-"""
-Output:
-        State vector y   = pos1,  pos2, ... , posn, connection_length1-2, vel1,  vel2, . .., veln, connection_vel1-2, length1-3, reel_out_speed1-3
-        Derivative   yd  = posd1, posd2, ..., posdn, connection_length1-2, veld1, veld2, ..., veldn, connection_veld1-2, lengthd1-3, reel_out_speedd1-3
-Without points 1 2 and 3, because they are stationary. With left and right tether points replaced by connection lengths, so they are described by only 1 number instead of 3.
-"""
 # implemented
-function init(s::KPS4_3L, X=zeros(s.set.segments*6+5); delta=0.0)
+function init(s::KPS4_3L, X=zeros(s.set.segments*4+5); delta=0.0)
     y_, yd_ = init_inner(s, X; delta = delta)
     y = vcat(reduce(vcat, y_), reduce(vcat,[s.l_tethers, zeros(3)]))
     yd = vcat(reduce(vcat, yd_), zeros(6))
