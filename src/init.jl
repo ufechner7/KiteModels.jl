@@ -53,7 +53,7 @@ function get_particles(width, radius, middle_length, tip_length, bridle_center_d
     α_d = π - α_c
 
     E = pos_kite
-    println(bridle_center_distance)
+    # println(bridle_center_distance)
     E_c = pos_kite - e_z * bridle_center_distance # E at center of circle on which the kite shape lies
     C = E_c + e_y*cos(α_c)*radius - e_z*sin(α_c)*radius
     D = E_c + e_y*cos(α_d)*radius - e_z*sin(α_d)*radius
@@ -118,14 +118,16 @@ end
 function init_masses!(s::KPS4_3L)
     s.masses = zeros(s.num_A)
     l_0 = s.set.l_tether / s.set.segments 
-    for i in 1:s.set.segments*3
-        s.masses[i]   += 0.5 * l_0 * s.set.rho_tether * (s.set.d_tether/2000.0)^2 * pi
-        s.masses[i+3] += 0.5 * l_0 * s.set.rho_tether * (s.set.d_tether/2000.0)^2 * pi
+    mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
+    for i in 4:s.set.segments*3
+        s.masses[i]   += l_0 * mass_per_meter
     end
+    [s.masses[i] += 0.5 * mass_per_meter for i in s.num_E-2:s.num_E]
+    s.masses[s.num_E] += 0.5 * s.set.l_bridle * mass_per_meter
     s.masses[s.num_A] += s.set.mass/2
     s.masses[s.num_C] += s.set.mass/4
     s.masses[s.num_D] += s.set.mass/4
-    println(s.masses)
+    # println(s.masses)
     return s.masses 
 end
 
@@ -186,10 +188,10 @@ function init_pos_vel_acc(s::KPS4_3L, X=zeros(s.set.segments*6+5); delta = 0.0)
     for i in range(1, step=3, length=s.set.segments)
         for j in i:i+2
             radius = -i * (s.set.l_tether/s.set.segments)
-            # TODO: could be one x for 3 wire points?
-            pos[j+1] .= [-cos_el * radius + X[j], delta, -sin_el * radius + X[s.set.segments*3+j]]
-            vel[j+1] .= [delta, delta, 0]
-            acc[j+1] .= [delta, delta, -9.81]
+            # TODO: could be 1 or 2 x for 3 wire points?
+            pos[j+3] .= [-cos_el * radius + X[j], delta, -sin_el * radius + X[s.set.segments*3+j]]
+            vel[j+3] .= [delta, delta, 0]
+            acc[j+3] .= [delta, delta, -9.81]
         end
     end
 
@@ -215,13 +217,17 @@ function init_pos_vel_acc(s::KPS4_3L, X=zeros(s.set.segments*6+5); delta = 0.0)
     # move the left and right tether
     for i in range(2, step=3, length=s.set.segments)
         pos[i][2] += (pos[i][1]-pos[i-1][1])/pos[s.num_C][1] * pos[s.num_C][2] # left tether
-        pos[i+1][2] += (pos[i+1][1]-pos[i][1])/pos[s.num_D][1] * pos[s.num_D][2] # right tether
+        pos[i+1][2] += -pos[i][2] # right tether
     end
 
     for i in eachindex(pos)
         s.pos[i] .= pos[i]
-    end
-    println("pos vel acc\t", pos, vel, acc)
+    end  
+
+    # println("pos vel acc\t", pos, vel, acc)
+    # plt3d = Plots.plot([p[1] for p in pos],[p[2] for p in pos], [p[3] for p in pos],
+    #     seriestype=:scatter, markersize = 7)
+    # display(plt3d)
     return pos, vel, acc
 end
 
@@ -240,8 +246,25 @@ function init_inner(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); o
 end
 
 function init_inner(s::KPS4_3L, X=zeros(s.set.segments*6+5);delta=0.0)
-    pos, vel, acc = init_pos_vel_acc(s, X; delta=delta)
-    vcat(pos[4:end], vel[4:end]), vcat(vel[4:end], acc[4:end])
+    pos_, vel_, acc_ = init_pos_vel_acc(s, X; delta=delta)
+    # remove last left and right tether point and replace them by the length from C and D
+    pos = vcat(
+        pos_[4:s.num_E-3], 
+        pos_[s.num_E:end],
+    )
+    len = vcat( # connection length
+        norm(pos_[s.num_C]-pos_[s.num_E-2]), # left line connection distance
+        norm(pos_[s.num_D]-pos_[s.num_E-1]), # right line connection distance
+    )
+    vel = vcat(
+        vel_[4:s.num_E-3], 
+        vel_[s.num_E:end],
+    )
+    acc = vcat(
+        acc_[4:s.num_E-3],
+        acc_[s.num_E:end],
+    )
+    vcat(pos, vel, len, [0,0]), vcat(vel, acc, [0,0], [0,0])
 end
 
 # same as above, but returns a tuple of two one dimensional arrays
@@ -253,18 +276,19 @@ end
 
 
 """
-State vector y   = pos1,  pos2, ... , posn,  vel1,  vel2, . .., veln,  length1, length2, length3, reel_out_speed1, reel_out_speed2, reel_out_speed3
-Derivative   yd  = posd1, posd2, ..., posdn, veld1, veld2, ..., veldn, lengthd1, lengthd2, lengthd3, reel_out_speedd1, reel_out_speedd2, reel_out_speedd3
-Without points 1 2 and 3, because they are stationary.
+Output:
+        State vector y   = pos1,  pos2, ... , posn, connection_length1-2, vel1,  vel2, . .., veln, connection_vel1-2, length1-3, reel_out_speed1-3
+        Derivative   yd  = posd1, posd2, ..., posdn, connection_length1-2, veld1, veld2, ..., veldn, connection_veld1-2, lengthd1-3, reel_out_speedd1-3
+Without points 1 2 and 3, because they are stationary. With left and right tether points replaced by connection lengths, so they are described by only 1 number instead of 3.
 """
 # implemented
 function init(s::KPS4_3L, X=zeros(s.set.segments*6+5); delta=0.0)
     y_, yd_ = init_inner(s, X; delta = delta)
     y = vcat(reduce(vcat, y_), reduce(vcat,[s.l_tethers, zeros(3)]))
     yd = vcat(reduce(vcat, yd_), zeros(6))
-    println("y\t",y)
-    println("yd\t", yd)
-    MVector{6*(s.num_A-3)+6, SimFloat}(y), MVector{6*(s.num_A-3)+6, SimFloat}(yd)
+    # println("y\t",y)
+    # println("yd\t", yd)
+    MVector{6*(s.num_A-5)+4+6, SimFloat}(y), MVector{6*(s.num_A-5)+4+6, SimFloat}(yd)
 end
 
 # rotate a 3d vector around the y axis
