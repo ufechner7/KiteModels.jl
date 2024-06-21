@@ -214,7 +214,7 @@ function set_reel_out_speeds!(s::KPS4_3L, reel_out_speeds::Vector{SimFloat}, t_0
     s.t_0 = t_0
 end
 
-function KPS4_3L()
+function KPS4_3L(kcu::KCU)
     set = se()
     s = KPS4_3L{SimFloat, KVec3, set.segments*3+2+KITE_PARTICLES, set.segments*3+KITE_SPRINGS_3L, SP}()
     s.set = set

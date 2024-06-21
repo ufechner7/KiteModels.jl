@@ -1,4 +1,4 @@
-using Plots
+# using Plots
 
 # Functions to calculate the inital state vector, the inital masses and initial springs
 
