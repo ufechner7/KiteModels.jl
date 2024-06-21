@@ -168,6 +168,7 @@ $(TYPEDFIELDS)
     num_D::Int64 =           0
     "Point number of A"
     num_A::Int64 =           0
+    distance_c_e::SimFloat = 0
 end
 
 """
@@ -186,6 +187,7 @@ function clear!(s::KPS4_3L)
     s.v_wind .= s.v_wind_gnd * calc_wind_factor(s.am, height)
 
     s.l_tethers = [s.set.l_tether for _ in 1:3]
+    s.l_tethers[1] = s.set.l_tether
     s.segment_lengths = s.l_tethers ./ s.set.segments
     init_masses!(s)
     init_springs!(s)
@@ -262,15 +264,13 @@ function calc_aero_forces!(s::KPS4_3L, pos, vel)
     e_y = s.e_y
     e_z = s.e_z
     e_x = s.e_x
-    distance_c_e = (pos[s.num_E]-pos[s.num_C]) ⋅ e_z # distance in the e_z direction
-    δ_left = s.l_connections[1] - distance_c_e
-    δ_right = s.l_connections[2] - distance_c_e
+    # distance_c_e = (pos[s.num_E]-pos[s.num_C]) ⋅ e_z - s.set.tip_length/2 # distance in the e_z direction
+    δ_left = norm(pos[s.num_E-2]-pos[s.num_C])
+    δ_right = norm(pos[s.num_E-1]-pos[s.num_D])
+    # println(δ_left)
     w = s.set.width
 
     ρ = s.rho
-    # middle_line = 
-    # pos_B, pos_C, pos_D: position of the kite particles B, C, and D
-    # v_B,   v_C,   v_D:   velocity of the kite particles B, C, and D
     E, C, D = pos[s.num_E], pos[s.num_C], pos[s.num_D]
     v_c, v_d = vel[s.num_C], vel[s.num_D]
      
@@ -305,7 +305,6 @@ function calc_aero_forces!(s::KPS4_3L, pos, vel)
 
     function d(α)
         if α < α_l
-
             return δ_left
         elseif α > α_r
             return δ_right
@@ -314,8 +313,8 @@ function calc_aero_forces!(s::KPS4_3L, pos, vel)
         end
     end
     aoa(α) = v_a_xr(α) != [0.0, 0.0, 0.0] ?
-        π - acos2(normalize(v_a_xr(α)) ⋅ e_x) + atan(d(α)/length(α)) :
-        atan(d(α)/length(α))
+        π - acos2(normalize(v_a_xr(α)) ⋅ e_x) + asin(min(d(α)/length(α), 1.0)) :
+        asin(min(d(α)/length(α), 1.0))
 
     c_l = calc_cl
     c_d = calc_cd
@@ -335,14 +334,12 @@ function calc_aero_forces!(s::KPS4_3L, pos, vel)
     s.lift_force .= L_C + L_D
     s.drag_force .= D_C + D_D
 
-    F_steering_c = ((0.1 * (L_C ⋅ -e_z)) .* -e_z)
-    F_steering_d = ((0.1 * (L_D ⋅ -e_z)) .* -e_z)
+    F_steering_c = ((0.2 * (L_C ⋅ -e_z)) .* -e_z)
+    F_steering_d = ((0.2 * (L_D ⋅ -e_z)) .* -e_z)
     s.forces[s.num_C] .+= (L_C + D_C) - F_steering_c
     s.forces[s.num_D] .+= (L_D + D_D) - F_steering_d
     s.forces[s.num_E-2] .+= F_steering_c
     s.forces[s.num_E-1] .+= F_steering_d
-    # println("Lift\t", L_C)
-    # println("steering\t", F_steering_c)
     return nothing
 end
 
@@ -442,7 +439,7 @@ function loop!(s::KPS4_3L, pos, vel, posd, veld)
     end
     inner_loop!(s, pos, vel, s.v_wind_gnd, s.set.d_tether/1000.0)
     for i in [s.num_E-2, s.num_E-1]
-        F_xy = SVector(s.forces[i] - (s.forces[i] ⋅ s.e_z) * s.e_z)
+        F_xy = SVector(s.forces[i] .- (s.forces[i] ⋅ s.e_z) * s.e_z)
         s.forces[i] .+= -F_xy
         s.forces[i+3] .+= F_xy
     end
@@ -710,10 +707,14 @@ function find_steady_state!(s::KPS4_3L; prn=false, delta = 0.0, stiffness_factor
         end
 
         # left tether length
-        F[5*s.set.segments+5] = res[end-1] # left tether length accel
+        # F[5*s.set.segments+5] = res[end-1] # left tether length accel
 
         if iter%1000==0
-            println("F\t", norm(F))
+            # println("F\t", F)
+            # println("C\t", s.forces[s.num_C])
+            # println("L\t", s.forces[s.num_E-2])
+            # println("Lift\t", s.lift_force)
+            # error("end")
             # println("res1: \t", s.res2)
             # println("X\t",x1)
             # error("Stopping")
@@ -722,7 +723,7 @@ function find_steady_state!(s::KPS4_3L; prn=false, delta = 0.0, stiffness_factor
         return nothing 
     end
     if prn println("\nStarted function test_nlsolve...") end
-    X00 = zeros(SimFloat, 5*s.set.segments+5)
+    X00 = zeros(SimFloat, 5*s.set.segments+4)
     results = nlsolve(test_initial_condition!, X00, autoscale=true, xtol=2e-7, ftol=2e-7, iterations=s.set.max_iter)
     if prn println("\nresult: $results") end
     y = init(s, results.zero)

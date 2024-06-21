@@ -195,9 +195,9 @@ function init_pos_vel_acc(s::KPS4_3L, X=zeros(s.set.segments*4+6); delta = 0.0)
     
     # build tether connection points first
     e_z = normalize(vec_c)
-    distance_c_e = (pos[s.num_E]-pos[s.num_C]) ⋅ e_z # distance in the e_z direction
-    pos[s.num_E-2] .= pos[s.num_C] + e_z .* (X[s.set.segments*2+6] + distance_c_e)
-    pos[s.num_E-1] .= pos[s.num_D] + e_z .* (X[s.set.segments*2+7] + distance_c_e)
+    distance_c_l = s.set.tip_length/2 # distance between c and left steering line
+    pos[s.num_E-2] .= pos[s.num_C] + e_z .* (X[s.set.segments*2+6] + distance_c_l)
+    pos[s.num_E-1] .= pos[s.num_D] + e_z .* (X[s.set.segments*2+7] + distance_c_l)
     # and then the other left and right tether points
     l_0 = norm(pos[s.num_E-2]) / s.set.segments
     e_l = normalize(pos[s.num_E-2]) # unit vector pointing to left connection point
@@ -211,7 +211,7 @@ function init_pos_vel_acc(s::KPS4_3L, X=zeros(s.set.segments*4+6); delta = 0.0)
     end
     
     # set left and right tether lengths
-    s.l_tethers[2] = norm(pos[s.num_E-2]) + X[5*s.set.segments+5]
+    s.l_tethers[2] = norm(pos[s.num_E-2])
     s.l_tethers[3] = s.l_tethers[2]
     
     # set vel and acc

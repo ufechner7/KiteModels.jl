@@ -10,7 +10,7 @@ system:
     fixed_font: ""                 # name or filepath+filename of alternative fixed pitch font
 
 initial:
-    l_tether: 150.0        # initial tether length       [m]
+    l_tether: 50.0        # initial tether length       [m]
     elevation: 70.8        # initial elevation angle   [deg]
     v_reel_out: 0.0        # initial reel out speed    [m/s]
     depower:   25.0        # initial depower settings    [%]
@@ -93,8 +93,8 @@ winch:
     v_ro_min: -8.0         # minimal reel-out speed (=max reel-in speed) [m/s]
 
 environment:
-    v_wind: 9.51             # wind speed at reference height          [m/s]
-    v_wind_ref: [9.51, 0.0]  # wind speed vector at reference height   [m/s]
+    v_wind: 15.51             # wind speed at reference height          [m/s]
+    v_wind_ref: [15.51, 0.0]  # wind speed vector at reference height   [m/s]
     temp_ref: 15.0           # temperature at reference height         [°C]
     height_gnd: 0.0          # height of groundstation above see level [m]
     h_ref:  6.0              # reference height for the wind speed     [m]
