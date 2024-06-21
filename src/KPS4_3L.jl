@@ -276,7 +276,7 @@ function calc_aero_forces!(s::KPS4_3L, pos, vel)
      
     P_c = 0.5 .* (C+D)
 
-    E_c = E - e_z * s.set.bridle_center_distance # in the aero calculations, E_c is the center of the circle shape on which the kite lies
+    E_c = E - e_z * (s.set.bridle_center_distance + r) # in the aero calculations, E_c is the center of the circle shape on which the kite lies
     F(α) = E_c + e_y*cos(α)*r - e_z*sin(α)*r
     e_r(α) = (E_c - F(α))/norm(E_c-F(α))
 
