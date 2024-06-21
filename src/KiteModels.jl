@@ -180,6 +180,12 @@ function set_v_reel_out!(s::AKM, v_reel_out, t_0, period_time = 1.0 / s.set.samp
     s.t_0 = t_0
 end
 
+function set_v_reel_out!(s::KPS4_3L, reel_out_speeds, t_0, period_time = 1.0 / s.set.sample_freq)
+    s.sync_speeds .= reel_out_speeds
+    s.last_reel_out_speeds .= s.reel_out_speeds
+    s.t_0 = t_0
+end
+
 """
     unstretched_length(s::AKM)
 
@@ -555,6 +561,23 @@ The end time of the time step in seconds.
 function next_step!(s::AKM, integrator; v_ro = 0.0, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
     KitePodModels.on_timer(s.kcu)
     KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
+    set_v_reel_out!(s, v_ro, integrator.t)
+    set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
+    if s.set.solver == "IDA"
+        Sundials.step!(integrator, dt, true)
+    else
+        OrdinaryDiffEq.step!(integrator, dt, true)
+    end
+    if s.stiffness_factor < 1.0
+        s.stiffness_factor+=0.01
+        if s.stiffness_factor > 1.0
+            s.stiffness_factor = 1.0
+        end
+    end
+    integrator.t
+end
+
+function next_step!(s::KPS4_3L, integrator; v_ro = zeros(3), v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
     set_v_reel_out!(s, v_ro, integrator.t)
     set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
     if s.set.solver == "IDA"

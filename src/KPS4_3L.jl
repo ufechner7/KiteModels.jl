@@ -572,7 +572,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
 
     # winch calculations
     res[end-5:end-3] .= lengthsd - reel_out_speeds
-    res[end-2:end] .= reel_out_speedsd - calc_acceleration.(s.motors, s.sync_speeds, reel_out_speeds, norm(s.forces[1]), true)
+    res[end-2:end] .= reel_out_speedsd .- [calc_acceleration(s.motors[i], s.sync_speeds[i], reel_out_speeds[i], norm(s.forces[i]), true) for i in 1:3]
 
     for (i, j) in enumerate(vcat(4:s.num_E-3, s.num_E:s.num_A))
         [@inbounds res[3*(i-1)+k] = s.res1[j][k] for k in 1:3]
@@ -705,15 +705,16 @@ function find_steady_state!(s::KPS4_3L; prn=false, delta = 0.0, stiffness_factor
         # left tether
         for (i, j) in enumerate(range(4, step=3, length=s.set.segments-1))
             F[2*s.set.segments+7+i] = s.res2[j][1]
-            F[3*s.set.segments+6+i] = s.res2[j][3]
+            F[3*s.set.segments+6+i] = s.res2[j][2]
+            F[4*s.set.segments+5+i] = s.res2[j][3]
         end
 
         # left tether length
-        F[4*s.set.segments+6] = res[end-1] # left tether length accel
+        F[5*s.set.segments+5] = res[end-1] # left tether length accel
 
         if iter%1000==0
-            # println("Res last \t", res[end-1])
             println("F\t", norm(F))
+            # println("res1: \t", s.res2)
             # println("X\t",x1)
             # error("Stopping")
         end
@@ -721,7 +722,7 @@ function find_steady_state!(s::KPS4_3L; prn=false, delta = 0.0, stiffness_factor
         return nothing 
     end
     if prn println("\nStarted function test_nlsolve...") end
-    X00 = zeros(SimFloat, 4*s.set.segments+6)
+    X00 = zeros(SimFloat, 5*s.set.segments+5)
     results = nlsolve(test_initial_condition!, X00, autoscale=true, xtol=2e-7, ftol=2e-7, iterations=s.set.max_iter)
     if prn println("\nresult: $results") end
     y = init(s, results.zero)

@@ -203,12 +203,15 @@ function init_pos_vel_acc(s::KPS4_3L, X=zeros(s.set.segments*4+6); delta = 0.0)
     e_l = normalize(pos[s.num_E-2]) # unit vector pointing to left connection point
     for (i, j) in enumerate(range(4, step=3, length=s.set.segments-1))
         radius = i * l_0
-        pos[j] .= e_l .* radius .+ [X[s.set.segments*2+7+i], 0.0, X[s.set.segments*3+6+i]]
+        pos[j] .= e_l .* radius .+ 
+            [X[2*s.set.segments+7+i], 
+            X[3*s.set.segments+6+i], 
+            X[4*s.set.segments+5+i]]
         pos[j+1] .= [pos[j][1], -pos[j][2], pos[j][3]]
     end
     
     # set left and right tether lengths
-    s.l_tethers[2] = norm(pos[s.num_E-2]) + X[4*s.set.segments+6]
+    s.l_tethers[2] = norm(pos[s.num_E-2]) + X[5*s.set.segments+5]
     s.l_tethers[3] = s.l_tethers[2]
     
     # set vel and acc
@@ -217,11 +220,6 @@ function init_pos_vel_acc(s::KPS4_3L, X=zeros(s.set.segments*4+6); delta = 0.0)
         acc[i] .= [delta, delta, -9.81]
     end
     
-    # for i in eachindex(pos)
-    #     if pos[i][3] <= 0
-    #         pos[i][3] = 1e-4
-    #     end
-    # end
     for i in eachindex(pos)
         s.pos[i] .= pos[i]
     end  

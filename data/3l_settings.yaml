@@ -38,7 +38,7 @@ depower:
 kite:
     model: "data/kite.obj" # 3D model of the kite
     physical_model: "KPS4_3L" # name of the kite model to use (KPS3 or KPS4)
-    aero_surfaces: 2      # number of aerodynamic surfaces in 3 line model
+    aero_surfaces: 10      # number of aerodynamic surfaces in 3 line model
     version: 1             # version of the model to use
     mass:  0.5             # kite mass incl. sensor unit [kg]
     area: 10.18            # projected kite area         [m²]
