@@ -38,7 +38,6 @@ depower:
 kite:
     model: "data/kite.obj" # 3D model of the kite
     physical_model: "KPS4_3L" # name of the kite model to use (KPS3 or KPS4)
-    aero_surfaces: 10      # number of aerodynamic surfaces in 3 line model
     version: 1             # version of the model to use
     mass:  0.5             # kite mass incl. sensor unit [kg]
     area: 10.18            # projected kite area         [m²]
@@ -48,12 +47,15 @@ kite:
     cl_list:   [   0.0,    0.5,   0.0,  0.08, 0.125,  0.15,  0.0,  1.0,  1.0,  0.0,  -0.5,   0.0]
     alpha_cd:  [-180.0, -170.0, -140.0, -90.0, -20.0, 0.0, 20.0, 90.0, 140.0, 170.0, 180.0]
     cd_list:   [   0.5,    0.5,    0.5,   1.0,   0.2, 0.1,  0.2,  1.0,   0.5,   0.5,   0.5]
+    
+kps4_3l: 
     radius: 10.0
     bridle_center_distance: 2.0
     middle_length: 2.0
     tip_length: 1.0
-    minimum_steering_line_distance: 4.0
+    min_steering_line_distance: 1.0
     width:         20.0     # width of the kite                          [m]
+    aero_surfaces: 10      # number of aerodynamic surfaces in 3 line model
 
 kcu:
     kcu_mass: 8.4                # mass of the kite control unit   [kg]
