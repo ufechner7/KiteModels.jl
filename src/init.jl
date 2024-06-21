@@ -53,7 +53,7 @@ function get_particles(width, radius, middle_length, tip_length, bridle_center_d
     α_d = π - α_c
 
     E = pos_kite
-    E_c = pos_kite - e_z * bridle_center_distance # E at center of circle on which the kite shape lies
+    E_c = pos_kite - e_z * (bridle_center_distance + radius) # E at center of circle on which the kite shape lies
     C = E_c + e_y*cos(α_c)*radius - e_z*sin(α_c)*radius
     D = E_c + e_y*cos(α_d)*radius - e_z*sin(α_d)*radius
 
