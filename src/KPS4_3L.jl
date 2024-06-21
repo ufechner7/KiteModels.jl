@@ -259,7 +259,7 @@ function calc_aero_forces!(s::KPS4_3L, pos, vel)
     middle_length = s.set.middle_length
     tip_length = s.set.tip_length
     n = s.set.aero_surfaces
-    d_s = s.set.minimum_steering_line_distance
+    d_s = s.set.min_steering_line_distance
 
     e_y = s.e_y
     e_z = s.e_z
