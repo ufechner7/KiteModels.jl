@@ -53,7 +53,6 @@ function get_particles(width, radius, middle_length, tip_length, bridle_center_d
     α_d = π - α_c
 
     E = pos_kite
-    # println(bridle_center_distance)
     E_c = pos_kite - e_z * bridle_center_distance # E at center of circle on which the kite shape lies
     C = E_c + e_y*cos(α_c)*radius - e_z*sin(α_c)*radius
     D = E_c + e_y*cos(α_d)*radius - e_z*sin(α_d)*radius
@@ -173,22 +172,18 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
 end
 
 # implemented
-function init_pos_vel_acc(s::KPS4_3L, X=zeros(s.set.segments*4+5); delta = 0.0)
+function init_pos_vel_acc(s::KPS4_3L, X=zeros(s.set.segments*4+6); delta = 0.0)
     pos = zeros(SVector{s.num_A, KVec3})
     vel = zeros(SVector{s.num_A, KVec3})
     acc = zeros(SVector{s.num_A, KVec3})
     # ground points
     [pos[i] .= [0.0, delta, 0.0] for i in 1:3]
-    [vel[i] .= [delta, delta, delta] for i in 1:3]
-    [acc[i] .= [delta, delta, delta] for i in 1:3]
 
     # middle tether
     sin_el, cos_el = sin(deg2rad(s.set.elevation)), cos(deg2rad(s.set.elevation))
     for (i, j) in enumerate(range(6, step=3, length=s.set.segments))
         radius = i * (s.set.l_tether/s.set.segments)
         pos[j] .= [cos_el*radius + X[i], delta, sin_el*radius + X[s.set.segments+i]]
-        vel[j] .= [delta, delta, 0]
-        acc[j] .= [delta, delta, -9.81]
     end
 
     # kite points
@@ -197,36 +192,54 @@ function init_pos_vel_acc(s::KPS4_3L, X=zeros(s.set.segments*4+5); delta = 0.0)
     pos[s.num_A] .= particles[4] + [X[s.set.segments*2+1], 0, X[s.set.segments*2+2]]
     pos[s.num_C] .= particles[2] + X[s.set.segments*2+3 : s.set.segments*2+5]
     pos[s.num_D] .= [pos[s.num_C][1], -pos[s.num_C][2], pos[s.num_C][3]]
-    for i in s.num_E:s.num_A
+    
+    # build tether connection points first
+    e_z = normalize(vec_c)
+    distance_c_e = (pos[s.num_E]-pos[s.num_C]) ⋅ e_z # distance in the e_z direction
+    pos[s.num_E-2] .= pos[s.num_C] + e_z .* (X[s.set.segments*2+6] + distance_c_e)
+    pos[s.num_E-1] .= pos[s.num_D] + e_z .* (X[s.set.segments*2+7] + distance_c_e)
+    # and then the other left and right tether points
+    l_0 = norm(pos[s.num_E-2]) / s.set.segments
+    e_l = normalize(pos[s.num_E-2]) # unit vector pointing to left connection point
+    for (i, j) in enumerate(range(4, step=3, length=s.set.segments-1))
+        radius = i * l_0
+        pos[j] .= e_l .* radius .+ [X[s.set.segments*2+7+i], 0.0, X[s.set.segments*3+6+i]]
+        pos[j+1] .= [pos[j][1], -pos[j][2], pos[j][3]]
+    end
+    
+    # set left and right tether lengths
+    s.l_tethers[2] = norm(pos[s.num_E-2]) + X[4*s.set.segments+6]
+    s.l_tethers[3] = s.l_tethers[2]
+    
+    # set vel and acc
+    for i in 1:s.num_A
         vel[i] .= [delta, delta, delta]
         acc[i] .= [delta, delta, -9.81]
     end
-
-    # left and right tether
-    for (i, j) in enumerate(range(4, step=3, length=s.set.segments))
-        pos[j] .= pos[j+2] + [X[s.set.segments*2+5+i], (pos[j+2][1]-pos[1][1])/pos[s.num_E][1] * pos[s.num_C][2], X[s.set.segments*3+5+i]]
-        pos[j+1] .= [pos[j][1], -pos[j][2], pos[j][3]]
-    end
-
+    
+    # for i in eachindex(pos)
+    #     if pos[i][3] <= 0
+    #         pos[i][3] = 1e-4
+    #     end
+    # end
     for i in eachindex(pos)
         s.pos[i] .= pos[i]
     end  
 
     # println("pos vel acc\t", pos, vel, acc)
-    plt3d = Plots.plot([p[1] for p in pos],[p[2] for p in pos], [p[3] for p in pos],
-        xlim = (0, 150),
-        ylim = (-20, 20),
-        zlim = (0, 200),
-        seriestype=:scatter,
-        markersize=0,
-        size=(800,800)
-        )
-    for i in eachindex(pos)
-        annotate!(plt3d, pos[i][1], pos[i][2], pos[i][3], 
-            text("$i", :red, :right, 7))
-    end
-
-    display(plt3d)
+    # plt3d = Plots.plot([p[1] for p in pos],[p[2] for p in pos], [p[3] for p in pos],
+    #     xlim = (0, 150),
+    #     ylim = (-20, 20),
+    #     zlim = (0, 200),
+    #     seriestype=:scatter,
+    #     markersize=0,
+    #     size=(800,800)
+    #     )
+    # for i in eachindex(pos)
+    #     annotate!(plt3d, pos[i][1], pos[i][2], pos[i][3], 
+    #         text("$i", :red, :right, 10))
+    # end
+    # display(plt3d)
     return pos, vel, acc
 end
 
@@ -244,7 +257,7 @@ function init_inner(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); o
     vcat(pos[2:end], vel[2:end]), vcat(vel[2:end], acc[2:end])
 end
 
-function init_inner(s::KPS4_3L, X=zeros(s.set.segments*4+5);delta=0.0)
+function init_inner(s::KPS4_3L, X=zeros(s.set.segments*4+6);delta=0.0)
     pos_, vel_, acc_ = init_pos_vel_acc(s, X; delta=delta)
     # remove last left and right tether point and replace them by the length from C and D
     pos = vcat(
@@ -275,12 +288,10 @@ end
 
 
 # implemented
-function init(s::KPS4_3L, X=zeros(s.set.segments*4+5); delta=0.0)
+function init(s::KPS4_3L, X=zeros(s.set.segments*4+6); delta=0.0)
     y_, yd_ = init_inner(s, X; delta = delta)
     y = vcat(reduce(vcat, y_), reduce(vcat,[s.l_tethers, zeros(3)]))
     yd = vcat(reduce(vcat, yd_), zeros(6))
-    # println("y\t",y)
-    # println("yd\t", yd)
     MVector{6*(s.num_A-5)+4+6, SimFloat}(y), MVector{6*(s.num_A-5)+4+6, SimFloat}(yd)
 end
 
