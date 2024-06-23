@@ -21,7 +21,7 @@ julia_major=${julia_version:0:3}
 if [[ $julia_major == "1.1" ]]; then
     julia_major=${julia_version:0:4} 
 fi
-branch=$(git rev-parse --abbrev-ref HEAD)
+branch=$(git rev-parse --abbrev-ref HEAD | sed 's/\//-/g')
 if test -f "kps-image-${julia_major}-${branch}.so"; then
     mv bin/kps-image-${julia_major}-${branch}.so kps-image-${julia_major}-${branch}.so.bak
 fi
