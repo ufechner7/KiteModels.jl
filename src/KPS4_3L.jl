@@ -187,7 +187,7 @@ function clear!(s::KPS4_3L)
     s.v_wind .= s.v_wind_gnd * calc_wind_factor(s.am, height)
 
     s.l_tethers = [s.set.l_tether for _ in 1:3]
-    s.l_tethers[1] = s.set.l_tether
+
     s.segment_lengths = s.l_tethers ./ s.set.segments
     init_masses!(s)
     init_springs!(s)
@@ -264,10 +264,8 @@ function calc_aero_forces!(s::KPS4_3L, pos, vel)
     e_y = s.e_y
     e_z = s.e_z
     e_x = s.e_x
-    # distance_c_e = (pos[s.num_E]-pos[s.num_C]) ⋅ e_z - s.set.tip_length/2 # distance in the e_z direction
     δ_left = norm(pos[s.num_E-2]-pos[s.num_C])
     δ_right = norm(pos[s.num_E-1]-pos[s.num_D])
-    # println(δ_left)
     w = s.set.width
 
     ρ = s.rho
@@ -316,11 +314,8 @@ function calc_aero_forces!(s::KPS4_3L, pos, vel)
         π - acos2(normalize(v_a_xr(α)) ⋅ e_x) + asin(min(d(α)/length(α), 1.0)) :
         asin(min(d(α)/length(α), 1.0))
 
-    c_l = calc_cl
-    c_d = calc_cd
-
-    dL_dα(α) = 0.5*ρ*(norm(v_a_xr(α)))^2*r*length(α)*c_l(aoa(α)) .* normalize((e_r(α) × e_x) × v_a_xr(α))
-    dD_dα(α) = 0.5*ρ*norm(v_a_xr(α))*r*length(α)*c_d(aoa(α)) .* v_a_xr(α) # the sideways drag cannot be calculated with the C_d formula
+    dL_dα(α) = 0.5*ρ*(norm(v_a_xr(α)))^2*r*length(α)*rad_cl(aoa(α)) .* normalize(v_a_xr(α) × (e_r(α) × e_x))
+    dD_dα(α) = 0.5*ρ*norm(v_a_xr(α))*r*length(α)*rad_cd(aoa(α)) .* v_a_xr(α) # the sideways drag cannot be calculated with the C_d formula
 
     # Calculate the integral
     α_0 = pi/2 - w/2/r
@@ -334,12 +329,16 @@ function calc_aero_forces!(s::KPS4_3L, pos, vel)
     s.lift_force .= L_C + L_D
     s.drag_force .= D_C + D_D
 
-    F_steering_c = ((0.2 * (L_C ⋅ -e_z)) .* -e_z)
-    F_steering_d = ((0.2 * (L_D ⋅ -e_z)) .* -e_z)
+    F_steering_c = ((0.1 * (L_C ⋅ -e_z)) .* -e_z)
+    F_steering_d = ((0.1 * (L_D ⋅ -e_z)) .* -e_z)
     s.forces[s.num_C] .+= (L_C + D_C) - F_steering_c
     s.forces[s.num_D] .+= (L_D + D_D) - F_steering_d
     s.forces[s.num_E-2] .+= F_steering_c
     s.forces[s.num_E-1] .+= F_steering_d
+    # println("lift $L_C \n\t $L_D")
+    # println("drag $D_C \n\t $D_D")
+    # println("aoa $(rad2deg(aoa(pi/2)))")
+    # println("cl cd $(rad_cl(aoa(pi/2))) \n\t $(rad_cd(aoa(pi/2)))")
     return nothing
 end
 
@@ -384,6 +383,13 @@ The result is stored in the array s.forces.
 
     @inbounds s.forces[spring.p1] .+= half_drag_force + s.spring_force
     @inbounds s.forces[spring.p2] .+= half_drag_force - s.spring_force
+    # println("num\t", spring.p1, "\t", spring.p2)
+    # println("spring force\t", s.spring_force)
+    # println("drag force\t", half_drag_force)
+    # println("mass\t", s.masses[spring.p1])
+    # println("l_0\t", l_0)
+    # println("norm1\t", norm1)
+    # println("spring_vel\t", spring_vel)
     if i <= 3 s.last_forces[i%3+1] .= s.forces[spring.p1] end
     nothing
 end
@@ -433,7 +439,7 @@ function loop!(s::KPS4_3L, pos, vel, posd, veld)
     # TODO: check if the next two lines are correct
     damping  = s.set.damping / L_0
     c_spring = s.set.c_spring / L_0
-    for i in 4:s.set.segments*3
+    for i in 1:s.set.segments*3
         @inbounds s.masses[i] = mass_tether_particle
         @inbounds s.springs[i] = SP(s.springs[i].p1, s.springs[i].p2, s.segment_lengths[i%3+1], c_spring, damping)
     end
@@ -444,6 +450,7 @@ function loop!(s::KPS4_3L, pos, vel, posd, veld)
         s.forces[i+3] .+= F_xy
     end
     for i in 4:s.num_A
+        # println("force $i $(s.forces[i])")
         s.res2[i] .= veld[i] - (SVector(0, 0, -G_EARTH) + s.forces[i] ./ s.masses[i])
     end
 end
@@ -509,7 +516,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
     pos = SVector{s.num_A}(
         if i<=3
             SVector(0.0,0,0)
-        elseif 4 <= i <= s.num_E-3 # tether points
+        elseif 4 <= i <= s.num_E-3 # tethevCdr points
             SVector(coordinates[:,i-3,1])
         elseif i == s.num_E-2 # left tether connection
             SVector(C + e_z*connections[1,1])
@@ -573,11 +580,13 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
 
     for (i, j) in enumerate(vcat(4:s.num_E-3, s.num_E:s.num_A))
         [@inbounds res[3*(i-1)+k] = s.res1[j][k] for k in 1:3]
-        [@inbounds res[3*num_particles+3*(i-1)+k] = s.res2[j][k] for k in 1:3]
+        [@inbounds res[3*num_particles+2+3*(i-1)+k] = s.res2[j][k] for k in 1:3]
     end
     # add connection residuals
-    res[6*num_particles+1] = norm(s.res1[s.num_E-2])
-    res[6*num_particles+2] = norm(s.res1[s.num_E-1])
+    res[3*num_particles+1] = norm(s.res1[s.num_E-2] - s.res1[s.num_C])
+    res[3*num_particles+2] = norm(s.res1[s.num_E-1] - s.res1[s.num_C])
+    res[6*num_particles+3] = norm(s.res2[s.num_E-2] - s.res2[s.num_C])
+    res[6*num_particles+4] = norm(s.res2[s.num_E-1] - s.res2[s.num_C])
 
     for i in 1:s.num_A
         @inbounds s.pos[i] .= pos[i]
@@ -697,36 +706,45 @@ function find_steady_state!(s::KPS4_3L; prn=false, delta = 0.0, stiffness_factor
         F[2*s.set.segments+3 : 2*s.set.segments+5] = s.res2[s.num_C]
 
         # left tether connection points
-        F[2*s.set.segments+6] = norm(s.res2[s.num_E-2])
-        F[2*s.set.segments+7] = norm(s.res2[s.num_E-1])
+        F[2*s.set.segments+6] = res[end-1]
         # left tether
         for (i, j) in enumerate(range(4, step=3, length=s.set.segments-1))
-            F[2*s.set.segments+7+i] = s.res2[j][1]
-            F[3*s.set.segments+6+i] = s.res2[j][2]
-            F[4*s.set.segments+5+i] = s.res2[j][3]
+            F[2*s.set.segments+6+i] = s.res2[j][1]
+            F[3*s.set.segments+5+i] = s.res2[j][2]
+            F[4*s.set.segments+4+i] = s.res2[j][3]
         end
 
         # left tether length
         # F[5*s.set.segments+5] = res[end-1] # left tether length accel
 
-        if iter%1000==0
-            # println("F\t", F)
+        if iter%10==0
+            println("F\t", norm(F))
+            # plot2d(s.pos, iter; zoom=false)
+            # println("ltether\t",s.l_tethers)
+            # for i in eachindex(s.pos)
+            #     println(i)
+            #     println("\t",s.res2[i])
+            #     println("\t",s.forces[i])
+            # end
+            # sleep(0.1)
             # println("C\t", s.forces[s.num_C])
             # println("L\t", s.forces[s.num_E-2])
             # println("Lift\t", s.lift_force)
-            # error("end")
             # println("res1: \t", s.res2)
             # println("X\t",x1)
+            # println("res\t", res)
+            # for i in eachindex(res)
+            #     println(i)
+            #     println("\t",res[i])
+            # end
             # error("Stopping")
         end
         iter += 1
         return nothing 
     end
     if prn println("\nStarted function test_nlsolve...") end
-    X00 = zeros(SimFloat, 5*s.set.segments+4)
+    X00 = zeros(SimFloat, 5*s.set.segments+3)
     results = nlsolve(test_initial_condition!, X00, autoscale=true, xtol=2e-7, ftol=2e-7, iterations=s.set.max_iter)
     if prn println("\nresult: $results") end
-    y = init(s, results.zero)
-    println(y)
-    return y
+    init(s, results.zero)
 end

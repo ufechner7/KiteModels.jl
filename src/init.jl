@@ -61,7 +61,7 @@ function get_particles(width, radius, middle_length, tip_length, bridle_center_d
         (tip_length + (middle_length-tip_length)*α*radius/(0.5*width)) :
         (tip_length + (middle_length-tip_length)*(π-α)*radius/(0.5*width))
     P_c = (C+D)./2
-    A = P_c - e_x.*(length(α_c)*(3/4 - 1/4))
+    A = P_c - e_x*(length(α_c)*(3/4 - 1/4))
 
     # println("E\t$E C\t$C D\t$D A\t$A")
     [E, C, D, A] # important to have the order E = 1, C = 2, D = 3, A = 4
@@ -193,27 +193,23 @@ function init_pos_vel_acc(s::KPS4_3L, X=zeros(s.set.segments*4+6); delta = 0.0)
     pos[s.num_C] .= particles[2] + X[s.set.segments*2+3 : s.set.segments*2+5]
     pos[s.num_D] .= [pos[s.num_C][1], -pos[s.num_C][2], pos[s.num_C][3]]
     
-    # build tether connection points first
+    # build tether connection points
     e_z = normalize(vec_c)
     distance_c_l = s.set.tip_length/2 # distance between c and left steering line
-    pos[s.num_E-2] .= pos[s.num_C] + e_z .* (X[s.set.segments*2+6] + distance_c_l)
-    pos[s.num_E-1] .= pos[s.num_D] + e_z .* (X[s.set.segments*2+7] + distance_c_l)
-    # and then the other left and right tether points
-    l_0 = norm(pos[s.num_E-2]) / s.set.segments
-    e_l = normalize(pos[s.num_E-2]) # unit vector pointing to left connection point
+    s.l_tethers[2] = norm(pos[s.num_C] + e_z .* (X[s.set.segments*2+6] + distance_c_l)) # find the right steering tether length
+    s.l_tethers[3] = s.l_tethers[2]
+    pos[s.num_E-2] .= pos[s.num_C] + e_z .* distance_c_l
+    pos[s.num_E-1] .= pos[s.num_E-2] .* [1.0, -1.0, 1.0]
+
+    # build left and right tether points
     for (i, j) in enumerate(range(4, step=3, length=s.set.segments-1))
-        radius = i * l_0
-        pos[j] .= e_l .* radius .+ 
-            [X[2*s.set.segments+7+i], 
-            X[3*s.set.segments+6+i], 
-            X[4*s.set.segments+5+i]]
+        pos[j] .= pos[s.num_E-2] ./ s.set.segments .* i .+
+            [X[2*s.set.segments+6+i],
+            X[3*s.set.segments+5+i],
+            X[4*s.set.segments+4+i]]
         pos[j+1] .= [pos[j][1], -pos[j][2], pos[j][3]]
     end
-    
-    # set left and right tether lengths
-    s.l_tethers[2] = norm(pos[s.num_E-2])
-    s.l_tethers[3] = s.l_tethers[2]
-    
+
     # set vel and acc
     for i in 1:s.num_A
         vel[i] .= [delta, delta, delta]

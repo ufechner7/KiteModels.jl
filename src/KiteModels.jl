@@ -93,7 +93,9 @@ const SVec3    = SVector{3, SimFloat}
 # the following two definitions speed up the function residual! from 940ns to 540ns
 # disadvantage: changing the cl and cd curves requires a restart of the program     
 const calc_cl = Spline1D(se().alpha_cl, se().cl_list)
-const calc_cd = Spline1D(se().alpha_cd, se().cd_list)  
+const calc_cd = Spline1D(se().alpha_cd, se().cd_list)
+const rad_cl = Spline1D(deg2rad.(se().alpha_cl), se().cl_list)
+const rad_cd = Spline1D(deg2rad.(se().alpha_cd), se().cd_list) 
 
 """
     abstract type AbstractKiteModel

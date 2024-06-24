@@ -48,14 +48,19 @@ kite:
     alpha_cd:  [-180.0, -170.0, -140.0, -90.0, -20.0, 0.0, 20.0, 90.0, 140.0, 170.0, 180.0]
     cd_list:   [   0.5,    0.5,    0.5,   1.0,   0.2, 0.1,  0.2,  1.0,   0.5,   0.5,   0.5]
     
-kps4_3l: 
-    radius: 10.0
-    bridle_center_distance: 2.0
-    middle_length: 2.0
-    tip_length: 1.0
+kps4: 
+    radius: 2.0
+    bridle_center_distance: 4.0
+    middle_length: 1.2
+    tip_length: 0.6
     min_steering_line_distance: 1.0
-    width:         20.0     # width of the kite                          [m]
+    width:         3.0     # width of the kite                          [m]
     aero_surfaces: 10      # number of aerodynamic surfaces in 3 line model
+    alpha_zero:   10.0      # should be 4..10                      [degrees]
+    alpha_ztip:   10.0      #                                      [degrees]
+    m_k:           0.2      # relative nose distance; increasing m_k increases C2 of the turn-rate law
+    rel_nose_mass: 0.47     # relative nose mass
+    rel_top_mass:  0.4      # mass of the top particle relative to the sum of top and side particles
 
 kcu:
     kcu_mass: 8.4                # mass of the kite control unit   [kg]
@@ -66,13 +71,6 @@ kcu:
     v_steering: 0.2              # max velocity of steering in units per second   (full range: 2 units)
     depower_gain: 3.0            # 3.0 means: more than 33% error -> full speed
     steering_gain: 3.0
-
-kps4:
-    alpha_zero:   10.0      # should be 4..10                      [degrees]
-    alpha_ztip:   10.0      #                                      [degrees]
-    m_k:           0.2      # relative nose distance; increasing m_k increases C2 of the turn-rate law
-    rel_nose_mass: 0.47     # relative nose mass
-    rel_top_mass:  0.4      # mass of the top particle relative to the sum of top and side particles
 
 bridle:
     l_bridle: 33.4         # sum of the lengths of the bridle lines [m]

@@ -20,3 +20,4 @@ bin/kps-image-1.10-new_solver.so
 bin/kps-image-1.10-3line.so
 bin/kps-image-1.10-controlplots.so
 kps-image_tmp.so
+bin/kps-image-1.10-*.so
