@@ -1,5 +1,10 @@
 # Changelog
 
+### KiteModels v0.5.16 - 2024-06-25
+#### Changed
+- bump KiteUtils to version 0.6.16
+- bump ControlPlots to version 0.0.12
+
 ### KiteModels v0.5.15 - 2024-06-18
 #### Changed
 - bump KiteUtils to version 0.6.12
