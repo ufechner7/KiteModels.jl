@@ -30,7 +30,7 @@ are acting on three of the four kite point masses.
 Four point kite model, included from KiteModels.jl.
 
 Scientific background: http://arxiv.org/abs/1406.6218 =#
-
+using ControlPlots
 # Array of connections of bridlepoints.
 # First point, second point, unstressed length.
 const SPRINGS_INPUT_3L = [1.      4.  -1. # s1: E, A
@@ -109,11 +109,11 @@ $(TYPEDFIELDS)
     "last winch force"
     last_forces::SVector{3,T} = [zeros(S, 3) for _ in 1:3]
     "a copy of the residual one (pos,vel) for debugging and unit tests"    
-    res1::SVector{P, KVec3} = zeros(SVector{P, KVec3})
+    res1::SVector{P, T} = zeros(SVector{P, T})
     "a copy of the residual two (vel,acc) for debugging and unit tests"
-    res2::SVector{P, KVec3} = zeros(SVector{P, KVec3})
+    res2::SVector{P, T} = zeros(SVector{P, T})
     "a copy of the actual positions as output for the user"
-    pos::SVector{P, KVec3} = zeros(SVector{P, KVec3})
+    pos::SVector{P, T} = zeros(SVector{P, T})
     "velocity vector of the kite"
     vel_kite::T =          zeros(S, 3)
     "unstressed segment lengths of the three tethers [m]"
@@ -135,7 +135,7 @@ $(TYPEDFIELDS)
     "unstretched tether length"
     l_tethers::T =          zeros(S, 3)
     "lengths of the connections of the steering tethers to the kite"
-    l_connections::SVector{2, S} =      zeros(S, 2)
+    l_connections::MVector{2, S} =      zeros(S, 2)
     "air density at the height of the kite"
     rho::S =               0.0
     # "actual relative depower setting,  must be between    0 .. 1.0"
@@ -151,7 +151,7 @@ $(TYPEDFIELDS)
     "vector of the springs, defined as struct"
     springs::MVector{Q, SP}       = zeros(SP, Q)
     "vector of the forces, acting on the particles"
-    forces::SVector{P, KVec3} = zeros(SVector{P, KVec3})
+    forces::SVector{P, T} = zeros(SVector{P, T})
     "synchronous speeds of the motors"
     sync_speeds::T =        zeros(S, 3)
     "x vector of kite reference frame"
@@ -186,12 +186,12 @@ function clear!(s::KPS4_3L)
     height = sin(deg2rad(s.set.elevation)) * (s.set.l_tether)
     s.v_wind .= s.v_wind_gnd * calc_wind_factor(s.am, height)
 
-    s.l_tethers = [s.set.l_tether for _ in 1:3]
+    s.l_tethers .= [s.set.l_tether for _ in 1:3]
 
-    s.segment_lengths = s.l_tethers ./ s.set.segments
+    s.segment_lengths .= s.l_tethers ./ s.set.segments
     init_masses!(s)
     init_springs!(s)
-    for i in 1:s.set.segments + KiteModels.KITE_PARTICLES + 1 
+    for i in 1:s.num_A
         s.forces[i] .= zeros(3)
     end
     s.drag_force .= [0.0, 0, 0]
@@ -233,9 +233,9 @@ end
 
 function calc_kite_ref_frame!(s::KPS4_3L, E, C, D)
     P_c = 0.5 .* (C+D)
-    s.e_y = normalize(C - D)
-    s.e_z = normalize(E - P_c)
-    s.e_x = cross(s.e_y, s.e_z)
+    s.e_y = SVector(normalize(C - D))
+    s.e_z = SVector(normalize(E - P_c))
+    s.e_x = SVector(cross(s.e_y, s.e_z))
     return s.e_x, s.e_y, s.e_z
 end
 
@@ -264,20 +264,20 @@ function calc_aero_forces!(s::KPS4_3L, pos, vel)
     e_y = s.e_y
     e_z = s.e_z
     e_x = s.e_x
-    δ_left = norm(pos[s.num_E-2]-pos[s.num_C])
-    δ_right = norm(pos[s.num_E-1]-pos[s.num_D])
+    δ_left = (pos[s.num_E-2]-pos[s.num_C]) ⋅ e_z
+    δ_right = (pos[s.num_E-1]-pos[s.num_D]) ⋅ e_z
     w = s.set.width
-
+    
     ρ = s.rho
     E, C, D = pos[s.num_E], pos[s.num_C], pos[s.num_D]
     v_c, v_d = vel[s.num_C], vel[s.num_D]
-     
+    
     P_c = 0.5 .* (C+D)
-
-    E_c = E - e_z * (s.set.bridle_center_distance + r) # in the aero calculations, E_c is the center of the circle shape on which the kite lies
+    
+    E_c = E - e_z .* (s.set.bridle_center_distance - r) # in the aero calculations, E_c is the center of the circle shape on which the kite lies
     F(α) = E_c + e_y*cos(α)*r - e_z*sin(α)*r
-    e_r(α) = (E_c - F(α))/norm(E_c-F(α))
-
+    e_r(α) = normalize(E_c - F(α))
+    
     v_cx = dot(v_c, e_x).*e_x
     v_dx = dot(v_d, e_x).*e_x
     v_dy = dot(v_d, e_y).*e_y
@@ -286,21 +286,22 @@ function calc_aero_forces!(s::KPS4_3L, pos, vel)
     v_cz = dot(v_c, e_z).*e_z
     y_lc = norm(C - P_c)
     y_ld = -norm(D - P_c)
-
+    
     y_l(α) = cos(α) * r
     v_kite(α) = α < π/2 ?
-        ((v_cx - v_dx)./(y_lc - y_ld).*(y_l(α) - y_ld) + v_dx) + v_cy + v_cz :
-        ((v_cx - v_dx)./(y_lc - y_ld).*(y_l(α) - y_ld) + v_dx) + v_dy + v_dz
+    ((v_cx - v_dx)./(y_lc - y_ld).*(y_l(α) - y_ld) + v_dx) + v_cy + v_cz :
+    ((v_cx - v_dx)./(y_lc - y_ld).*(y_l(α) - y_ld) + v_dx) + v_dy + v_dz
     v_a(α) = s.v_wind - v_kite(α)
-    v_a_xr(α) = v_a(α) - (dot(v_a(α), cross(e_r(α), e_x))*cross(e_r(α), e_x))
-
+    e_drift(α) = (e_r(α) × e_x)
+    v_a_xr(α) = v_a(α) - (v_a(α) ⋅ e_drift(α)) .* e_drift(α)
+    
     length(α) = α < π/2 ?
-        (tip_length + (middle_length-tip_length)*α*r/(0.5*w)) :
-        (tip_length + (middle_length-tip_length)*(π-α)*r/(0.5*w))
-
+    (tip_length + (middle_length-tip_length)*α*r/(0.5*w)) :
+    (tip_length + (middle_length-tip_length)*(π-α)*r/(0.5*w))
+    
     α_l = π/2 - d_s/(2*r) # TODO: move these to outside of function
     α_r = π/2 + d_s/(2*r)
-
+    
     function d(α)
         if α < α_l
             return δ_left
@@ -310,35 +311,29 @@ function calc_aero_forces!(s::KPS4_3L, pos, vel)
             return (δ_right - δ_left) / (α_r - α_l) * (α - α_l) + (δ_left)
         end
     end
-    aoa(α) = v_a_xr(α) != [0.0, 0.0, 0.0] ?
-        π - acos2(normalize(v_a_xr(α)) ⋅ e_x) + asin(min(d(α)/length(α), 1.0)) :
-        asin(min(d(α)/length(α), 1.0))
+    aoa(α) = π - acos2(normalize(v_a_xr(α)) ⋅ e_x) + asin(clamp(d(α)/length(α), -1.0, 1.0))
 
-    dL_dα(α) = 0.5*ρ*(norm(v_a_xr(α)))^2*r*length(α)*rad_cl(aoa(α)) .* normalize(v_a_xr(α) × (e_r(α) × e_x))
+    dL_dα(α) = 0.5*ρ*(norm(v_a_xr(α)))^2*r*length(α)*rad_cl(aoa(α)) .* normalize(v_a_xr(α) × e_drift(α))
     dD_dα(α) = 0.5*ρ*norm(v_a_xr(α))*r*length(α)*rad_cd(aoa(α)) .* v_a_xr(α) # the sideways drag cannot be calculated with the C_d formula
-
+    
     # Calculate the integral
     α_0 = pi/2 - w/2/r
     α_middle = pi/2
     dα = (α_middle - α_0) / n
-    L_C = sum(dL_dα(α_0 + dα/2 + i*dα) * dα for i in 1:n)
-    L_D = sum(dL_dα(pi - (α_0 + dα/2 + i*dα)) * dα for i in 1:n)
-    D_C = sum(dD_dα(α_0 + dα/2 + i*dα) * dα for i in 1:n)
-    D_D = sum(dD_dα(pi - (α_0 + dα/2 + i*dα)) * dα for i in 1:n)
-
+    L_C = sum(dL_dα(α_0 + dα/2 + i*dα) .* dα for i in 1:n)
+    L_D = sum(dL_dα(pi - (α_0 + dα/2 + i*dα)) .* dα for i in 1:n)
+    D_C = sum(dD_dα(α_0 + dα/2 + i*dα) .* dα for i in 1:n)
+    D_D = sum(dD_dα(pi - (α_0 + dα/2 + i*dα)) .* dα for i in 1:n)
+    
     s.lift_force .= L_C + L_D
     s.drag_force .= D_C + D_D
-
+    
     F_steering_c = ((0.1 * (L_C ⋅ -e_z)) .* -e_z)
     F_steering_d = ((0.1 * (L_D ⋅ -e_z)) .* -e_z)
     s.forces[s.num_C] .+= (L_C + D_C) - F_steering_c
     s.forces[s.num_D] .+= (L_D + D_D) - F_steering_d
     s.forces[s.num_E-2] .+= F_steering_c
     s.forces[s.num_E-1] .+= F_steering_d
-    # println("lift $L_C \n\t $L_D")
-    # println("drag $D_C \n\t $D_D")
-    # println("aoa $(rad2deg(aoa(pi/2)))")
-    # println("cl cd $(rad_cl(aoa(pi/2))) \n\t $(rad_cd(aoa(pi/2)))")
     return nothing
 end
 
@@ -383,14 +378,7 @@ The result is stored in the array s.forces.
 
     @inbounds s.forces[spring.p1] .+= half_drag_force + s.spring_force
     @inbounds s.forces[spring.p2] .+= half_drag_force - s.spring_force
-    # println("num\t", spring.p1, "\t", spring.p2)
-    # println("spring force\t", s.spring_force)
-    # println("drag force\t", half_drag_force)
-    # println("mass\t", s.masses[spring.p1])
-    # println("l_0\t", l_0)
-    # println("norm1\t", norm1)
-    # println("spring_vel\t", spring_vel)
-    if i <= 3 s.last_forces[i%3+1] .= s.forces[spring.p1] end
+    if i <= 3 @inbounds s.last_forces[i%3+1] .= s.forces[spring.p1] end
     nothing
 end
 
@@ -405,8 +393,8 @@ Output:
 """
 @inline function inner_loop!(s::KPS4_3L, pos, vel, v_wind_gnd, d_tether)
     for i in eachindex(s.springs)
-        p1 = s.springs[i].p1  # First point nr.
-        p2 = s.springs[i].p2  # Second point nr.
+        p1 = @inbounds s.springs[i].p1  # First point nr.
+        p2 = @inbounds s.springs[i].p2  # Second point nr.
         height = 0.5 * (pos[p1][3] + pos[p2][3])
         rho = calc_rho(s.am, height)
         @assert height > 0
@@ -429,8 +417,8 @@ function loop!(s::KPS4_3L, pos, vel, posd, veld)
     mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
 
     # TODO: remove these two lines
-    [s.res1[i] .= pos[i] for i in 1:3] # pos = 0
-    [s.res2[i] .= vel[i] for i in 1:3] # vel = 0
+    [@inbounds s.res1[i] .= pos[i] for i in 1:3] # pos = 0
+    [@inbounds s.res2[i] .= vel[i] for i in 1:3] # vel = 0
     for i in 4:s.num_A
         s.res1[i] .= vel[i] - posd[i] 
     end
@@ -446,13 +434,13 @@ function loop!(s::KPS4_3L, pos, vel, posd, veld)
     inner_loop!(s, pos, vel, s.v_wind_gnd, s.set.d_tether/1000.0)
     for i in [s.num_E-2, s.num_E-1]
         F_xy = SVector(s.forces[i] .- (s.forces[i] ⋅ s.e_z) * s.e_z)
-        s.forces[i] .+= -F_xy
-        s.forces[i+3] .+= F_xy
+        @inbounds s.forces[i] .+= -F_xy - 1000.0 * ((vel[i]-vel[s.num_C]) ⋅ s.e_z) * s.e_z # TODO: more damping
+        @inbounds s.forces[i+3] .+= F_xy
     end
     for i in 4:s.num_A
-        # println("force $i $(s.forces[i])")
-        s.res2[i] .= veld[i] - (SVector(0, 0, -G_EARTH) + s.forces[i] ./ s.masses[i])
+        @inbounds s.res2[i] .= veld[i] - (SVector(0, 0, -G_EARTH) .+ s.forces[i] ./ s.masses[i])
     end
+    nothing
 end
 
 """
@@ -512,67 +500,50 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
     _, _, e_z = calc_kite_ref_frame!(s, E, C, D)
     connection_lengths = SVector(connections[:,1])
 
+    # println(size([zeros(SVector{3, Float64}, 3)]))
+    # println(size(reshape(SVector{3*(s.num_E-3)}(y_[1:3*(s.num_E-3)]), Size((s.num_E-3), 3))))
+    # println(size(reshape(SVector{3*(num_particles - (s.num_E-3))}(y_[3*(s.num_E-3)+1:3*num_particles]), Size(3, num_particles - (s.num_E-3)))))
     # convert y and yd to a nice list of coordinates
-    pos = SVector{s.num_A}(
-        if i<=3
-            SVector(0.0,0,0)
-        elseif 4 <= i <= s.num_E-3 # tethevCdr points
-            SVector(coordinates[:,i-3,1])
-        elseif i == s.num_E-2 # left tether connection
-            SVector(C + e_z*connections[1,1])
-        elseif i == s.num_E-1 # right tether connection
-            SVector(D + e_z*connections[2,1])
-        elseif i >= s.num_E # kite points
-            SVector(coordinates[:,i-5,1])
-        end for i in 1:s.num_A
-    )
-    vel = SVector{s.num_A}(
-        if i<=3
-            SVector(0.0,0,0)
-        elseif 4 <= i <= s.num_E-3 # tether points
-            SVector(coordinates[:,i-3,2])
-        elseif i == s.num_E-2 # left tether connection
-            SVector(vC + e_z*connections[1,2])
-        elseif i == s.num_E-1 # right tether connection
-            SVector(vD + e_z*connections[2,2])
-        elseif i >= s.num_E # kite points
-            SVector(coordinates[:,i-5,2])
-        end for i in 1:s.num_A
-    )
-    posd = SVector{s.num_A}(
-        if i<=3
-            SVector(0.0,0,0)
-        elseif 4 <= i <= s.num_E-3 # tether points
-            SVector(coordinatesd[:,i-3,1])
-        elseif i == s.num_E-2 # left tether connection
-            SVector(Cd + e_z.*connectionsd[1,1])
-        elseif i == s.num_E-1 # right tether connection
-            SVector(Dd + e_z.*connectionsd[2,1])
-        elseif i >= s.num_E # kite points
-            SVector(coordinatesd[:,i-5,1])
-        end for i in 1:s.num_A
-    )
-    veld = SVector{s.num_A}(
-        if i<=3
-            SVector(0.0,0,0)
-        elseif 4 <= i <= s.num_E-3 # tether points
-            SVector(coordinatesd[:,i-3,2])
-        elseif i == s.num_E-2 # left tether connection
-            SVector(vCd + e_z*connectionsd[1,2])
-        elseif i == s.num_E-1 # right tether connection
-            SVector(vDd + e_z*connectionsd[2,2])
-        elseif i >= s.num_E # kite points
-            SVector(coordinatesd[:,i-5,2])
-        end for i in 1:s.num_A
-    )
+    pos = SVector{s.num_A}(vcat(
+        [SVec3(zeros(3)) for _ in 1:3],
+        [SVec3(coordinates[:, i-3, 1]) for i in 4:s.num_E-3],
+        [SVec3(C .+ e_z.*connections[1,1])],
+        [SVec3(D .+ e_z.*connections[2,1])],
+        [SVec3(coordinates[:,i-5,1]) for i in s.num_E:s.num_A]
+    ))
+    vel = SVector{s.num_A}(vcat(
+        [SVec3(zeros(3)) for _ in 1:3],
+        [SVec3(coordinates[:,i-3,2]) for i in 4:s.num_E-3],
+        [SVec3(vC + e_z*connections[1,2])],
+        [SVec3(vD + e_z*connections[2,2])],
+        [SVec3(coordinates[:,i-5,2]) for i in s.num_E:s.num_A]
+    ))
+    posd = SVector{s.num_A}(vcat(
+        [SVec3(zeros(3)) for _ in 1:3],
+        [SVec3(coordinatesd[:,i-3,1]) for i in 4:s.num_E-3],
+        [SVec3(Cd + e_z.*connectionsd[1,1])],
+        [SVec3(Dd + e_z.*connectionsd[2,1])],
+        [SVec3(coordinatesd[:,i-5,1]) for i in s.num_E:s.num_A]
+    ))
+    veld = SVector{s.num_A}(vcat(
+        [SVec3(zeros(3)) for _ in 1:3],
+        [SVec3(coordinatesd[:,i-3,2]) for i in 4:s.num_E-3],
+        [SVec3(vCd + e_z*connectionsd[1,2])],
+        [SVec3(vDd + e_z*connectionsd[2,2])],
+        [SVec3(coordinatesd[:,i-5,2]) for i in s.num_E:s.num_A]
+    ))
     @assert isfinite(pos[4][3])
 
     # core calculations
-    s.l_tethers = lengths
-    s.l_connections = connection_lengths
-    s.segment_lengths = lengths ./ s.set.segments
+    s.l_tethers .= lengths
+    s.l_connections .= connection_lengths
+    s.segment_lengths .= lengths ./ s.set.segments
     calc_aero_forces!(s, pos, vel)
     loop!(s, pos, vel, posd, veld)
+    # for i in eachindex(s.forces)
+    #     println(i)
+    #     println(s.forces[i])
+    # end
 
     # winch calculations
     res[end-5:end-3] .= lengthsd - reel_out_speeds
@@ -618,7 +589,7 @@ end
 Return the position of the kite (top particle).
 """
 function pos_kite(s::KPS4_3L)
-    s.pos[end-2]
+    s.pos[end]
 end
 
 """
@@ -627,7 +598,7 @@ end
 Returns a tuple of the x, y, and z vectors of the kite reference frame.
 """
 function kite_ref_frame(s::KPS4_3L)
-    s.x, s.y, s.z
+    s.e_x, s.e_y, s.e_z
 end
 
 """
@@ -653,7 +624,7 @@ function spring_forces(s::KPS4_3L)
         p2 = s.springs[i+s.set.segments].p2  # Second point nr.
         pos1, pos2 = s.pos[p1], s.pos[p2]
         spring = s.springs[i+s.set.segments]
-        l_0 = spring.length # Unstressed length
+        l_0 = spring.length # Unstressed lengthc_spring
         k = spring.c_spring * s.stiffness_factor       # Spring constant 
         segment = pos1 - pos2
         norm1 = norm(segment)
@@ -705,8 +676,9 @@ function find_steady_state!(s::KPS4_3L; prn=false, delta = 0.0, stiffness_factor
         F[2*s.set.segments+2] = s.res2[s.num_A][3]
         F[2*s.set.segments+3 : 2*s.set.segments+5] = s.res2[s.num_C]
 
-        # left tether connection points
-        F[2*s.set.segments+6] = res[end-1]
+        # left tether length
+        F[2*s.set.segments+6] = norm(s.res2[s.num_E-2] - s.res2[s.num_C])
+
         # left tether
         for (i, j) in enumerate(range(4, step=3, length=s.set.segments-1))
             F[2*s.set.segments+6+i] = s.res2[j][1]
@@ -714,37 +686,16 @@ function find_steady_state!(s::KPS4_3L; prn=false, delta = 0.0, stiffness_factor
             F[4*s.set.segments+4+i] = s.res2[j][3]
         end
 
-        # left tether length
-        # F[5*s.set.segments+5] = res[end-1] # left tether length accel
-
-        if iter%10==0
-            println("F\t", norm(F))
-            # plot2d(s.pos, iter; zoom=false)
-            # println("ltether\t",s.l_tethers)
-            # for i in eachindex(s.pos)
-            #     println(i)
-            #     println("\t",s.res2[i])
-            #     println("\t",s.forces[i])
-            # end
-            # sleep(0.1)
-            # println("C\t", s.forces[s.num_C])
-            # println("L\t", s.forces[s.num_E-2])
-            # println("Lift\t", s.lift_force)
-            # println("res1: \t", s.res2)
-            # println("X\t",x1)
-            # println("res\t", res)
-            # for i in eachindex(res)
-            #     println(i)
-            #     println("\t",res[i])
-            # end
-            # error("Stopping")
-        end
+        # if iter%1000 == 0
+        #     plot2d(s.pos, iter; zoom=false, segments=s.set.segments)
+        # end
         iter += 1
-        return nothing 
+        return nothing
     end
     if prn println("\nStarted function test_nlsolve...") end
     X00 = zeros(SimFloat, 5*s.set.segments+3)
-    results = nlsolve(test_initial_condition!, X00, autoscale=true, xtol=2e-7, ftol=2e-7, iterations=s.set.max_iter)
+    results = nlsolve(test_initial_condition!, X00, autoscale=true, xtol=2e-9, ftol=2e-9, iterations=s.set.max_iter)
     if prn println("\nresult: $results") end
+    println("last force\t", s.last_forces)
     init(s, results.zero)
 end

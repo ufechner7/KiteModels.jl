@@ -90,7 +90,6 @@ function init_springs!(s::KPS4_3L)
         c = s.set.damping/ l_0
         s.springs[i+s.set.segments*3] = SP(Int(p0), Int(p1), l_0, k, c)
     end
-    # println(s.springs)
     return s.springs
 end
 
@@ -121,12 +120,11 @@ function init_masses!(s::KPS4_3L)
     for i in 4:s.set.segments*3
         s.masses[i]   += l_0 * mass_per_meter
     end
-    [s.masses[i] += 0.5 * mass_per_meter for i in s.num_E-2:s.num_E]
+    [s.masses[i] += 0.5 * l_0 * mass_per_meter for i in s.num_E-2:s.num_E]
     s.masses[s.num_E] += 0.5 * s.set.l_bridle * mass_per_meter
     s.masses[s.num_A] += s.set.mass/2
     s.masses[s.num_C] += s.set.mass/4
     s.masses[s.num_D] += s.set.mass/4
-    # println(s.masses)
     return s.masses 
 end
 
@@ -172,7 +170,7 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
 end
 
 # implemented
-function init_pos_vel_acc(s::KPS4_3L, X=zeros(s.set.segments*4+6); delta = 0.0)
+function init_pos_vel_acc(s::KPS4_3L, X=zeros(5*s.set.segments+3); delta = 0.0)
     pos = zeros(SVector{s.num_A, KVec3})
     vel = zeros(SVector{s.num_A, KVec3})
     acc = zeros(SVector{s.num_A, KVec3})
@@ -198,7 +196,7 @@ function init_pos_vel_acc(s::KPS4_3L, X=zeros(s.set.segments*4+6); delta = 0.0)
     distance_c_l = s.set.tip_length/2 # distance between c and left steering line
     s.l_tethers[2] = norm(pos[s.num_C] + e_z .* (X[s.set.segments*2+6] + distance_c_l)) # find the right steering tether length
     s.l_tethers[3] = s.l_tethers[2]
-    pos[s.num_E-2] .= pos[s.num_C] + e_z .* distance_c_l
+    pos[s.num_E-2] .= pos[s.num_C] + e_z .* (distance_c_l)
     pos[s.num_E-1] .= pos[s.num_E-2] .* [1.0, -1.0, 1.0]
 
     # build left and right tether points
@@ -251,7 +249,7 @@ function init_inner(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); o
     vcat(pos[2:end], vel[2:end]), vcat(vel[2:end], acc[2:end])
 end
 
-function init_inner(s::KPS4_3L, X=zeros(s.set.segments*4+6);delta=0.0)
+function init_inner(s::KPS4_3L, X=zeros(5*s.set.segments+3);delta=0.0)
     pos_, vel_, acc_ = init_pos_vel_acc(s, X; delta=delta)
     # remove last left and right tether point and replace them by the length from C and D
     pos = vcat(
@@ -282,7 +280,7 @@ end
 
 
 # implemented
-function init(s::KPS4_3L, X=zeros(s.set.segments*4+6); delta=0.0)
+function init(s::KPS4_3L, X=zeros(5*s.set.segments+3); delta=0.0)
     y_, yd_ = init_inner(s, X; delta = delta)
     y = vcat(reduce(vcat, y_), reduce(vcat,[s.l_tethers, zeros(3)]))
     yd = vcat(reduce(vcat, yd_), zeros(6))
