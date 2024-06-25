@@ -21,7 +21,7 @@ solver:
     solver: "DFBDF"        # DAE solver, IDA or DImplicitEuler, DFBDF
     linear_solver: "GMRES" # can be GMRES or Dense or LapackDense (only for IDA)
     max_order: 4           # maximal order, usually between 3 and 5
-    max_iter:  1000000         # max number of iterations of the steady-state-solver
+    max_iter:  10000000         # max number of iterations of the steady-state-solver
 
 steering:
     c0:       0.0          # steering offset   -0.0032           [-]
@@ -55,7 +55,7 @@ kps4:
     tip_length: 0.6
     min_steering_line_distance: 1.0
     width:         3.0     # width of the kite                          [m]
-    aero_surfaces: 3      # number of aerodynamic surfaces in 3 line model
+    aero_surfaces: 10      # number of aerodynamic surfaces in 3 line model
     alpha_zero:   10.0      # should be 4..10                      [degrees]
     alpha_ztip:   10.0      #                                      [degrees]
     m_k:           0.2      # relative nose distance; increasing m_k increases C2 of the turn-rate law

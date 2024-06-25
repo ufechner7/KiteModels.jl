@@ -116,6 +116,7 @@ $(TYPEDFIELDS)
     pos::SVector{P, T} = zeros(SVector{P, T})
     "velocity vector of the kite"
     vel_kite::T =          zeros(S, 3)
+    vel_connection::T =          zeros(S, 3)
     "unstressed segment lengths of the three tethers [m]"
     segment_lengths::T =           zeros(S, 3)
     "lift coefficient of the kite, depending on the angle of attack"
@@ -434,7 +435,7 @@ function loop!(s::KPS4_3L, pos, vel, posd, veld)
     inner_loop!(s, pos, vel, s.v_wind_gnd, s.set.d_tether/1000.0)
     for i in [s.num_E-2, s.num_E-1]
         F_xy = SVector(s.forces[i] .- (s.forces[i] ⋅ s.e_z) * s.e_z)
-        @inbounds s.forces[i] .+= -F_xy - 1000.0 * ((vel[i]-vel[s.num_C]) ⋅ s.e_z) * s.e_z # TODO: more damping
+        @inbounds s.forces[i] .+= -F_xy - 5000.0 * ((vel[i]-vel[s.num_C]) ⋅ s.e_z) * s.e_z # TODO: more damping
         @inbounds s.forces[i+3] .+= F_xy
     end
     for i in 4:s.num_A
@@ -563,6 +564,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
         @inbounds s.pos[i] .= pos[i]
     end
     s.vel_kite .= vel[s.num_A]
+    s.vel_connection .= ((vel[s.num_E-2]-vel[s.num_C]) ⋅ s.e_z)
     s.reel_out_speeds = reel_out_speeds
 
     @assert isfinite(norm(res))
@@ -686,15 +688,12 @@ function find_steady_state!(s::KPS4_3L; prn=false, delta = 0.0, stiffness_factor
             F[4*s.set.segments+4+i] = s.res2[j][3]
         end
 
-        # if iter%1000 == 0
-        #     plot2d(s.pos, iter; zoom=false, segments=s.set.segments)
-        # end
         iter += 1
         return nothing
     end
     if prn println("\nStarted function test_nlsolve...") end
     X00 = zeros(SimFloat, 5*s.set.segments+3)
-    results = nlsolve(test_initial_condition!, X00, autoscale=true, xtol=2e-9, ftol=2e-9, iterations=s.set.max_iter)
+    results = nlsolve(test_initial_condition!, X00, autoscale=true, xtol=2e-7, ftol=2e-7, iterations=s.set.max_iter)
     if prn println("\nresult: $results") end
     println("last force\t", s.last_forces)
     init(s, results.zero)
