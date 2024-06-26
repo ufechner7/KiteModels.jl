@@ -282,12 +282,9 @@ Parameters:
 
 Updates the vector s.forces of the first parameter.
 """
-function calc_aero_forces!(s::KPS4_3L, pos::AbstractVector{KVec3}, vel::AbstractVector{KVec3})
+function calc_aero_forces!(s::KPS4_3L, pos::SVector{N, SVec3}, vel::SVector{N, SVec3}) where N
     n = s.set.aero_surfaces
 
-    println(typeof(pos[s.num_E-2]))
-    println(typeof(pos[s.num_C]))
-    println(typeof(s.e_z))
     s.δ_left = (pos[s.num_E-2].-pos[s.num_C]) ⋅ s.e_z
     s.δ_right = (pos[s.num_E-1].-pos[s.num_D]) ⋅ s.e_z
     
@@ -301,26 +298,26 @@ function calc_aero_forces!(s::KPS4_3L, pos::AbstractVector{KVec3}, vel::Abstract
     s.y_lc = norm(pos[s.num_C] .- 0.5 .* (pos[s.num_C].+pos[s.num_D]))
     s.y_ld = -norm(pos[s.num_D] .- 0.5 .* (pos[s.num_C].+pos[s.num_D]))
 
-    @inline F(α) = s.E_c .+ s.e_y.*cos(α).*s.set.radius .- s.e_z.*sin(α).*s.set.radius
-    @inbounds @inline e_r(α) = (s.E_c .- F(α))./norm(s.E_c .- F(α))
-    @inline y_l(α) = cos(α) * s.set.radius
+    @inline F(α::SimFloat) = s.E_c .+ s.e_y.*cos(α).*s.set.radius .- s.e_z.*sin(α).*s.set.radius
+    @inbounds @inline e_r(α::SimFloat) = (s.E_c .- F(α))./norm(s.E_c .- F(α))
+    @inline y_l(α::SimFloat) = cos(α) * s.set.radius
     # @inline v_kite(α) = α < π/2 ?
     #     ((s.v_cx .- s.v_dx)./(s.y_lc .- s.y_ld).*(y_l(α) .- s.y_ld) .+ s.v_dx) .+ s.v_cy .+ s.v_cz :
     #     ((s.v_cx .- s.v_dx)./(s.y_lc .- s.y_ld).*(y_l(α) .- s.y_ld) .+ s.v_dx) .+ s.v_dy .+ s.v_dz
-    @inline function v_kite(α)
+    @inline function v_kite(α::SimFloat)
         if α < π/2
             return ((s.v_cx .- s.v_dx)./(s.y_lc .- s.y_ld).*(y_l(α) .- s.y_ld) .+ s.v_dx) .+ s.v_cy .+ s.v_cz
         else
             return ((s.v_cx .- s.v_dx)./(s.y_lc .- s.y_ld).*(y_l(α) .- s.y_ld) .+ s.v_dx) .+ s.v_dy .+ s.v_dz
         end
     end
-    @inbounds @inline v_a(α) = s.v_wind - v_kite(α)
-    @inline e_drift(α) = (e_r(α) × s.e_x)
-    @inline v_a_xr(α) = v_a(α) - (v_a(α) ⋅ e_drift(α)) .* e_drift(α)
-    @inline kite_length(α) = α < π/2 ?
+    @inbounds @inline v_a(α::SimFloat) = s.v_wind - v_kite(α)
+    @inline e_drift(α::SimFloat) = (e_r(α)::KVec3 × s.e_x)
+    @inline v_a_xr(α::SimFloat) = v_a(α) - (v_a(α) ⋅ e_drift(α)) .* e_drift(α)
+    @inline kite_length(α::SimFloat) = α < π/2 ?
         (s.set.tip_length + (s.set.middle_length-s.set.tip_length)*α*s.set.radius/(0.5*s.set.width)) :
         (s.set.tip_length + (s.set.middle_length-s.set.tip_length)*(π-α)*s.set.radius/(0.5*s.set.width))
-    @inline function d(α)
+    @inline function d(α::SimFloat)
         if α < s.α_l
             return s.δ_left
         elseif α > s.α_r
@@ -329,9 +326,9 @@ function calc_aero_forces!(s::KPS4_3L, pos::AbstractVector{KVec3}, vel::Abstract
             return (s.δ_right - s.δ_left) / (s.α_r - s.α_l) * (α - s.α_l) + (s.δ_left)
         end
     end
-    @inline aoa(α) = π - acos2(normalize(v_a_xr(α)) ⋅ s.e_x) + asin(clamp(d(α)/kite_length(α), -1.0, 1.0))
-    @inline dL_dα(α) = 0.5*s.rho*(norm(v_a_xr(α)))^2*s.set.radius*kite_length(α)*rad_cl(aoa(α)) .* normalize(v_a_xr(α) × e_drift(α))
-    @inline dD_dα(α) = 0.5*s.rho*norm(v_a_xr(α))*s.set.radius*kite_length(α)*rad_cd(aoa(α)) .* v_a_xr(α) # the sideways drag cannot be calculated with the C_d formula
+    @inline aoa(α::SimFloat) = π - acos2(normalize(v_a_xr(α)) ⋅ s.e_x) + asin(clamp(d(α)/kite_length(α), -1.0, 1.0))
+    @inline dL_dα(α::SimFloat) = 0.5*s.rho*(norm(v_a_xr(α)))^2*s.set.radius*kite_length(α)*rad_cl(aoa(α)) .* normalize(v_a_xr(α) × e_drift(α))
+    @inline dD_dα(α::SimFloat) = 0.5*s.rho*norm(v_a_xr(α))*s.set.radius*kite_length(α)*rad_cd(aoa(α)) .* v_a_xr(α) # the sideways drag cannot be calculated with the C_d formula
     
     # Calculate the integral
     α_0 = pi/2 - s.set.width/2/s.set.radius
@@ -457,7 +454,8 @@ function loop!(s::KPS4_3L, pos, vel, posd, veld)
     inner_loop!(s, pos, vel, s.v_wind_gnd, s.set.d_tether/1000.0)
     for i in [s.num_E-2, s.num_E-1]
         F_xy = SVector(s.forces[i] .- (s.forces[i] ⋅ s.e_z) * s.e_z)
-        @inbounds s.forces[i] .+= -F_xy - 5000.0 * ((vel[i]-vel[s.num_C]) ⋅ s.e_z) * s.e_z # TODO: more damping
+        @inbounds s.forces[i] .+= -F_xy .- 5000.0 .* ((vel[i]-vel[s.num_C]) ⋅ s.e_z) .* s.e_z # TODO: more damping
+        # @inbounds s.forces[i] .*= 1/(1000*norm())
         @inbounds s.forces[i+3] .+= F_xy
     end
     for i in 4:s.num_A
