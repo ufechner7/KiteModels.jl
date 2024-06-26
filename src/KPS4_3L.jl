@@ -169,7 +169,24 @@ $(TYPEDFIELDS)
     num_D::Int64 =           0
     "Point number of A"
     num_A::Int64 =           0
-    distance_c_e::SimFloat = 0
+    L_C::T = zeros(S, 3)
+    L_D::T = zeros(S, 3)
+    D_C::T = zeros(S, 3)
+    D_D::T = zeros(S, 3)
+    v_cx::T = zeros(S, 3)
+    v_dx::T = zeros(S, 3)
+    v_dy::T = zeros(S, 3)
+    v_dz::T = zeros(S, 3)
+    v_cy::T = zeros(S, 3)
+    v_cz::T = zeros(S, 3)
+    E_c::T = zeros(S, 3)
+    y_lc::S = 0.0
+    y_ld::S = 0.0
+    δ_left::S = 0.0
+    δ_right::S = 0.0
+    α_l::S = 0.0
+    α_r::S = 0.0
+    distance_c_e::S = 0
 end
 
 """
@@ -188,6 +205,8 @@ function clear!(s::KPS4_3L)
     s.v_wind .= s.v_wind_gnd * calc_wind_factor(s.am, height)
 
     s.l_tethers .= [s.set.l_tether for _ in 1:3]
+    s.α_l = π/2 - s.set.min_steering_line_distance/(2*s.set.radius)
+    s.α_r = π/2 + s.set.min_steering_line_distance/(2*s.set.radius)
 
     s.segment_lengths .= s.l_tethers ./ s.set.segments
     s.num_E = s.set.segments*3+3
@@ -238,11 +257,15 @@ end
 
 function calc_kite_ref_frame!(s::KPS4_3L, E, C, D)
     P_c = 0.5 .* (C+D)
-    s.e_y = SVector(normalize(C - D))
-    s.e_z = SVector(normalize(E - P_c))
-    s.e_x = SVector(cross(s.e_y, s.e_z))
-    return s.e_x, s.e_y, s.e_z
+    s.e_y .= normalize(C - D)
+    s.e_z .= normalize(E - P_c)
+    s.e_x .= cross(s.e_y, s.e_z)
+    return nothing
 end
+
+"""
+Helper functions for calc_aero_forces
+"""
 
 """
     calc_aero_forces!(s::KPS4_3L, pos, vel)
@@ -259,84 +282,71 @@ Parameters:
 
 Updates the vector s.forces of the first parameter.
 """
-function calc_aero_forces!(s::KPS4_3L, pos, vel)
-    r = s.set.radius
-    middle_length = s.set.middle_length
-    tip_length = s.set.tip_length
+@inline function calc_aero_forces!(s::KPS4_3L, pos, vel)
     n = s.set.aero_surfaces
-    d_s = s.set.min_steering_line_distance
 
-    e_y = s.e_y
-    e_z = s.e_z
-    e_x = s.e_x
-    δ_left = (pos[s.num_E-2]-pos[s.num_C]) ⋅ e_z
-    δ_right = (pos[s.num_E-1]-pos[s.num_D]) ⋅ e_z
-    w = s.set.width
+    s.δ_left = (pos[s.num_E-2].-pos[s.num_C]) ⋅ s.e_z
+    s.δ_right = (pos[s.num_E-1].-pos[s.num_D]) ⋅ s.e_z
     
-    ρ = s.rho
     E, C, D = pos[s.num_E], pos[s.num_C], pos[s.num_D]
     v_c, v_d = vel[s.num_C], vel[s.num_D]
     
     P_c = 0.5 .* (C+D)
-    
-    E_c = E - e_z .* (s.set.bridle_center_distance - r) # in the aero calculations, E_c is the center of the circle shape on which the kite lies
-    F(α) = E_c + e_y*cos(α)*r - e_z*sin(α)*r
-    e_r(α) = normalize(E_c - F(α))
-    
-    v_cx = dot(v_c, e_x).*e_x
-    v_dx = dot(v_d, e_x).*e_x
-    v_dy = dot(v_d, e_y).*e_y
-    v_dz = dot(v_d, e_z).*e_z
-    v_cy = dot(v_c, e_y).*e_y
-    v_cz = dot(v_c, e_z).*e_z
-    y_lc = norm(C - P_c)
-    y_ld = -norm(D - P_c)
-    
-    y_l(α) = cos(α) * r
-    v_kite(α) = α < π/2 ?
-    ((v_cx - v_dx)./(y_lc - y_ld).*(y_l(α) - y_ld) + v_dx) + v_cy + v_cz :
-    ((v_cx - v_dx)./(y_lc - y_ld).*(y_l(α) - y_ld) + v_dx) + v_dy + v_dz
-    v_a(α) = s.v_wind - v_kite(α)
-    e_drift(α) = (e_r(α) × e_x)
-    v_a_xr(α) = v_a(α) - (v_a(α) ⋅ e_drift(α)) .* e_drift(α)
-    
-    length(α) = α < π/2 ?
-    (tip_length + (middle_length-tip_length)*α*r/(0.5*w)) :
-    (tip_length + (middle_length-tip_length)*(π-α)*r/(0.5*w))
-    
-    α_l = π/2 - d_s/(2*r) # TODO: move these to outside of function
-    α_r = π/2 + d_s/(2*r)
-    
-    function d(α)
-        if α < α_l
-            return δ_left
-        elseif α > α_r
-            return δ_right
+    s.E_c .= E .- s.e_z .* (s.set.bridle_center_distance - s.set.radius) # in the aero calculations, E_c is the center of the circle shape on which the kite lies
+    s.v_cx .= dot(v_c, s.e_x).*s.e_x
+    s.v_dx .= dot(v_d, s.e_x).*s.e_x
+    s.v_dy .= dot(v_d, s.e_y).*s.e_y
+    s.v_dz .= dot(v_d, s.e_z).*s.e_z
+    s.v_cy .= dot(v_c, s.e_y).*s.e_y
+    s.v_cz .= dot(v_c, s.e_z).*s.e_z
+    s.y_lc = norm(C - P_c)
+    s.y_ld = -norm(D - P_c)
+
+    @inline F(s, α) = s.E_c .+ s.e_y.*cos(α).*s.set.radius .- s.e_z.*sin(α).*s.set.radius
+    @inline e_r(s, α) = (s.E_c .- F(s, α))./norm(s.E_c .- F(s, α))
+    @inline y_l(s, α) = cos(α) * s.set.radius
+    @inline v_kite(s, α) = α < π/2 ?
+        ((s.v_cx .- s.v_dx)./(s.y_lc .- s.y_ld).*(y_l(s, α) .- s.y_ld) .+ s.v_dx) .+ s.v_cy .+ s.v_cz :
+        ((s.v_cx .- s.v_dx)./(s.y_lc .- s.y_ld).*(y_l(s, α) .- s.y_ld) .+ s.v_dx) .+ s.v_dy .+ s.v_dz
+    @inline v_a(s, α) = s.v_wind - v_kite(s, α)
+    @inline e_drift(s, α) = (e_r(s, α) × s.e_x)
+    @inline v_a_xr(s, α) = v_a(s, α) - (v_a(s, α) ⋅ e_drift(s, α)) .* e_drift(s, α)
+    @inline kite_length(s, α) = α < π/2 ?
+        (s.set.tip_length + (s.set.middle_length-s.set.tip_length)*α*s.set.radius/(0.5*s.set.width)) :
+        (s.set.tip_length + (s.set.middle_length-s.set.tip_length)*(π-α)*s.set.radius/(0.5*s.set.width))
+    @inline function d(s, α)
+        if α < s.α_l
+            return s.δ_left
+        elseif α > s.α_r
+            return s.δ_right
         else
-            return (δ_right - δ_left) / (α_r - α_l) * (α - α_l) + (δ_left)
+            return (s.δ_right - s.δ_left) / (s.α_r - s.α_l) * (α - s.α_l) + (s.δ_left)
         end
     end
-    aoa(α) = π - acos2(normalize(v_a_xr(α)) ⋅ e_x) + asin(clamp(d(α)/length(α), -1.0, 1.0))
-
-    dL_dα(α) = 0.5*ρ*(norm(v_a_xr(α)))^2*r*length(α)*rad_cl(aoa(α)) .* normalize(v_a_xr(α) × e_drift(α))
-    dD_dα(α) = 0.5*ρ*norm(v_a_xr(α))*r*length(α)*rad_cd(aoa(α)) .* v_a_xr(α) # the sideways drag cannot be calculated with the C_d formula
+    @inline aoa(s, α) = π - acos2(normalize(v_a_xr(s, α)) ⋅ s.e_x) + asin(clamp(d(s, α)/kite_length(s, α), -1.0, 1.0))
+    @inline dL_dα(s, α) = 0.5*s.rho*(norm(v_a_xr(s, α)))^2*s.set.radius*kite_length(s, α)*rad_cl(aoa(s, α)) .* normalize(v_a_xr(s, α) × e_drift(s, α))
+    @inline dD_dα(s, α) = 0.5*s.rho*norm(v_a_xr(s, α))*s.set.radius*kite_length(s, α)*rad_cd(aoa(s, α)) .* v_a_xr(s, α) # the sideways drag cannot be calculated with the C_d formula
     
     # Calculate the integral
-    α_0 = pi/2 - w/2/r
+    α_0 = pi/2 - s.set.width/2/s.set.radius
     α_middle = pi/2
     dα = (α_middle - α_0) / n
-    L_C = sum(dL_dα(α_0 + dα/2 + i*dα) .* dα for i in 1:n)
-    L_D = sum(dL_dα(pi - (α_0 + dα/2 + i*dα)) .* dα for i in 1:n)
-    D_C = sum(dD_dα(α_0 + dα/2 + i*dα) .* dα for i in 1:n)
-    D_D = sum(dD_dα(pi - (α_0 + dα/2 + i*dα)) .* dα for i in 1:n)
+    s.L_C .= zeros(SimFloat, 3)
+    s.L_D .= zeros(SimFloat, 3)
+    s.D_C .= zeros(SimFloat, 3)
+    s.D_D .= zeros(SimFloat, 3)
+    [s.L_C .+= dL_dα(s, α_0 + dα/2 + i*dα) .* dα for i in 1:n]
+    [s.L_D .+= dL_dα(s, pi - (α_0 + dα/2 + i*dα)) .* dα for i in 1:n]
+    [s.D_C .+= dD_dα(s, α_0 + dα/2 + i*dα) .* dα for i in 1:n]
+    [s.D_D .+= dD_dα(s, pi - (α_0 + dα/2 + i*dα)) .* dα for i in 1:n]
     
-    s.lift_force .= L_C + L_D
-    s.drag_force .= D_C + D_D
+    s.lift_force .= s.L_C .+ s.L_D
+    s.drag_force .= s.D_C .+ s.D_D
     
-    F_steering_c = ((0.1 * (L_C ⋅ -e_z)) .* -e_z)
-    F_steering_d = ((0.1 * (L_D ⋅ -e_z)) .* -e_z)
-    s.forces[s.num_C] .+= (L_C + D_C) - F_steering_c
-    s.forces[s.num_D] .+= (L_D + D_D) - F_steering_d
+    F_steering_c = ((0.1 * (s.L_C ⋅ -s.e_z)) .* -s.e_z)
+    F_steering_d = ((0.1 * (s.L_D ⋅ -s.e_z)) .* -s.e_z)
+    s.forces[s.num_C] .+= (s.L_C .+ s.D_C) .- F_steering_c
+    s.forces[s.num_D] .+= (s.L_D .+ s.D_D) .- F_steering_d
     s.forces[s.num_E-2] .+= F_steering_c
     s.forces[s.num_E-1] .+= F_steering_d
     return nothing
@@ -502,36 +512,36 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
     Cd, Dd = SVector(coordinatesd[:,num_particles-2,1]), SVector(coordinatesd[:,num_particles-1,1])
     vCd, vDd = SVector(coordinatesd[:,num_particles-2,2]), SVector(coordinatesd[:,num_particles-1,2])
 
-    _, _, e_z = calc_kite_ref_frame!(s, E, C, D)
+    calc_kite_ref_frame!(s, E, C, D)
     connection_lengths = SVector(connections[:,1])
 
     # convert y and yd to a nice list of coordinates
     pos = SVector{s.num_A}(vcat(
         [SVec3(zeros(3)) for _ in 1:3],
         [SVec3(coordinates[:, i-3, 1]) for i in 4:s.num_E-3],
-        [SVec3(C .+ e_z.*connections[1,1])],
-        [SVec3(D .+ e_z.*connections[2,1])],
+        [SVec3(C .+ s.e_z.*connections[1,1])],
+        [SVec3(D .+ s.e_z.*connections[2,1])],
         [SVec3(coordinates[:,i-5,1]) for i in s.num_E:s.num_A]
     ))
     vel = SVector{s.num_A}(vcat(
         [SVec3(zeros(3)) for _ in 1:3],
         [SVec3(coordinates[:,i-3,2]) for i in 4:s.num_E-3],
-        [SVec3(vC + e_z*connections[1,2])],
-        [SVec3(vD + e_z*connections[2,2])],
+        [SVec3(vC + s.e_z*connections[1,2])],
+        [SVec3(vD + s.e_z*connections[2,2])],
         [SVec3(coordinates[:,i-5,2]) for i in s.num_E:s.num_A]
     ))
     posd = SVector{s.num_A}(vcat(
         [SVec3(zeros(3)) for _ in 1:3],
         [SVec3(coordinatesd[:,i-3,1]) for i in 4:s.num_E-3],
-        [SVec3(Cd + e_z.*connectionsd[1,1])],
-        [SVec3(Dd + e_z.*connectionsd[2,1])],
+        [SVec3(Cd + s.e_z.*connectionsd[1,1])],
+        [SVec3(Dd + s.e_z.*connectionsd[2,1])],
         [SVec3(coordinatesd[:,i-5,1]) for i in s.num_E:s.num_A]
     ))
     veld = SVector{s.num_A}(vcat(
         [SVec3(zeros(3)) for _ in 1:3],
         [SVec3(coordinatesd[:,i-3,2]) for i in 4:s.num_E-3],
-        [SVec3(vCd + e_z*connectionsd[1,2])],
-        [SVec3(vDd + e_z*connectionsd[2,2])],
+        [SVec3(vCd + s.e_z*connectionsd[1,2])],
+        [SVec3(vDd + s.e_z*connectionsd[2,2])],
         [SVec3(coordinatesd[:,i-5,2]) for i in s.num_E:s.num_A]
     ))
     @assert isfinite(pos[4][3])

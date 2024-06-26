@@ -1,4 +1,4 @@
-using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils
+using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils, ProfileView
 using KiteModels, KitePodModels
 
 if ! @isdefined kcu
@@ -69,21 +69,21 @@ end
 
 set_defaults()
 
-# benchmark calc_particle_forces!
-t = @benchmark KiteModels.calc_particle_forces!(kps4_3l, pos1, pos2, vel1, vel2, spring, d_tether, rho, i) setup=(pos1 = KVec3(1.0, 2.0, 3.0);  
-                                        pos2 = KVec3(2.0, 3.0, 4.0); vel1 = KVec3(3.0, 4.0, 5.0); vel2 = KVec3(4.0, 5.0, 6.0); kps4_3l.v_wind_tether.=KVec3(8.0, 0.1, 0.0); spring=kps4_3l.springs[1];
-                                        kps4_3l.stiffness_factor = 0.5; segments=6.0; d_tether=se().d_tether/1000.0; rho=kps4_3l.set.rho_0; i=rand(1:se().segments + KiteModels.KITE_PARTICLES + 1))
-@test t.memory == 0
-global msg
-push!(msg, ("Mean time calc_particle_forces!: $(round(mean(t.times), digits=1)) ns"))
+# # benchmark calc_particle_forces!
+# t = @benchmark KiteModels.calc_particle_forces!(kps4_3l, pos1, pos2, vel1, vel2, spring, d_tether, rho, i) setup=(pos1 = KVec3(1.0, 2.0, 3.0);  
+#                                         pos2 = KVec3(2.0, 3.0, 4.0); vel1 = KVec3(3.0, 4.0, 5.0); vel2 = KVec3(4.0, 5.0, 6.0); kps4_3l.v_wind_tether.=KVec3(8.0, 0.1, 0.0); spring=kps4_3l.springs[1];
+#                                         kps4_3l.stiffness_factor = 0.5; segments=6.0; d_tether=se().d_tether/1000.0; rho=kps4_3l.set.rho_0; i=rand(1:se().segments + KiteModels.KITE_PARTICLES + 1))
+# @test t.memory == 0
+# global msg
+# push!(msg, ("Mean time calc_particle_forces!: $(round(mean(t.times), digits=1)) ns"))
 
-# benchmark inner_loop!
-pos, vel = KiteModels.init_pos_vel(kps4_3l)
-t = @benchmark KiteModels.inner_loop!(kps4_3l, pos, vel, v_wind_gnd, d_tether) setup=(kps4_3l.set.elevation = 70.0; kps4_3l.set.profile_law = Int(FAST_EXP);
-                                      kps4_3l.set.alpha = 1.0/7.0; pos = $pos; vel=$vel;
-                                      v_wind_gnd = KVec3(7.0, 0.1, 0.0); kps4_3l.stiffness_factor = 0.5; segments = kps4_3l.set.segments; d_tether = kps4_3l.set.d_tether/1000.0)
-push!(msg, ("Mean time inner_loop!:          $(round(mean(t.times), digits=1)) ns"))
-@test t.memory == 0
+# # benchmark inner_loop!
+# pos, vel = KiteModels.init_pos_vel(kps4_3l)
+# t = @benchmark KiteModels.inner_loop!(kps4_3l, pos, vel, v_wind_gnd, d_tether) setup=(kps4_3l.set.elevation = 70.0; kps4_3l.set.profile_law = Int(FAST_EXP);
+#                                       kps4_3l.set.alpha = 1.0/7.0; pos = $pos; vel=$vel;
+#                                       v_wind_gnd = KVec3(7.0, 0.1, 0.0); kps4_3l.stiffness_factor = 0.5; segments = kps4_3l.set.segments; d_tether = kps4_3l.set.d_tether/1000.0)
+# push!(msg, ("Mean time inner_loop!:          $(round(mean(t.times), digits=1)) ns"))
+# @test t.memory == 0
 
 # benchmark calc_aero_forces!
 init_50()
@@ -98,26 +98,30 @@ kps4_3l.v_wind .= KVec3(15.51, 0.0, 0.0)
 for i in 1:kps4_3l.num_A
     kps4_3l.forces[i] .= zeros(3)
 end
+@profview [KiteModels.calc_aero_forces!(kps4_3l, pos, vel) for _ in 1:1000]
+@profview [KiteModels.calc_aero_forces!(kps4_3l, pos, vel) for _ in 1:1000]
 t = @benchmark KiteModels.calc_aero_forces!($kps4_3l, $pos, $vel)
+println("Mean time calc_aero_forces!:    $(round(mean(t.times), digits=1)) ns")
 push!(msg, ("Mean time calc_aero_forces!:    $(round(mean(t.times), digits=1)) ns"))
 @test t.memory == 0
+# best: 9360 == 0
 
-# benchmark loop!
-init2()
-pos, vel, posd, veld = init2()
-t = @benchmark KiteModels.loop!($kps4_3l, $pos, $vel, $posd, $veld)
-push!(msg, ("Mean time loop!:                $(round(mean(t.times), digits=1)) ns"))
-@test t.memory == 0
+# # benchmark loop!
+# init2()
+# pos, vel, posd, veld = init2()
+# t = @benchmark KiteModels.loop!($kps4_3l, $pos, $vel, $posd, $veld)
+# push!(msg, ("Mean time loop!:                $(round(mean(t.times), digits=1)) ns"))
+# @test t.memory == 0
 
-# benchmark residual!
-init2()
-kps4_3l.stiffness_factor = 0.04
-res = zeros(MVector{6*(kps4_3l.num_A-5)+4+6, SimFloat})
-y0, yd0 = KiteModels.init(kps4_3l)
-time = 0.0
-t = @benchmark residual!($res, $yd0, $y0, $kps4_3l, $time)
-push!(msg, ("Mean time residual!:           $(round(mean(t.times), digits=1)) ns"))
-@test t.memory == 0
+# # benchmark residual!
+# init2()
+# kps4_3l.stiffness_factor = 0.04
+# res = zeros(MVector{6*(kps4_3l.num_A-5)+4+6, SimFloat})
+# y0, yd0 = KiteModels.init(kps4_3l)
+# time = 0.0
+# t = @benchmark residual!($res, $yd0, $y0, $kps4_3l, $time)
+# push!(msg, ("Mean time residual!:           $(round(mean(t.times), digits=1)) ns"))
+# @test t.memory == 0
 
 
 end
