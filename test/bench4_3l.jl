@@ -98,13 +98,16 @@ kps4_3l.v_wind .= KVec3(15.51, 0.0, 0.0)
 for i in 1:kps4_3l.num_A
     kps4_3l.forces[i] .= zeros(3)
 end
-@profview [KiteModels.calc_aero_forces!(kps4_3l, pos, vel) for _ in 1:1000]
-@profview [KiteModels.calc_aero_forces!(kps4_3l, pos, vel) for _ in 1:1000]
-t = @benchmark KiteModels.calc_aero_forces!($kps4_3l, $pos, $vel)
-println("Mean time calc_aero_forces!:    $(round(mean(t.times), digits=1)) ns")
-push!(msg, ("Mean time calc_aero_forces!:    $(round(mean(t.times), digits=1)) ns"))
-@test t.memory == 0
-# best: 9360 == 0
+# @profview [KiteModels.calc_aero_forces!(kps4_3l, pos, vel) for _ in 1:1000]
+# @profview [KiteModels.calc_aero_forces!(kps4_3l, pos, vel) for _ in 1:1000]
+# t = @benchmark KiteModels.calc_aero_forces!($kps4_3l, $pos, $vel)
+KiteModels.calc_aero_forces!(kps4_3l, pos, vel)
+println("running...")
+KiteModels.calc_aero_forces!(kps4_3l, pos, vel)
+# println("Mean time calc_aero_forces!:    $(round(mean(t.times), digits=1)) ns")
+# push!(msg, ("Mean time calc_aero_forces!:    $(round(mean(t.times), digits=1)) ns"))
+# @test t.memory == 0
+# best: 8656 == 0
 
 # # benchmark loop!
 # init2()
@@ -125,7 +128,7 @@ push!(msg, ("Mean time calc_aero_forces!:    $(round(mean(t.times), digits=1)) n
 
 
 end
-for i in eachindex(msg)
-    println(msg[i])
-end
+# for i in eachindex(msg)
+#     println(msg[i])
+# end
 
