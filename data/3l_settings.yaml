@@ -21,7 +21,7 @@ solver:
     solver: "DFBDF"        # DAE solver, IDA or DImplicitEuler, DFBDF
     linear_solver: "GMRES" # can be GMRES or Dense or LapackDense (only for IDA)
     max_order: 4           # maximal order, usually between 3 and 5
-    max_iter:  10000000         # max number of iterations of the steady-state-solver
+    max_iter:  10000         # max number of iterations of the steady-state-solver
 
 steering:
     c0:       0.0          # steering offset   -0.0032           [-]
@@ -38,7 +38,7 @@ depower:
 kite:
     model: "data/kite.obj" # 3D model of the kite
     physical_model: "KPS4_3L" # name of the kite model to use (KPS3 or KPS4)
-    version: 1             # version of the model to use
+    version: 2             # version of the model to use
     mass:  0.5             # kite mass incl. sensor unit [kg]
     area: 10.18            # projected kite area         [m²]
     rel_side_area: 30.6    # relative side area           [%]

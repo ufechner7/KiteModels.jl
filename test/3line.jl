@@ -1,7 +1,7 @@
 using Revise
 using KiteModels
 using ControlPlots
-using LinearAlgebra
+using LinearAlgebra, StaticArrays
 update_settings()
 kcu = KCU(se())
 s = KPS4_3L(kcu)
@@ -14,6 +14,8 @@ for i in 1:200
     # println("connection lengths\t", s.l_connections)
     # println("force connection\t", s.forces[s.num_E-2])
     println("speed \t", s.vel_connection)
-
+    for j in 4:s.num_A
+        println("acc\t", (SVector(0, 0, -9.81) .+ s.forces[j] ./ s.masses[j]))
+    end
     @time KiteModels.next_step!(s, integrator, v_ro=[0.0,0.0,0.0], dt=dt)
 end

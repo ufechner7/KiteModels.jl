@@ -63,7 +63,6 @@ function get_particles(width, radius, middle_length, tip_length, bridle_center_d
     P_c = (C+D)./2
     A = P_c - e_x*(length(α_c)*(3/4 - 1/4))
 
-    # println("E\t$E C\t$C D\t$D A\t$A")
     [E, C, D, A] # important to have the order E = 1, C = 2, D = 3, A = 4
 end
 
@@ -218,20 +217,6 @@ function init_pos_vel_acc(s::KPS4_3L, X=zeros(5*s.set.segments+3); delta = 0.0)
         s.pos[i] .= pos[i]
     end  
 
-    # println("pos vel acc\t", pos, vel, acc)
-    # plt3d = Plots.plot([p[1] for p in pos],[p[2] for p in pos], [p[3] for p in pos],
-    #     xlim = (0, 150),
-    #     ylim = (-20, 20),
-    #     zlim = (0, 200),
-    #     seriestype=:scatter,
-    #     markersize=0,
-    #     size=(800,800)
-    #     )
-    # for i in eachindex(pos)
-    #     annotate!(plt3d, pos[i][1], pos[i][2], pos[i][3], 
-    #         text("$i", :red, :right, 10))
-    # end
-    # display(plt3d)
     return pos, vel, acc
 end
 
@@ -242,6 +227,11 @@ end
 function init_pos_vel(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)))
     pos, vel, acc = init_pos_vel_acc(s, X; old=true)
     pos, vel
+end
+
+function init_pos_vel(s::KPS4_3L, X=zeros(5*s.set.segments+3))
+    pos, vel, acc = init_pos_vel_acc(s, X)
+    return pos, vel
 end
 
 function init_inner(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false, delta=0.0)

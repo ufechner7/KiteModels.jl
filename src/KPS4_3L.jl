@@ -190,6 +190,10 @@ function clear!(s::KPS4_3L)
     s.l_tethers .= [s.set.l_tether for _ in 1:3]
 
     s.segment_lengths .= s.l_tethers ./ s.set.segments
+    s.num_E = s.set.segments*3+3
+    s.num_C = s.set.segments*3+3+1
+    s.num_D = s.set.segments*3+3+2
+    s.num_A = s.set.segments*3+3+3
     init_masses!(s)
     init_springs!(s)
     for i in 1:s.num_A
@@ -241,7 +245,7 @@ function calc_kite_ref_frame!(s::KPS4_3L, E, C, D)
 end
 
 """
-    calc_aero_forces!(s::KPS4_3L, pos, vel, rho, alpha_depower, rel_steering)
+    calc_aero_forces!(s::KPS4_3L, pos, vel)
 
 Calculates the aerodynamic forces acting on the kite particles.
 
@@ -339,7 +343,7 @@ function calc_aero_forces!(s::KPS4_3L, pos, vel)
 end
 
 """ 
-    calc_particle_forces!(s::KPS4_3L, pos1, pos2, vel1, vel2, spring, segments, d_tether, rho, i)
+    calc_particle_forces!(s::KPS4_3L, pos1, pos2, vel1, vel2, spring, d_tether, rho, i)
 
 Calculate the drag force and spring force of the tether segment, defined by the parameters pos1, pos2, vel1 and vel2
 and distribute it equally on the two particles, that are attached to the segment.
@@ -501,9 +505,6 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
     _, _, e_z = calc_kite_ref_frame!(s, E, C, D)
     connection_lengths = SVector(connections[:,1])
 
-    # println(size([zeros(SVector{3, Float64}, 3)]))
-    # println(size(reshape(SVector{3*(s.num_E-3)}(y_[1:3*(s.num_E-3)]), Size((s.num_E-3), 3))))
-    # println(size(reshape(SVector{3*(num_particles - (s.num_E-3))}(y_[3*(s.num_E-3)+1:3*num_particles]), Size(3, num_particles - (s.num_E-3)))))
     # convert y and yd to a nice list of coordinates
     pos = SVector{s.num_A}(vcat(
         [SVec3(zeros(3)) for _ in 1:3],
