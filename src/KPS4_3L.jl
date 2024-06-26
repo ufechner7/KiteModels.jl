@@ -173,7 +173,7 @@ $(TYPEDFIELDS)
     L_D::T = zeros(S, 3)
     D_C::T = zeros(S, 3)
     D_D::T = zeros(S, 3)
-    v_cx::T = zeros(S, 3)
+    v_cx::MVector{3, Float64} = zeros(S, 3)
     v_dx::T = zeros(S, 3)
     v_dy::T = zeros(S, 3)
     v_dz::T = zeros(S, 3)
@@ -282,14 +282,17 @@ Parameters:
 
 Updates the vector s.forces of the first parameter.
 """
-@inline function calc_aero_forces!(s::KPS4_3L, pos, vel)
+function calc_aero_forces!(s::KPS4_3L, pos::AbstractVector{KVec3}, vel::AbstractVector{KVec3})
     n = s.set.aero_surfaces
 
+    println(typeof(pos[s.num_E-2]))
+    println(typeof(pos[s.num_C]))
+    println(typeof(s.e_z))
     s.δ_left = (pos[s.num_E-2].-pos[s.num_C]) ⋅ s.e_z
     s.δ_right = (pos[s.num_E-1].-pos[s.num_D]) ⋅ s.e_z
     
-    @time s.E_c::KVec3 .= pos[s.num_E] .- s.e_z .* (s.set.bridle_center_distance - s.set.radius) # in the aero calculations, E_c is the center of the circle shape on which the kite lies
-    s.v_cx::KVec3 .= dot(vel[s.num_C], s.e_x).*s.e_x
+    s.E_c .= pos[s.num_E] .- s.e_z .* (s.set.bridle_center_distance - s.set.radius) # in the aero calculations, E_c is the center of the circle shape on which the kite lies
+    s.v_cx .= dot(vel[s.num_C], s.e_x).*s.e_x
     s.v_dx .= dot(vel[s.num_D], s.e_x).*s.e_x
     s.v_dy .= dot(vel[s.num_D], s.e_y).*s.e_y
     s.v_dz .= dot(vel[s.num_D], s.e_z).*s.e_z
@@ -521,28 +524,28 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
     connection_lengths = SVector(connections[:,1])
 
     # convert y and yd to a nice list of coordinates
-    pos = SVector{s.num_A}(vcat(
+    pos = SVector{s.num_A, SVec3}(vcat(
         [SVec3(zeros(3)) for _ in 1:3],
         [SVec3(coordinates[:, i-3, 1]) for i in 4:s.num_E-3],
         [SVec3(C .+ s.e_z.*connections[1,1])],
         [SVec3(D .+ s.e_z.*connections[2,1])],
         [SVec3(coordinates[:,i-5,1]) for i in s.num_E:s.num_A]
     ))
-    vel = SVector{s.num_A}(vcat(
+    vel = SVector{s.num_A, SVec3}(vcat(
         [SVec3(zeros(3)) for _ in 1:3],
         [SVec3(coordinates[:,i-3,2]) for i in 4:s.num_E-3],
         [SVec3(vC + s.e_z*connections[1,2])],
         [SVec3(vD + s.e_z*connections[2,2])],
         [SVec3(coordinates[:,i-5,2]) for i in s.num_E:s.num_A]
     ))
-    posd = SVector{s.num_A}(vcat(
+    posd = SVector{s.num_A, SVec3}(vcat(
         [SVec3(zeros(3)) for _ in 1:3],
         [SVec3(coordinatesd[:,i-3,1]) for i in 4:s.num_E-3],
         [SVec3(Cd + s.e_z.*connectionsd[1,1])],
         [SVec3(Dd + s.e_z.*connectionsd[2,1])],
         [SVec3(coordinatesd[:,i-5,1]) for i in s.num_E:s.num_A]
     ))
-    veld = SVector{s.num_A}(vcat(
+    veld = SVector{s.num_A, SVec3}(vcat(
         [SVec3(zeros(3)) for _ in 1:3],
         [SVec3(coordinatesd[:,i-3,2]) for i in 4:s.num_E-3],
         [SVec3(vCd + s.e_z*connectionsd[1,2])],

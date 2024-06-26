@@ -230,7 +230,7 @@ function init_pos_vel(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)))
 end
 
 function init_pos_vel(s::KPS4_3L, X=zeros(5*s.set.segments+3))
-    pos, vel, acc = init_pos_vel_acc(s, X)
+    pos, vel, _ = init_pos_vel_acc(s, X)
     return pos, vel
 end
 

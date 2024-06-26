@@ -92,7 +92,8 @@ kps4_3l.set.profile_law = Int(FAST_EXP)
 for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1 
     kps4_3l.forces[i] .= zeros(3)
 end
-pos, vel = KiteModels.init_inner(kps4_3l)
+pos, vel = KiteModels.init_pos_vel(kps4_3l)
+pos, vel = SVector{kps4_3l.num_A, KVec3}(pos), SVector{kps4_3l.num_A, KVec3}(vel)
 rho = 1.25
 kps4_3l.v_wind .= KVec3(15.51, 0.0, 0.0)
 for i in 1:kps4_3l.num_A
