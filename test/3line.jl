@@ -17,7 +17,7 @@ for i in 1:200
     # for j in 4:s.num_A
     #     println("acc\t", (SVector(0, 0, -9.81) .+ s.forces[j] ./ s.masses[j]))
     # end
-    @time KiteModels.next_step!(s, integrator, v_ro=[0.0,2.0,0.0], dt=dt)
+    @time KiteModels.next_step!(s, integrator, v_ro=[0.0,0.0,0.0], dt=dt)
     println("acc left\t", (SVector(0, 0, -9.81) .+ s.forces[s.num_E-2] ./ s.masses[s.num_E-2]))
     println("steering left\t", s.δ_left)
     println("acc right\t", (SVector(0, 0, -9.81) .+ s.forces[s.num_E-1] ./ s.masses[s.num_E-1]))

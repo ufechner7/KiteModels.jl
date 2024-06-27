@@ -55,8 +55,8 @@ function init2()
     kps4_3l.set.elevation = 60.0
     kps4_3l.set.profile_law = Int(FAST_EXP)
     pos, vel = KiteModels.init_pos_vel(kps4_3l)
-    posd = copy(vel)
-    veld = zero(vel)
+    pos, vel = SVector{kps4_3l.num_A, MVector{3, Float64}}(pos), SVector{kps4_3l.num_A, MVector{3, Float64}}(vel)
+    posd, veld = SVector{kps4_3l.num_A, MVector{3, Float64}}(copy(vel)), SVector{kps4_3l.num_A, MVector{3, Float64}}(zero(vel))
     kps4_3l.v_wind_gnd .= [15.51, 0.0, 0.0]
     kps4_3l.stiffness_factor = 0.5
     lengths = [50.0, norm(pos[kps4_3l.num_C]-pos[kps4_3l.num_E-2]), norm(pos[kps4_3l.num_D]-pos[kps4_3l.num_E-1])]
@@ -69,7 +69,7 @@ end
 
 set_defaults()
 
-function bench_particle_forces()
+function bench_particle_forces(; method=1)
     # # benchmark calc_particle_forces!
     t = @benchmark KiteModels.calc_particle_forces!(kps4_3l, pos1, pos2, vel1, vel2, spring, d_tether, rho, i) setup=(pos1 = KVec3(1.0, 2.0, 3.0);  
                                             pos2 = KVec3(2.0, 3.0, 4.0); vel1 = KVec3(3.0, 4.0, 5.0); vel2 = KVec3(4.0, 5.0, 6.0); kps4_3l.v_wind_tether.=KVec3(8.0, 0.1, 0.0); spring=kps4_3l.springs[1];
@@ -79,7 +79,7 @@ function bench_particle_forces()
     push!(msg, ("Mean time calc_particle_forces!: $(round(mean(t.times), digits=1)) ns"))
 end
 
-function bench_inner_loop()
+function bench_inner_loop(; method=1)
     # benchmark inner_loop!
     pos, vel = KiteModels.init_pos_vel(kps4_3l)
     t = @benchmark KiteModels.inner_loop!(kps4_3l, pos, vel, v_wind_gnd, d_tether) setup=(kps4_3l.set.elevation = 70.0; kps4_3l.set.profile_law = Int(FAST_EXP);
@@ -98,8 +98,7 @@ function bench_aero_forces(; method=1)
         kps4_3l.forces[i] .= zeros(3)
     end
     pos, vel = KiteModels.init_pos_vel(kps4_3l)
-    pos, vel = SVector{kps4_3l.num_A, SVector{3, Float64}}(pos), SVector{kps4_3l.num_A, SVector{3, Float64}}(vel)
-    rho = 1.25
+    pos, vel = SVector{kps4_3l.num_A, MVector{3, Float64}}(pos), SVector{kps4_3l.num_A, MVector{3, Float64}}(vel)
     kps4_3l.v_wind .= KVec3(15.51, 0.0, 0.0)
     for i in 1:kps4_3l.num_A
         kps4_3l.forces[i] .= zeros(3)
@@ -108,7 +107,6 @@ function bench_aero_forces(; method=1)
         t = @benchmark KiteModels.calc_aero_forces!($kps4_3l, $pos, $vel)
         push!(msg, ("Mean time calc_aero_forces!:    $(round(mean(t.times), digits=1)) ns"))
         @test t.memory == 0
-        # best: 640 == 0
     elseif method==2
         KiteModels.calc_aero_forces!(kps4_3l, pos, vel)
         println("running...")
@@ -119,28 +117,44 @@ function bench_aero_forces(; method=1)
     end
 end
 
-function bench_loop()
+function bench_loop(; method=1)
     # # benchmark loop!
     init2()
     pos, vel, posd, veld = init2()
-    t = @benchmark KiteModels.loop!($kps4_3l, $pos, $vel, $posd, $veld)
-    push!(msg, ("Mean time loop!:                $(round(mean(t.times), digits=1)) ns"))
-    @test t.memory == 0
+    if method == 1
+        t = @benchmark KiteModels.loop!($kps4_3l, $pos, $vel, $posd, $veld)
+        push!(msg, ("Mean time loop!:                $(round(mean(t.times), digits=1)) ns"))
+        @test t.memory == 0
+    elseif method == 2
+        KiteModels.loop!(kps4_3l, pos, vel, posd, veld)
+        println("running...")
+        KiteModels.loop!(kps4_3l, pos, vel, posd, veld)
+    end
 end
 
-function bench_residual()
+function bench_residual(; method=1)
     # # benchmark residual!
     init2()
     kps4_3l.stiffness_factor = 0.04
     res = zeros(MVector{6*(kps4_3l.num_A-5)+4+6, SimFloat})
     y0, yd0 = KiteModels.init(kps4_3l)
     time = 0.0
-    t = @benchmark residual!($res, $yd0, $y0, $kps4_3l, $time)
-    push!(msg, ("Mean time residual!:           $(round(mean(t.times), digits=1)) ns"))
-    @test t.memory == 0
+    if method==1
+        t = @benchmark KiteModels.residual!($res, $yd0, $y0, $kps4_3l, $time)
+        push!(msg, ("Mean time residual!:           $(round(mean(t.times), digits=1)) ns"))
+        @test t.memory == 0
+    elseif method==2
+        KiteModels.residual!(res, yd0, y0, kps4_3l, time)
+        println("running...")
+        KiteModels.residual!(res, yd0, y0, kps4_3l, time)
+    end
 end
 
+bench_particle_forces(method=1)
+bench_inner_loop(method=1)
 bench_aero_forces(method=1)
+bench_loop(method=1)
+bench_residual(method=1)
 
 for i in eachindex(msg)
     println(msg[i])

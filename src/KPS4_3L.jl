@@ -114,6 +114,9 @@ $(TYPEDFIELDS)
     res2::SVector{P, T} = zeros(SVector{P, T})
     "a copy of the actual positions as output for the user"
     pos::SVector{P, T} = zeros(SVector{P, T})
+    vel::SVector{P, T} = zeros(SVector{P, T})
+    posd::SVector{P, T} = zeros(SVector{P, T})
+    veld::SVector{P, T} = zeros(SVector{P, T})
     "velocity vector of the kite"
     vel_kite::T =          zeros(S, 3)
     vel_connection::T =          zeros(S, 3)
@@ -169,6 +172,9 @@ $(TYPEDFIELDS)
     "Point number of D"
     num_D::Int64 =           0
     "Point number of A"
+
+
+    "residual variables"
     num_A::Int64 =           0
     L_C::T = zeros(S, 3)
     L_D::T = zeros(S, 3)
@@ -274,20 +280,6 @@ function calc_kite_ref_frame!(s::KPS4_3L, E, C, D)
 end
 
 """
-Helper functions for calc_aero_forces
-"""
-# function y_l(s::kps4_3l, α::SimFloat)
-#     cos(α) * s.set.radius
-# end
-
-# function v_kite(s::KPS4_3L, α::SimFloat)
-#     if α < π/2
-#         return ((s.v_cx .- s.v_dx)./(s.y_lc .- s.y_ld).*(y_l(s, α) .- s.y_ld) .+ s.v_dx) .+ s.v_cy .+ s.v_cz
-#     else
-#         return ((s.v_cx .- s.v_dx)./(s.y_lc .- s.y_ld).*(y_l(s, α) .- s.y_ld) .+ s.v_dx) .+ s.v_dy .+ s.v_dz
-#     end
-# end
-"""
     calc_aero_forces!(s::KPS4_3L, pos, vel)
 
 Calculates the aerodynamic forces acting on the kite particles.
@@ -302,7 +294,7 @@ Parameters:
 
 Updates the vector s.forces of the first parameter.
 """
-function calc_aero_forces!(s::KPS4_3L, pos::SVector{N, SVec3}, vel::SVector{N, SVec3}) where N
+function calc_aero_forces!(s::KPS4_3L, pos::SVector{N, KVec3}, vel::SVector{N, KVec3}) where N
     n = s.set.aero_surfaces
 
     s.δ_left = (pos[s.num_E-2].-pos[s.num_C]) ⋅ s.e_z
@@ -463,11 +455,8 @@ function loop!(s::KPS4_3L, pos, vel, posd, veld)
     
     mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
 
-    # TODO: remove these two lines
-    [@inbounds s.res1[i] .= pos[i] for i in 1:3] # pos = 0
-    [@inbounds s.res2[i] .= vel[i] for i in 1:3] # vel = 0
     for i in 4:s.num_A
-        s.res1[i] .= vel[i] - posd[i] 
+        s.res1[i] .= vel[i] .- posd[i]
     end
     # Compute the masses and forces
     mass_tether_particle = mass_per_meter * s.segment_lengths[1]
@@ -479,7 +468,7 @@ function loop!(s::KPS4_3L, pos, vel, posd, veld)
         @inbounds s.springs[i] = SP(s.springs[i].p1, s.springs[i].p2, s.segment_lengths[i%3+1], c_spring, damping)
     end
     inner_loop!(s, pos, vel, s.v_wind_gnd, s.set.d_tether/1000.0)
-    for i in [s.num_E-2, s.num_E-1]
+    for i in s.num_E-2:s.num_E-1
         F_xy = SVector(s.forces[i] .- (s.forces[i] ⋅ s.e_z) * s.e_z)
         @inbounds s.forces[i] .+= -F_xy .- 5000.0 .* ((vel[i]-vel[s.num_C]) ⋅ s.e_z) .* s.e_z # TODO: more damping
         # @inbounds s.forces[i] .*= 1/(1000*norm())
@@ -519,26 +508,28 @@ function residual!(res, yd, y::Vector{SimFloat}, s::KPS4_3L, time)
     residual!(res, yd_, y_, s, time)
 end
 function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
-    T = S-6 # T: three times the number of particles minus 3 origin particles
     num_particles = div(S-6-4, 6) # total number of 3-dimensional particles in y, so excluding 3 stationary points and 2 wire points
     for i in 1:s.num_A
         s.forces[i] .= SVector(0.0, 0, 0)
     end
     # extract the data for the winch simulation
-    lengths,  reel_out_speeds  = y[end-5:end-3],  y[end-2:end] # middle left right length
-    lengthsd, reel_out_speedsd = yd[end-5:end-3], yd[end-2:end]
+    lengths = @view y[end-5:end-3]
+    reel_out_speeds = @view y[end-2:end]
+
+    lengthsd = @view yd[end-5:end-3]
+    reel_out_speedsd = @view yd[end-2:end]
 
     # extract the data of the particles
     y_  = @view y[1:end-6]
     yd_ = @view yd[1:end-6]
 
     # unpack the vector y
-    coordinates = reshape(SVector{6*num_particles}(y_[1:6*num_particles]), Size(3, num_particles, 2))
-    connections = reshape(SVector{4}(y_[6*num_particles+1:6*num_particles+4]), Size(2, 2))
+    coordinates = reshape(SVector{6*num_particles}(@view y_[1:6*num_particles]), Size(3, num_particles, 2))
+    connections = reshape(SVector{4}(@view y_[6*num_particles+1:6*num_particles+4]), Size(2, 2))
 
     # unpack the vector yd
-    coordinatesd = reshape(SVector{6*num_particles}(yd_[1:6*num_particles]), Size(3, num_particles, 2))
-    connectionsd = reshape(SVector{4}(yd_[6*num_particles+1:6*num_particles+4]), Size(2, 2))
+    coordinatesd = reshape(SVector{6*num_particles}(@view yd_[1:6*num_particles]), Size(3, num_particles, 2))
+    connectionsd = reshape(SVector{4}(@view yd_[6*num_particles+1:6*num_particles+4]), Size(2, 2))
 
     E, C, D = SVector(coordinates[:,num_particles-3,1]), SVector(coordinates[:,num_particles-2,1]), SVector(coordinates[:,num_particles-1,1])
     vC, vD = SVector(coordinates[:,num_particles-2,2]), SVector(coordinates[:,num_particles-1,2])
@@ -549,54 +540,92 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
     connection_lengths = SVector(connections[:,1])
 
     # convert y and yd to a nice list of coordinates
-    pos = SVector{s.num_A, SVec3}(vcat(
-        [SVec3(zeros(3)) for _ in 1:3],
-        [SVec3(coordinates[:, i-3, 1]) for i in 4:s.num_E-3],
-        [SVec3(C .+ s.e_z.*connections[1,1])],
-        [SVec3(D .+ s.e_z.*connections[2,1])],
-        [SVec3(coordinates[:,i-5,1]) for i in s.num_E:s.num_A]
-    ))
-    vel = SVector{s.num_A, SVec3}(vcat(
-        [SVec3(zeros(3)) for _ in 1:3],
-        [SVec3(coordinates[:,i-3,2]) for i in 4:s.num_E-3],
-        [SVec3(vC + s.e_z*connections[1,2])],
-        [SVec3(vD + s.e_z*connections[2,2])],
-        [SVec3(coordinates[:,i-5,2]) for i in s.num_E:s.num_A]
-    ))
-    posd = SVector{s.num_A, SVec3}(vcat(
-        [SVec3(zeros(3)) for _ in 1:3],
-        [SVec3(coordinatesd[:,i-3,1]) for i in 4:s.num_E-3],
-        [SVec3(Cd + s.e_z.*connectionsd[1,1])],
-        [SVec3(Dd + s.e_z.*connectionsd[2,1])],
-        [SVec3(coordinatesd[:,i-5,1]) for i in s.num_E:s.num_A]
-    ))
-    veld = SVector{s.num_A, SVec3}(vcat(
-        [SVec3(zeros(3)) for _ in 1:3],
-        [SVec3(coordinatesd[:,i-3,2]) for i in 4:s.num_E-3],
-        [SVec3(vCd + s.e_z*connectionsd[1,2])],
-        [SVec3(vDd + s.e_z*connectionsd[2,2])],
-        [SVec3(coordinatesd[:,i-5,2]) for i in s.num_E:s.num_A]
-    ))
-    @assert isfinite(pos[4][3])
+    for i in 1:3
+        s.pos[i] .= SVector(0.0, 0, 0)
+        s.vel[i] .= SVector(0.0, 0, 0)
+        s.posd[i] .= SVector(0.0, 0, 0)
+        s.veld[i] .= SVector(0.0, 0, 0)
+    end
+    for i in 4:s.num_E-3
+        s.pos[i] .= SVec3(coordinates[:, i-3, 1])
+        s.vel[i] .= SVec3(coordinates[:,i-3,2])
+        s.posd[i] .= SVec3(coordinatesd[:,i-3,1])
+        s.veld[i] .= SVec3(coordinatesd[:,i-3,2])
+    end
+    s.pos[s.num_E-2] .= SVec3(C .+ s.e_z.*connections[1,1])
+    s.vel[s.num_E-2] .= SVec3(vC + s.e_z*connections[1,2])
+    s.posd[s.num_E-2] .= SVec3(Cd + s.e_z.*connectionsd[1,1])
+    s.veld[s.num_E-2] .= SVec3(vCd + s.e_z*connectionsd[1,2])
+
+    s.pos[s.num_E-1] .= (D .+ s.e_z.*connections[2,1])
+    s.vel[s.num_E-1] .= SVec3(vD + s.e_z*connections[2,2])
+    s.posd[s.num_E-1] .= SVec3(Dd + s.e_z.*connectionsd[2,1])
+    s.veld[s.num_E-1] .= SVec3(vDd + s.e_z*connectionsd[2,2])
+
+    for i in s.num_E:s.num_A
+        s.pos[i] .= (coordinates[:,i-5,1])
+        s.vel[i] .= SVec3(coordinates[:,i-5,2])
+        s.posd[i] .= SVec3(coordinatesd[:,i-5,1])
+        s.veld[i] .= SVec3(coordinatesd[:,i-5,2])
+    end
+    # @time pos = SVector{s.num_A, SVec3}(vcat(
+    #     [SVec3(zeros(3)) for _ in 1:3],
+    #     [SVec3(coordinates[:, i-3, 1]) for i in 4:s.num_E-3],
+    #     [SVec3(C .+ s.e_z.*connections[1,1])],
+    #     [SVec3(D .+ s.e_z.*connections[2,1])],
+    #     [SVec3(coordinates[:,i-5,1]) for i in s.num_E:s.num_A]
+    # ))
+    # vel = SVector{s.num_A, SVec3}(vcat(
+    #     [SVec3(zeros(3)) for _ in 1:3],
+    #     [SVec3(coordinates[:,i-3,2]) for i in 4:s.num_E-3],
+    #     [SVec3(vC + s.e_z*connections[1,2])],
+    #     [SVec3(vD + s.e_z*connections[2,2])],
+    #     [SVec3(coordinates[:,i-5,2]) for i in s.num_E:s.num_A]
+    # ))
+    # posd = SVector{s.num_A, SVec3}(vcat(
+    #     [SVec3(zeros(3)) for _ in 1:3],
+    #     [SVec3(coordinatesd[:,i-3,1]) for i in 4:s.num_E-3],
+    #     [SVec3(Cd + s.e_z.*connectionsd[1,1])],
+    #     [SVec3(Dd + s.e_z.*connectionsd[2,1])],
+    #     [SVec3(coordinatesd[:,i-5,1]) for i in s.num_E:s.num_A]
+    # ))
+    # veld = SVector{s.num_A, SVec3}(vcat(
+    #     [SVec3(zeros(3)) for _ in 1:3],
+    #     [SVec3(coordinatesd[:,i-3,2]) for i in 4:s.num_E-3],
+    #     [SVec3(vCd + s.e_z*connectionsd[1,2])],
+    #     [SVec3(vDd + s.e_z*connectionsd[2,2])],
+    #     [SVec3(coordinatesd[:,i-5,2]) for i in s.num_E:s.num_A]
+    # ))
+    @assert isfinite(s.pos[4][3])
 
     # core calculations
     s.l_tethers .= lengths
     s.l_connections .= connection_lengths
     s.segment_lengths .= lengths ./ s.set.segments
-    calc_aero_forces!(s, pos, vel)
-    loop!(s, pos, vel, posd, veld)
+    calc_aero_forces!(s, s.pos, s.vel)
+    loop!(s, s.pos, s.vel, s.posd, s.veld)
     # for i in eachindex(s.forces)
     #     println(i)
     #     println(s.forces[i])
     # end
 
     # winch calculations
-    res[end-5:end-3] .= lengthsd - reel_out_speeds
-    res[end-2:end] .= reel_out_speedsd .- [calc_acceleration(s.motors[i], s.sync_speeds[i], reel_out_speeds[i], norm(s.forces[i]), true) for i in 1:3]
+    res[end-5:end-3] .= lengthsd .- reel_out_speeds
+    for i in 1:3
+        res[end-3+i] = reel_out_speedsd[i] - calc_acceleration(s.motors[i], s.sync_speeds[i], reel_out_speeds[i], norm(s.last_forces[i]), true)
+    end
 
-    for (i, j) in enumerate(vcat(4:s.num_E-3, s.num_E:s.num_A))
-        [@inbounds res[3*(i-1)+k] = s.res1[j][k] for k in 1:3]
-        [@inbounds res[3*num_particles+2+3*(i-1)+k] = s.res2[j][k] for k in 1:3]
+    for (i, j) in enumerate(4:s.num_E-3)
+        for k in 1:3
+            @inbounds res[3*(i-1)+k] = s.res1[j][k]
+            @inbounds res[3*num_particles+2+3*(i-1)+k]
+        end
+    end
+    for (i, j) in enumerate(s.num_E:s.num_A)
+        for k in 1:3
+            @inbounds res[3*(i-1)+k] = s.res1[j][k]
+            @inbounds res[3*num_particles+2+3*(i-1)+k]
+        end
     end
     # add connection residuals
     res[3*num_particles+1] = norm(s.res1[s.num_E-2] - s.res1[s.num_C])
@@ -604,12 +633,12 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
     res[6*num_particles+3] = norm(s.res2[s.num_E-2] - s.res2[s.num_C])
     res[6*num_particles+4] = norm(s.res2[s.num_E-1] - s.res2[s.num_C])
 
-    for i in 1:s.num_A
-        @inbounds s.pos[i] .= pos[i]
-    end
-    s.vel_kite .= vel[s.num_A]
-    s.vel_connection .= ((vel[s.num_E-2]-vel[s.num_C]) ⋅ s.e_z)
-    s.reel_out_speeds = reel_out_speeds
+    # for i in 1:s.num_A
+    #     @inbounds s.pos[i] .= pos[i]
+    # end
+    s.vel_kite .= s.vel[s.num_A]
+    s.vel_connection .= ((s.vel[s.num_E-2]-s.vel[s.num_C]) ⋅ s.e_z)
+    s.reel_out_speeds .= reel_out_speeds
 
     @assert isfinite(norm(res))
     s.iter += 1
