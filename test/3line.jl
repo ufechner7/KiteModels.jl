@@ -1,4 +1,3 @@
-using Revise
 using KiteModels
 using ControlPlots
 using LinearAlgebra, StaticArrays

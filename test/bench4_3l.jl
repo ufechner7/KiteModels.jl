@@ -1,4 +1,4 @@
-using Revise, Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils, ProfileView
+using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils, ProfileView
 using KiteModels, KitePodModels
 
 if ! @isdefined kcu

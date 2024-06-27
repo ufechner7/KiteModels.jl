@@ -565,6 +565,7 @@ function next_step!(s::AKM, integrator; v_ro = 0.0, v_wind_gnd=s.set.v_wind, win
     KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
     set_v_reel_out!(s, v_ro, integrator.t)
     set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
+    s.iter = 0
     if s.set.solver == "IDA"
         Sundials.step!(integrator, dt, true)
     else
@@ -576,6 +577,7 @@ function next_step!(s::AKM, integrator; v_ro = 0.0, v_wind_gnd=s.set.v_wind, win
             s.stiffness_factor = 1.0
         end
     end
+    if prn println("Number of iterations: ", s.iter) end
     integrator.t
 end
 

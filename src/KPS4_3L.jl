@@ -355,9 +355,6 @@ function calc_aero_forces!(s::KPS4_3L, pos::SVector{N, KVec3}, vel::SVector{N, K
         if i <= n
             s.L_C .+= s.dL_dα .* dα
             s.D_C .+= s.dD_dα .* dα
-            # println(i)
-            # println(rad2deg(α))
-            # println(dL_dα)
         else 
             s.L_D .+= s.dL_dα .* dα
             s.D_D .+= s.dD_dα .* dα
@@ -604,27 +601,23 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
     s.segment_lengths .= lengths ./ s.set.segments
     calc_aero_forces!(s, s.pos, s.vel)
     loop!(s, s.pos, s.vel, s.posd, s.veld)
-    # for i in eachindex(s.forces)
-    #     println(i)
-    #     println(s.forces[i])
-    # end
 
     # winch calculations
     res[end-5:end-3] .= lengthsd .- reel_out_speeds
     for i in 1:3
-        res[end-3+i] = reel_out_speedsd[i] - calc_acceleration(s.motors[i], s.sync_speeds[i], reel_out_speeds[i], norm(s.last_forces[i]), true)
+        res[end-3+i] = reel_out_speedsd[i] - calc_acceleration(s.motors[i], s.sync_speeds[i], reel_out_speeds[i], norm(s.forces[i%3+1]), true)
     end
 
-    for (i, j) in enumerate(4:s.num_E-3)
+    for i in 4:s.num_E-3
         for k in 1:3
-            @inbounds res[3*(i-1)+k] = s.res1[j][k]
-            @inbounds res[3*num_particles+2+3*(i-1)+k]
+            @inbounds res[3*(i-4)+k] = s.res1[i][k]
+            @inbounds res[3*num_particles+2+3*(i-4)+k] = s.res2[i][k]
         end
     end
-    for (i, j) in enumerate(s.num_E:s.num_A)
+    for i in s.num_E:s.num_A # i is wrong!!
         for k in 1:3
-            @inbounds res[3*(i-1)+k] = s.res1[j][k]
-            @inbounds res[3*num_particles+2+3*(i-1)+k]
+            @inbounds res[3*(i-6)+k] = s.res1[i][k]
+            @inbounds res[3*num_particles+2+3*(i-6)+k] = s.res2[i][k]
         end
     end
     # add connection residuals
@@ -642,8 +635,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
 
     @assert isfinite(norm(res))
     s.iter += 1
-
-    nothing
+    return nothing
 end
 
 
