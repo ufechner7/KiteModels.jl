@@ -266,7 +266,17 @@ end
 """
 Helper functions for calc_aero_forces
 """
+# function y_l(s::kps4_3l, α::SimFloat)
+#     cos(α) * s.set.radius
+# end
 
+# function v_kite(s::KPS4_3L, α::SimFloat)
+#     if α < π/2
+#         return ((s.v_cx .- s.v_dx)./(s.y_lc .- s.y_ld).*(y_l(s, α) .- s.y_ld) .+ s.v_dx) .+ s.v_cy .+ s.v_cz
+#     else
+#         return ((s.v_cx .- s.v_dx)./(s.y_lc .- s.y_ld).*(y_l(s, α) .- s.y_ld) .+ s.v_dx) .+ s.v_dy .+ s.v_dz
+#     end
+# end
 """
     calc_aero_forces!(s::KPS4_3L, pos, vel)
 
@@ -298,39 +308,7 @@ function calc_aero_forces!(s::KPS4_3L, pos::SVector{N, SVec3}, vel::SVector{N, S
     s.y_lc = norm(pos[s.num_C] .- 0.5 .* (pos[s.num_C].+pos[s.num_D]))
     s.y_ld = -norm(pos[s.num_D] .- 0.5 .* (pos[s.num_C].+pos[s.num_D]))
 
-    @inline F(α::SimFloat) = s.E_c .+ s.e_y.*cos(α).*s.set.radius .- s.e_z.*sin(α).*s.set.radius
-    @inbounds @inline e_r(α::SimFloat) = (s.E_c .- F(α))./norm(s.E_c .- F(α))
-    @inline y_l(α::SimFloat) = cos(α) * s.set.radius
-    # @inline v_kite(α) = α < π/2 ?
-    #     ((s.v_cx .- s.v_dx)./(s.y_lc .- s.y_ld).*(y_l(α) .- s.y_ld) .+ s.v_dx) .+ s.v_cy .+ s.v_cz :
-    #     ((s.v_cx .- s.v_dx)./(s.y_lc .- s.y_ld).*(y_l(α) .- s.y_ld) .+ s.v_dx) .+ s.v_dy .+ s.v_dz
-    @inline function v_kite(α::SimFloat)
-        if α < π/2
-            return ((s.v_cx .- s.v_dx)./(s.y_lc .- s.y_ld).*(y_l(α) .- s.y_ld) .+ s.v_dx) .+ s.v_cy .+ s.v_cz
-        else
-            return ((s.v_cx .- s.v_dx)./(s.y_lc .- s.y_ld).*(y_l(α) .- s.y_ld) .+ s.v_dx) .+ s.v_dy .+ s.v_dz
-        end
-    end
-    @inbounds @inline v_a(α::SimFloat) = s.v_wind - v_kite(α)
-    @inline e_drift(α::SimFloat) = (e_r(α)::KVec3 × s.e_x)
-    @inline v_a_xr(α::SimFloat) = v_a(α) - (v_a(α) ⋅ e_drift(α)) .* e_drift(α)
-    @inline kite_length(α::SimFloat) = α < π/2 ?
-        (s.set.tip_length + (s.set.middle_length-s.set.tip_length)*α*s.set.radius/(0.5*s.set.width)) :
-        (s.set.tip_length + (s.set.middle_length-s.set.tip_length)*(π-α)*s.set.radius/(0.5*s.set.width))
-    @inline function d(α::SimFloat)
-        if α < s.α_l
-            return s.δ_left
-        elseif α > s.α_r
-            return s.δ_right
-        else
-            return (s.δ_right - s.δ_left) / (s.α_r - s.α_l) * (α - s.α_l) + (s.δ_left)
-        end
-    end
-    @inline aoa(α::SimFloat) = π - acos2(normalize(v_a_xr(α)) ⋅ s.e_x) + asin(clamp(d(α)/kite_length(α), -1.0, 1.0))
-    @inline dL_dα(α::SimFloat) = 0.5*s.rho*(norm(v_a_xr(α)))^2*s.set.radius*kite_length(α)*rad_cl(aoa(α)) .* normalize(v_a_xr(α) × e_drift(α))
-    @inline dD_dα(α::SimFloat) = 0.5*s.rho*norm(v_a_xr(α))*s.set.radius*kite_length(α)*rad_cd(aoa(α)) .* v_a_xr(α) # the sideways drag cannot be calculated with the C_d formula
-    
-    # Calculate the integral
+    # Calculate the lift and drag
     α_0 = pi/2 - s.set.width/2/s.set.radius
     α_middle = pi/2
     dα = (α_middle - α_0) / n
@@ -338,13 +316,47 @@ function calc_aero_forces!(s::KPS4_3L, pos::SVector{N, SVec3}, vel::SVector{N, S
     s.L_D .= SVec3(zeros(SVec3))
     s.D_C .= SVec3(zeros(SVec3))
     s.D_D .= SVec3(zeros(SVec3))
-    @inbounds @simd for i in 1:n
-        s.L_C .+= dL_dα(α_0 + dα/2 + i*dα) .* dα
-        s.L_D .+= dL_dα(pi - (α_0 + dα/2 + i*dα)) .* dα
-        s.D_C .+= dD_dα(α_0 + dα/2 + i*dα) .* dα
-        s.D_D .+= dD_dα(pi - (α_0 + dα/2 + i*dα)) .* dα
+    @inbounds @simd for i in 1:n*2
+        if i <= n
+            α = α_0 + -dα/2 + i*dα
+        else
+            α = pi - (α_0 + -dα/2 + (i-n)*dα)
+        end
+
+        F = s.E_c .+ s.e_y.*cos(α).*s.set.radius .- s.e_z.*sin(α).*s.set.radius
+        e_r = (s.E_c .- F)./norm(s.E_c .- F)
+        y_l = cos(α) * s.set.radius
+        v_kite = α < π/2 ?
+            ((s.v_cx .- s.v_dx)./(s.y_lc .- s.y_ld).*(y_l .- s.y_ld) .+ s.v_dx) .+ s.v_cy .+ s.v_cz :
+            ((s.v_cx .- s.v_dx)./(s.y_lc .- s.y_ld).*(y_l .- s.y_ld) .+ s.v_dx) .+ s.v_dy .+ s.v_dz
+        v_a = s.v_wind .- v_kite
+        e_drift = (e_r::KVec3 × s.e_x)
+        v_a_xr = v_a .- (v_a ⋅ e_drift) .* e_drift
+        kite_length = α < π/2 ?
+            (s.set.tip_length + (s.set.middle_length-s.set.tip_length)*α*s.set.radius/(0.5*s.set.width)) :
+            (s.set.tip_length + (s.set.middle_length-s.set.tip_length)*(π-α)*s.set.radius/(0.5*s.set.width))
+        if α < s.α_l
+            d = s.δ_left
+        elseif α > s.α_r
+            d = s.δ_right
+        else
+            d = (s.δ_right - s.δ_left) / (s.α_r - s.α_l) * (α - s.α_l) + (s.δ_left)
+        end
+        aoa = π - acos2(normalize(v_a_xr) ⋅ s.e_x) + asin(clamp(d/kite_length, -1.0, 1.0))
+        dL_dα = 0.5*s.rho*(norm(v_a_xr))^2*s.set.radius*kite_length*rad_cl(aoa) .* normalize(v_a_xr × e_drift)
+        dD_dα = 0.5*s.rho*norm(v_a_xr)*s.set.radius*kite_length*rad_cd(aoa) .* v_a_xr # the sideways drag cannot be calculated with the C_d formula
+        if i <= n
+            s.L_C .+= dL_dα .* dα
+            s.D_C .+= dD_dα .* dα
+            # println(i)
+            # println(rad2deg(α))
+            # println(dL_dα)
+        else 
+            s.L_D .+= dL_dα .* dα
+            s.D_D .+= dD_dα .* dα
+        end
     end
-    
+    # error("stop")
     s.lift_force .= s.L_C .+ s.L_D
     s.drag_force .= s.D_C .+ s.D_D
     

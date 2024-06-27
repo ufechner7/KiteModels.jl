@@ -98,7 +98,7 @@ function bench_aero_forces(; method=1)
         kps4_3l.forces[i] .= zeros(3)
     end
     pos, vel = KiteModels.init_pos_vel(kps4_3l)
-    pos, vel = SVector{kps4_3l.num_A, KVec3}(pos), SVector{kps4_3l.num_A, KVec3}(vel)
+    pos, vel = SVector{kps4_3l.num_A, SVector{3, Float64}}(pos), SVector{kps4_3l.num_A, SVector{3, Float64}}(vel)
     rho = 1.25
     kps4_3l.v_wind .= KVec3(15.51, 0.0, 0.0)
     for i in 1:kps4_3l.num_A
@@ -108,7 +108,7 @@ function bench_aero_forces(; method=1)
         t = @benchmark KiteModels.calc_aero_forces!($kps4_3l, $pos, $vel)
         push!(msg, ("Mean time calc_aero_forces!:    $(round(mean(t.times), digits=1)) ns"))
         @test t.memory == 0
-        # best: 7680 == 0
+        # best: 640 == 0
     elseif method==2
         KiteModels.calc_aero_forces!(kps4_3l, pos, vel)
         println("running...")
@@ -140,7 +140,7 @@ function bench_residual()
     @test t.memory == 0
 end
 
-bench_aero_forces(method=3)
+bench_aero_forces(method=1)
 
 for i in eachindex(msg)
     println(msg[i])
