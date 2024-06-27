@@ -22,7 +22,7 @@ function set_defaults()
     kps4_3l.set.tip_length = 0.6
     kps4_3l.set.min_steering_line_distance = 1.0
     kps4_3l.set.width = 3.0
-    kps4_3l.set.aero_surfaces = 10
+    kps4_3l.set.aero_surfaces = 3
     KiteModels.clear!(kps4_3l)
 end
 

@@ -161,6 +161,7 @@ $(TYPEDFIELDS)
     e_y::T =                 zeros(S, 3)
     "z vector of kite reference frame"
     e_z::T =                 zeros(S, 3)
+    e_r::T =                 zeros(S, 3)
     "Point number of E"
     num_E::Int64 =           0
     "Point number of C"
@@ -173,13 +174,22 @@ $(TYPEDFIELDS)
     L_D::T = zeros(S, 3)
     D_C::T = zeros(S, 3)
     D_D::T = zeros(S, 3)
-    v_cx::MVector{3, Float64} = zeros(S, 3)
+    F_steering_c::T = zeros(S, 3)
+    F_steering_d::T = zeros(S, 3)
+    dL_dα::T = zeros(S, 3)
+    dD_dα::T = zeros(S, 3)
+    v_cx::T = zeros(S, 3)
     v_dx::T = zeros(S, 3)
     v_dy::T = zeros(S, 3)
     v_dz::T = zeros(S, 3)
     v_cy::T = zeros(S, 3)
     v_cz::T = zeros(S, 3)
+    v_kite::T = zeros(S, 3)
+    v_a::T = zeros(S, 3)
+    e_drift::T = zeros(S, 3)
+    v_a_xr::T = zeros(S, 3)
     E_c::T = zeros(S, 3)
+    F::T = zeros(S, 3)
     y_lc::S = 0.0
     y_ld::S = 0.0
     δ_left::S = 0.0
@@ -312,6 +322,7 @@ function calc_aero_forces!(s::KPS4_3L, pos::SVector{N, SVec3}, vel::SVector{N, S
     α_0 = pi/2 - s.set.width/2/s.set.radius
     α_middle = pi/2
     dα = (α_middle - α_0) / n
+    α = zero(SimFloat)
     s.L_C .= SVec3(zeros(SVec3))
     s.L_D .= SVec3(zeros(SVec3))
     s.D_C .= SVec3(zeros(SVec3))
@@ -323,18 +334,22 @@ function calc_aero_forces!(s::KPS4_3L, pos::SVector{N, SVec3}, vel::SVector{N, S
             α = pi - (α_0 + -dα/2 + (i-n)*dα)
         end
 
-        F = s.E_c .+ s.e_y.*cos(α).*s.set.radius .- s.e_z.*sin(α).*s.set.radius
-        e_r = (s.E_c .- F)./norm(s.E_c .- F)
+        s.F .= s.E_c .+ s.e_y.*cos(α).*s.set.radius .- s.e_z.*sin(α).*s.set.radius
+        s.e_r .= (s.E_c .- s.F)./norm(s.E_c .- s.F)
         y_l = cos(α) * s.set.radius
-        v_kite = α < π/2 ?
-            ((s.v_cx .- s.v_dx)./(s.y_lc .- s.y_ld).*(y_l .- s.y_ld) .+ s.v_dx) .+ s.v_cy .+ s.v_cz :
-            ((s.v_cx .- s.v_dx)./(s.y_lc .- s.y_ld).*(y_l .- s.y_ld) .+ s.v_dx) .+ s.v_dy .+ s.v_dz
-        v_a = s.v_wind .- v_kite
-        e_drift = (e_r::KVec3 × s.e_x)
-        v_a_xr = v_a .- (v_a ⋅ e_drift) .* e_drift
-        kite_length = α < π/2 ?
-            (s.set.tip_length + (s.set.middle_length-s.set.tip_length)*α*s.set.radius/(0.5*s.set.width)) :
-            (s.set.tip_length + (s.set.middle_length-s.set.tip_length)*(π-α)*s.set.radius/(0.5*s.set.width))
+        if α < π/2
+            s.v_kite .= ((s.v_cx .- s.v_dx)./(s.y_lc .- s.y_ld).*(y_l .- s.y_ld) .+ s.v_dx) .+ s.v_cy .+ s.v_cz
+        else
+            s.v_kite .= ((s.v_cx .- s.v_dx)./(s.y_lc .- s.y_ld).*(y_l .- s.y_ld) .+ s.v_dx) .+ s.v_dy .+ s.v_dz
+        end
+        s.v_a .= s.v_wind .- s.v_kite
+        s.e_drift .= (s.e_r × s.e_x)
+        s.v_a_xr .= s.v_a .- (s.v_a ⋅ s.e_drift) .* s.e_drift
+        if α < π/2
+            kite_length = (s.set.tip_length + (s.set.middle_length-s.set.tip_length)*α*s.set.radius/(0.5*s.set.width))
+        else
+            kite_length = (s.set.tip_length + (s.set.middle_length-s.set.tip_length)*(π-α)*s.set.radius/(0.5*s.set.width))
+        end
         if α < s.α_l
             d = s.δ_left
         elseif α > s.α_r
@@ -342,30 +357,30 @@ function calc_aero_forces!(s::KPS4_3L, pos::SVector{N, SVec3}, vel::SVector{N, S
         else
             d = (s.δ_right - s.δ_left) / (s.α_r - s.α_l) * (α - s.α_l) + (s.δ_left)
         end
-        aoa = π - acos2(normalize(v_a_xr) ⋅ s.e_x) + asin(clamp(d/kite_length, -1.0, 1.0))
-        dL_dα = 0.5*s.rho*(norm(v_a_xr))^2*s.set.radius*kite_length*rad_cl(aoa) .* normalize(v_a_xr × e_drift)
-        dD_dα = 0.5*s.rho*norm(v_a_xr)*s.set.radius*kite_length*rad_cd(aoa) .* v_a_xr # the sideways drag cannot be calculated with the C_d formula
+        aoa = π - acos2(normalize(s.v_a_xr) ⋅ s.e_x) + asin(clamp(d/kite_length, -1.0, 1.0))
+        s.dL_dα .= 0.5*s.rho*(norm(s.v_a_xr))^2*s.set.radius*kite_length*rad_cl(aoa) .* normalize(s.v_a_xr × s.e_drift)
+        s.dD_dα .= 0.5*s.rho*norm(s.v_a_xr)*s.set.radius*kite_length*rad_cd(aoa) .* s.v_a_xr # the sideways drag cannot be calculated with the C_d formula
         if i <= n
-            s.L_C .+= dL_dα .* dα
-            s.D_C .+= dD_dα .* dα
+            s.L_C .+= s.dL_dα .* dα
+            s.D_C .+= s.dD_dα .* dα
             # println(i)
             # println(rad2deg(α))
             # println(dL_dα)
         else 
-            s.L_D .+= dL_dα .* dα
-            s.D_D .+= dD_dα .* dα
+            s.L_D .+= s.dL_dα .* dα
+            s.D_D .+= s.dD_dα .* dα
         end
     end
     # error("stop")
     s.lift_force .= s.L_C .+ s.L_D
     s.drag_force .= s.D_C .+ s.D_D
     
-    F_steering_c = ((0.1 * (s.L_C ⋅ -s.e_z)) .* -s.e_z)
-    F_steering_d = ((0.1 * (s.L_D ⋅ -s.e_z)) .* -s.e_z)
-    s.forces[s.num_C] .+= (s.L_C .+ s.D_C) .- F_steering_c
-    s.forces[s.num_D] .+= (s.L_D .+ s.D_D) .- F_steering_d
-    s.forces[s.num_E-2] .+= F_steering_c
-    s.forces[s.num_E-1] .+= F_steering_d
+    s.F_steering_c .= ((0.1 * (s.L_C ⋅ -s.e_z)) .* -s.e_z)
+    s.F_steering_d .= ((0.1 * (s.L_D ⋅ -s.e_z)) .* -s.e_z)
+    s.forces[s.num_C] .+= (s.L_C .+ s.D_C) .- s.F_steering_c
+    s.forces[s.num_D] .+= (s.L_D .+ s.D_D) .- s.F_steering_d
+    s.forces[s.num_E-2] .+= s.F_steering_c
+    s.forces[s.num_E-1] .+= s.F_steering_d
     return nothing
 end
 
