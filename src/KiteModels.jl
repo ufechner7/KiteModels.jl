@@ -392,6 +392,36 @@ function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
     nothing
 end
 
+function update_sys_state!(ss::SysState, s::KPS4_3L, zoom=1.0)
+    ss.time = s.t_0
+    pos = s.pos
+    P = length(pos)
+    for i in 1:P
+        ss.X[i] = pos[i][1] * zoom
+        ss.Y[i] = pos[i][2] * zoom
+        ss.Z[i] = pos[i][3] * zoom
+    end
+    x, y, z = kite_ref_frame(s)
+    pos_kite_ = pos_kite(s)
+    pos_before = pos_kite_ + z
+   
+    rotation = rot(pos_kite_, pos_before, -x)
+    q = QuatRotation(rotation)
+    ss.orient .= Rotations.params(q)
+    ss.elevation = calc_elevation(s)
+    ss.azimuth = calc_azimuth(s)
+    ss.force = winch_force(s)
+    ss.heading = calc_heading(s)
+    ss.course = calc_course(s)
+    ss.v_app = norm(s.v_apparent)
+    ss.l_tether = s.l_tether
+    ss.v_reelout = s.v_reel_out
+    ss.depower = s.depower
+    ss.steering = s.steering
+    ss.vel_kite .= s.vel_kite
+    nothing
+end
+
 """
     SysState(s::AKM, zoom=1.0)
 
@@ -429,6 +459,42 @@ function SysState(s::AKM, zoom=1.0)
     t_sim = 0
     KiteUtils.SysState{P}(s.t_0, t_sim, 0, 0, orient, elevation, azimuth, s.l_tether, s.v_reel_out, force, s.depower, s.steering, 
                           heading, course, v_app_norm, s.vel_kite, X, Y, Z, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+end
+
+function SysState(s::KPS4_3L, zoom=1.0)
+    pos = s.pos
+    println("using 3l version")
+    P = length(pos)
+    X = zeros(MVector{P, MyFloat})
+    Y = zeros(MVector{P, MyFloat})
+    Z = zeros(MVector{P, MyFloat})
+    for i in 1:P
+        X[i] = pos[i][1] * zoom
+        Y[i] = pos[i][2] * zoom
+        Z[i] = pos[i][3] * zoom
+    end
+    
+    x, y, z = kite_ref_frame(s)
+    pos_kite_ = pos_kite(s)
+    pos_before = pos_kite_ + z
+   
+    rotation = rot(pos_kite_, pos_before, -x)
+    q = QuatRotation(rotation)
+    orient = MVector{4, Float32}(Rotations.params(q))
+
+    elevation = calc_elevation(s)
+    azimuth = calc_azimuth(s)
+    forces = winch_forces(s)
+    heading = calc_heading(s)
+    course = calc_course(s)
+    v_app_norm = norm(s.v_apparent)
+    t_sim = 0
+    depower = 100 - ((s.δ_left + s.δ_right)/2) / ((s.set.middle_length + s.set.tip_length)/2) * 100
+    steering = (s.δ_right - s.δ_left) / ((s.set.middle_length + s.set.tip_length)/2) * 100
+    KiteUtils.SysState{P}(s.t_0, t_sim, 0, 0, orient, elevation, azimuth, s.l_tethers[1], s.reel_out_speeds[1], forces[1], depower, steering, 
+                          heading, course, v_app_norm, s.vel_kite, X, Y, Z, 
+                          s.l_tethers[2], s.l_tethers[3], s.reel_out_speeds[2], s.reel_out_speeds[3], 
+                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 end
 
 function calc_pre_tension(s::AKM)

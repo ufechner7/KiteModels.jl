@@ -300,7 +300,7 @@ function calc_aero_forces!(s::KPS4_3L, pos::SVector{N, KVec3}, vel::SVector{N, K
     s.δ_left = (pos[s.num_E-2].-pos[s.num_C]) ⋅ s.e_z
     s.δ_right = (pos[s.num_E-1].-pos[s.num_D]) ⋅ s.e_z
     
-    s.E_c .= pos[s.num_E] .- s.e_z .* (s.set.bridle_center_distance - s.set.radius) # in the aero calculations, E_c is the center of the circle shape on which the kite lies
+    s.E_c .= pos[s.num_E] .+ s.e_z .* (-s.set.bridle_center_distance + s.set.radius) # in the aero calculations, E_c is the center of the circle shape on which the kite lies
     s.v_cx .= dot(vel[s.num_C], s.e_x).*s.e_x
     s.v_dx .= dot(vel[s.num_D], s.e_x).*s.e_x
     s.v_dy .= dot(vel[s.num_D], s.e_y).*s.e_y
@@ -360,7 +360,6 @@ function calc_aero_forces!(s::KPS4_3L, pos::SVector{N, KVec3}, vel::SVector{N, K
             s.D_D .+= s.dD_dα .* dα
         end
     end
-    # error("stop")
     s.lift_force .= s.L_C .+ s.L_D
     s.drag_force .= s.D_C .+ s.D_D
     
@@ -400,7 +399,7 @@ The result is stored in the array s.forces.
         else
              s.spring_force .= -(k *  (norm1 - l_0) + (c * spring_vel)) * unit_vector
         end
-    elseif i > s.num_E # kite spring
+    elseif i > s.num_E # kite springs
         s.spring_force .= -(k1 *  (norm1 - l_0) + (c * spring_vel)) * unit_vector
     else
         s.spring_force .= -(k2 *  (norm1 - l_0) + (c * spring_vel)) * unit_vector
@@ -466,13 +465,17 @@ function loop!(s::KPS4_3L, pos, vel, posd, veld)
     end
     inner_loop!(s, pos, vel, s.v_wind_gnd, s.set.d_tether/1000.0)
     for i in s.num_E-2:s.num_E-1
+        @inbounds s.forces[i] .+= SVector(0, 0, -G_EARTH) .+ 500.0 .* ((vel[i]-vel[s.num_C]) ⋅ s.e_z) .* s.e_z # TODO: more damping
         F_xy = SVector(s.forces[i] .- (s.forces[i] ⋅ s.e_z) * s.e_z)
-        @inbounds s.forces[i] .+= -F_xy .- 5000.0 .* ((vel[i]-vel[s.num_C]) ⋅ s.e_z) .* s.e_z # TODO: more damping
-        # @inbounds s.forces[i] .*= 1/(1000*norm())
+        @inbounds s.forces[i] .-= F_xy
         @inbounds s.forces[i+3] .+= F_xy
+        @inbounds s.res2[i] .= (s.veld[i] ⋅ s.e_z) .* s.e_z .- (s.forces[i] ./ s.masses[i])
     end
-    for i in 4:s.num_A
-        @inbounds s.res2[i] .= veld[i] - (SVector(0, 0, -G_EARTH) .+ s.forces[i] ./ s.masses[i])
+    for i in 4:s.num_E-3
+        @inbounds s.res2[i] .= veld[i] .- (SVector(0, 0, -G_EARTH) .+ s.forces[i] ./ s.masses[i])
+    end
+    for i in s.num_E:s.num_A
+        @inbounds s.res2[i] .= veld[i] .- (SVector(0, 0, -G_EARTH) .+ s.forces[i] ./ s.masses[i])
     end
     nothing
 end
@@ -553,46 +556,16 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
     s.vel[s.num_E-2] .= SVec3(vC + s.e_z*connections[1,2])
     s.posd[s.num_E-2] .= SVec3(Cd + s.e_z.*connectionsd[1,1])
     s.veld[s.num_E-2] .= SVec3(vCd + s.e_z*connectionsd[1,2])
-
-    s.pos[s.num_E-1] .= (D .+ s.e_z.*connections[2,1])
+    s.pos[s.num_E-1] .= SVec3(D .+ s.e_z.*connections[2,1])
     s.vel[s.num_E-1] .= SVec3(vD + s.e_z*connections[2,2])
     s.posd[s.num_E-1] .= SVec3(Dd + s.e_z.*connectionsd[2,1])
     s.veld[s.num_E-1] .= SVec3(vDd + s.e_z*connectionsd[2,2])
-
     for i in s.num_E:s.num_A
         s.pos[i] .= (coordinates[:,i-5,1])
         s.vel[i] .= SVec3(coordinates[:,i-5,2])
         s.posd[i] .= SVec3(coordinatesd[:,i-5,1])
         s.veld[i] .= SVec3(coordinatesd[:,i-5,2])
     end
-    # @time pos = SVector{s.num_A, SVec3}(vcat(
-    #     [SVec3(zeros(3)) for _ in 1:3],
-    #     [SVec3(coordinates[:, i-3, 1]) for i in 4:s.num_E-3],
-    #     [SVec3(C .+ s.e_z.*connections[1,1])],
-    #     [SVec3(D .+ s.e_z.*connections[2,1])],
-    #     [SVec3(coordinates[:,i-5,1]) for i in s.num_E:s.num_A]
-    # ))
-    # vel = SVector{s.num_A, SVec3}(vcat(
-    #     [SVec3(zeros(3)) for _ in 1:3],
-    #     [SVec3(coordinates[:,i-3,2]) for i in 4:s.num_E-3],
-    #     [SVec3(vC + s.e_z*connections[1,2])],
-    #     [SVec3(vD + s.e_z*connections[2,2])],
-    #     [SVec3(coordinates[:,i-5,2]) for i in s.num_E:s.num_A]
-    # ))
-    # posd = SVector{s.num_A, SVec3}(vcat(
-    #     [SVec3(zeros(3)) for _ in 1:3],
-    #     [SVec3(coordinatesd[:,i-3,1]) for i in 4:s.num_E-3],
-    #     [SVec3(Cd + s.e_z.*connectionsd[1,1])],
-    #     [SVec3(Dd + s.e_z.*connectionsd[2,1])],
-    #     [SVec3(coordinatesd[:,i-5,1]) for i in s.num_E:s.num_A]
-    # ))
-    # veld = SVector{s.num_A, SVec3}(vcat(
-    #     [SVec3(zeros(3)) for _ in 1:3],
-    #     [SVec3(coordinatesd[:,i-3,2]) for i in 4:s.num_E-3],
-    #     [SVec3(vCd + s.e_z*connectionsd[1,2])],
-    #     [SVec3(vDd + s.e_z*connectionsd[2,2])],
-    #     [SVec3(coordinatesd[:,i-5,2]) for i in s.num_E:s.num_A]
-    # ))
     @assert isfinite(s.pos[4][3])
 
     # core calculations
@@ -605,7 +578,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
     # winch calculations
     res[end-5:end-3] .= lengthsd .- reel_out_speeds
     for i in 1:3
-        res[end-3+i] = reel_out_speedsd[i] - calc_acceleration(s.motors[i], s.sync_speeds[i], reel_out_speeds[i], norm(s.forces[i%3+1]), true)
+        res[end-3+i] = reel_out_speedsd[i] - WinchModels.calc_acceleration(s.motors[i], s.sync_speeds[i], reel_out_speeds[i], norm(s.forces[i%3+1]), false)
     end
 
     for i in 4:s.num_E-3
@@ -620,15 +593,13 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
             @inbounds res[3*num_particles+2+3*(i-6)+k] = s.res2[i][k]
         end
     end
-    # add connection residuals
-    res[3*num_particles+1] = norm(s.res1[s.num_E-2] - s.res1[s.num_C])
-    res[3*num_particles+2] = norm(s.res1[s.num_E-1] - s.res1[s.num_C])
-    res[6*num_particles+3] = norm(s.res2[s.num_E-2] - s.res2[s.num_C])
-    res[6*num_particles+4] = norm(s.res2[s.num_E-1] - s.res2[s.num_C])
 
-    # for i in 1:s.num_A
-    #     @inbounds s.pos[i] .= pos[i]
-    # end
+    # add connection residuals
+    res[3*num_particles+1] = (s.res1[s.num_E-2]) ⋅ s.e_z - (s.res1[s.num_C] ⋅ s.e_z)
+    res[3*num_particles+2] = (s.res1[s.num_E-1]) ⋅ s.e_z - (s.res1[s.num_C] ⋅ s.e_z)
+    res[6*num_particles+3] = (s.res2[s.num_E-2]) ⋅ s.e_z - (s.res2[s.num_C] ⋅ s.e_z)
+    res[6*num_particles+4] = (s.res2[s.num_E-1]) ⋅ s.e_z - (s.res2[s.num_C] ⋅ s.e_z)
+
     s.vel_kite .= s.vel[s.num_A]
     s.vel_connection .= ((s.vel[s.num_E-2]-s.vel[s.num_C]) ⋅ s.e_z)
     s.reel_out_speeds .= reel_out_speeds
@@ -673,7 +644,7 @@ end
 
 Return the absolute value of the force at the winch as calculated during the last timestep. 
 """
-function winch_force(s::KPS4_3L) norm.(s.last_forces) end
+function winch_forces(s::KPS4_3L) norm.(s.last_forces) end
 
 # ==================== end of getter functions ================================================
 
