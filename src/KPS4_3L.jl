@@ -319,6 +319,7 @@ function calc_aero_forces!(s::KPS4_3L, pos::SVector{N, KVec3}, vel::SVector{N, K
     s.L_D .= SVec3(zeros(SVec3))
     s.D_C .= SVec3(zeros(SVec3))
     s.D_D .= SVec3(zeros(SVec3))
+    # println("calculating aero forces...")
     @inbounds @simd for i in 1:n*2
         if i <= n
             α = α_0 + -dα/2 + i*dα
@@ -350,6 +351,9 @@ function calc_aero_forces!(s::KPS4_3L, pos::SVector{N, KVec3}, vel::SVector{N, K
             d = (s.δ_right - s.δ_left) / (s.α_r - s.α_l) * (α - s.α_l) + (s.δ_left)
         end
         aoa = π - acos2(normalize(s.v_a_xr) ⋅ s.e_x) + asin(clamp(d/kite_length, -1.0, 1.0))
+        # println("aoa ", aoa)
+        # println("asin ", asin(clamp(d/kite_length, -1.0, 1.0)))
+        # println("acos ", pi - acos2(normalize(s.v_a_xr) ⋅ s.e_x))
         s.dL_dα .= 0.5*s.rho*(norm(s.v_a_xr))^2*s.set.radius*kite_length*rad_cl(aoa) .* normalize(s.v_a_xr × s.e_drift)
         s.dD_dα .= 0.5*s.rho*norm(s.v_a_xr)*s.set.radius*kite_length*rad_cd(aoa) .* s.v_a_xr # the sideways drag cannot be calculated with the C_d formula
         if i <= n
@@ -392,17 +396,17 @@ The result is stored in the array s.forces.
     k1 = 0.25 * k # compression stiffness kite segments
     k2 = 0.1 * k  # compression stiffness tether segments
     c1 = 6.0 * c  # damping kite segments
-    spring_vel   = unit_vector ⋅ rel_vel
+    spring_vel   = rel_vel ⋅ unit_vector
     if (norm1 - l_0) > 0.0
         if i > s.num_E  # kite springs
-             s.spring_force .= -(k *  (norm1 - l_0) + (c1 * spring_vel)) * unit_vector 
+            s.spring_force .= (k*(l_0 - norm1) - c1 * spring_vel) * unit_vector
         else
-             s.spring_force .= -(k *  (norm1 - l_0) + (c * spring_vel)) * unit_vector
+            s.spring_force .= (k*(l_0 - norm1) - c * spring_vel) * unit_vector
         end
     elseif i > s.num_E # kite springs
-        s.spring_force .= -(k1 *  (norm1 - l_0) + (c * spring_vel)) * unit_vector
+        s.spring_force .= (k1*(l_0 - norm1) - c * spring_vel) * unit_vector
     else
-        s.spring_force .= -(k2 *  (norm1 - l_0) + (c * spring_vel)) * unit_vector
+        s.spring_force .= (k2*(l_0 - norm1) - c * spring_vel) * unit_vector
     end
 
     s.v_apparent .= s.v_wind_tether - av_vel
@@ -578,7 +582,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
     # winch calculations
     res[end-5:end-3] .= lengthsd .- reel_out_speeds
     for i in 1:3
-        res[end-3+i] = reel_out_speedsd[i] - WinchModels.calc_acceleration(s.motors[i], s.sync_speeds[i], reel_out_speeds[i], norm(s.forces[i%3+1]), false)
+        res[end-3+i] = reel_out_speedsd[i] - WinchModels.calc_acceleration(s.motors[i], s.sync_speeds[i], reel_out_speeds[i], norm(s.forces[i%3+1]), true)
     end
 
     for i in 4:s.num_E-3
@@ -723,7 +727,9 @@ function find_steady_state!(s::KPS4_3L; prn=false, delta = 0.0, stiffness_factor
             F[3*s.set.segments+5+i] = s.res2[j][2]
             F[4*s.set.segments+4+i] = s.res2[j][3]
         end
-
+        # if iter%100 == 0
+        #     plot2d(s.pos, iter; zoom=false, front=false, segments=s.set.segments)
+        # end
         iter += 1
         return nothing
     end

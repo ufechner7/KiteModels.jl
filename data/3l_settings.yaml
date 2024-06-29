@@ -3,7 +3,7 @@ system:
                                    #   use / as path delimiter, even on Windows 
     time_lapse:   1.0              # relative replay speed
     sim_time:   100.0              # simulation time             [sim only]
-    segments:       2              # number of tether segments
+    segments:       6              # number of tether segments
     sample_freq:   20              # sample frequency in Hz
     zoom:        0.03              # zoom factor for the system view
     kite_scale:   3.0              # relative zoom factor for the 4 point kite
@@ -11,7 +11,7 @@ system:
 
 initial:
     l_tether: 50.0        # initial tether length       [m]
-    elevation: 60.8        # initial elevation angle   [deg]
+    elevation: 70.8        # initial elevation angle   [deg]
     v_reel_out: 0.0        # initial reel out speed    [m/s]
     depower:   25.0        # initial depower settings    [%]
 
