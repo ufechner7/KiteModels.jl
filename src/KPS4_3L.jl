@@ -648,7 +648,7 @@ end
 
 Return the absolute value of the force at the winch as calculated during the last timestep. 
 """
-function winch_forces(s::KPS4_3L) norm.(s.last_forces) end
+function winch_force(s::KPS4_3L) norm.(s.last_forces) end
 
 # ==================== end of getter functions ================================================
 

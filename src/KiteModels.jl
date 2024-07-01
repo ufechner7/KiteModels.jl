@@ -274,6 +274,16 @@ function orient_euler(s::AKM)
     SVector(roll, pitch, yaw)
 end
 
+function calc_orient_quat(s::AKM)
+    x, _, z = kite_ref_frame(s)
+    pos_kite_ = pos_kite(s)
+    pos_before = pos_kite_ .+ z
+   
+    rotation = rot(pos_kite_, pos_before, -x)
+    q = QuatRotation(rotation)
+    return Rotations.params(q)
+end
+
 """
     calc_elevation(s::AKM)
 
