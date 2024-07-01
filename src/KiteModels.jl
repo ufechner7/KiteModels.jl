@@ -55,7 +55,7 @@ export KPS3, KPS4, KPS4_3L, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG       
 export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                            # helper functions
 export clear!, find_steady_state!, residual!                                                  # low level workers
 export init_sim!, next_step!                                                                  # high level workers
-export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, load_history  # getters
+export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, calc_orient_quat, load_history  # getters
 export winch_force, lift_drag, lift_over_drag, unstretched_length, tether_length, v_wind_kite # getters
 export save_history # setter / saver
 export kite_ref_frame, orient_euler, spring_forces
