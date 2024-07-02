@@ -24,7 +24,7 @@ function main()
     stop = false
     v_ro=[0.0, 0.0, 0.0]
     t = 0
-    dt = 0.2
+    dt = 0.05
     flag = true
     last_time = 0.0
     while !stop

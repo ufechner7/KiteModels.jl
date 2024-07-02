@@ -737,6 +737,5 @@ function find_steady_state!(s::KPS4_3L; prn=false, delta = 0.0, stiffness_factor
     X00 = zeros(SimFloat, 5*s.set.segments+3)
     results = nlsolve(test_initial_condition!, X00, autoscale=true, xtol=2e-7, ftol=2e-7, iterations=s.set.max_iter)
     if prn println("\nresult: $results") end
-    println("last force\t", s.last_forces)
     init(s, results.zero)
 end
