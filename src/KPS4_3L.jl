@@ -30,7 +30,7 @@ are acting on three of the four kite point masses.
 Four point kite model, included from KiteModels.jl.
 
 Scientific background: http://arxiv.org/abs/1406.6218 =#
-using ControlPlots
+
 # Array of connections of bridlepoints.
 # First point, second point, unstressed length.
 const SPRINGS_INPUT_3L = [1.      4.  -1. # s1: E, A
