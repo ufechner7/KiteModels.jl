@@ -293,6 +293,10 @@ function calc_elevation(s::AKM)
     KiteUtils.calc_elevation(pos_kite(s))
 end
 
+function calc_tether_elevation(s::KPS4_3L)
+    KiteUtils.calc_elevation(s.pos[6])
+end
+
 """
     calc_azimuth(s::AKM)
 
@@ -300,6 +304,10 @@ Determine the azimuth angle of the kite in radian.
 """
 function calc_azimuth(s::AKM)
     KiteUtils.azimuth_east(pos_kite(s))
+end
+
+function calc_tether_azimuth(s::KPS4_3L)
+    KiteUtils.azimuth_east(s.pos[6])
 end
 
 """
