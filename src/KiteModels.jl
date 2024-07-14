@@ -544,7 +544,7 @@ function fields_equal(a::AKM, b::AKM)
 end
 
 
-const IntegratorHistory = Vector{Tuple{AbstractKiteModel, Any}}
+const IntegratorHistory = Vector{Tuple{AbstractKiteModel, Vector{SimFloat}, Vector{SimFloat}}}
 """
 Load the saved pairs of abstract kite models and corresponding integrators. It is assumed that a certain set of settings
 always leads to the same integrator.
@@ -584,6 +584,9 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, integra
     clear!(s)
     s.stiffness_factor = stiffness_factor
 
+    found = false
+    y0 = nothing
+    yd0 = nothing
     if isa(integrator_history, IntegratorHistory)
         while length(integrator_history) > 1000 # around 1MB, 1ms max per for loop
             pop!(integrator_history)
@@ -593,16 +596,25 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, integra
             if fields_equal(akm_integrator_pair[1], s)
                 if prn println("Found similar steady state, ") end
                 for field in fieldnames(typeof(s))
-                    setfield!(s, field, getfield(akm_integrator_pair[1], field))
+                    setfield!(s, field, getfield(akm_integrator_pair[1], field)) # deepcopy??
                 end
-                return akm_integrator_pair[2]
+                y0 = akm_integrator_pair[2]
+                yd0 = akm_integrator_pair[3]
+                found = true
+                break;
             end
         end
     end
+    if !found
+        y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor=stiffness_factor, prn=prn)
+        y0  = Vector{SimFloat}(y0)
+        yd0 = Vector{SimFloat}(yd0)
 
-    y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor=stiffness_factor, prn=prn)
-    y0  = Vector{SimFloat}(y0)
-    yd0 = Vector{SimFloat}(yd0)
+        if isa(integrator_history, IntegratorHistory)
+            pushfirst!(integrator_history, (deepcopy(s), deepcopy(y0), deepcopy(yd0)))
+        end
+    end
+    
     if s.set.solver=="IDA"
         solver  = Sundials.IDA(linear_solver=Symbol(s.set.linear_solver), max_order = s.set.max_order)
     elseif s.set.solver=="DImplicitEuler"
@@ -620,9 +632,6 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, integra
     prob    = DAEProblem{true}(residual!, yd0, y0, tspan, s; differential_vars)
     integrator = OrdinaryDiffEq.init(prob, solver; abstol=abstol, reltol=s.set.rel_tol, save_everystep=false)
 
-    if isa(integrator_history, IntegratorHistory) && !any(pair -> fields_equal(pair[1], s), integrator_history)
-        pushfirst!(integrator_history, (deepcopy(s), deepcopy(integrator)))
-    end
     return integrator
 end
 
