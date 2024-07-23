@@ -23,7 +23,7 @@ function simulate(integrator, steps, plot=false)
             println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
         end
 
-        KiteModels.next_step!(kps4, integrator, dt=dt)
+        KiteModels.next_step!(kps4, integrator; v_ro=0, dt=dt)
     end
     (integrator.p.iter - start) / steps
 end

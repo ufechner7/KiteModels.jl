@@ -472,19 +472,20 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false)
 end
 
 """
-    next_step!(s::AKM, integrator; v_ro = 0.0, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
+    next_step!(s::AKM, integrator; v_ro = noting, set_torque=nozhing, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
 
 Calculates the next simulation step.
 
 Parameters:
 - s:            an instance of an abstract kite model
 - integrator:   an integrator instance as returned by the function [`init_sim!`](@ref)
-- v_ro:         set value of reel out speed in m/s
+- v_ro:         set value of reel out speed in m/s or nothing
+- set_torque:   set value of the torque in Nm or nothing
 - `v_wind_gnd`: wind speed at reference height in m/s
 - wind_dir:     wind direction in radians
 - dt:           time step in seconds
 
-Only the first two parameters are required.
+Either a value for v_ro or for set_torque required.
 
 Returns:
 The end time of the time step in seconds.

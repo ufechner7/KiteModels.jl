@@ -85,7 +85,7 @@ let
         start = integrator.p.iter
         lines, sc, txt = nothing, nothing, nothing
         for i in 1:steps  
-            KiteModels.next_step!(kps4, integrator, dt=dt)      
+            KiteModels.next_step!(kps4, integrator; v_ro=0, dt=dt)      
             if plot
                 reltime = i*dt
                 if mod(i, 5) == 0
