@@ -53,6 +53,7 @@ $(TYPEDFIELDS)
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
     "Reference to winch model as implemented in the package WinchModels"
+    # TODO: add the option to use the TorqueControlledWinch instead
     wm::AbstractWinchModel = AsyncMachine()
     "Iterations, number of calls to the function residual!"
     iter:: Int64 = 0
@@ -416,6 +417,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
     end
     # winch calculations
     res[end-1] = lengthd - v_reel_out
+    # TODO add param s.set_torque
     res[end] = v_reel_outd - calc_acceleration(s.wm, s.sync_speed, v_reel_out, norm(s.forces[1]), true)
     s.vel_kite .= vel[end-2]
     s.v_reel_out = v_reel_out
