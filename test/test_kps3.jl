@@ -206,15 +206,6 @@ end
     # println(res2)
 end
 
-@testset "test_set_v_reel_out  " begin
-    v_reel_out = 1.1
-    t_0 = 5.5
-    KiteModels.set_v_reel_out!(kps, v_reel_out, t_0)
-    @test_broken kps.v_reel_out ≈ 1.1
-    @test kps.t_0 ≈ 5.5
-    clear!(kps)
-end
-
 @testset "test_set_depower_steering" begin
     depower  = 0.25
     steering = 0.1

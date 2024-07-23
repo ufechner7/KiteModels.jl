@@ -162,20 +162,6 @@ function set_depower_steering!(s::AKM, depower, steering)
 end
 
 
-"""
-    set_v_reel_out!(s::AKM, v_reel_out, t_0, period_time = 1.0 / s.set.sample_freq)
-
-Setter for the reel-out speed. Must be called on every timestep (before each simulation).
-It also updates the tether length, therefore it must be called even if `v_reel_out` has
-not changed.
-
-- t_0 the start time of the next timestep relative to the start of the simulation [s]
-"""
-function set_v_reel_out!(s::AKM, v_reel_out, t_0, period_time = 1.0 / s.set.sample_freq)
-    s.sync_speed = v_reel_out
-    s.last_v_reel_out = s.v_reel_out
-    s.t_0 = t_0
-end
 
 """
     unstretched_length(s::AKM)
@@ -494,7 +480,8 @@ The end time of the time step in seconds.
 function next_step!(s::AKM, integrator; v_ro = nothing, set_torque=nothing, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
     KitePodModels.on_timer(s.kcu)
     KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
-    set_v_reel_out!(s, v_ro, integrator.t)
+    s.sync_speed = v_ro
+    s.set_torque = set_torque
     set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
     if s.set.solver == "IDA"
         Sundials.step!(integrator, dt, true)
