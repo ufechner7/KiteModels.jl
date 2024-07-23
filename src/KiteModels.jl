@@ -490,7 +490,7 @@ Returns:
 The end time of the time step in seconds.
 """
 # step(v_ro = None, set_torque=None, v_wind_gnd=6.0, wind_dir=0.0, depower=0.25, steering=0.0)
-function next_step!(s::AKM, integrator; v_ro = 0.0, set_torque=nothing, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
+function next_step!(s::AKM, integrator; v_ro = nothing, set_torque=nothing, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
     KitePodModels.on_timer(s.kcu)
     KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
     set_v_reel_out!(s, v_ro, integrator.t)
