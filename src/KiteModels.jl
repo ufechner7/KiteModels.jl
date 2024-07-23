@@ -482,6 +482,7 @@ function next_step!(s::AKM, integrator; v_ro = nothing, set_torque=nothing, v_wi
     KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
     s.sync_speed = v_ro
     s.set_torque = set_torque
+    s.t_0 = integrator.t
     set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
     if s.set.solver == "IDA"
         Sundials.step!(integrator, dt, true)

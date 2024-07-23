@@ -469,7 +469,7 @@ function init_inner(s::KPS3, X=zeros(2 * s.set.segments); old=false, delta=0.0)
     set_v_wind_ground!(s, pos[s.set.segments+1][3])
     s.l_tether = s.set.l_tether
     s.sync_speed = s.set.v_reel_out
-
+    s.t_0 = 0.0
     state_y0, yd0
 end
 
