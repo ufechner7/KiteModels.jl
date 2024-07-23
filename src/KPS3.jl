@@ -149,7 +149,9 @@ $(TYPEDFIELDS)
     "vector of the forces, acting on the particles"
     forces::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     "synchronous speed of the motor/ generator"
-    sync_speed::S =        0.0    
+    sync_speed::Union{S, Nothing} =        0.0
+    "set_torque of the motor/generator"
+    set_torque::Union{S, Nothing} = nothing
 end
 
 """
