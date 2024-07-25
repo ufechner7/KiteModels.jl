@@ -1,5 +1,12 @@
 # Changelog
 
+
+### KiteModels v0.6.0 - 2024-07-25
+#### Changed
+- use new version of WinchModels. It supports a torque controlled winch.
+- many new winch parameters in settings.yaml
+- renamed `v_ro` to `set_speed` in the function step()
+
 ### KiteModels v0.5.16 - 2024-06-25
 #### Changed
 - bump KiteUtils to version 0.6.16
