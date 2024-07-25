@@ -53,7 +53,7 @@ This project is licensed under the MIT License. Please see the below WAIVER in a
 ## WAIVER
 Technische Universiteit Delft hereby disclaims all copyright interest in the package “KiteModels.jl” (models for airborne wind energy systems) written by the Author(s).
 
-Prof.dr. H.G.C. (Henri) Werij, Dean of Aerospace Engineering 
+Prof.dr. H.G.C. (Henri) Werij, Dean of Aerospace Engineering
 
 ## Donations
 If you like this software, please consider donating to [Flood in Kenya](https://www.climatejusticesolidarity.nl/solidarity/) .
