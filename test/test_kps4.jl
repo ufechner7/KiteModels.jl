@@ -501,7 +501,7 @@ end
 function simulate(integrator, steps)
     start = integrator.p.iter
     for i in 1:steps
-        KiteModels.next_step!(kps4, integrator)
+        KiteModels.next_step!(kps4, integrator; v_ro=0)
     end
     (integrator.p.iter - start) / steps
 end

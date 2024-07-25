@@ -19,3 +19,5 @@ statprof/
 bin/kps-image-1.10-new_solver.so
 bin/kps-image-1.10-3line.so
 bin/kps-image-1.10-controlplots.so
+bin/kps-image-1.11-main.so
+bin/kps-image-1.10-torque.so

@@ -18,7 +18,6 @@ parameters, in this context mostly the variable s.
 
 ## Input functions
 ```@docs
-set_v_reel_out!
 set_depower_steering!
 set_v_wind_ground!
 ```

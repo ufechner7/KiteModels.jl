@@ -81,13 +81,13 @@ $(TYPEDFIELDS)
 """
 @with_kw mutable struct KPS4{S, T, P, Q, SP} <: AbstractKiteModel
     "Reference to the settings struct"
-    set::Settings = se()
+    set::Settings
     "Reference to the KCU model (Kite Control Unit as implemented in the package KitePodModels"
-    kcu::KCU = KCU()
+    kcu::KCU
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
     "Reference to winch model as implemented in the package WinchModels"
-    wm::AbstractWinchModel = AsyncMachine()
+    wm::AbstractWinchModel
     "Iterations, number of calls to the function residual!"
     iter:: Int64 = 0
     "Function for calculation the lift coefficent, using a spline based on the provided value pairs."
@@ -153,7 +153,9 @@ $(TYPEDFIELDS)
     "vector of the forces, acting on the particles"
     forces::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     "synchronous speed of the motor/ generator"
-    sync_speed::S =        0.0
+    sync_speed::Union{S, Nothing} =        0.0
+    "set_torque of the motor/generator"
+    set_torque::Union{S, Nothing} = nothing
     "x vector of kite reference frame"
     x::T =                 zeros(S, 3)
     "y vector of kite reference frame"
@@ -202,9 +204,12 @@ function clear!(s::KPS4)
 end
 
 function KPS4(kcu::KCU)
-    s = KPS4{SimFloat, KVec3, kcu.set.segments+KITE_PARTICLES+1, kcu.set.segments+KITE_SPRINGS, SP}()
-    s.set = kcu.set
-    s.kcu = kcu
+    if kcu.set.winch_model == "AsyncMachine"
+        wm = AsyncMachine(kcu.set)
+    elseif kcu.set.winch_model == "TorqueControlledMachine"
+        wm = TorqueControlledMachine(kcu.set)
+    end
+    s = KPS4{SimFloat, KVec3, kcu.set.segments+KITE_PARTICLES+1, kcu.set.segments+KITE_SPRINGS, SP}(set=kcu.set, kcu=kcu, wm=wm)
     s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
     s.calc_cd = Spline1D(s.set.alpha_cd, s.set.cd_list)       
     clear!(s)
@@ -429,7 +434,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
 
     # winch calculations
     res[end-1] = lengthd - v_reel_out
-    res[end] = v_reel_outd - calc_acceleration(s.wm, s.sync_speed, v_reel_out, norm(s.forces[1]), true)
+    res[end] = v_reel_outd - calc_acceleration(s.wm, v_reel_out, norm(s.forces[1]); set_speed=s.sync_speed, set_torque=s.set_torque, use_brake=true)
 
     # copy and flatten result
     for i in 2:div(T,6)+1

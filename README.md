@@ -51,9 +51,12 @@ If you want to replay old flight log files in 2D and 3D to understand and explai
 This project is licensed under the MIT License. Please see the below WAIVER in association with the license.
 
 ## WAIVER
-Technische Universiteit Delft hereby disclaims all copyright interest in the package “KiteModels.jl” (controllers for airborne wind energy systems) written by the Author(s).
+Technische Universiteit Delft hereby disclaims all copyright interest in the package “KiteModels.jl” (models for airborne wind energy systems) written by the Author(s).
 
 Prof.dr. H.G.C. (Henri) Werij, Dean of Aerospace Engineering
+
+## Donations
+If you like this software, please consider donating to https://gofund.me/508e041b .
 
 ## See also
 - [Research Fechner](https://research.tudelft.nl/en/publications/?search=Fechner+wind&pageSize=50&ordering=rating&descending=true) for the scientic background of this code
