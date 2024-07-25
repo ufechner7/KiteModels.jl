@@ -47,9 +47,9 @@ $(TYPEDFIELDS)
 """
 @with_kw mutable struct KPS3{S, T, P} <: AbstractKiteModel
     "Reference to the settings struct"
-    set::Settings = se()
+    set::Settings
     "Reference to the KCU model (Kite Control Unit as implemented in the package KitePodModels"
-    kcu::KCU = KCU()
+    kcu::KCU
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
     "Reference to winch model as implemented in the package WinchModels"
@@ -193,8 +193,8 @@ function clear!(s::KPS3)
 end
 
 function KPS3(kcu::KCU)
-    s = KPS3{SimFloat, KVec3, kcu.set.segments+1}()
-    s.set = kcu.set
+    set = kcu.set
+    s = KPS3{SimFloat, KVec3, kcu.set.segments+1}(set=set, kcu=kcu)
     if s.set.winch_model == "AsyncMachine"
         s.wm = AsyncMachine(s.set)
     elseif s.set.winch_model == "TorqueControlledMachine"
