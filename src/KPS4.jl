@@ -81,14 +81,13 @@ $(TYPEDFIELDS)
 """
 @with_kw mutable struct KPS4{S, T, P, Q, SP} <: AbstractKiteModel
     "Reference to the settings struct"
-    set::Settings = se()
+    set::Settings
     "Reference to the KCU model (Kite Control Unit as implemented in the package KitePodModels"
-    kcu::KCU = KCU()
+    kcu::KCU
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
     "Reference to winch model as implemented in the package WinchModels"
-    # TODO add the option to use the TorqueControlledWinch() instead
-    wm::Union{AbstractWinchModel, Nothing} = nothing
+    wm::AbstractWinchModel
     "Iterations, number of calls to the function residual!"
     iter:: Int64 = 0
     "Function for calculation the lift coefficent, using a spline based on the provided value pairs."
@@ -205,14 +204,12 @@ function clear!(s::KPS4)
 end
 
 function KPS4(kcu::KCU)
-    s = KPS4{SimFloat, KVec3, kcu.set.segments+KITE_PARTICLES+1, kcu.set.segments+KITE_SPRINGS, SP}()
-    s.set = kcu.set
-    if s.set.winch_model == "AsyncMachine"
-        s.wm = AsyncMachine(s.set)
-    elseif s.set.winch_model == "TorqueControlledMachine"
-        s.wm = TorqueControlledMachine(s.set)
+    if kcu.set.winch_model == "AsyncMachine"
+        wm = AsyncMachine(kcu.set)
+    elseif kcu.set.winch_model == "TorqueControlledMachine"
+        wm = TorqueControlledMachine(kcu.set)
     end
-    s.kcu = kcu
+    s = KPS4{SimFloat, KVec3, kcu.set.segments+KITE_PARTICLES+1, kcu.set.segments+KITE_SPRINGS, SP}(set=kcu.set, kcu=kcu, wm=wm)
     s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
     s.calc_cd = Spline1D(s.set.alpha_cd, s.set.cd_list)       
     clear!(s)
