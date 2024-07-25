@@ -42,14 +42,14 @@ function simulate(integrator, steps, plot=false)
             @printf "%.2f: " round(integrator.t, digits=2)
             println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
         end
-        acc = 0.0
+        dforce = 0.0
         if kps4.t_0 > 15.0
-            acc = 0.1
+            dforce = +4.5
         end
         force = norm(kps4.forces[1])
         r = set.drum_radius
         n = set.gear_ratio
-        set_torque = -r/n * force
+        set_torque = -r/n * force + dforce
         v_time[i] = kps4.t_0
         v_speed[i] = kps4.v_reel_out
         v_force[i] = winch_force(kps4)
