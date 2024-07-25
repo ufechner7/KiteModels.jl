@@ -458,7 +458,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false)
 end
 
 """
-    next_step!(s::AKM, integrator; set_speed = noting, set_torque=nozhing, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
+    next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
 
 Calculates the next simulation step.
 
@@ -476,7 +476,6 @@ Either a value for set_speed or for set_torque required.
 Returns:
 The end time of the time step in seconds.
 """
-# step(set_speed = None, set_torque=None, v_wind_gnd=6.0, wind_dir=0.0, depower=0.25, steering=0.0)
 function next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
     KitePodModels.on_timer(s.kcu)
     KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
