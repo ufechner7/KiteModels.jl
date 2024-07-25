@@ -56,7 +56,7 @@ Technische Universiteit Delft hereby disclaims all copyright interest in the pac
 Prof.dr. H.G.C. (Henri) Werij, Dean of Aerospace Engineering
 
 ## Donations
-If you like this software, please consider donating to https://gofund.me/508e041b .
+If you like this software, please consider donating to [Flood in Kenya](https://www.climatejusticesolidarity.nl/solidarity/) .
 
 ## See also
 - [Research Fechner](https://research.tudelft.nl/en/publications/?search=Fechner+wind&pageSize=50&ordering=rating&descending=true) for the scientic background of this code
