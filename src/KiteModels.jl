@@ -556,6 +556,7 @@ end
     set_data_path()
     kps4_::KPS4 = KPS4(KCU(se()))
     kps3_::KPS3 = KPS3(KCU(se()))
+    @assert ! isnothing(kps4_.wm)
     @compile_workload begin
         # all calls in this block will be precompiled, regardless of whether
         # they belong to your package or not (on Julia 1.8 and higher)

@@ -70,7 +70,7 @@ $(TYPEDFIELDS)
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
     "Reference to winch model as implemented in the package WinchModels"
-    wm::AbstractWinchModel = AsyncMachine()
+    wm::Union{AbstractWinchModel, Nothing} = nothing
     "Iterations, number of calls to the function residual!"
     iter:: Int64 = 0
     "Function for calculation the lift coefficent, using a spline based on the provided value pairs."
@@ -180,6 +180,11 @@ end
 function KPS4_3L(kcu::KCU)
     s = KPS4_3L{SimFloat, KVec3, kcu.set.segments+KITE_PARTICLES+1, kcu.set.segments+KITE_SPRINGS_3L, SP}()
     s.set = kcu.set
+    if s.set.winch_model == "AsyncMachine"
+        s.wm = AsyncMachine(s.set)
+    elseif s.set.winch_model == "TorqueControlledMachine"
+        s.wm = TorqueControlledMachine(s.set)
+    end
     s.kcu = kcu
     s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
     s.calc_cd = Spline1D(s.set.alpha_cd, s.set.cd_list)       
@@ -405,7 +410,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
 
     # winch calculations
     res[end-1] = lengthd - v_reel_out
-    res[end] = v_reel_outd - calc_acceleration(s.wm, s.sync_speed, v_reel_out, norm(s.forces[1]), true)
+    res[end] = v_reel_outd - calc_acceleration(s.wm, v_reel_out, norm(s.forces[1]); set_speed=s.sync_speed, set_torque=s.set_torque, use_brake=true)
 
     # copy and flatten result
     for i in 2:div(T,6)+1
