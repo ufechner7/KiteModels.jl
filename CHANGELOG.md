@@ -1,5 +1,11 @@
 # Changelog
 
+### Kitemodels v0.6.2 - 2024-07-25
+#### Changed
+- bump WinchModels to 0.3.2
+- bump KitePodModels to 0.3.3
+- fix example `reel_out_4p_torque_control.jl`
+
 ### KiteModels v0.6.0 - 2024-07-25
 #### Changed
 - use new version of Winchmodels.jl which provides an additional, torque controlled winch
