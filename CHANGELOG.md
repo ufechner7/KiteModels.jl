@@ -1,6 +1,6 @@
 # Changelog
 
-### KiteModels v0.6.2 - 2024-07-25
+### KiteModels v0.6.1 - 2024-07-25
 #### Changed
 - bump WinchModels to 0.3.2
 - bump KitePodModels to 0.3.3
