@@ -471,7 +471,7 @@ Parameters:
 - wind_dir:     wind direction in radians
 - dt:           time step in seconds
 
-Either a value for set_speed or for set_torque required.
+Either a value for `set_speed` or for `set_torque` required.
 
 Returns:
 The end time of the time step in seconds.
