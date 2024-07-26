@@ -118,7 +118,7 @@ function __init__()
     end
 end
 
-integrator_history_file = joinpath(get_data_path(), ".integrator_history.bin")
+steady_state_history_file = joinpath(get_data_path(), ".steady_state_history.bin")
 
 include("KPS4.jl") # include code, specific for the four point kite model
 include("KPS4_3L.jl") # include code, specific for the four point kite model
@@ -166,13 +166,6 @@ function set_depower_steering!(s::AKM, depower, steering)
     nothing
 end
 
-
-
-function set_v_reel_out!(s::KPS4_3L, reel_out_speeds, t_0, period_time = 1.0 / s.set.sample_freq)
-    s.sync_speeds .= reel_out_speeds
-    s.last_reel_out_speeds .= s.reel_out_speeds
-    s.t_0 = t_0
-end
 
 """
     unstretched_length(s::AKM)
@@ -530,24 +523,24 @@ function fields_equal(a::AKM, b::AKM)
 end
 
 
-const IntegratorHistory = Vector{Tuple{AbstractKiteModel, Vector{SimFloat}, Vector{SimFloat}}}
+const SteadyStateHistory = Vector{Tuple{AbstractKiteModel, Vector{SimFloat}, Vector{SimFloat}}}
 """
 Load the saved pairs of abstract kite models and corresponding integrators. It is assumed that a certain set of settings
 always leads to the same integrator.
 """
 function load_history()
-    history = IntegratorHistory()
-    if isfile(integrator_history_file)
-        append!(history, deserialize(integrator_history_file))
+    history = SteadyStateHistory()
+    if isfile(steady_state_history_file)
+        append!(history, deserialize(steady_state_history_file))
     end
     return history
 end
 
 """
-In order to delete the integrator history: just delete data/.integrator_history.bin
+In order to delete the integrator history: just delete data/.steady_state_history.bin
 """
-function save_history(history::IntegratorHistory)
-    serialize(integrator_history_file, history)
+function save_history(history::SteadyStateHistory)
+    serialize(steady_state_history_file, history)
 end
 
 
@@ -561,24 +554,24 @@ Parameters:
 - t_end: end time of the simulation; normally not needed
 - stiffness_factor: factor applied to the tether stiffness during initialisation
 - prn: if set to true, print the detailed solver results
-- integrator_history: an instance of IntegratorHistory containing old pairs of AKM objects and integrators
+- steady_state_history: an instance of SteadyStateHistory containing old pairs of AKM objects and integrators
 
 Returns:
 An instance of a DAE integrator.
 """
-function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, integrator_history=nothing)
+function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_state_history=nothing)
     clear!(s)
     s.stiffness_factor = stiffness_factor
 
     found = false
     y0 = nothing
     yd0 = nothing
-    if isa(integrator_history, IntegratorHistory)
-        while length(integrator_history) > 1000 # around 1MB, 1ms max per for loop
-            pop!(integrator_history)
+    if isa(steady_state_history, SteadyStateHistory)
+        while length(steady_state_history) > 1000 # around 1MB, 1ms max per for loop
+            pop!(steady_state_history)
         end
-        if prn println("Found $(length(integrator_history)) old steady states.") end
-        for akm_integrator_pair in integrator_history
+        if prn println("Found $(length(steady_state_history)) old steady states.") end
+        for akm_integrator_pair in steady_state_history
             if fields_equal(akm_integrator_pair[1], s)
                 if prn println("Found similar steady state, ") end
                 for field in fieldnames(typeof(s))
@@ -596,8 +589,8 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, integra
         y0  = Vector{SimFloat}(y0)
         yd0 = Vector{SimFloat}(yd0)
 
-        if isa(integrator_history, IntegratorHistory)
-            pushfirst!(integrator_history, (deepcopy(s), deepcopy(y0), deepcopy(yd0)))
+        if isa(steady_state_history, SteadyStateHistory)
+            pushfirst!(steady_state_history, (deepcopy(s), deepcopy(y0), deepcopy(yd0)))
         end
     end
     
@@ -659,12 +652,13 @@ function next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing,
             s.stiffness_factor = 1.0
         end
     end
-    if prn println("Number of iterations: ", s.iter) end
     integrator.t
 end
 
-function next_step!(s::KPS4_3L, integrator; v_ro = zeros(3), v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
-    set_v_reel_out!(s, v_ro, integrator.t)
+function next_step!(s::KPS4_3L, integrator; set_speeds=[nothing, nothing, nothing], set_torques=[nothing, nothing, nothing], v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
+    s.set_speeds .= set_speeds
+    s.set_torques .= set_torques
+    s.t_0 = integrator.t
     set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
     if s.set.solver == "IDA"
         Sundials.step!(integrator, dt, true)

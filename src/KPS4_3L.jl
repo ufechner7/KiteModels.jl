@@ -85,7 +85,7 @@ $(TYPEDFIELDS)
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
     "Reference to the motor models as implemented in the package WinchModels. index 1: middle motor, index 2: left motor, index 3: right motor"
-    motors::SVector{3, AbstractWinchModel} = [AsyncMachine() for _ in 1:3]
+    motors::SVector{3, AbstractWinchModel} = [AsyncMachine(se()) for _ in 1:3]
     "Iterations, number of calls to the function residual!"
     iter:: Int64 = 0
     "Function for calculation the lift coefficent, using a spline based on the provided value pairs."
@@ -128,14 +128,12 @@ $(TYPEDFIELDS)
     param_cd::S =         1.0
     "azimuth angle in radian; inital value is zero"
     psi::S =              zero(S)
-    # "depower angle [deg]"
-    # alpha_depower::S =     0.0
     "relative start time of the current time interval"
     t_0::S =               0.0
     "reel out speed of the winch"
     reel_out_speeds::T =        zeros(S, 3)
-    "reel out speed at the last time step"
-    last_reel_out_speeds::T =   zeros(S, 3)
+    # "reel out speed at the last time step"
+    # last_reel_out_speeds::T =   zeros(S, 3)
     "unstretched tether length"
     l_tethers::T =          zeros(S, 3)
     "lengths of the connections of the steering tethers to the kite"
@@ -156,8 +154,10 @@ $(TYPEDFIELDS)
     springs::MVector{Q, SP}       = zeros(SP, Q)
     "vector of the forces, acting on the particles"
     forces::SVector{P, T} = zeros(SVector{P, T})
-    "synchronous speeds of the motors"
-    sync_speeds::T =        zeros(S, 3)
+    "synchronous speed of the motor/ generator"
+    set_speeds::Union{MVector{3, S}, MVector{3,Nothing}}  = [0.0, 0.0, 0.0]
+    "set_torque of the motor/generator"
+    set_torques::Union{MVector{3, S}, MVector{3,Nothing}} = [nothing, nothing, nothing]
     "x vector of kite reference frame"
     e_x::T =                 zeros(S, 3)
     "y vector of kite reference frame"
@@ -213,7 +213,7 @@ Initialize the kite power model.
 function clear!(s::KPS4_3L)
     s.t_0 = 0.0                              # relative start time of the current time interval
     s.reel_out_speeds = zeros(3)
-    s.last_reel_out_speeds = zeros(3)
+    # s.last_reel_out_speeds = zeros(3)
     s.v_wind_gnd    .= [s.set.v_wind, 0, 0]    # wind vector at reference height
     s.v_wind_tether .= [s.set.v_wind, 0, 0]
     s.v_apparent    .= [s.set.v_wind, 0, 0]
@@ -241,20 +241,6 @@ function clear!(s::KPS4_3L)
     s.calc_cd = Spline1D(s.set.alpha_cd, s.set.cd_list) 
 end
 
-"""
-    set_vs_reel_out!(s::KPS4_3L, reel_out_speeds, t_0, period_time = 1.0 / s.set.sample_freq)
-
-Setter for the reel-out velocities of the three tethers. This manouvers the kite. Must be called on every timestep (before each simulation).
-It also updates the tether lengths, therefore it must be called even if `reel_out_speeds` has
-not changed.
-
-- t_0 the start time of the next timestep relative to the start of the simulation [s]
-"""
-function set_reel_out_speeds!(s::KPS4_3L, reel_out_speeds::Vector{SimFloat}, t_0, period_time = 1.0 / s.set.sample_freq)
-    s.sync_speeds .= reel_out_speeds
-    s.last_reel_out_speeds = s.reel_out_speeds
-    s.t_0 = t_0
-end
 
 function KPS4_3L(kcu::KCU)
     set = se()
@@ -582,7 +568,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
     # winch calculations
     res[end-5:end-3] .= lengthsd .- reel_out_speeds
     for i in 1:3
-        res[end-3+i] = reel_out_speedsd[i] - WinchModels.calc_acceleration(s.motors[i], s.sync_speeds[i], reel_out_speeds[i], norm(s.forces[i%3+1]), true)
+        res[end-3+i] = reel_out_speedsd[i] - WinchModels.calc_acceleration(s.motors[i], reel_out_speeds[i], norm(s.forces[i%3+1]); set_speed=s.set_speeds[i], set_torque=s.set_torques[i], use_brake=true)
     end
 
     for i in 4:s.num_E-3

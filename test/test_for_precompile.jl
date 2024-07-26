@@ -81,23 +81,23 @@ let
 #         end
 #     end        
 
-    function simulate(integrator, steps, plot=false)
-        start = integrator.p.iter
-        lines, sc, txt = nothing, nothing, nothing
-        for i in 1:steps  
-            KiteModels.next_step!(kps4, integrator; set_speed=0, dt=dt)      
-            if plot
-                reltime = i*dt
-                if mod(i, 5) == 0
-                    lines, sc, txt = plot2d(kps4.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=se().segments, lines, sc, txt)                       
-                end
-            end
-        end
-        (integrator.p.iter - start) / steps
-    end
-    integrator = KiteModels.init_sim!(kps4, prn=STATISTIC)
-    kps4.stiffness_factor = 0.04
-    simulate(integrator, 100, true)
+    # function simulate(integrator, steps, plot=false)
+    #     start = integrator.p.iter
+    #     lines, sc, txt = nothing, nothing, nothing
+    #     for i in 1:steps  
+    #         KiteModels.next_step!(kps4, integrator; set_speed=0, dt=dt)      
+    #         if plot
+    #             reltime = i*dt
+    #             if mod(i, 5) == 0
+    #                 lines, sc, txt = plot2d(kps4.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=se().segments, lines, sc, txt)                       
+    #             end
+    #         end
+    #     end
+    #     (integrator.p.iter - start) / steps
+    # end
+    # integrator = KiteModels.init_sim!(kps4, prn=STATISTIC)
+    # kps4.stiffness_factor = 0.04
+    # simulate(integrator, 100, true)
 end
 
 @info "Precompile script has completed execution."
