@@ -14,6 +14,11 @@ The model has the following subcomponents, implemented in separate packages:
 This package is part of Julia Kite Power Tools, which consist of the following packages:
 <p align="center"><img src="./docs/src/kite_power_tools.png" width="500" /></p>
 
+## News
+#### July 2024
+- a new groundstation / winch type is now supported, the `TorqueControlledMachine`. It can be configured in the section `winch` of the `settings.yaml` file. It uses a set torque as input.
+- a Python interfaces is now provided, see: [pykitemodels](https://github.com/ufechner7/pykitemodels)
+
 ## What to install
 If you want to run simulations and see the results in 3D, please install the meta package  [KiteSimulators](https://github.com/aenarete/KiteSimulators.jl) . If you are not interested in 3D visualization or control you can just install this package.
 
