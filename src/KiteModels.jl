@@ -747,14 +747,14 @@ end
     # precompile file and potentially make loading faster.
     # list = [OtherType("hello"), OtherType("world!")]
     set_data_path()
-    kps4_::KPS4 = KPS4(KCU(set=se()))
+    # kps4_::KPS4 = KPS4(KCU(set=se()))
     kps4_3l_::KPS4_3L = KPS4_3L(KCU(set=se()))
-    kps3_::KPS3 = KPS3(KCU(se()))
+    # kps3_::KPS3 = KPS3(KCU(se()))
     @compile_workload begin
         # all calls in this block will be precompiled, regardless of whether
         # they belong to your package or not (on Julia 1.8 and higher)
-        integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false, integrator_history=nothing)
-        integrator = KiteModels.init_sim!(kps4_; stiffness_factor=0.035, prn=false, integrator_history=nothing)
+        # integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false, integrator_history=nothing)
+        # integrator = KiteModels.init_sim!(kps4_; stiffness_factor=0.035, prn=false, integrator_history=nothing)
         integrator = KiteModels.init_sim!(kps4_3l_; stiffness_factor=0.035, prn=false, integrator_history=nothing)
         nothing
     end
