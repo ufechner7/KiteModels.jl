@@ -46,7 +46,7 @@ function simulate(integrator, steps, plot=false)
         end
 
 
-        KiteModels.next_step!(kps3, integrator, dt=dt)
+        KiteModels.next_step!(kps3, integrator; set_speed=0, dt)
 
         if plot
             reltime = i*dt-dt

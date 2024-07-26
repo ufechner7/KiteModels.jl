@@ -38,7 +38,7 @@ function simulate(integrator, steps, plot=false)
             println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
         end
 
-        KiteModels.next_step!(kps4, integrator, dt=dt)
+        KiteModels.next_step!(kps4, integrator; set_speed=0, dt)
         
         if plot
             reltime = i*dt-dt

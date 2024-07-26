@@ -1,5 +1,5 @@
 using Printf
-using KiteModels, KitePodModels, KiteUtils
+using KiteModels, KitePodModels, KiteUtils, LinearAlgebra
 
 set = deepcopy(se())
 
@@ -17,6 +17,7 @@ ALPHA_ZERO = 8.8
 
 set.alpha_zero = ALPHA_ZERO
 set.version = 2
+set.winch_model = "TorqueControlledMachine"
 
 kcu::KCU = KCU(set)
 kps4::KPS4 = KPS4(kcu)
@@ -41,15 +42,18 @@ function simulate(integrator, steps, plot=false)
             @printf "%.2f: " round(integrator.t, digits=2)
             println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
         end
-        acc = 0.0
+        dforce = 0.0
         if kps4.t_0 > 15.0
-            acc = 0.1
+            dforce = +4.5
         end
-        set_speed = kps4.sync_speed+acc*dt
+        force = norm(kps4.forces[1])
+        r = set.drum_radius
+        n = set.gear_ratio
+        set_torque = -r/n * force + dforce
         v_time[i] = kps4.t_0
         v_speed[i] = kps4.v_reel_out
         v_force[i] = winch_force(kps4)
-        KiteModels.next_step!(kps4, integrator; set_speed, dt)
+        KiteModels.next_step!(kps4, integrator; set_torque, dt)
         
         if plot
             reltime = i*dt-dt

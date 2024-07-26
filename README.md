@@ -14,11 +14,18 @@ The model has the following subcomponents, implemented in separate packages:
 This package is part of Julia Kite Power Tools, which consist of the following packages:
 <p align="center"><img src="./docs/src/kite_power_tools.png" width="500" /></p>
 
+## News
+#### July 2024
+- a new groundstation / winch type is now supported, the `TorqueControlledMachine`. It can be configured in the section `winch` of the `settings.yaml` file. It uses a set torque as input.
+- a Python interfaces is now provided, see: [pykitemodels](https://github.com/ufechner7/pykitemodels)
+#### April 2024
+- added support for the native Julia DAE solver DFBDF. It is much more accurate and faster than the IDA solver that was used before.
+
 ## What to install
 If you want to run simulations and see the results in 3D, please install the meta package  [KiteSimulators](https://github.com/aenarete/KiteSimulators.jl) . If you are not interested in 3D visualization or control you can just install this package.
 
 ## Installation
-Download [Julia 1.9](http://www.julialang.org) or later, if you haven't already. You can add KiteModels from  Julia's package manager, by typing 
+Install [Julia 1.10](http://www.julialang.org) or later using [juliaup](https://github.com/JuliaLang/juliaup), if you haven't already. You can add KiteModels from  Julia's package manager, by typing 
 ```julia
 using Pkg
 pkg"add KiteModels"
@@ -46,6 +53,17 @@ These models are described in detail in [Dynamic Model of a Pumping Kite Power S
 
 ## Replaying log files
 If you want to replay old flight log files in 2D and 3D to understand and explain better how kite power systems work, please have a look at [KiteViewer](https://github.com/ufechner7/KiteViewer) . How new log files can be created and replayed is explained in the documentation of [KiteSimulators](https://github.com/aenarete/KiteSimulators.jl) .
+
+## Licence
+This project is licensed under the MIT License. Please see the below WAIVER in association with the license.
+
+## WAIVER
+Technische Universiteit Delft hereby disclaims all copyright interest in the package “KiteModels.jl” (models for airborne wind energy systems) written by the Author(s).
+
+Prof.dr. H.G.C. (Henri) Werij, Dean of Aerospace Engineering
+
+## Donations
+If you like this software, please consider donating to [Flood in Kenya](https://www.climatejusticesolidarity.nl/solidarity/) .
 
 ## See also
 - [Research Fechner](https://research.tudelft.nl/en/publications/?search=Fechner+wind&pageSize=50&ordering=rating&descending=true) for the scientic background of this code

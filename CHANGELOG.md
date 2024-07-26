@@ -1,5 +1,27 @@
 # Changelog
 
+### KiteModels v0.6.1 - 2024-07-25
+#### Changed
+- bump WinchModels to 0.3.2
+- bump KitePodModels to 0.3.3
+- fix example `reel_out_4p_torque_control.jl`
+
+### KiteModels v0.6.0 - 2024-07-25
+#### Changed
+- use a new version of `WinchModels.jl` which provides an additional, torque-controlled winch
+- add many new winch parameters to `settings.jl`
+- BREAKING change: rename `v_ro` to `set_speed` in function step()
+
+### KiteModels v0.5.16 - 2024-06-25
+#### Changed
+- bump KiteUtils to version 0.6.16
+- bump ControlPlots to version 0.0.12
+
+### KiteModels v0.5.15 - 2024-06-18
+#### Changed
+- bump KiteUtils to version 0.6.12
+- drop support for Julia 1.9
+
 ### KiteModels v0.5.14 - 2024-05-05
 #### Changed
 - replace Plots with ControlPlots in the examples
@@ -20,7 +42,7 @@
 ### KiteModels v0.5.11 - 2024-04-04
 #### Added
 - document the support for the `DImplicitEuler` solver, which is not very accurate,
-  but because it is well known it can serve as reference
+  but because it is well known it can serve as a reference
 - support changing `max_order` for the `DFBDF`
 - further reduced the memory usage
 

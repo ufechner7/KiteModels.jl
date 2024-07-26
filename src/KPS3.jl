@@ -47,13 +47,13 @@ $(TYPEDFIELDS)
 """
 @with_kw mutable struct KPS3{S, T, P} <: AbstractKiteModel
     "Reference to the settings struct"
-    set::Settings = se()
+    set::Settings
     "Reference to the KCU model (Kite Control Unit as implemented in the package KitePodModels"
-    kcu::KCU = KCU()
+    kcu::KCU
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
     "Reference to winch model as implemented in the package WinchModels"
-    wm::AbstractWinchModel = AsyncMachine()
+    wm::Union{AbstractWinchModel, Nothing} = nothing
     "Iterations, number of calls to the function residual!"
     iter:: Int64 = 0
     "Function for calculation the lift coefficent, using a spline based on the provided value pairs."
@@ -149,7 +149,9 @@ $(TYPEDFIELDS)
     "vector of the forces, acting on the particles"
     forces::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     "synchronous speed of the motor/ generator"
-    sync_speed::S =        0.0    
+    sync_speed::Union{S, Nothing} =        0.0
+    "set_torque of the motor/generator"
+    set_torque::Union{S, Nothing} = nothing
 end
 
 """
@@ -191,8 +193,13 @@ function clear!(s::KPS3)
 end
 
 function KPS3(kcu::KCU)
-    s = KPS3{SimFloat, KVec3, kcu.set.segments+1}()
-    s.set = kcu.set
+    set = kcu.set
+    s = KPS3{SimFloat, KVec3, kcu.set.segments+1}(set=set, kcu=kcu)
+    if s.set.winch_model == "AsyncMachine"
+        s.wm = AsyncMachine(s.set)
+    elseif s.set.winch_model == "TorqueControlledMachine"
+        s.wm = TorqueControlledMachine(s.set)
+    end
     s.kcu = kcu  
     clear!(s)
     return s
@@ -414,7 +421,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
     end
     # winch calculations
     res[end-1] = lengthd - v_reel_out
-    res[end] = v_reel_outd - calc_acceleration(s.wm, s.sync_speed, v_reel_out, norm(s.forces[1]), true)
+    res[end] = v_reel_outd - calc_acceleration(s.wm, v_reel_out, norm(s.forces[1]); set_speed=s.sync_speed, set_torque=s.set_torque, use_brake=true)
     s.vel_kite .= vel[end-2]
     s.v_reel_out = v_reel_out
     # @assert ! isnan(norm(res))
@@ -466,8 +473,8 @@ function init_inner(s::KPS3, X=zeros(2 * s.set.segments); old=false, delta=0.0)
     end
     set_v_wind_ground!(s, pos[s.set.segments+1][3])
     s.l_tether = s.set.l_tether
-    set_v_reel_out!(s, s.set.v_reel_out, 0.0)
-
+    s.sync_speed = s.set.v_reel_out
+    s.t_0 = 0.0
     state_y0, yd0
 end
 

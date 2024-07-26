@@ -167,20 +167,6 @@ function set_depower_steering!(s::AKM, depower, steering)
 end
 
 
-"""
-    set_v_reel_out!(s::AKM, v_reel_out, t_0, period_time = 1.0 / s.set.sample_freq)
-
-Setter for the reel-out speed. Must be called on every timestep (before each simulation).
-It also updates the tether length, therefore it must be called even if `v_reel_out` has
-not changed.
-
-- t_0 the start time of the next timestep relative to the start of the simulation [s]
-"""
-function set_v_reel_out!(s::AKM, v_reel_out, t_0, period_time = 1.0 / s.set.sample_freq)
-    s.sync_speed = v_reel_out
-    s.last_v_reel_out = s.v_reel_out
-    s.t_0 = t_0
-end
 
 function set_v_reel_out!(s::KPS4_3L, reel_out_speeds, t_0, period_time = 1.0 / s.set.sample_freq)
     s.sync_speeds .= reel_out_speeds
@@ -476,7 +462,7 @@ function SysState(s::AKM, zoom=1.0)
     v_app_norm = norm(s.v_apparent)
     t_sim = 0
     KiteUtils.SysState{P}(s.t_0, t_sim, 0, 0, orient, elevation, azimuth, s.l_tether, s.v_reel_out, force, s.depower, s.steering, 
-                          heading, course, v_app_norm, s.vel_kite, X, Y, Z, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+                          heading, course, v_app_norm, s.vel_kite, X, Y, Z, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 end
 
 function SysState(s::KPS4_3L, zoom=1.0)
@@ -636,27 +622,30 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, integra
 end
 
 """
-    next_step!(s::AKM, integrator; v_ro = 0.0, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
+    next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
 
 Calculates the next simulation step.
 
 Parameters:
 - s:            an instance of an abstract kite model
 - integrator:   an integrator instance as returned by the function [`init_sim!`](@ref)
-- v_ro:         set value of reel out speed in m/s
+- set_speed:         set value of reel out speed in m/s or nothing
+- set_torque:   set value of the torque in Nm or nothing
 - `v_wind_gnd`: wind speed at reference height in m/s
 - wind_dir:     wind direction in radians
 - dt:           time step in seconds
 
-Only the first two parameters are required.
+Either a value for `set_speed` or for `set_torque` required.
 
 Returns:
 The end time of the time step in seconds.
 """
-function next_step!(s::AKM, integrator; v_ro = 0.0, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
+function next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
     KitePodModels.on_timer(s.kcu)
     KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
-    set_v_reel_out!(s, v_ro, integrator.t)
+    s.sync_speed = set_speed
+    s.set_torque = set_torque
+    s.t_0 = integrator.t
     set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
     s.iter = 0
     if s.set.solver == "IDA"
@@ -747,16 +736,16 @@ end
     # precompile file and potentially make loading faster.
     # list = [OtherType("hello"), OtherType("world!")]
     set_data_path()
-    # kps4_::KPS4 = KPS4(KCU(set=se()))
-    kps4_3l_::KPS4_3L = KPS4_3L(KCU(set=se()))
-    # kps3_::KPS3 = KPS3(KCU(se()))
-    @compile_workload begin
-        # all calls in this block will be precompiled, regardless of whether
-        # they belong to your package or not (on Julia 1.8 and higher)
-        # integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false, integrator_history=nothing)
-        # integrator = KiteModels.init_sim!(kps4_; stiffness_factor=0.035, prn=false, integrator_history=nothing)
-        integrator = KiteModels.init_sim!(kps4_3l_; stiffness_factor=0.035, prn=false, integrator_history=nothing)
-        nothing
-    end
+
+    kps4_::KPS4 = KPS4(KCU(se()))
+    kps3_::KPS3 = KPS3(KCU(se()))
+    @assert ! isnothing(kps4_.wm)
+    # @compile_workload begin
+    #     # all calls in this block will be precompiled, regardless of whether
+    #     # they belong to your package or not (on Julia 1.8 and higher)
+    #     integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
+    #     integrator = KiteModels.init_sim!(kps4_; stiffness_factor=0.5, prn=false)       
+    #     nothing
+    # end
 end
 end
