@@ -155,9 +155,10 @@ $(TYPEDFIELDS)
     "vector of the forces, acting on the particles"
     forces::SVector{P, T} = zeros(SVector{P, T})
     "synchronous speed of the motor/ generator"
-    set_speeds::Union{MVector{3, S}, MVector{3,Nothing}}  = [0.0, 0.0, 0.0]
+    set_speeds::KVec3  = zeros(KVec3)
     "set_torque of the motor/generator"
-    set_torques::Union{MVector{3, S}, MVector{3,Nothing}} = [nothing, nothing, nothing]
+    set_torques::KVec3 = zeros(KVec3)
+    torque_control::Bool = false
     "x vector of kite reference frame"
     e_x::T =                 zeros(S, 3)
     "y vector of kite reference frame"
@@ -568,7 +569,12 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
     # winch calculations
     res[end-5:end-3] .= lengthsd .- reel_out_speeds
     for i in 1:3
-        res[end-3+i] = reel_out_speedsd[i] - WinchModels.calc_acceleration(s.motors[i], reel_out_speeds[i], norm(s.forces[i%3+1]); set_speed=s.set_speeds[i], set_torque=s.set_torques[i], use_brake=true)
+        # @time res[end-3+i] = 1.0 - calc_acceleration(s.motors[i], 1.0, norm(s.forces[i%3+1]); set_speed=1.0, set_torque=s.set_torques[i], use_brake=true)
+        if !s.torque_control
+            res[end-3+i] = reel_out_speedsd[i] - calc_acceleration(s.motors[i], reel_out_speeds[i], norm(s.forces[i%3+1]); set_speed=s.set_speeds[i], set_torque=nothing, use_brake=true)
+        else
+            res[end-3+i] = reel_out_speedsd[i] - calc_acceleration(s.motors[i], reel_out_speeds[i], norm(s.forces[i%3+1]); set_speed=nothing, set_torque=s.set_torques[i], use_brake=true)
+        end
     end
 
     for i in 4:s.num_E-3

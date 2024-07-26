@@ -655,9 +655,15 @@ function next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing,
     integrator.t
 end
 
-function next_step!(s::KPS4_3L, integrator; set_speeds=[nothing, nothing, nothing], set_torques=[nothing, nothing, nothing], v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
-    s.set_speeds .= set_speeds
-    s.set_torques .= set_torques
+function next_step!(s::KPS4_3L, integrator; set_values=zeros(KVec3), torque_control=false, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
+    s.torque_control = torque_control
+    if !torque_control
+        s.set_speeds .= set_values
+        s.set_torques .= 0.0
+    else
+        s.set_speeds .= 0.0
+        s.set_torques .= set_values
+    end
     s.t_0 = integrator.t
     set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
     if s.set.solver == "IDA"

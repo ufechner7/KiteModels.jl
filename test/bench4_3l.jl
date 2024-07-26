@@ -1,4 +1,4 @@
-using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils, ProfileView
+using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils
 using KiteModels, KitePodModels
 
 if ! @isdefined kcu
@@ -30,11 +30,12 @@ function init_392()
     KiteModels.clear!(kps4_3l)
     kps4_3l.set.l_tether = 392.0
     kps4_3l.set.elevation = 70.0
-    kps4_3l.set.area = 10.0
-    kps4_3l.set.rel_side_area = 50.0
-    kps4_3l.set.v_wind = 9.1
-    kps4_3l.set.mass = 6.2
+    kps4_3l.set.v_wind = 15.51
+    kps4_3l.set.mass = 0.5
     kps4_3l.set.c_s = 0.6
+    kps4_3l.set.damping = 473.0     # unit damping coefficient
+    kps4_3l.set.c_spring = 614600.0 # unit spring coefficent
+    kps4_3l.set.width = 3.0
 end
 
 function init_50()
@@ -111,9 +112,6 @@ function bench_aero_forces(; method=1)
         KiteModels.calc_aero_forces!(kps4_3l, pos, vel)
         println("running...")
         KiteModels.calc_aero_forces!(kps4_3l, pos, vel)
-    elseif method==3
-        @profview [KiteModels.calc_aero_forces!(kps4_3l, pos, vel) for _ in 1:1]
-        @profview [KiteModels.calc_aero_forces!(kps4_3l, pos, vel) for _ in 1:1000]
     end
 end
 
