@@ -18,6 +18,8 @@ This package is part of Julia Kite Power Tools, which consist of the following p
 #### July 2024
 - a new groundstation / winch type is now supported, the `TorqueControlledMachine`. It can be configured in the section `winch` of the `settings.yaml` file. It uses a set torque as input.
 - a Python interfaces is now provided, see: [pykitemodels](https://github.com/ufechner7/pykitemodels)
+#### April 2024
+- added support for the native Julia DAE solver DFBDF. It is much more accurate and faster than the IDA solver that was used before.
 
 ## What to install
 If you want to run simulations and see the results in 3D, please install the meta package  [KiteSimulators](https://github.com/aenarete/KiteSimulators.jl) . If you are not interested in 3D visualization or control you can just install this package.
