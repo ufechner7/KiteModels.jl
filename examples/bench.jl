@@ -1,6 +1,8 @@
 using Printf
 using KiteModels, KitePodModels, KiteUtils
 
+if false include("../src/KPS4.jl") end
+
 set = deepcopy(se())
 
 # the following values can be changed to match your interest
@@ -28,7 +30,7 @@ function simulate(integrator, steps, plot=false)
     (integrator.p.iter - start) / steps
 end
 
-integrator = KiteModels.init_sim!(kps4, stiffness_factor=0.04, prn=STATISTIC)
+integrator = KiteModels.init_sim!(kps4, stiffness_factor=0.5, prn=STATISTIC)
 
 println("\nStarting simulation...")
 simulate(integrator, 100)
@@ -55,5 +57,5 @@ println("Average number of callbacks per time step: $av_steps")
 # Ryzen 7950X, DFBDF solver
 # Total simulation time: 0.332 s
 # Simulation speed: 75.25 times realtime.
-# lift, drag  [N]: 755.2, 168.82
+# lift, drag  [N]: 597.5, 129.3
 # Average number of callbacks per time step: 227.5
