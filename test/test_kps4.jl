@@ -380,7 +380,7 @@ end
     global pos, poss, vel, vels
     # init2()
     kps4.alpha_depower = -0.820659579962 
-    kps4.stiffness_factor = 0.04
+    kps4.stiffness_factor = 0.5
     kps4.set.alpha_zero = 0.0
     res =  zeros(MVector{6*(kps4.set.segments+4), SimFloat})
     y0, yd0 = KiteModels.init(kps4; old=true, delta=1e-6)
