@@ -576,6 +576,31 @@ end
     # TODO Add testcase with varying reelout speed 
 end
 
+@testset "Steady state history" begin
+    STEPS = 100
+    kps4_3l.set.solver = "DFBDF"
+    # println("finding steady state")
+    init_50()
+    steady_state_history = load_history()
+
+    integrator = KiteModels.init_sim!(kps4_3l; stiffness_factor=0.035, prn=false, steady_state_history=steady_state_history)
+    # println("\nStarting simulation...")
+    simulate(integrator, 100)
+    lift1, drag1 = KiteModels.lift_drag(kps4_3l)
+    save_history(steady_state_history)
+
+    steady_state_history2 = load_history()
+    init_50()
+    integrator = KiteModels.init_sim!(kps4_3l; stiffness_factor=0.035, prn=false, steady_state_history=steady_state_history2)
+    simulate(integrator, 100)
+    lift2, drag2 = KiteModels.lift_drag(kps4_3l)
+
+    @test lift2 == lift1
+    @test drag2 == drag1
+  
+    @test isapprox(lift1, 849.1874782889682, rtol=0.05)
+end
+
 # @testset "Raptures" begin
 #     kps4_3l_ = KPS4_3L(KCU(se()))
 #     integrator = KiteModels.init_sim!(kps4_3l_; stiffness_factor=0.035, prn=false)

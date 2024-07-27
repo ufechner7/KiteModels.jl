@@ -480,7 +480,6 @@ end
 
 function SysState(s::KPS4_3L, zoom=1.0)
     pos = s.pos
-    println("using 3l version")
     P = length(pos)
     X = zeros(MVector{P, MyFloat})
     Y = zeros(MVector{P, MyFloat})
@@ -563,8 +562,12 @@ always leads to the same integrator.
 """
 function load_history()
     history = SteadyStateHistory()
-    if isfile(steady_state_history_file)
-        append!(history, deserialize(steady_state_history_file))
+    try
+        if isfile(steady_state_history_file)
+            append!(history, deserialize(steady_state_history_file))
+        end
+    catch
+        println("Unable to load steady state history file. Try deleting data/.steady_state_history.bin.")
     end
     return history
 end
@@ -604,17 +607,21 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
             pop!(steady_state_history)
         end
         if prn println("Found $(length(steady_state_history)) old steady states.") end
-        for akm_integrator_pair in steady_state_history
-            if fields_equal(akm_integrator_pair[1], s)
-                if prn println("Found similar steady state, ") end
-                for field in fieldnames(typeof(s))
-                    setfield!(s, field, getfield(akm_integrator_pair[1], field)) # deepcopy??
+        try
+            for akm_steady_state_pair in steady_state_history
+                if fields_equal(akm_steady_state_pair[1], s)
+                    if prn println("Found similar steady state, ") end
+                    for field in fieldnames(typeof(s))
+                        setfield!(s, field, getfield(akm_steady_state_pair[1], field)) # deepcopy??
+                    end
+                    y0 = akm_steady_state_pair[2]
+                    yd0 = akm_steady_state_pair[3]
+                    found = true
+                    break;
                 end
-                y0 = akm_integrator_pair[2]
-                yd0 = akm_integrator_pair[3]
-                found = true
-                break;
             end
+        catch
+            println("Problem with loading steady state from history file. Try deleting data/.steady_state_history.bin");
         end
     end
     if !found
