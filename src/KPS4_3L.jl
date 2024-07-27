@@ -71,7 +71,7 @@ State of the kite power system, using a 3 point kite model and three steering li
 - S: Scalar type, e.g. SimFloat
   In the documentation mentioned as Any, but when used in this module it is always SimFloat and not Any.
 - T: Vector type, e.g. MVector{3, SimFloat}
-- P: number of points of the system, segments+1
+- P: number of points of the system, segments+3
 - Q: number of springs in the system, P-1
 - SP: struct type, describing a spring
 Normally a user of this package will not have to access any of the members of this type directly,
@@ -583,7 +583,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
             @inbounds res[3*num_particles+2+3*(i-4)+k] = s.res2[i][k]
         end
     end
-    for i in s.num_E:s.num_A # i is wrong!!
+    for i in s.num_E:s.num_A
         for k in 1:3
             @inbounds res[3*(i-6)+k] = s.res1[i][k]
             @inbounds res[3*num_particles+2+3*(i-6)+k] = s.res2[i][k]
@@ -647,17 +647,17 @@ function winch_force(s::KPS4_3L) norm.(s.last_forces) end
 # not implemented
 function spring_forces(s::KPS4_3L)
     forces = zeros(SimFloat, s.num_A)
-    for i in 1:s.num_A
-        forces[i] =  s.springs[i].c_spring * (norm(s.pos[i+1] - s.pos[i]) - s.segment_length) * s.stiffness_factor
+    for i in 1:s.set.segments*3
+        forces[i] =  s.springs[i].c_spring * (norm(s.pos[i+3] - s.pos[i]) - s.segment_lengths[i%3+1]) * s.stiffness_factor
         if forces[i] > 4000.0
             println("Tether raptures for segment $i !")
         end
     end
     for i in 1:KITE_SPRINGS_3L
-        p1 = s.springs[i+s.set.segments].p1  # First point nr.
-        p2 = s.springs[i+s.set.segments].p2  # Second point nr.
+        p1 = s.springs[i+s.set.segments*3].p1  # First point nr.
+        p2 = s.springs[i+s.set.segments*3].p2  # Second point nr.
         pos1, pos2 = s.pos[p1], s.pos[p2]
-        spring = s.springs[i+s.set.segments]
+        spring = s.springs[i+s.set.segments*3]
         l_0 = spring.length # Unstressed lengthc_spring
         k = spring.c_spring * s.stiffness_factor       # Spring constant 
         segment = pos1 - pos2
@@ -668,7 +668,7 @@ function spring_forces(s::KPS4_3L)
         else 
             spring_force = k1 *  (norm1 - l_0)
         end
-        forces[i+s.set.segments] = spring_force
+        forces[i+s.set.segments*3] = spring_force
         if norm(s.spring_force) > 4000.0
             println("Bridle brakes for spring $i !")
         end

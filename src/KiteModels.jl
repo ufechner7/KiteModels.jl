@@ -175,6 +175,13 @@ Getter for the unstretched tether reel-out lenght (at zero force).
 function unstretched_length(s::AKM) s.l_tether end
 
 """
+    unstretched_length(s::KPS4_3L)
+
+Getter for the unstretched tether reel-out lenght (at zero force).
+"""
+function unstretched_length(s::KPS4_3L) s.l_tethers[1] end
+
+"""
     lift_drag(s::AKM)
 
 Return a tuple of the scalar lift and drag forces. 
@@ -229,6 +236,19 @@ function tether_length(s::AKM)
     length = 0.0
     for i in 1:s.set.segments
         length += norm(s.pos[i+1] - s.pos[i])
+    end
+    return length
+end
+
+"""
+    tether_length(s::AKM)
+
+Calculate and return the real, stretched tether lenght.
+"""
+function tether_length(s::KPS4_3L)
+    length = 0.0
+    for i in 3:3:s.num_E-3
+        length += norm(s.pos[i+3] - s.pos[i])
     end
     return length
 end
@@ -407,14 +427,14 @@ function update_sys_state!(ss::SysState, s::KPS4_3L, zoom=1.0)
     ss.orient .= Rotations.params(q)
     ss.elevation = calc_elevation(s)
     ss.azimuth = calc_azimuth(s)
-    ss.force = winch_force(s)
+    ss.force = winch_force(s)[1]
     ss.heading = calc_heading(s)
     ss.course = calc_course(s)
     ss.v_app = norm(s.v_apparent)
-    ss.l_tether = s.l_tether
-    ss.v_reelout = s.v_reel_out
-    ss.depower = s.depower
-    ss.steering = s.steering
+    ss.l_tether = s.l_tethers[1]
+    ss.v_reelout = s.reel_out_speeds[1]
+    ss.depower = 100 - ((s.δ_left + s.δ_right)/2) / ((s.set.middle_length + s.set.tip_length)/2) * 100
+    ss.steering = (s.δ_right - s.δ_left) / ((s.set.middle_length + s.set.tip_length)/2) * 100
     ss.vel_kite .= s.vel_kite
     nothing
 end
@@ -481,7 +501,7 @@ function SysState(s::KPS4_3L, zoom=1.0)
 
     elevation = calc_elevation(s)
     azimuth = calc_azimuth(s)
-    forces = winch_forces(s)
+    forces = winch_force(s)
     heading = calc_heading(s)
     course = calc_course(s)
     v_app_norm = norm(s.v_apparent)
@@ -502,6 +522,19 @@ function calc_pre_tension(s::AKM)
     end
     av_force /= s.set.segments
     res = av_force/s.set.c_spring
+    if res < 0.0 res = 0.0 end
+    if isnan(res) res = 0.0 end
+    return res + 1.0
+end
+
+function calc_pre_tension(s::KPS4_3L)
+    forces = spring_forces(s)
+    avg_force = 0.0
+    for i in 1:s.num_A
+        avg_force += forces[i]
+    end
+    avg_force /= s.num_A
+    res = avg_force/s.set.c_spring
     if res < 0.0 res = 0.0 end
     if isnan(res) res = 0.0 end
     return res + 1.0
