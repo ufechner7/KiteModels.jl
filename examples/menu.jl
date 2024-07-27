@@ -1,10 +1,12 @@
 using REPL.TerminalMenus
 
-options = ["bench = include(\"examples/bench.jl\")", 
-           "compare_kps3_kps4 = include(\"examples/compare_kps3_kps4.jl\")",
-           "reel_out_1p = include(\"examples/reel_out_1p.jl\")",
-           "reel_out_4p = include(\"examples/reel_out_4p.jl\")",
-           "reel_out_4p_torque_control = include(\"examples/reel_out_4p_torque_control.jl\")",
+options = ["bench = include(\"bench.jl\")", 
+           "compare_kps3_kps4 = include(\"compare_kps3_kps4.jl\")",
+           "reel_out_1p = include(\"reel_out_1p.jl\")",
+           "reel_out_4p = include(\"reel_out_4p.jl\")",
+           "reel_out_4p_torque_control = include(\"reel_out_4p_torque_control.jl\")",
+           "simulate_simple = include(\"simulate_simple.jl\")",
+           "simulate_steering = include(\"simulate_steering.jl\")",
            "quit"]
 
 function menu()
