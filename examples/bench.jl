@@ -17,7 +17,7 @@ STATISTIC = false
 kcu::KCU = KCU(set)
 kps4::KPS4 = KPS4(kcu)
 
-function simulate(integrator, steps, plot=false)
+function simulate(integrator, steps)
     start = integrator.p.iter
     for i in 1:steps
         if PRINT
