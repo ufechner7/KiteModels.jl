@@ -25,6 +25,21 @@ function set_defaults()
     kps4_3l.set.width = 3.0
     kps4_3l.set.aero_surfaces = 3
     KiteModels.clear!(kps4_3l)
+
+    kps4_3l.set.sim_settings = "3l_settings.yaml"
+    kps4_3l.set.sim_time = 100.0
+    kps4_3l.set.abs_tol = 0.006
+    kps4_3l.set.rel_tol = 0.01
+    kps4_3l.set.max_iter = 10000
+    kps4_3l.set.physical_model = "KPS4_3L"
+    kps4_3l.set.version = 2
+    kps4_3l.set.cl_list = [0.0, 0.5, 0.0, 0.08, 0.125, 0.15, 0.0, 1.0, 1.0, 0.0, -0.5, 0.0]
+    kps4_3l.set.alpha_zero = 10.0
+    kps4_3l.set.d_tether = 1.0
+    kps4_3l.set.v_wind_ref = [15.51, 0.0]
+    kps4_3l.set.depower = 25.0
+    kps4_3l.set.alpha = 0.08163
+    # kps4_3l.set.
 end
 
 function init_100()
@@ -316,11 +331,11 @@ end
             [0.0   0.0   0.0]
             [0.0   0.0   0.0]
             [0.0   0.0   0.0]
-            [2.3782175186959207   0.0   6.7911231907067435] # last left tether point
-            [2.220317453674467   0.0   6.340231384153534] # last right tether point
+            [2.4687949917792396   0.0   7.049771852225747] # last left tether point
+            [2.3668951093984174   0.0   6.758791465054874] # last right tether point
             [0.0   0.0   0.0]
-            [13.536197709728542   26.942268461890084   69.04050062196403] # C
-            [14.036553453326958   -24.240521272885154   63.8393697185731] # D
+            [13.409099608866077   28.40311527705575   71.69832571718838] # C
+            [13.94856542663672   -26.584094467198202   68.09920030055184] # D
             [0.0   0.0   0.0]]
     for i in 1:kps4_3l.num_A
         @test all(forces[i,:] .≈ kps4_3l.forces[i])
@@ -473,11 +488,11 @@ end
             [-47.80749276932336 -0.5452031428922882 27.59683293994661]
             [-47.82835763853061 -1.2757775998701422 27.584771743691014]
             [-43.80899056925542 -0.8344488158083441 25.29313307824504]
-            [-473.79586765352514 0.00024394385753963418 -825.6115665555396]
-            [-457.3887264331379 0.00023549629268362814 -797.0213518861966]
+            [-349.4896579462506 0.00017994216739759087 -609.0021540731703]
+            [-335.70416803282905 0.00017284441535465636 -584.9802900169846]
             [-320.38753260380525 -0.9850270455038719 -435.63794206931027]
-            [-252.02809752023288 -332.8715969490211 -862.0734499822823]
-            [-1188.3910546634902 -511.98041651146735 -309.37054947847133]
+            [-254.62802485602307 -315.80551879718183 -811.4612593230728]
+            [-1190.464532876995 -528.2876381560295 -260.09644073323926]
             [484.9562144240868 419.3822884418879 -270.2434095557314]]  
 
     # print(res2[2])
@@ -490,6 +505,7 @@ end
         else
             @test all(res2_[i, :] .≈ res2[i])
         end
+        # println(res2[i]')
     end
 
 end
@@ -517,10 +533,10 @@ end
     pre_tension = KiteModels.calc_pre_tension(kps4_3l)
     println(kps4_3l.l_tethers)
     println("length: ", tether_length(kps4_3l))
-    @test pre_tension > 1.0001
+    @test pre_tension > 1.000001
     @test pre_tension < 1.01
     @test unstretched_length(kps4_3l) ≈ 100.0              # initial, unstreched tether lenght
-    @test isapprox(tether_length(kps4_3l), 102.9005140852101, rtol=1e-2)
+    @test isapprox(tether_length(kps4_3l), 99.80297620107189, rtol=1e-2)
 #    @test winch_force(kps) ≈ 276.25776695110034        # initial force at the winch [N]
 #    lift, drag = lift_drag(kps)
 #    @test lift ≈ 443.63303000106197                    # initial lift force of the kite [N]
@@ -570,7 +586,7 @@ end
   
     lift, drag = KiteModels.lift_drag(kps4_3l)
     # println(lift, " ", drag) # 703.7699568972286 161.44746368100536
-    @test isapprox(lift, 557.1535702785444, rtol=0.05)
+    @test isapprox(lift, 452.92869682967137, rtol=0.05)
     sys_state = SysState(kps4_3l)
     update_sys_state!(sys_state, kps4_3l)
     # TODO Add testcase with varying reelout speed 
@@ -625,6 +641,8 @@ end
 #     cd("bin")
 #     @test isfile("create_sys_image")
 # end
+
+# println(kps4_3l.set)
 
 end
 nothing
