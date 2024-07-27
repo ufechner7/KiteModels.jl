@@ -118,7 +118,7 @@ push!(msg, ("Mean time loop!:                $(round(mean(t.times), digits=1)) n
 # benchmark residual!
 init2()
 kps4.alpha_depower = -0.820659579962 
-kps4.stiffness_factor = 0.04
+kps4.stiffness_factor = 0.5
 kps4.set.alpha_zero = 0.0
 res =  zeros(MVector{6*(kps4.set.segments+KiteModels.KITE_PARTICLES), SimFloat})
 y0, yd0 = KiteModels.init(kps4)

@@ -1,11 +1,14 @@
 using Printf
 using KiteModels, KitePodModels, KiteUtils
 
+if false include("../src/KPS4.jl") end
+
 set = deepcopy(se())
 
 # the following values can be changed to match your interest
 dt = 0.05
-set.solver="DFBDF" # IDA or DFBDF
+set.solver="DFBDF"              # IDA or DFBDF
+set.linear_solver="GMRES"       # GMRES, LapackDense or Dense
 STEPS = 600
 PRINT = false
 STATISTIC = false
@@ -14,7 +17,7 @@ STATISTIC = false
 kcu::KCU = KCU(set)
 kps4::KPS4 = KPS4(kcu)
 
-function simulate(integrator, steps, plot=false)
+function simulate(integrator, steps)
     start = integrator.p.iter
     for i in 1:steps
         if PRINT
@@ -28,7 +31,7 @@ function simulate(integrator, steps, plot=false)
     (integrator.p.iter - start) / steps
 end
 
-integrator = KiteModels.init_sim!(kps4, stiffness_factor=0.04, prn=STATISTIC)
+integrator = KiteModels.init_sim!(kps4, stiffness_factor=0.5, prn=STATISTIC)
 
 println("\nStarting simulation...")
 simulate(integrator, 100)
@@ -41,19 +44,19 @@ println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
 println("Average number of callbacks per time step: $av_steps")
 
 # Ryzen 7950X, GMRES solver
-# Total simulation time: 0.666 s
-# Simulation speed: 37.53 times realtime.
-# lift, drag  [N]: 597.72, 129.35
-# Average number of callbacks per time step: 378.63
+# Total simulation time: 0.418 s
+# Simulation speed: 59.77 times realtime.
+# lift, drag  [N]: 597.54, 129.31
+# Average number of callbacks per time step: 234.5
 
 # Ryzen 7950X, LapackDense solver
-# Total simulation time: 2.216 s
-# Simulation speed: 11.28 times realtime.
-# lift, drag  [N]: 597.56, 129.31
-# Average number of callbacks per time step: 1413.298
+# Total simulation time: 0.36 s
+# Simulation speed: 69.39 times realtime.
+# lift, drag  [N]: 597.55, 129.31
+# Average number of callbacks per time step: 227.8
 
 # Ryzen 7950X, DFBDF solver
-# Total simulation time: 0.332 s
-# Simulation speed: 75.25 times realtime.
-# lift, drag  [N]: 755.2, 168.82
-# Average number of callbacks per time step: 227.5
+# Total simulation time: 0.102 s
+# Simulation speed: 247.33 times realtime.
+# lift, drag  [N]: 597.54, 129.31
+# Average number of callbacks per time step:  64.0

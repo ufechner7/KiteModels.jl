@@ -51,6 +51,12 @@ Dyneema or similar high strength materials for the tether the resulting system i
 ## Further reading
 These models are described in detail in [Dynamic Model of a Pumping Kite Power System](http://arxiv.org/abs/1406.6218).
 
+## Running the examples
+If you check out this repository, you get a menu with all the examples by running:
+```julia
+include("examples/menu.jl")
+```
+
 ## Replaying log files
 If you want to replay old flight log files in 2D and 3D to understand and explain better how kite power systems work, please have a look at [KiteViewer](https://github.com/ufechner7/KiteViewer) . How new log files can be created and replayed is explained in the documentation of [KiteSimulators](https://github.com/aenarete/KiteSimulators.jl) .
 
