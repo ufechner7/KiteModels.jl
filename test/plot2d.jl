@@ -1,4 +1,4 @@
-# is included from test_simulate.jl
+# is included from test_simulate_simple.jl
 function plot2d(pos, reltime=0.0; zoom=true, front=false, segments=se().segments)
     x = Float64[] 
     z = Float64[]

@@ -67,7 +67,7 @@ shell> tree
 │   ├── plot2d.jl
 │   ├── reel_out.jl
 │   ├── simulate_ii.jl
-│   └── simulate.jl
+│   └── simulate_simple.jl
 ├── LICENSE
 ├── Manifest-1.7.toml.default
 ├── Manifest-1.8.toml.default
@@ -116,7 +116,7 @@ cd ..
 ```
 If you now run any of the examples the time-to-first-plot (TTFP) should be less than 25s:
 ```julia
-julia> @time include("examples/simulate.jl")
+julia> @time include("examples/simulate_simple.jl")
 lift, drag  [N]: 597.61, 129.33
 Average number of callbacks per time step: 481.845
  23.901076 seconds (63.42 M allocations: 12.686 GiB, 5.67% gc time, 70.62% compilation time)
@@ -125,7 +125,7 @@ julia>
 ```
 A second run of this command needs about 5.5 s which means the startup time (load and compilation time of the package and the libraries) has been reduced to about 18.4s.
 
-Without a system image the first time execution of the script "simulate.jl" on the same computer is about 71 seconds
+Without a system image the first time execution of the script "simulate_simple.jl" on the same computer is about 71 seconds
 while the time for the second execution is the same (5.5s). So now about 47s of time are saved after each restart.
 
 ## Outlook

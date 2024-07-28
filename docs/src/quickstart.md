@@ -54,7 +54,7 @@ shell> tree
 ├── examples
 │   ├── compare_kps3_kps4.jl
 │   ├── plot2d.jl
-│   └── simulate.jl
+│   └── simulate_simple.jl
 ├── Manifest.toml
 └── Project.toml
 
@@ -66,13 +66,13 @@ On windows you need to type ```tree /f``` instead of ```tree``` to see the files
 ## Executing the first example
 From the Julia prompt you can use the command "include" to execute a script:
 ```
-include("examples/simulate.jl")
+include("examples/simulate_simple.jl")
 ```
 On Windows you need to type "\\\\" instead of "/":
 ```
-include("examples\\simulate.jl")
+include("examples\\simulate_simple.jl")
 ```
-You will see the 4-point kite fly for 30s. If you want to change the settings of the simulation, open the file `simulate.jl`` in your favorite text editor, modify the settings at the beginning of the file and execute the include command again.
+You will see the 4-point kite fly for 30s. If you want to change the settings of the simulation, open the file `simulate_simple.jl`` in your favorite text editor, modify the settings at the beginning of the file and execute the include command again.
 You can use the <TAB> key for autocompletion, for example ```include("ex<TAB>``` completes to ```include("examples\``` which can save a lot of typing. If you type <TAB> again you get a list of files to choose from.
 
 Try out changing the following default settings:
