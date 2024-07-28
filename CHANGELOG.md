@@ -1,5 +1,11 @@
 # Changelog
 
+### Unreleased
+####
+- renamed the example `simulate.jl` to `simulate_simple.jl`
+- renamed the example `simulate_ii.jl` to `simulate_steering.jl`
+- add the script `menu.jl` that provides a menu with all the examples
+
 ### KiteModels v0.6.1 - 2024-07-25
 #### Changed
 - bump WinchModels to 0.3.2
