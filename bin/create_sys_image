@@ -25,6 +25,7 @@ branch=$(git rev-parse --abbrev-ref HEAD)
 if test -f "kps-image-${julia_major}-${branch}.so"; then
     mv bin/kps-image-${julia_major}-${branch}.so kps-image-${julia_major}-${branch}.so.bak
 fi
+julia -e "using Pkg; Pkg.add(\"TestEnv\")"
 
 if [[ $update == true ]]; then
     echo "Updating packages..."
