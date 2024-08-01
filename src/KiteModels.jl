@@ -34,7 +34,7 @@ Scientific background: http://arxiv.org/abs/1406.6218 =#
 module KiteModels
 
 using PrecompileTools: @setup_workload, @compile_workload 
-using Dierckx, StaticArrays, Rotations, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, OrdinaryDiffEq, Serialization
+using Dierckx, StaticArrays, Rotations, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, OrdinaryDiffEq, Serialization, DataInterpolations
 import Sundials
 using Reexport
 @reexport using KitePodModels
@@ -50,10 +50,11 @@ import KiteUtils.SysState
 # import Sundials.step!
 import OrdinaryDiffEq.init
 import OrdinaryDiffEq.step!
+using ModelingToolkit
 
 export KPS3, KPS4, KPS4_3L, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                              # constants and types
 export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                            # helper functions
-export clear!, find_steady_state!, residual!                                                  # low level workers
+export clear!, find_steady_state!, residual!, model!                                                  # low level workers
 export init_sim!, next_step!                                                                  # high level workers
 export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, calc_orient_quat, load_history  # getters
 export winch_force, lift_drag, lift_over_drag, unstretched_length, tether_length, v_wind_kite # getters
@@ -94,8 +95,10 @@ const SVec3    = SVector{3, SimFloat}
 # disadvantage: changing the cl and cd curves requires a restart of the program     
 const calc_cl = Spline1D(se().alpha_cl, se().cl_list)
 const calc_cd = Spline1D(se().alpha_cd, se().cd_list)
-const rad_cl = Spline1D(deg2rad.(se().alpha_cl), se().cl_list)
-const rad_cd = Spline1D(deg2rad.(se().alpha_cd), se().cd_list) 
+const rad_cl = Spline1D(deg2rad.(se().alpha_cl), se().cl_list, k=3)
+const rad_cd = Spline1D(deg2rad.(se().alpha_cd), se().cd_list, k=3) 
+const rad_cl_model = CubicSpline(se().cl_list, deg2rad.(se().alpha_cl)) 
+const rad_cd_model = CubicSpline(se().cd_list, deg2rad.(se().alpha_cd)) 
 
 """
     abstract type AbstractKiteModel
@@ -121,7 +124,8 @@ end
 steady_state_history_file = joinpath(get_data_path(), ".steady_state_history.bin")
 
 include("KPS4.jl") # include code, specific for the four point kite model
-include("KPS4_3L.jl") # include code, specific for the four point kite model
+include("KPS4_3L.jl") # include code, specific for the four point 3 line kite model
+include("KPS4_3L_model.jl") # include code, specific for the four point 3 line kite model
 include("KPS3.jl") # include code, specific for the one point kite model
 include("init.jl") # functions to calculate the inital state vector, the inital masses and initial springs
 
@@ -333,51 +337,6 @@ function calc_course(s::AKM)
     KiteUtils.calc_course(s.vel_kite, elevation, azimuth)
 end
 
-# mutable struct SysState{P}
-#     "time since start of simulation in seconds"
-#     time::Float64
-#     "time needed for one simulation timestep"
-#     t_sim::Float64
-#     "state of system state control"
-#     sys_state::Int16
-#     "mechanical energy [Wh]"
-#     e_mech::Float64
-#     "orientation of the kite (quaternion, order w,x,y,z)"
-#     orient::MVector{4, Float32}
-#     "elevation angle in radians"
-#     elevation::MyFloat
-#     "azimuth angle in radians"
-#     azimuth::MyFloat
-#     "tether length [m]"
-#     l_tether::MyFloat
-#     "reel out velocity [m/s]"
-#     v_reelout::MyFloat
-#     "tether force [N]"
-#     force::MyFloat
-#     "depower settings [0..1]"
-#     depower::MyFloat
-#     "steering settings [-1..1]"
-#     steering::MyFloat
-#     "heading angle in radian"
-#     heading::MyFloat
-#     "course angle in radian"
-#     course::MyFloat
-#     "norm of apparent wind speed [m/s]"
-#     v_app::MyFloat
-#     "velocity vector of the kite"
-#     vel_kite::MVector{3, MyFloat}
-#     "vector of particle positions in x"
-#     X::MVector{P, MyFloat}
-#     "vector of particle positions in y"
-#     Y::MVector{P, MyFloat}
-#     "vector of particle positions in z"
-#     Z::MVector{P, MyFloat}
-#     var_01::MyFloat
-#     var_02::MyFloat
-#     var_03::MyFloat
-#     var_04::MyFloat
-#     var_05::MyFloat
-# end 
 
 function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
     ss.time = s.t_0
@@ -595,13 +554,11 @@ Parameters:
 Returns:
 An instance of a DAE integrator.
 """
-function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_state_history=nothing)
+function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_state_history=nothing, modeling_toolkit=true)
     clear!(s)
     s.stiffness_factor = stiffness_factor
 
     found = false
-    y0 = nothing
-    yd0 = nothing
     if isa(steady_state_history, SteadyStateHistory)
         while length(steady_state_history) > 1000 # around 1MB, 1ms max per for loop
             pop!(steady_state_history)
@@ -639,18 +596,24 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
     elseif s.set.solver=="DImplicitEuler"
         solver  = DImplicitEuler(autodiff=false)
     elseif s.set.solver=="DFBDF"
-        solver  = DFBDF(autodiff=false, max_order=Val{s.set.max_order}())
+        solver  = DFBDF(autodiff=false, max_order=Val{s.set.max_order}())        
     else
-        println("Error! Invalid solver in settings.yaml: $(s.set.solver)")
+        println("Error! Invalid solver in settings.yaml: $(s.set.solver)")residual!
         return nothing
     end
+
     dt = 1/s.set.sample_freq
     tspan   = (0.0, dt) 
     abstol  = s.set.abs_tol # max error in m/s and m
-    differential_vars = ones(Bool, length(y0))
-    prob    = DAEProblem{true}(residual!, yd0, y0, tspan, s; differential_vars)
-    integrator = OrdinaryDiffEq.init(prob, solver; abstol=abstol, reltol=s.set.rel_tol, save_everystep=false)
 
+    if modeling_toolkit && typeof(s) == KPS4_3L_2
+        simple_sys, pos, vel = model(yd0, y0)
+        prob = ODEProblem(simple_sys, nothing, tspan)
+    else
+        differential_vars = ones(Bool, length(y0))
+        prob    = DAEProblem{true}(residual!, yd0, y0, tspan, s; differential_vars)
+    end
+    integrator = OrdinaryDiffEq.init(prob, solver; abstol=abstol, reltol=s.set.rel_tol, save_everystep=false)
     return integrator
 end
 

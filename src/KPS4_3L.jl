@@ -174,7 +174,6 @@ $(TYPEDFIELDS)
     num_D::Int64 =           0
     "Point number of A"
 
-
     "residual variables"
     num_A::Int64 =           0
     L_C::T = zeros(S, 3)
@@ -571,9 +570,9 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
     for i in 1:3
         # @time res[end-3+i] = 1.0 - calc_acceleration(s.motors[i], 1.0, norm(s.forces[i%3+1]); set_speed=1.0, set_torque=s.set_torques[i], use_brake=true)
         if !s.torque_control
-            res[end-3+i] = reel_out_speedsd[i] - calc_acceleration(s.motors[i], reel_out_speeds[i], norm(s.forces[i%3+1]); set_speed=s.set_speeds[i], set_torque=nothing, use_brake=true)
+            res[end-3+i] = reel_out_speedsd[i] - WinchModels.calc_acceleration(s.motors[i], reel_out_speeds[i], norm(s.forces[i%3+1]); set_speed=s.set_speeds[i], set_torque=nothing, use_brake=true)
         else
-            res[end-3+i] = reel_out_speedsd[i] - calc_acceleration(s.motors[i], reel_out_speeds[i], norm(s.forces[i%3+1]); set_speed=nothing, set_torque=s.set_torques[i], use_brake=true)
+            res[end-3+i] = reel_out_speedsd[i] - WinchModels.calc_acceleration(s.motors[i], reel_out_speeds[i], norm(s.forces[i%3+1]); set_speed=nothing, set_torque=s.set_torques[i], use_brake=true)
         end
     end
 
