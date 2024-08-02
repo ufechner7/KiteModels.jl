@@ -72,6 +72,7 @@ function calc_aero_forces_model!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t
         D_D(t)[1:3]
         F_steering_c(t)[1:3]
         F_steering_d(t)[1:3]
+        d(t)[1:n*2]
     end
     F = collect(F)
     e_r = collect(e_r)
@@ -90,7 +91,6 @@ function calc_aero_forces_model!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t
     F_steering_c = collect(F_steering_c)
     F_steering_d = collect(F_steering_d)
     kite_length = zeros(MVector{n*2, SimFloat})
-    d = zeros(MVector{n*2, SimFloat})
     α = zero(SimFloat)
     α_0 = zero(SimFloat)
     α_middle = zero(SimFloat)
@@ -112,11 +112,9 @@ function calc_aero_forces_model!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t
             F[:,i] ~ E_c .+ e_y.*cos(α).*s.set.radius .- e_z.*sin(α).*s.set.radius
             e_r[:,i] ~ (E_c .- F[:,i])./norm(E_c .- F[:,i])
             y_l[i] ~ cos(α) * s.set.radius
-            if α < π/2
-                v_kite[:,i] ~ ((v_cx .- v_dx)./(y_lc .- y_ld).*(y_l[i] .- y_ld) .+ v_dx) .+ v_cy .+ v_cz
-            else
+            α < π/2 ?
+                v_kite[:,i] ~ ((v_cx .- v_dx)./(y_lc .- y_ld).*(y_l[i] .- y_ld) .+ v_dx) .+ v_cy .+ v_cz :
                 v_kite[:,i] ~ ((v_cx .- v_dx)./(y_lc .- y_ld).*(y_l[i] .- y_ld) .+ v_dx) .+ v_dy .+ v_dz
-            end
             v_a[:,i] ~ s.v_wind .- v_kite[:,i]
             e_drift[:,i] ~ (e_r[:,i] × e_x)
             v_a_xr[:,i] ~ v_a[:,i] .- (v_a[:,i] ⋅ e_drift[:,i]) .* e_drift[:,i]
@@ -128,13 +126,11 @@ function calc_aero_forces_model!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t
         end
         eqs2 = [
             eqs2
-            if α < s.α_l
-                d[i] ~ δ_left
-            elseif α > s.α_r
-                d[i] ~ δ_right
-            else
+            α < s.α_l ?
+                d[i] ~ δ_left :
+            α > s.α_r ?
+                d[i] ~ δ_right :
                 d[i] ~ (δ_right - δ_left) / (α_r - α_l) * (α - α_l) + (δ_left)
-            end
             aoa[i] ~ π - acos2((v_a_xr[:,i]./norm(v_a_xr[:,i])) ⋅ e_x) + asin(clamp(d[i]/kite_length[i], -1.0, 1.0))
             dL_dα[:,i] .~ 0.5*s.rho*(norm(v_a_xr[:,i]))^2*s.set.radius*kite_length[i]*rad_cl_model(aoa[i]) .* ((v_a_xr[:,i] × e_drift[:,i]) ./ norm(v_a_xr[:,i] × e_drift[:,i]))
             dD_dα[:,i] .~ 0.5*s.rho*norm(v_a_xr[:,i])*s.set.radius*kite_length[i]*rad_cd_model(aoa[i]) .* v_a_xr[:,i] # the sideways drag cannot be calculated with the C_d formula
@@ -148,10 +144,6 @@ function calc_aero_forces_model!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t
         end
     end
     
-    # eqs2 = [
-    #     eqs2
-    #     ]
-    println("eq shape ", size(l_c_eq))
     eqs2 = [
         eqs2
         l_c_eq
@@ -181,15 +173,9 @@ The result is stored in the array s.forces.
             spring_force, v_apparent, area, v_app_perp, half_drag_force)
     eqs2 = [
         eqs2
-        if i <= s.set.segments*3
-            l_0 ~ length[i%3+1] # Unstressed length
-            k ~ c_spring[i%3+1] * s.stiffness_factor  # Spring constant
-            c ~ damping[i%3+1]                     # Damping coefficient    
-        else
-            l_0 ~ s.springs[i].length
-            k ~ s.springs[i].c_spring * s.stiffness_factor  # Spring constant
-            c ~ s.springs[i].damping                    # Damping coefficient    
-        end
+        i <= s.set.segments*3 ? l_0 ~ length[i%3+1] : l_0 ~ s.springs[i].length # Unstressed length
+        i <= s.set.segments*3 ? k ~ c_spring[i%3+1] * s.stiffness_factor : k ~ s.springs[i].c_spring * s.stiffness_factor # Spring constant
+        i <= s.set.segments*3 ? c ~ damping[i%3+1] : c ~ s.springs[i].damping                    # Damping coefficient    
         segment .~ pos1 - pos2
         rel_vel .~ vel1 - vel2
         av_vel .~ 0.5 * (vel1 + vel2)
@@ -200,6 +186,7 @@ The result is stored in the array s.forces.
         c1 ~ 6.0 * c  # damping kite segments
         spring_vel .~ rel_vel ⋅ unit_vector
     ]
+
     if i > s.num_E  # kite springs
         for j in 1:3
             eqs2 = [
@@ -301,15 +288,21 @@ Output:length
     return eqs2, force_eqs
 end
 
-function model!(s::KPS4_3L)
-    @parameters begin
-    end
+function model!(s::KPS4_3L, pos_, vel_)
+    pos2_ = zeros(3, s.num_A)
+    vel2_ = zeros(3, s.num_A)
+    [pos2_[:,i] .= pos_[i] for i in 1:s.num_A]
+    [vel2_[:,i] .= vel_[i] for i in 1:s.num_A]
+    println(size(pos2_))
+    @independent_variables t
     @variables begin
-        t
-        pos(t)[1:3, 1:s.num_A] = zeros(3, s.num_A)
-        vel(t)[1:3, 1:s.num_A] = zeros(3, s.num_A)
+        pos(t)[1:3, 1:s.num_A] = pos2_
+        vel(t)[1:3, 1:s.num_A] = vel2_
         acc(t)[1:3, 1:s.num_A] = zeros(3, s.num_A)
         lengths(t)[1:3] = zeros(3)
+        steering_pos(t)[1:2] = zeros(2)
+        steering_vel(t)[1:2] = zeros(2)
+        steering_acc(t)[1:2] = zeros(2)
         reel_out_speed(t)[1:3] = zeros(3)
         segment_lengths(t)[1:3] = zeros(3)
         mass_tether_particle(t)[1:3] = zeros(3)
@@ -326,6 +319,9 @@ function model!(s::KPS4_3L)
     vel = collect(vel)
     acc = collect(acc)
     lengths = collect(lengths)
+    steering_pos = collect(steering_pos)
+    steering_vel = collect(steering_vel)
+    steering_acc = collect(steering_acc)
     reel_out_speed = collect(reel_out_speed)
     segment_lengths = collect(segment_lengths)
     mass_tether_particle = collect(mass_tether_particle)
@@ -349,16 +345,36 @@ function model!(s::KPS4_3L)
             D.(vel[:,i]) .~ 0.0
         )
     end
-    for i in 4:s.num_A
+    for i in 4:s.num_E-3
         eqs1 = vcat(
             eqs1,
             D.(pos[:,i]) .~ vel[:,i],
             D.(vel[:,i]) .~ acc[:,i]
         )
     end
-    eqs1 = vcat(eqs1, D.(lengths) .~ reel_out_speed)
-    eqs1 = vcat(eqs1, D.(reel_out_speed) .~ 0) # TODO: add winch function
-    println("last ", eqs1[end])
+    eqs1 = [
+        eqs1
+        D.(steering_pos) .~ steering_vel
+        D.(steering_vel) .~ steering_acc
+        pos[:,s.num_E-2] .~ pos[:,s.num_C] .+ e_z .* steering_pos[1]
+        pos[:,s.num_E-1] .~ pos[:,s.num_D] .+ e_z .* steering_pos[2]
+        vel[:,s.num_E-2] .~ vel[:,s.num_C] .+ e_z .* steering_vel[1]
+        vel[:,s.num_E-1] .~ vel[:,s.num_D] .+ e_z .* steering_vel[2]
+        acc[:,s.num_E-2] .~ acc[:,s.num_C] .+ e_z .* steering_acc[1]
+        acc[:,s.num_E-1] .~ acc[:,s.num_D] .+ e_z .* steering_acc[2]
+    ]
+    for i in s.num_E:s.num_A
+        eqs1 = vcat(
+            eqs1,
+            D.(pos[:,i]) .~ vel[:,i],
+            D.(vel[:,i]) .~ acc[:,i]
+        )
+    end
+    eqs1 = [
+        eqs1
+        D.(lengths) .~ reel_out_speed
+        D.(reel_out_speed) .~ 0 # TODO: add winch function
+    ]
 
     # Compute the masses and forces
     eqs2 = []
@@ -374,12 +390,11 @@ function model!(s::KPS4_3L)
         P_c ~ 0.5 .* (pos[:,s.num_C]+pos[:,s.num_D])
         # e_y .~ norm(P_c)
         e_y .~ (pos[:,s.num_C] .- pos[:,s.num_D]) ./ norm(pos[:,s.num_C] .- pos[:,s.num_D])
-        e_z .~ (pos[:,s.num_E] .- P_c) ./ (pos[:,s.num_E] .- P_c)
+        e_z .~ (pos[:,s.num_E] .- P_c) ./ norm(pos[:,s.num_E] .- P_c)
         e_x .~ cross(e_y, e_z)
     ]
 
     eqs2, force_eqs = calc_aero_forces_model!(s, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z)
-    println(typeof(force_eqs))
     eqs2, force_eqs = inner_loop_model!(s, eqs2, force_eqs, t, force, pos, vel, s.v_wind_gnd, segment_lengths, c_spring, damping, s.set.d_tether/1000.0)
     
     for i in 1:3
@@ -391,7 +406,8 @@ function model!(s::KPS4_3L)
         [force_eqs[j,i] = force[j,i] ~ force_eqs[j,i].rhs - s.forces[i][j] - (s.forces[i] ⋅ e_z) * e_z[j] for j in 1:3]
         [force_eqs[j,i+3] = force[j,i+3] ~ force_eqs[j,i].rhs + s.forces[i][j] - (s.forces[i] ⋅ e_z) * e_z[j] for j in 1:3]
         eqs2 = vcat(eqs2, vcat(force_eqs[:,i]))
-        eqs2 = vcat(eqs2, acc[:,i] .~ (force[:,i] ./ mass_tether_particle[i%3+1]))
+        # println(size((force[:,i] ./ mass_tether_particle[i%3+1])) ⋅ e_z)
+        eqs2 = vcat(eqs2, steering_acc[i-s.num_E+3] ~ (force[:,i] ./ mass_tether_particle[i%3+1]) ⋅ e_z - (acc[:,i+3] ⋅ s.e_z))
     end
     for i in 4:s.num_E-3
         eqs2 = vcat(eqs2, vcat(force_eqs[:,i]))
@@ -403,14 +419,11 @@ function model!(s::KPS4_3L)
     end
 
     eqs = vcat(eqs1, eqs2)
+
+    # @assert false
     println("making model")
     @time @named sys = ODESystem(eqs, t)
     println("making simple sys")
-    # @time simple_sys = structural_simplify(sys)
-    simple_sys = structural_simplify(sys; check_consistency=true)
-    # @eval simple_sys
-    # println(size(eqs1))
-    # println(size(eqs2))
-    # println(size(eqs))
+    @time simple_sys = structural_simplify(sys)
     return simple_sys, sys
 end

@@ -55,7 +55,7 @@ using ModelingToolkit
 export KPS3, KPS4, KPS4_3L, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                              # constants and types
 export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                            # helper functions
 export clear!, find_steady_state!, residual!, model!                                                  # low level workers
-export init_sim!, next_step!                                                                  # high level workers
+export init_sim!, next_step!, init_pos_vel                                                                  # high level workers
 export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, calc_orient_quat, load_history  # getters
 export winch_force, lift_drag, lift_over_drag, unstretched_length, tether_length, v_wind_kite # getters
 export save_history # setter / saver
@@ -598,7 +598,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
     elseif s.set.solver=="DFBDF"
         solver  = DFBDF(autodiff=false, max_order=Val{s.set.max_order}())        
     else
-        println("Error! Invalid solver in settings.yaml: $(s.set.solver)")residual!
+        println("Error! Invalid solver in settings.yaml: $(s.set.solver)")
         return nothing
     end
 
@@ -607,7 +607,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
     abstol  = s.set.abs_tol # max error in m/s and m
 
     if modeling_toolkit && typeof(s) == KPS4_3L_2
-        simple_sys, pos, vel = model(yd0, y0)
+        simple_sys = model!(s, yd0, y0)
         prob = ODEProblem(simple_sys, nothing, tspan)
     else
         differential_vars = ones(Bool, length(y0))
