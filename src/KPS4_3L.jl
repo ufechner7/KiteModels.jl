@@ -570,9 +570,9 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
     for i in 1:3
         # @time res[end-3+i] = 1.0 - calc_acceleration(s.motors[i], 1.0, norm(s.forces[i%3+1]); set_speed=1.0, set_torque=s.set_torques[i], use_brake=true)
         if !s.torque_control
-            res[end-3+i] = reel_out_speedsd[i] - WinchModels.calc_acceleration(s.motors[i], reel_out_speeds[i], norm(s.forces[i%3+1]); set_speed=s.set_speeds[i], set_torque=nothing, use_brake=true)
+            res[end-3+i] = reel_out_speedsd[i] - calc_acceleration(s.motors[i], reel_out_speeds[i], norm(s.forces[i%3+1]); set_speed=s.set_speeds[i], set_torque=nothing, use_brake=true)
         else
-            res[end-3+i] = reel_out_speedsd[i] - WinchModels.calc_acceleration(s.motors[i], reel_out_speeds[i], norm(s.forces[i%3+1]); set_speed=nothing, set_torque=s.set_torques[i], use_brake=true)
+            res[end-3+i] = reel_out_speedsd[i] - calc_acceleration(s.motors[i], reel_out_speeds[i], norm(s.forces[i%3+1]); set_speed=nothing, set_torque=s.set_torques[i], use_brake=true)
         end
     end
 
@@ -591,9 +591,9 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
 
     # add connection residuals
     res[3*num_particles+1] = (s.res1[s.num_E-2]) ⋅ s.e_z - (s.res1[s.num_C] ⋅ s.e_z)
-    res[3*num_particles+2] = (s.res1[s.num_E-1]) ⋅ s.e_z - (s.res1[s.num_D] ⋅ s.e_z)
+    res[3*num_particles+2] = (s.res1[s.num_E-1]) ⋅ s.e_z - (s.res1[s.num_C] ⋅ s.e_z)
     res[6*num_particles+3] = (s.res2[s.num_E-2]) ⋅ s.e_z - (s.res2[s.num_C] ⋅ s.e_z)
-    res[6*num_particles+4] = (s.res2[s.num_E-1]) ⋅ s.e_z - (s.res2[s.num_D] ⋅ s.e_z)
+    res[6*num_particles+4] = (s.res2[s.num_E-1]) ⋅ s.e_z - (s.res2[s.num_C] ⋅ s.e_z)
 
     s.vel_kite .= s.vel[s.num_A]
     s.vel_connection .= ((s.vel[s.num_E-2]-s.vel[s.num_C]) ⋅ s.e_z)
@@ -687,7 +687,7 @@ Find an initial equilibrium, based on the inital parameters
         - s.set.segments*2 parameters for left_tether
 
 """
-function find_steady_state!(s::KPS4_3L; prn=false, delta = 0.0, stiffness_factor=0.035)
+function find_steady_state!(s::KPS4_3L; prn=false, delta = 0.0, stiffness_factor=0.035, mtk=false)
     s.stiffness_factor = stiffness_factor
     res = zeros(MVector{6*(s.num_A-5)+4+6, SimFloat})
     iter = 0
@@ -728,5 +728,9 @@ function find_steady_state!(s::KPS4_3L; prn=false, delta = 0.0, stiffness_factor
     X00 = zeros(SimFloat, 5*s.set.segments+3)
     results = nlsolve(test_initial_condition!, X00, autoscale=true, xtol=2e-7, ftol=2e-7, iterations=s.set.max_iter)
     if prn println("\nresult: $results") end
-    init(s, results.zero)
+    if mtk
+        return init_pos_vel(s, results.zero)
+    else
+        return init(s, results.zero)
+    end
 end

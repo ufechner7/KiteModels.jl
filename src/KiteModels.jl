@@ -554,7 +554,7 @@ Parameters:
 Returns:
 An instance of a DAE integrator.
 """
-function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_state_history=nothing, modeling_toolkit=true)
+function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_state_history=nothing, mtk=false)
     clear!(s)
     s.stiffness_factor = stiffness_factor
 
@@ -582,16 +582,20 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
         end
     end
     if !found
-        y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor=stiffness_factor, prn=prn)
-        y0  = Vector{SimFloat}(y0)
-        yd0 = Vector{SimFloat}(yd0)
+        y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor=stiffness_factor, prn=prn, mtk=mtk)
+        if !mtk
+            y0  = Vector{SimFloat}(y0)
+            yd0 = Vector{SimFloat}(yd0)
+        end
 
         if isa(steady_state_history, SteadyStateHistory)
             pushfirst!(steady_state_history, (deepcopy(s), deepcopy(y0), deepcopy(yd0)))
         end
     end
     
-    if s.set.solver=="IDA"
+    if mtk
+        solver = Rodas4P() # TRBDF2, Rodas4P, Rodas5P, Kvaerno5, KenCarp4, radau
+    elseif s.set.solver=="IDA"
         solver  = Sundials.IDA(linear_solver=Symbol(s.set.linear_solver), max_order = s.set.max_order)
     elseif s.set.solver=="DImplicitEuler"
         solver  = DImplicitEuler(autodiff=false)
@@ -606,8 +610,8 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
     tspan   = (0.0, dt) 
     abstol  = s.set.abs_tol # max error in m/s and m
 
-    if modeling_toolkit && typeof(s) == KPS4_3L_2
-        simple_sys = model!(s, yd0, y0)
+    if mtk
+        simple_sys, sys = model!(s, y0, yd0)
         prob = ODEProblem(simple_sys, nothing, tspan)
     else
         differential_vars = ones(Bool, length(y0))
