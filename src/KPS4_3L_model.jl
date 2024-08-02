@@ -37,6 +37,20 @@ function calc_aero_forces_model!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t
         F_steering_c(t)[1:3]
         F_steering_d(t)[1:3]
     end
+    E_c = collect(E_c)
+    v_cx = collect(v_cx)
+    v_dx = collect(v_dx)
+    v_dy = collect(v_dy)
+    v_dz = collect(v_dz)
+    v_cy = collect(v_cy)
+    v_cz = collect(v_cz)
+    L_C = collect(L_C)
+    L_D = collect(L_D)
+    D_C = collect(D_C)
+    D_D = collect(D_D)
+    F_steering_c = collect(F_steering_c)
+    F_steering_d = collect(F_steering_d)
+
     eqs2 = [
         eqs2
         δ_left ~ (pos[:,s.num_E-2].-pos[:,s.num_C]) ⋅ e_z
@@ -67,6 +81,16 @@ function calc_aero_forces_model!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t
         dL_dα(t)[1:3, 1:n*2]
         dD_dα(t)[1:3, 1:n*2]
     end
+    F = collect(F)
+    e_r = collect(e_r)
+    y_l = collect(y_l)
+    v_kite = collect(v_kite)
+    v_a = collect(v_a)
+    e_drift = collect(e_drift)
+    v_a_xr = collect(v_a_xr)
+    aoa = collect(aoa)
+    dL_dα = collect(dL_dα)
+    dD_dα = collect(dD_dα)
     l_c_eq = collect(L_C .~ 0)
     l_d_eq = collect(L_D .~ 0)
     d_c_eq = collect(D_C .~ 0)
@@ -251,6 +275,15 @@ Output:length
         v_app_perp(t)[1:3, eachindex(s.springs)]
         half_drag_force(t)[1:3, eachindex(s.springs)]
     end
+    v_wind_tether = collect(v_wind_tether)
+    segment = collect(segment)
+    rel_vel = collect(rel_vel)
+    av_vel = collect(av_vel)
+    unit_vector = collect(unit_vector)
+    spring_force = collect(spring_force)
+    v_apparent = collect(v_apparent)
+    v_app_perp = collect(v_app_perp)
+    half_drag_force = collect(half_drag_force)
     
     for i in eachindex(s.springs)
         p1 = s.springs[i].p1  # First point nr.
@@ -287,15 +320,26 @@ function model!(s::KPS4_3L)
         e_x(t)[1:3]
         e_y(t)[1:3]
         e_z(t)[1:3]
-        aero_force(t)[1:3, 1:s.num_A]
-        particle_force(t)[1:3, 1:s.num_A]
         force(t)[1:3, 1:s.num_A]
-        mass(t)[1:length(pos)]
     end
+    # Collect the arrays into variables
+    pos = collect(pos)
+    vel = collect(vel)
+    acc = collect(acc)
+    lengths = collect(lengths)
+    segment_lengths = collect(segment_lengths)
+    mass_tether_particle = collect(mass_tether_particle)
+    damping = collect(damping)
+    c_spring = collect(c_spring)
+    P_c = collect(P_c)
+    e_x = collect(e_x)
+    e_y = collect(e_y)
+    e_z = collect(e_z)
+    force = collect(force)
+
     D = Differential(t)
 
     eqs1 = []
-    
     mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
 
     for i in 1:3
@@ -315,7 +359,6 @@ function model!(s::KPS4_3L)
 
     # Compute the masses and forces
     eqs2 = []
-    # default_value = Symbolics.Equation(0 ~ 0)
     force_eqs::SizedArray{Tuple{3, s.num_A}, Symbolics.Equation} = SizedArray{Tuple{3, s.num_A}, Symbolics.Equation}(undef)
     force_eqs[:,:] .= (force[:,:] .~ 0)
 
@@ -335,7 +378,9 @@ function model!(s::KPS4_3L)
     calc_aero_forces_model!(s, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z)
     inner_loop_model!(s, eqs2, force_eqs, t, force, pos, vel, s.v_wind_gnd, segment_lengths, c_spring, damping, s.set.d_tether/1000.0)
     
-
+    for i in 1:3
+        eqs2 = vcat(eqs2, acc[:,i] .~ 0)
+    end
     for i in s.num_E-2:s.num_E-1
         # println(force[1,i].rhs)
         [force_eqs[j,i] = force[j,i] ~ force_eqs[j,i].rhs + [0, 0, -G_EARTH][j] + 500.0 * ((vel[:,i]-vel[:,s.num_C]) ⋅ e_z) * e_z[j] for j in 1:3] # TODO: more damping
@@ -352,5 +397,15 @@ function model!(s::KPS4_3L)
         eqs2 = vcat(eqs2, vcat(force_eqs[:,i]))
         eqs2 = vcat(eqs2, acc[:,i] .~ (force[:,i] ./ s.masses[i]))
     end
-    nothing
+    eqs = vcat(eqs1, eqs2)
+    println("making model")
+    @time @named sys = ODESystem(eqs, t)
+    println("making simple sys")
+    # @time simple_sys = structural_simplify(sys)
+    simple_sys = structural_simplify(sys; check_consistency=false)
+    # @eval simple_sys
+    # println(size(eqs1))
+    # println(size(eqs2))
+    # println(size(eqs))
+    return simple_sys
 end
