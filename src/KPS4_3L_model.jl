@@ -285,6 +285,7 @@ Output:length
             unit_vector[:,i], k1[i], k2[i], c1[i], spring_vel[i],
             spring_force[:,i], v_apparent[:,i], area[i], v_app_perp[:,i], half_drag_force[:,i])
     end
+
     return eqs2, force_eqs
 end
 
