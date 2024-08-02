@@ -97,8 +97,8 @@ const calc_cl = Spline1D(se().alpha_cl, se().cl_list)
 const calc_cd = Spline1D(se().alpha_cd, se().cd_list)
 const rad_cl = Spline1D(deg2rad.(se().alpha_cl), se().cl_list, k=3)
 const rad_cd = Spline1D(deg2rad.(se().alpha_cd), se().cd_list, k=3) 
-const rad_cl_model = CubicSpline(se().cl_list, deg2rad.(se().alpha_cl)) 
-const rad_cd_model = CubicSpline(se().cd_list, deg2rad.(se().alpha_cd)) 
+const rad_cl_model = CubicSpline(se().cl_list, deg2rad.(se().alpha_cl); extrapolate=true) 
+const rad_cd_model = CubicSpline(se().cd_list, deg2rad.(se().alpha_cd); extrapolate=true) 
 
 """
     abstract type AbstractKiteModel
@@ -557,6 +557,7 @@ An instance of a DAE integrator.
 function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_state_history=nothing, mtk=false)
     clear!(s)
     s.stiffness_factor = stiffness_factor
+    s.mtk = mtk
 
     found = false
     if isa(steady_state_history, SteadyStateHistory)
@@ -594,7 +595,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
     end
     
     if mtk
-        solver = Rodas4P() # TRBDF2, Rodas4P, Rodas5P, Kvaerno5, KenCarp4, radau
+        solver = QNDF() # TRBDF2, Rodas4P, Rodas5P, Kvaerno5, KenCarp4, radau, QNDF
     elseif s.set.solver=="IDA"
         solver  = Sundials.IDA(linear_solver=Symbol(s.set.linear_solver), max_order = s.set.max_order)
     elseif s.set.solver=="DImplicitEuler"
@@ -673,10 +674,13 @@ function next_step!(s::KPS4_3L, integrator; set_values=zeros(KVec3), torque_cont
     end
     s.t_0 = integrator.t
     set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
-    if s.set.solver == "IDA"
+    if s.set.solver == "IDA" && !s.mtk
         Sundials.step!(integrator, dt, true)
     else
         OrdinaryDiffEq.step!(integrator, dt, true)
+        if mtk
+            update_pos!(s, integrator)
+        end
     end
     if s.stiffness_factor < 1.0
         s.stiffness_factor+=0.01

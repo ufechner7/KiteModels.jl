@@ -1,4 +1,4 @@
-using Revise, KiteModels, OrdinaryDiffEq
+using Revise, KiteModels, OrdinaryDiffEq, ControlPlots
 # integrator = init_sim!(s; modeling_toolkit=true)
 
 # s = KPS4_3L(KCU(se()))
@@ -12,12 +12,12 @@ using Revise, KiteModels, OrdinaryDiffEq
 
 s = KPS4_3L(KCU(se()))
 dt = 0.0001
-integrator = KiteModels.init_sim!(s; stiffness_factor=0.5, prn=true, mtk=true)
-for i in 1:3
+integrator = KiteModels.init_sim!(s; stiffness_factor=0.3, prn=true, mtk=true)
+for i in 1:10
     @time step!(integrator, dt, true)
-    println(integrator.u)
+    plot2d(s.pos, 10; zoom=false, front=false, segments=se().segments)          
+    # println(s.pos)
+    sleep(1)
 end
 
 nothing
-
-# There are 1420 highest order derivative variables and 1374 equations

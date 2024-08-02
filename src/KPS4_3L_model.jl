@@ -289,12 +289,21 @@ Output:length
     return eqs2, force_eqs
 end
 
+function update_pos!(s, integrator)
+    for i in 1:s.num_A
+        for j in 1:3
+            s.pos[i][j] = integrator.sol(integrator.sol.t; idxs=s.model_pos[j,i])
+        end
+    end
+    println(s.pos)
+    nothing
+end
+
 function model!(s::KPS4_3L, pos_, vel_)
     pos2_ = zeros(3, s.num_A)
     vel2_ = zeros(3, s.num_A)
     [pos2_[:,i] .= pos_[i] for i in 1:s.num_A]
     [vel2_[:,i] .= vel_[i] for i in 1:s.num_A]
-    println(size(pos2_))
     @independent_variables t
     @variables begin
         pos(t)[1:3, 1:s.num_A] = pos2_
@@ -357,12 +366,6 @@ function model!(s::KPS4_3L, pos_, vel_)
         eqs1
         D.(steering_pos) .~ steering_vel
         D.(steering_vel) .~ steering_acc
-        pos[:,s.num_E-2] .~ pos[:,s.num_C] .+ e_z .* steering_pos[1]
-        pos[:,s.num_E-1] .~ pos[:,s.num_D] .+ e_z .* steering_pos[2]
-        vel[:,s.num_E-2] .~ vel[:,s.num_C] .+ e_z .* steering_vel[1]
-        vel[:,s.num_E-1] .~ vel[:,s.num_D] .+ e_z .* steering_vel[2]
-        acc[:,s.num_E-2] .~ acc[:,s.num_C] .+ e_z .* steering_acc[1]
-        acc[:,s.num_E-1] .~ acc[:,s.num_D] .+ e_z .* steering_acc[2]
     ]
     for i in s.num_E:s.num_A
         eqs1 = vcat(
@@ -384,6 +387,12 @@ function model!(s::KPS4_3L, pos_, vel_)
 
     eqs2 = [
         eqs2
+        pos[:,s.num_E-2] .~ pos[:,s.num_C] .+ e_z .* steering_pos[1]
+        pos[:,s.num_E-1] .~ pos[:,s.num_D] .+ e_z .* steering_pos[2]
+        vel[:,s.num_E-2] .~ vel[:,s.num_C] .+ e_z .* steering_vel[1]
+        vel[:,s.num_E-1] .~ vel[:,s.num_D] .+ e_z .* steering_vel[2]
+        acc[:,s.num_E-2] .~ acc[:,s.num_C] .+ e_z .* steering_acc[1]
+        acc[:,s.num_E-1] .~ acc[:,s.num_D] .+ e_z .* steering_acc[2]
         segment_lengths .~ lengths ./ s.set.segments
         mass_tether_particle .~ mass_per_meter .* segment_lengths
         damping .~ s.set.damping ./ segment_lengths
@@ -402,12 +411,10 @@ function model!(s::KPS4_3L, pos_, vel_)
         eqs2 = vcat(eqs2, acc[:,i] .~ 0)
     end
     for i in s.num_E-2:s.num_E-1
-        # println(force[1,i].rhs)
         [force_eqs[j,i] = force[j,i] ~ force_eqs[j,i].rhs + [0, 0, -G_EARTH][j] + 500.0 * ((vel[:,i]-vel[:,s.num_C]) ⋅ e_z) * e_z[j] for j in 1:3] # TODO: more damping
         [force_eqs[j,i] = force[j,i] ~ force_eqs[j,i].rhs - s.forces[i][j] - (s.forces[i] ⋅ e_z) * e_z[j] for j in 1:3]
         [force_eqs[j,i+3] = force[j,i+3] ~ force_eqs[j,i].rhs + s.forces[i][j] - (s.forces[i] ⋅ e_z) * e_z[j] for j in 1:3]
         eqs2 = vcat(eqs2, vcat(force_eqs[:,i]))
-        # println(size((force[:,i] ./ mass_tether_particle[i%3+1])) ⋅ e_z)
         eqs2 = vcat(eqs2, steering_acc[i-s.num_E+3] ~ (force[:,i] ./ mass_tether_particle[i%3+1]) ⋅ e_z - (acc[:,i+3] ⋅ s.e_z))
     end
     for i in 4:s.num_E-3
@@ -426,5 +433,6 @@ function model!(s::KPS4_3L, pos_, vel_)
     @time @named sys = ODESystem(eqs, t)
     println("making simple sys")
     @time simple_sys = structural_simplify(sys)
+    s.model_pos = pos
     return simple_sys, sys
 end

@@ -174,6 +174,10 @@ $(TYPEDFIELDS)
     num_D::Int64 =           0
     "Point number of A"
 
+    "mtk variables"
+    mtk = false
+    model_pos = nothing
+
     "residual variables"
     num_A::Int64 =           0
     L_C::T = zeros(S, 3)
@@ -591,9 +595,9 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
 
     # add connection residuals
     res[3*num_particles+1] = (s.res1[s.num_E-2]) ⋅ s.e_z - (s.res1[s.num_C] ⋅ s.e_z)
-    res[3*num_particles+2] = (s.res1[s.num_E-1]) ⋅ s.e_z - (s.res1[s.num_C] ⋅ s.e_z)
+    res[3*num_particles+2] = (s.res1[s.num_E-1]) ⋅ s.e_z - (s.res1[s.num_D] ⋅ s.e_z)
     res[6*num_particles+3] = (s.res2[s.num_E-2]) ⋅ s.e_z - (s.res2[s.num_C] ⋅ s.e_z)
-    res[6*num_particles+4] = (s.res2[s.num_E-1]) ⋅ s.e_z - (s.res2[s.num_C] ⋅ s.e_z)
+    res[6*num_particles+4] = (s.res2[s.num_E-1]) ⋅ s.e_z - (s.res2[s.num_D] ⋅ s.e_z)
 
     s.vel_kite .= s.vel[s.num_A]
     s.vel_connection .= ((s.vel[s.num_E-2]-s.vel[s.num_C]) ⋅ s.e_z)
