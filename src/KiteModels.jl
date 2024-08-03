@@ -595,7 +595,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
     end
     
     if mtk
-        solver = QNDF() # TRBDF2, Rodas4P, Rodas5P, Kvaerno5, KenCarp4, radau, QNDF
+        solver = TRBDF2() # TRBDF2, Rodas4P, Rodas5P, Kvaerno5, KenCarp4, radau, QNDF
     elseif s.set.solver=="IDA"
         solver  = Sundials.IDA(linear_solver=Symbol(s.set.linear_solver), max_order = s.set.max_order)
     elseif s.set.solver=="DImplicitEuler"
@@ -614,6 +614,8 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
     if mtk
         simple_sys, sys = model!(s, y0, yd0)
         prob = ODEProblem(simple_sys, nothing, tspan)
+        integrator = OrdinaryDiffEq.init(prob, solver; abstol=abstol, reltol=s.set.rel_tol, save_everystep=false)
+        return integrator, simple_sys
     else
         differential_vars = ones(Bool, length(y0))
         prob    = DAEProblem{true}(residual!, yd0, y0, tspan, s; differential_vars)
@@ -678,7 +680,7 @@ function next_step!(s::KPS4_3L, integrator; set_values=zeros(KVec3), torque_cont
         Sundials.step!(integrator, dt, true)
     else
         OrdinaryDiffEq.step!(integrator, dt, true)
-        if mtk
+        if s.mtk
             update_pos!(s, integrator)
         end
     end

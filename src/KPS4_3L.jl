@@ -115,6 +115,7 @@ $(TYPEDFIELDS)
     "a copy of the actual positions as output for the user"
     pos::SVector{P, T} = zeros(SVector{P, T})
     vel::SVector{P, T} = zeros(SVector{P, T})
+    acc::SVector{P, T} = zeros(SVector{P, T})
     posd::SVector{P, T} = zeros(SVector{P, T})
     veld::SVector{P, T} = zeros(SVector{P, T})
     "velocity vector of the kite"
@@ -177,6 +178,11 @@ $(TYPEDFIELDS)
     "mtk variables"
     mtk = false
     model_pos = nothing
+    model_vel = nothing
+    model_acc = nothing
+    model_lengths = nothing
+    model_force = nothing
+    model_y_lc = nothing
 
     "residual variables"
     num_A::Int64 =           0
