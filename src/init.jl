@@ -211,7 +211,7 @@ function init_pos_vel_acc(s::KPS4_3L, X=zeros(5*s.set.segments+3); delta = 0.0)
     # set vel and acc
     for i in 1:s.num_A
         vel[i] .= [delta, delta, delta]
-        acc[i] .= [delta, delta, -9.81]
+        acc[i] .= [delta, delta, delta]
     end
     
     for i in eachindex(pos)

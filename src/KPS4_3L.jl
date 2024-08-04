@@ -184,6 +184,8 @@ $(TYPEDFIELDS)
     model_force = nothing
     model_y_lc = nothing
 
+    half_drag_force::SVector{P, T} = zeros(SVector{P, T})
+
     "residual variables"
     num_A::Int64 =           0
     L_C::T = zeros(S, 3)
@@ -347,9 +349,6 @@ function calc_aero_forces!(s::KPS4_3L, pos::SVector{N, KVec3}, vel::SVector{N, K
             d = (s.δ_right - s.δ_left) / (s.α_r - s.α_l) * (α - s.α_l) + (s.δ_left)
         end
         aoa = π - acos2(normalize(s.v_a_xr) ⋅ s.e_x) + asin(clamp(d/kite_length, -1.0, 1.0))
-        # println("aoa ", aoa)
-        # println("asin ", asin(clamp(d/kite_length, -1.0, 1.0)))
-        # println("acos ", pi - acos2(normalize(s.v_a_xr) ⋅ s.e_x))
         s.dL_dα .= 0.5*s.rho*(norm(s.v_a_xr))^2*s.set.radius*kite_length*rad_cl(aoa) .* normalize(s.v_a_xr × s.e_drift)
         s.dD_dα .= 0.5*s.rho*norm(s.v_a_xr)*s.set.radius*kite_length*rad_cd(aoa) .* s.v_a_xr # the sideways drag cannot be calculated with the C_d formula
         if i <= n
@@ -369,6 +368,11 @@ function calc_aero_forces!(s::KPS4_3L, pos::SVector{N, KVec3}, vel::SVector{N, K
     s.forces[s.num_D] .+= (s.L_D .+ s.D_D) .- s.F_steering_d
     s.forces[s.num_E-2] .+= s.F_steering_c
     s.forces[s.num_E-1] .+= s.F_steering_d
+    println("lift forces ")
+    println("s.forces[s.num_C] ", s.forces[s.num_C])
+    println("s.L_C ", s.L_C)
+    println("s.dL_dα ", s.dL_dα)
+    println("s.dα ", dα)
     return nothing
 end
 
@@ -410,6 +414,18 @@ The result is stored in the array s.forces.
     
     v_app_perp = s.v_apparent - s.v_apparent ⋅ unit_vector * unit_vector
     half_drag_force = (0.25 * rho * s.set.cd_tether * norm(v_app_perp) * area) * v_app_perp 
+    
+    # if i == s.num_C
+    #     println("spring forces ", i)
+    #     println("spring_force ", s.spring_force)
+    #     println("k ", k)
+    #     println("C ", c)
+    #     println("k1 ", k1)
+    #     println("k2 ", k2)
+    #     println("c1 ", c1)
+    #     println("l_0 ", l_0)
+    #     println("spring_vel ", spring_vel)
+    # end
 
     @inbounds s.forces[spring.p1] .+= half_drag_force + s.spring_force
     @inbounds s.forces[spring.p2] .+= half_drag_force - s.spring_force
@@ -447,7 +463,7 @@ Calculate the vectors s.res1 and calculate s.res2 using loops
 that iterate over all tether segments. 
 """
 function loop!(s::KPS4_3L, pos, vel, posd, veld)
-    L_0      = s.l_tethers[1] / s.set.segments
+    L_0      = s.l_tethers / s.set.segments
     
     mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
 
@@ -457,11 +473,11 @@ function loop!(s::KPS4_3L, pos, vel, posd, veld)
     # Compute the masses and forces
     mass_tether_particle = mass_per_meter * s.segment_lengths[1]
     # TODO: check if the next two lines are correct
-    damping  = s.set.damping / L_0
-    c_spring = s.set.c_spring / L_0
+    damping  = s.set.damping ./ L_0
+    c_spring = s.set.c_spring ./ L_0
     for i in 1:s.set.segments*3
         @inbounds s.masses[i] = mass_tether_particle
-        @inbounds s.springs[i] = SP(s.springs[i].p1, s.springs[i].p2, s.segment_lengths[i%3+1], c_spring, damping)
+        @inbounds s.springs[i] = SP(s.springs[i].p1, s.springs[i].p2, s.segment_lengths[i%3+1], c_spring[i%3+1], damping[i%3+1])
     end
     inner_loop!(s, pos, vel, s.v_wind_gnd, s.set.d_tether/1000.0)
     for i in s.num_E-2:s.num_E-1

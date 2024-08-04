@@ -157,9 +157,9 @@ function calc_aero_forces_model!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t
         d_d_eq
         F_steering_c ~ ((0.1 * (L_C ⋅ -e_z)) .* -e_z)
         F_steering_d ~ ((0.1 * (L_D ⋅ -e_z)) .* -e_z)
-        ]
+    ]
     
-    force_eqs[:,s.num_C] .= (force[:,s.num_C] .~ (L_C + D_C) .- F_steering_c) 
+    force_eqs[:,s.num_C] .= (force[:,s.num_C] .~ (L_C .+ D_C) .- F_steering_c) 
     force_eqs[:,s.num_D] .= (force[:,s.num_D] .~ (L_D .+ D_D) .- F_steering_d)
     force_eqs[:,s.num_E-2] .= (force[:,s.num_E-2] .~ F_steering_c)
     force_eqs[:,s.num_E-1] .= (force[:,s.num_E-1] .~ F_steering_d)
@@ -175,7 +175,7 @@ The result is stored in the array s.forces.
 """
 @inline function calc_particle_forces_model!(s::KPS4_3L, eqs2, force_eqs, force, pos1, pos2, vel1, vel2, length, c_spring, damping, rho, i,
     l_0, k, c, segment, rel_vel, av_vel, norm1, unit_vector, k1, k2, c1, spring_vel,
-            spring_force, v_apparent, area, v_app_perp, half_drag_force)
+            spring_force, v_apparent, v_wind_tether, area, v_app_perp, half_drag_force)
     d_tether = s.set.d_tether/1000.0
     eqs2 = [
         eqs2
@@ -218,9 +218,9 @@ The result is stored in the array s.forces.
     end
     eqs2 = [
         eqs2
-        v_apparent .~ s.v_wind_tether .- av_vel
+        v_apparent .~ v_wind_tether .- av_vel
         area ~ norm1 * d_tether
-        v_app_perp ~ s.v_apparent .- s.v_apparent ⋅ unit_vector * unit_vector
+        v_app_perp ~ v_apparent .- v_apparent ⋅ unit_vector * unit_vector
         half_drag_force .~ (0.25 * rho * s.set.cd_tether * norm(v_app_perp) * area) .* v_app_perp
     ]
 
@@ -288,11 +288,12 @@ Output:length
             rho[i] ~ calc_rho(s.am, height[i])
             v_wind_tether[:,i] .~ calc_wind_factor(s.am, height[i]) .* s.v_wind_gnd
         ]
+
         # TODO: @assert height > 0
         eqs2, force_eqs = calc_particle_forces_model!(s, eqs2, force_eqs, force, pos[:,p1], pos[:,p2], vel[:,p1], vel[:,p2], length, c_spring, damping, rho[i], i,
             l_0[i], k[i], c[i], segment[:,i], rel_vel[:,i], av_vel[:,i], norm1[i], 
             unit_vector[:,i], k1[i], k2[i], c1[i], spring_vel[i],
-            spring_force[:,i], v_apparent[:,i], area[i], v_app_perp[:,i], half_drag_force[:,i])
+            spring_force[:,i], v_apparent[:,i], v_wind_tether[:,i], area[i], v_app_perp[:,i], half_drag_force[:,i])
     end
 
     return eqs2, force_eqs
@@ -335,7 +336,7 @@ function model!(s::KPS4_3L, pos_, vel_)
         e_x(t)[1:3] = s.e_x
         e_y(t)[1:3] = s.e_y
         e_z(t)[1:3] = s.e_z
-        force(t)[1:3, 1:s.num_A] = force_
+        force(t)[1:3, 1:s.num_A] = zeros(3, s.num_A)
     end
     # Collect the arrays into variables
     pos = collect(pos)
@@ -411,7 +412,6 @@ function model!(s::KPS4_3L, pos_, vel_)
         damping .~ s.set.damping ./ segment_lengths
         c_spring .~ s.set.c_spring ./ segment_lengths
         P_c ~ 0.5 .* (pos[:,s.num_C]+pos[:,s.num_D])
-        # e_y .~ norm(P_c)
         e_y .~ (pos[:,s.num_C] .- pos[:,s.num_D]) ./ norm(pos[:,s.num_C] .- pos[:,s.num_D])
         e_z .~ (pos[:,s.num_E] .- P_c) ./ norm(pos[:,s.num_E] .- P_c)
         e_x .~ cross(e_y, e_z)
@@ -421,23 +421,26 @@ function model!(s::KPS4_3L, pos_, vel_)
     eqs2, force_eqs = inner_loop_model!(s, eqs2, force_eqs, t, force, pos, vel, segment_lengths, c_spring, damping)
     
     for i in 1:3
+        eqs2 = vcat(eqs2, vcat(force_eqs[:,i]))
         eqs2 = vcat(eqs2, acc[:,i] .~ 0)
     end
     for i in 4:s.num_E-3
         eqs2 = vcat(eqs2, vcat(force_eqs[:,i]))
-        eqs2 = vcat(eqs2, acc[:,i] .~ (force[:,i] ./ mass_tether_particle[i%3+1]))
+        eqs2 = vcat(eqs2, acc[:,i] .~ [0.0; 0.0; -9.81] .+ (force[:,i] ./ mass_tether_particle[i%3+1]))
     end
     for i in s.num_E-2:s.num_E-1
-        [force_eqs[j,i] = force[j,i] ~ force_eqs[j,i].rhs + [0, 0, -G_EARTH][j] + 500.0 * ((vel[:,i]-vel[:,s.num_C]) ⋅ e_z) * e_z[j] for j in 1:3] # TODO: more damping
-        [force_eqs[j,i] = force[j,i] ~ force_eqs[j,i].rhs - s.forces[i][j] - (s.forces[i] ⋅ e_z) * e_z[j] for j in 1:3]
-        [force_eqs[j,i+3] = force[j,i+3] ~ force_eqs[j,i].rhs + s.forces[i][j] - (s.forces[i] ⋅ e_z) * e_z[j] for j in 1:3]
+        [force_eqs[j,i] = force[j,i] ~ force_eqs[j,i].rhs + [0.0; 0.0; -9.81][j] + 500.0 * ((vel[:,i]-vel[:,s.num_C]) ⋅ e_z) * e_z[j] for j in 1:3] # TODO: more damping
+        [force_eqs[j,i] = force[j,i] ~ force_eqs[j,i].rhs - (s.forces[i][j] - (s.forces[i] ⋅ e_z) * e_z[j]) for j in 1:3]
+        [force_eqs[j,i+3] = force[j,i+3] ~ force_eqs[j,i+3].rhs + (s.forces[i][j] - (s.forces[i] ⋅ e_z) * e_z[j]) for j in 1:3]
         eqs2 = vcat(eqs2, vcat(force_eqs[:,i]))
-        eqs2 = vcat(eqs2, steering_acc[i-s.num_E+3] ~ (force[:,i] ./ mass_tether_particle[i%3+1]) ⋅ e_z - (acc[:,i+3] ⋅ s.e_z))
+        eqs2 = vcat(eqs2, steering_acc[i-s.num_E+3] ~ (force[:,i] ./ mass_tether_particle[i%3+1]) ⋅ e_z - (acc[:,i+3] ⋅ e_z))
     end
     for i in s.num_E:s.num_A
         eqs2 = vcat(eqs2, vcat(force_eqs[:,i]))
-        eqs2 = vcat(eqs2, acc[:,i] .~ (force[:,i] ./ s.masses[i]))
+        eqs2 = vcat(eqs2, acc[:,i] .~ [0.0; 0.0; -9.81] .+ (force[:,i] ./ s.masses[i]))
     end
+
+    println("force_eqs s.num_C ", force_eqs[:, s.num_C])
 
     eqs = vcat(eqs1, eqs2)
 
