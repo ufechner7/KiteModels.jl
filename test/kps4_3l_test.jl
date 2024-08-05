@@ -1,7 +1,7 @@
 using Revise, KiteModels, OrdinaryDiffEq, ControlPlots, SteadyStateDiffEq
 
 s = KPS4_3L(KCU(se()))
-dt = 0.2
+dt = 1/s.set.sample_freq
 tspan   = (0.0, dt) 
 # integrator, simple_sys = KiteModels.init_sim!(s; stiffness_factor=0.1, prn=true, mtk=true)
 y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor=0.1, prn=true, mtk=true)
@@ -20,7 +20,6 @@ steps = 10
 total_time = 0.0
 for i in 1:steps
     global total_time += @elapsed OrdinaryDiffEq.step!(integrator, dt, true)
-    println(integrator.sol(integrator.sol.t[end]; idxs=simple_sys.acc[:,s.num_E]))
     @elapsed update_pos!(s, integrator)
     plot2d(s.pos, i-1; zoom=false, front=false, segments=se().segments)
 end
@@ -29,12 +28,11 @@ println("re-init")
 @time integrator = OrdinaryDiffEq.init(prob, TRBDF2(autodiff=false); dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol)
 
 println("stepping")
-steps = 10
+steps = 100
 total_time = 0.0
 for i in 1:steps
     global total_time += @elapsed OrdinaryDiffEq.step!(integrator, dt, true)
-    println(integrator.sol(integrator.sol.t[end]; idxs=simple_sys.acc[:,s.num_E]))
-    @elapsed update_pos!(s, integrator)
+    global total_time += @elapsed update_pos!(s, integrator)
     plot2d(s.pos, i-1; zoom=false, front=false, segments=se().segments)
 end
 
@@ -57,19 +55,12 @@ println("times realtime: ", (dt*steps) / total_time)
 
 """
 debugging:
-integrator.sol(0.000000001; idxs=simple_sys.F_steering_c)
 
-lift forces are good
-
-spring forces 10
-spring_force [-0.0, -90.81354570975981, -0.0]
-half_drag_force [0.16832563706628656, 0.0, 0.0]
-spring forces 11
-spring_force [1.2037143896827731, -1.2512766659834529, -0.38775322658779593]
-half_drag_force [0.047756472684599656, 0.04191603077077581, 0.012989194651326289]
-spring forces 8
-spring_force [99.75600270965079, 72.9483244909897, 337.30094388204435]
-half_drag_force [0.3654202337395544, -0.02232848783231474, -0.10324322147013475]
+for (i,p) in enumerate(integrator.sol(integrator.sol.t[end]; idxs=simple_sys.pos))
+    if s.pos[s.num_E-2][1] == p
+        println(i, " ", p)
+    end
+end
 """
 
 nothing

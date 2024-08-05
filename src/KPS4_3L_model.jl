@@ -302,14 +302,25 @@ Output:length
 end
 
 function update_pos!(s, integrator)
-    println("updating pos...")
-    for i in 1:s.num_A
-        for j in 1:3
-            s.pos[i][j] = integrator.sol(integrator.sol.t[end]; idxs=s.model_pos[j,i])
-        end
-    end
-    # reshape(SVector{s.num_A*3, Float64}(integrator.u[1:s.num_A*3]), Size(3, s.num_A))
+    # println("updating pos...")
+    # for i in 1:s.num_A
+    #     for j in 1:3
+    #         s.pos[i][j] = integrator.sol(integrator.sol.t[end]; idxs=s.model_pos[j,i])
+    #     end
+    # end
+    pos1 = reshape(SVector{3*(s.num_E-3), Float64}(integrator.u[1:(s.num_E-3)*3]), Size(3, s.num_E-3))
+    pos2 = SVector{2, Float64}(integrator.u[3*(s.num_E-3)+1:3*(s.num_E-3)+2])
+    pos3 = reshape(SVector{3*(s.num_A-s.num_E+1), Float64}(integrator.u[3*(s.num_E-2):3*(s.num_E-2 + s.num_A-s.num_E)+2]), Size(3, s.num_A-s.num_E+1))
     
+    for i in 1:s.num_E-3
+        s.pos[i] .= pos1[:,i]
+    end
+    for (j,i) in enumerate(s.num_E:s.num_A)
+        s.pos[i] .= pos3[:,j]
+    end
+    calc_kite_ref_frame!(s, s.pos[s.num_E], s.pos[s.num_C], s.pos[s.num_D])
+    s.pos[s.num_E-2] .= s.pos[s.num_C] .+ s.e_z .* pos2[1]
+    s.pos[s.num_E-1] .= s.pos[s.num_D] .+ s.e_z .* pos2[2]
     nothing
 end
 
@@ -373,7 +384,7 @@ function model!(s::KPS4_3L, pos_, vel_)
     [eqs1 = vcat(eqs1, D.(vel[:,i]) .~ acc[:,i]) for i in 4:s.num_E-3]
     eqs1 = [eqs1; D.(steering_vel) .~ steering_acc]
     [eqs1 = vcat(eqs1, D.(vel[:,i]) .~ acc[:,i]) for i in s.num_E:s.num_A]
-    
+
     println("set speeds 1 ", set_speeds[1])
     println(calc_acc(reel_out_speed[1], norm(force[:,1%3+1]), set_speeds[1]))
     eqs1 = [
