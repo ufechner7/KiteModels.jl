@@ -16,17 +16,20 @@ tspan   = (0.0, dt)
 # integrator, simple_sys = KiteModels.init_sim!(s; stiffness_factor=0.1, prn=true, mtk=true)
 y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor=0.1, prn=true, mtk=true)
 simple_sys, sys = model!(s, y0, yd0)
-prob = ODEProblem(simple_sys, nothing, tspan)
-steady_prob = SteadyStateDiffEq.SteadyStateProblem(prob)
-sol = solve(steady_prob, SSRootfind())
+@time prob = ODEProblem(simple_sys, nothing, tspan)
+# steady_prob = SteadyStateDiffEq.SteadyStateProblem(prob)
+# println("finding steady state")
+# @time sol = solve(steady_prob, SSRootfind(), abstol=1e-6, reltol=1e-6)
 
-prob = ODEProblem(simple_sys, sol.u, tspan)
-tol=1e-7
-integrator = OrdinaryDiffEq.init(prob, Rosenbrock23(); dt=dt, abstol=tol, reltol=tol)
+# prob = ODEProblem(simple_sys, sol.u, tspan)
+
+integrator = OrdinaryDiffEq.init(prob, Rosenbrock23(autodiff=false); dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol)
 
 println("stepping")
-for i in 1:100
-    @time OrdinaryDiffEq.step!(integrator, dt, true)
+steps = 10
+total_time = 0.0
+for i in 1:steps
+    global total_time += @elapsed OrdinaryDiffEq.step!(integrator, dt, true)
     println(integrator.sol(integrator.sol.t[end]; idxs=simple_sys.acc[:,s.num_E]))
     update_pos!(s, integrator)
     plot2d(s.pos, 10; zoom=false, front=false, segments=se().segments)
@@ -34,7 +37,7 @@ for i in 1:100
 end
 
 
-
+println("times realtime: ", (dt*steps) / total_time)
 
 
 

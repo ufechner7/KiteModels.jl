@@ -1,5 +1,8 @@
 
-
+function calc_acc(reel_out_speed::SimFloat, norm_::SimFloat, set_speed::SimFloat)
+    return calc_acceleration(AsyncMachine(se()), reel_out_speed, norm_; set_speed=set_speed, set_torque=nothing, use_brake=true)
+end
+@register_symbolic calc_acc(reel_out_speed, norm_, set_speed)
 
 """
     calc_aero_forces!(s::KPS4_3L, pos, vel)
@@ -313,10 +316,11 @@ end
 function model!(s::KPS4_3L, pos_, vel_)
     pos2_ = zeros(3, s.num_A)
     vel2_ = zeros(3, s.num_A)
-    force_ = zeros(3, s.num_A)
     [pos2_[:,i] .= pos_[i] for i in 1:s.num_A]
     [vel2_[:,i] .= vel_[i] for i in 1:s.num_A]
-    [force_[:,i] .= s.forces[i] for i in 1:s.num_A]
+    @parameters begin
+        set_speeds[1:3] = s.set_speeds
+    end
     @independent_variables t
     @variables begin
         pos(t)[1:3, 1:s.num_A] = pos2_
@@ -327,7 +331,7 @@ function model!(s::KPS4_3L, pos_, vel_)
         steering_vel(t)[1:2] = zeros(2)
         steering_acc(t)[1:2] = zeros(2)
         reel_out_speed(t)[1:3] = zeros(3)
-        segment_lengths(t)[1:3]
+        segment_lengths(t)[1:3] = zeros(3)
         mass_tether_particle(t)[1:3]
         damping(t)[1:3] = s.set.damping ./ s.l_tethers ./ s.set.segments
         c_spring(t)[1:3] = s.set.c_spring ./ s.l_tethers ./ s.set.segments
@@ -387,11 +391,14 @@ function model!(s::KPS4_3L, pos_, vel_)
             D.(vel[:,i]) .~ acc[:,i]
         )
     end
+    println("set speeds 1 ", set_speeds[1])
+    println(calc_acc(reel_out_speed[1], norm(force[:,1%3+1]), set_speeds[1]))
     eqs1 = [
         eqs1
         D.(lengths) .~ reel_out_speed
-        D.(reel_out_speed) .~ 0 # TODO: add winch function
+        D.(reel_out_speed) .~ [calc_acc(reel_out_speed[i], norm(force[:,i%3+1]), set_speeds[i]) for i in 1:3] # TODO: add winch function
     ]
+    println(eqs1[end])
 
     # Compute the masses and forces
     eqs2 = []
