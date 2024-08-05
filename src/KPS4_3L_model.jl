@@ -302,14 +302,14 @@ Output:length
 end
 
 function update_pos!(s, integrator)
-    println("updating pos vel acc...")
+    println("updating pos...")
     for i in 1:s.num_A
         for j in 1:3
             s.pos[i][j] = integrator.sol(integrator.sol.t[end]; idxs=s.model_pos[j,i])
-            # s.vel[i][j] = integrator.sol(integrator.sol.t[end]; idxs=s.model_vel[j,i])
-            # s.acc[i][j] = integrator.sol(integrator.sol.t[end]; idxs=s.model_acc[j,i])
         end
     end
+    # reshape(SVector{s.num_A*3, Float64}(integrator.u[1:s.num_A*3]), Size(3, s.num_A))
+    
     nothing
 end
 
@@ -365,32 +365,15 @@ function model!(s::KPS4_3L, pos_, vel_)
     eqs1 = []
     mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
 
-    for i in 1:3
-        eqs1 = vcat(
-            eqs1,
-            D.(pos[:,i]) .~ 0.0, # fix pos of s.num_E-2 and s.num_E-1
-            D.(vel[:,i]) .~ 0.0
-        )
-    end
-    for i in 4:s.num_E-3
-        eqs1 = vcat(
-            eqs1,
-            D.(pos[:,i]) .~ vel[:,i],
-            D.(vel[:,i]) .~ acc[:,i]
-        )
-    end
-    eqs1 = [
-        eqs1
-        D.(steering_pos) .~ steering_vel
-        D.(steering_vel) .~ steering_acc
-    ]
-    for i in s.num_E:s.num_A
-        eqs1 = vcat(
-            eqs1,
-            D.(pos[:,i]) .~ vel[:,i],
-            D.(vel[:,i]) .~ acc[:,i]
-        )
-    end
+    [eqs1 = vcat(eqs1, D.(pos[:,i]) .~ 0.0) for i in 1:3]
+    [eqs1 = vcat(eqs1, D.(pos[:,i]) .~ vel[:,i]) for i in 4:s.num_E-3]
+    eqs1 = [eqs1; D.(steering_pos) .~ steering_vel]
+    [eqs1 = vcat(eqs1, D.(pos[:,i]) .~ vel[:,i]) for i in s.num_E:s.num_A]
+    [eqs1 = vcat(eqs1, D.(vel[:,i]) .~ 0.0) for i in 1:3]
+    [eqs1 = vcat(eqs1, D.(vel[:,i]) .~ acc[:,i]) for i in 4:s.num_E-3]
+    eqs1 = [eqs1; D.(steering_vel) .~ steering_acc]
+    [eqs1 = vcat(eqs1, D.(vel[:,i]) .~ acc[:,i]) for i in s.num_E:s.num_A]
+    
     println("set speeds 1 ", set_speeds[1])
     println(calc_acc(reel_out_speed[1], norm(force[:,1%3+1]), set_speeds[1]))
     eqs1 = [

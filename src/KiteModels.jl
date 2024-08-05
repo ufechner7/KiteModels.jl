@@ -55,7 +55,7 @@ using ModelingToolkit
 export KPS3, KPS4, KPS4_3L, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                              # constants and types
 export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                            # helper functions
 export clear!, find_steady_state!, residual!, model!                                                  # low level workers
-export init_sim!, next_step!, init_pos_vel, update_pos!                                                                  # high level workers
+export init_sim!, reset_sim!, next_step!, init_pos_vel, update_pos!                                                                  # high level workers
 export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, calc_orient_quat, load_history  # getters
 export winch_force, lift_drag, lift_over_drag, unstretched_length, tether_length, v_wind_kite # getters
 export save_history # setter / saver
@@ -612,17 +612,22 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
     abstol  = s.set.abs_tol # max error in m/s and m
 
     if mtk
-        simple_sys, sys = model!(s, y0, yd0)
-        println("ode")
+        simple_sys, _ = model!(s, y0, yd0)
         prob = ODEProblem(simple_sys, nothing, tspan)
-        tol=1e-2
-        integrator = OrdinaryDiffEq.init(prob, Rodas4(); dt=dt, abstol=tol, reltol=tol, save_everystep=false)
-        return integrator, simple_sys
+        integrator = OrdinaryDiffEq.init(prob, solver; dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol)
+        return integrator, prob
     else
         differential_vars = ones(Bool, length(y0))
         prob    = DAEProblem{true}(residual!, yd0, y0, tspan, s; differential_vars)
     end
     integrator = OrdinaryDiffEq.init(prob, solver; abstol=abstol, reltol=s.set.rel_tol, save_everystep=false)
+    return integrator
+end
+
+function reset_sim!(s::AKM, prob)
+    clear!(s)
+    dt = 1/s.set.sample_freq
+    integrator = OrdinaryDiffEq.init(prob, TRBDF2(autodiff=false); dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol)
     return integrator
 end
 
@@ -683,7 +688,7 @@ function next_step!(s::KPS4_3L, integrator; set_values=zeros(KVec3), torque_cont
     else
         OrdinaryDiffEq.step!(integrator, dt, true)
         if s.mtk
-            update_pos!(s, integrator)
+            update_pos!(s, integrator.u)
         end
     end
     if s.stiffness_factor < 1.0

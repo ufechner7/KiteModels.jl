@@ -1,14 +1,4 @@
 using Revise, KiteModels, OrdinaryDiffEq, ControlPlots, SteadyStateDiffEq
-# integrator = init_sim!(s; modeling_toolkit=true)
-
-# s = KPS4_3L(KCU(se()))
-# dt = 1/s.set.sample_freq
-# print("using old method")
-
-# integrator = KiteModels.init_sim!(s; stiffness_factor=0.5, prn=true, mtk=false)
-# for i in 1:3
-#     @time step!(integrator, dt, true)
-# end
 
 s = KPS4_3L(KCU(se()))
 dt = 0.2
@@ -23,7 +13,7 @@ simple_sys, sys = model!(s, y0, yd0)
 
 # prob = ODEProblem(simple_sys, sol.u, tspan)
 
-integrator = OrdinaryDiffEq.init(prob, Rosenbrock23(autodiff=false); dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol)
+integrator = OrdinaryDiffEq.init(prob, TRBDF2(autodiff=false); dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol)
 
 println("stepping")
 steps = 10
@@ -31,12 +21,25 @@ total_time = 0.0
 for i in 1:steps
     global total_time += @elapsed OrdinaryDiffEq.step!(integrator, dt, true)
     println(integrator.sol(integrator.sol.t[end]; idxs=simple_sys.acc[:,s.num_E]))
-    update_pos!(s, integrator)
-    plot2d(s.pos, 10; zoom=false, front=false, segments=se().segments)
-
+    @elapsed update_pos!(s, integrator)
+    plot2d(s.pos, i-1; zoom=false, front=false, segments=se().segments)
 end
 
+println("re-init")
+@time integrator = OrdinaryDiffEq.init(prob, TRBDF2(autodiff=false); dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol)
 
+println("stepping")
+steps = 10
+total_time = 0.0
+for i in 1:steps
+    global total_time += @elapsed OrdinaryDiffEq.step!(integrator, dt, true)
+    println(integrator.sol(integrator.sol.t[end]; idxs=simple_sys.acc[:,s.num_E]))
+    @elapsed update_pos!(s, integrator)
+    plot2d(s.pos, i-1; zoom=false, front=false, segments=se().segments)
+end
+
+println("total time ", total_time)
+println("dt ", dt)
 println("times realtime: ", (dt*steps) / total_time)
 
 
