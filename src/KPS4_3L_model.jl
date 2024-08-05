@@ -245,29 +245,28 @@ Output:length
 - s.v_wind_tether
 """
 @inline function inner_loop_model!(s::KPS4_3L, eqs2, force_eqs, t, force, pos, vel, length, c_spring, damping)
-    HEIGHT, RHO, V_WIND_TETHER, L_0, K, C, SEGMENT, REL_VEL, AV_VEL, NORM1, UNIT_VECTOR, K1, K2, C1, SPRING_VEL, SPRING_FORCE, V_APPARENT, AREA, V_APP_PERP, HALF_DRAG_FORCE = calc_initial_loop_state(s)
     @variables begin
-        height(t)[eachindex(s.springs)] = HEIGHT
-        rho(t)[eachindex(s.springs)] = RHO
-        v_wind_tether(t)[1:3, eachindex(s.springs)] = V_WIND_TETHER
+        height(t)[eachindex(s.springs)]
+        rho(t)[eachindex(s.springs)]
+        v_wind_tether(t)[1:3, eachindex(s.springs)]
 
-        l_0(t)[eachindex(s.springs)] = L_0
-        k(t)[eachindex(s.springs)] = K
-        c(t)[eachindex(s.springs)] = C
-        segment(t)[1:3,eachindex(s.springs)] = SEGMENT
-        rel_vel(t)[1:3, eachindex(s.springs)] = REL_VEL
-        av_vel(t)[1:3, eachindex(s.springs)] = AV_VEL
-        norm1(t)[eachindex(s.springs)] = NORM1
-        unit_vector(t)[1:3, eachindex(s.springs)] = UNIT_VECTOR
-        k1(t)[eachindex(s.springs)] = K1
-        k2(t)[eachindex(s.springs)] = K2
-        c1(t)[eachindex(s.springs)] = C1
-        spring_vel(t)[eachindex(s.springs)] = SPRING_VEL
-        spring_force(t)[1:3, eachindex(s.springs)] = SPRING_FORCE
-        v_apparent(t)[1:3, eachindex(s.springs)] = V_APPARENT
-        area(t)[eachindex(s.springs)] = AREA
-        v_app_perp(t)[1:3, eachindex(s.springs)] = V_APP_PERP
-        half_drag_force(t)[1:3, eachindex(s.springs)] = HALF_DRAG_FORCE
+        l_0(t)[eachindex(s.springs)]
+        k(t)[eachindex(s.springs)]
+        c(t)[eachindex(s.springs)]
+        segment(t)[1:3,eachindex(s.springs)]
+        rel_vel(t)[1:3, eachindex(s.springs)]
+        av_vel(t)[1:3, eachindex(s.springs)] 
+        norm1(t)[eachindex(s.springs)]
+        unit_vector(t)[1:3, eachindex(s.springs)]
+        k1(t)[eachindex(s.springs)]
+        k2(t)[eachindex(s.springs)]
+        c1(t)[eachindex(s.springs)]
+        spring_vel(t)[eachindex(s.springs)]
+        spring_force(t)[1:3, eachindex(s.springs)]
+        v_apparent(t)[1:3, eachindex(s.springs)]
+        area(t)[eachindex(s.springs)]
+        v_app_perp(t)[1:3, eachindex(s.springs)]
+        half_drag_force(t)[1:3, eachindex(s.springs)]
     end
     v_wind_tether = collect(v_wind_tether)
     segment = collect(segment)
@@ -327,16 +326,15 @@ function model!(s::KPS4_3L, pos_, vel_)
         steering_pos(t)[1:2] = s.l_connections
         steering_vel(t)[1:2] = zeros(2)
         steering_acc(t)[1:2] = zeros(2)
-        f_xy(t)[1:3, 1:2] = zeros(3, 2)
         reel_out_speed(t)[1:3] = zeros(3)
-        segment_lengths(t)[1:3] = s.segment_lengths
-        mass_tether_particle(t)[1:3] = s.masses[1]
+        segment_lengths(t)[1:3]
+        mass_tether_particle(t)[1:3]
         damping(t)[1:3] = s.set.damping ./ s.l_tethers ./ s.set.segments
         c_spring(t)[1:3] = s.set.c_spring ./ s.l_tethers ./ s.set.segments
         P_c(t)[1:3] = 0.5 .* (s.pos[s.num_C]+s.pos[s.num_D])
-        e_x(t)[1:3] = s.e_x
-        e_y(t)[1:3] = s.e_y
-        e_z(t)[1:3] = s.e_z
+        e_x(t)[1:3]
+        e_y(t)[1:3]
+        e_z(t)[1:3]
         force(t)[1:3, 1:s.num_A] = zeros(3, s.num_A)
     end
     # Collect the arrays into variables
@@ -347,7 +345,6 @@ function model!(s::KPS4_3L, pos_, vel_)
     steering_pos = collect(steering_pos)
     steering_vel = collect(steering_vel)
     steering_acc = collect(steering_acc)
-    f_xy = collect(f_xy)
     reel_out_speed = collect(reel_out_speed)
     segment_lengths = collect(segment_lengths)
     mass_tether_particle = collect(mass_tether_particle)
@@ -432,9 +429,11 @@ function model!(s::KPS4_3L, pos_, vel_)
     end
     for i in s.num_E-2:s.num_E-1
         [force_eqs[j,i] = force[j,i] ~ force_eqs[j,i].rhs + [0.0; 0.0; -9.81][j] + 500.0 * ((vel[:,i]-vel[:,s.num_C]) ⋅ e_z) * e_z[j] for j in 1:3] # TODO: more damping
-        eqs2 = vcat(eqs2, f_xy[:,i-s.num_E+3] .~ force[:,i] .- (force[:,i] ⋅ e_z) .* e_z)
-        [force_eqs[j,i] = force[j,i] ~ force_eqs[j,i].rhs - f_xy[j,i-s.num_E+3] for j in 1:3]
-        [force_eqs[j,i+3] = force[j,i+3] ~ force_eqs[j,i+3].rhs + f_xy[j,i-s.num_E+3] for j in 1:3]
+        tether_rhs = [force_eqs[j,i].rhs for j in 1:3]
+        kite_rhs = [force_eqs[j,i+3].rhs for j in 1:3]
+        f_xy = dot(tether_rhs, e_z) .* e_z
+        force_eqs[:,i] .= force[:,i] .~ tether_rhs .- f_xy
+        force_eqs[:,i+3] .= force[:,i+3] .~ kite_rhs .+ f_xy
         eqs2 = vcat(eqs2, vcat(force_eqs[:,i]))
         eqs2 = vcat(eqs2, steering_acc[i-s.num_E+3] ~ (force[:,i] ./ mass_tether_particle[i%3+1]) ⋅ e_z - (acc[:,i+3] ⋅ e_z))
     end

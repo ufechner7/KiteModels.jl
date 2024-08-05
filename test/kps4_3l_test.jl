@@ -21,14 +21,22 @@ steady_prob = SteadyStateDiffEq.SteadyStateProblem(prob)
 sol = solve(steady_prob, SSRootfind())
 
 prob = ODEProblem(simple_sys, sol.u, tspan)
-tol=1e-5
-integrator = OrdinaryDiffEq.init(prob, Rodas4(); dt=dt, abstol=tol, reltol=tol, save_everystep=false)
+tol=1e-7
+integrator = OrdinaryDiffEq.init(prob, Rosenbrock23(); dt=dt, abstol=tol, reltol=tol)
 
 println("stepping")
-for i in 1:1
+for i in 1:100
     @time OrdinaryDiffEq.step!(integrator, dt, true)
     println(integrator.sol(integrator.sol.t[end]; idxs=simple_sys.acc[:,s.num_E]))
+    update_pos!(s, integrator)
+    plot2d(s.pos, 10; zoom=false, front=false, segments=se().segments)
+
 end
+
+
+
+
+
 
 # # simple_sys, sys = model!(s, s.pos, s.vel)
 # for i in 1:10

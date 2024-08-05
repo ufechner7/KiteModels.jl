@@ -317,7 +317,6 @@ function calc_aero_forces!(s::KPS4_3L, pos::SVector{N, KVec3}, vel::SVector{N, K
     s.L_D .= SVec3(zeros(SVec3))
     s.D_C .= SVec3(zeros(SVec3))
     s.D_D .= SVec3(zeros(SVec3))
-    # println("calculating aero forces...")
     @inbounds @simd for i in 1:n*2
         if i <= n
             α = α_0 + -dα/2 + i*dα
@@ -454,12 +453,12 @@ function loop!(s::KPS4_3L, pos, vel, posd, veld)
         s.res1[i] .= vel[i] .- posd[i]
     end
     # Compute the masses and forces
-    mass_tether_particle = mass_per_meter * s.segment_lengths[1]
+    mass_tether_particle = mass_per_meter .* s.segment_lengths
     # TODO: check if the next two lines are correct
     damping  = s.set.damping ./ L_0
     c_spring = s.set.c_spring ./ L_0
     for i in 1:s.set.segments*3
-        @inbounds s.masses[i] = mass_tether_particle
+        @inbounds s.masses[i] = mass_tether_particle[i%3+1]
         @inbounds s.springs[i] = SP(s.springs[i].p1, s.springs[i].p2, s.segment_lengths[i%3+1], c_spring[i%3+1], damping[i%3+1])
     end
     inner_loop!(s, pos, vel, s.v_wind_gnd, s.set.d_tether/1000.0)
