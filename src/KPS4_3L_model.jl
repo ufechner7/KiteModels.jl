@@ -225,8 +225,8 @@ The result is stored in the array s.forces.
     ]
 
     for j in 1:3
-        force_eqs[j, s.springs[i].p1] = (force[j,s.springs[i].p1] ~ force_eqs[j, s.springs[i].p1].rhs + half_drag_force[j] + spring_force[j])
-        force_eqs[j, s.springs[i].p2] = (force[j,s.springs[i].p2] ~ force_eqs[j, s.springs[i].p2].rhs + half_drag_force[j] - spring_force[j])
+        force_eqs[j, s.springs[i].p1] = (force[j,s.springs[i].p1] ~ force_eqs[j, s.springs[i].p1].rhs + (half_drag_force[j] + spring_force[j]))
+        force_eqs[j, s.springs[i].p2] = (force[j,s.springs[i].p2] ~ force_eqs[j, s.springs[i].p2].rhs + (half_drag_force[j] - spring_force[j]))
     end
     
     # if i <= 3 @inbounds s.last_forces[i%3+1] .~ s.forces[spring.p1] end
@@ -300,14 +300,14 @@ Output:length
 end
 
 function update_pos!(s, integrator)
-    # println("updating pos vel acc...")
-    # for i in 1:s.num_A
-    #     for j in 1:3
-    #         s.pos[i][j] = integrator.sol(integrator.sol.t[end]; idxs=s.model_pos[j,i])
-    #         s.vel[i][j] = integrator.sol(integrator.sol.t[end]; idxs=s.model_vel[j,i])
-    #         s.acc[i][j] = integrator.sol(integrator.sol.t[end]; idxs=s.model_acc[j,i])
-    #     end
-    # end
+    println("updating pos vel acc...")
+    for i in 1:s.num_A
+        for j in 1:3
+            s.pos[i][j] = integrator.sol(integrator.sol.t[end]; idxs=s.model_pos[j,i])
+            # s.vel[i][j] = integrator.sol(integrator.sol.t[end]; idxs=s.model_vel[j,i])
+            # s.acc[i][j] = integrator.sol(integrator.sol.t[end]; idxs=s.model_acc[j,i])
+        end
+    end
     nothing
 end
 
@@ -327,6 +327,7 @@ function model!(s::KPS4_3L, pos_, vel_)
         steering_pos(t)[1:2] = s.l_connections
         steering_vel(t)[1:2] = zeros(2)
         steering_acc(t)[1:2] = zeros(2)
+        f_xy(t)[1:3, 1:2] = zeros(3, 2)
         reel_out_speed(t)[1:3] = zeros(3)
         segment_lengths(t)[1:3] = s.segment_lengths
         mass_tether_particle(t)[1:3] = s.masses[1]
@@ -346,6 +347,7 @@ function model!(s::KPS4_3L, pos_, vel_)
     steering_pos = collect(steering_pos)
     steering_vel = collect(steering_vel)
     steering_acc = collect(steering_acc)
+    f_xy = collect(f_xy)
     reel_out_speed = collect(reel_out_speed)
     segment_lengths = collect(segment_lengths)
     mass_tether_particle = collect(mass_tether_particle)
@@ -430,8 +432,9 @@ function model!(s::KPS4_3L, pos_, vel_)
     end
     for i in s.num_E-2:s.num_E-1
         [force_eqs[j,i] = force[j,i] ~ force_eqs[j,i].rhs + [0.0; 0.0; -9.81][j] + 500.0 * ((vel[:,i]-vel[:,s.num_C]) ⋅ e_z) * e_z[j] for j in 1:3] # TODO: more damping
-        [force_eqs[j,i] = force[j,i] ~ force_eqs[j,i].rhs - (s.forces[i][j] - (s.forces[i] ⋅ e_z) * e_z[j]) for j in 1:3]
-        [force_eqs[j,i+3] = force[j,i+3] ~ force_eqs[j,i+3].rhs + (s.forces[i][j] - (s.forces[i] ⋅ e_z) * e_z[j]) for j in 1:3]
+        eqs2 = vcat(eqs2, f_xy[:,i-s.num_E+3] .~ force[:,i] .- (force[:,i] ⋅ e_z) .* e_z)
+        [force_eqs[j,i] = force[j,i] ~ force_eqs[j,i].rhs - f_xy[j,i-s.num_E+3] for j in 1:3]
+        [force_eqs[j,i+3] = force[j,i+3] ~ force_eqs[j,i+3].rhs + f_xy[j,i-s.num_E+3] for j in 1:3]
         eqs2 = vcat(eqs2, vcat(force_eqs[:,i]))
         eqs2 = vcat(eqs2, steering_acc[i-s.num_E+3] ~ (force[:,i] ./ mass_tether_particle[i%3+1]) ⋅ e_z - (acc[:,i+3] ⋅ e_z))
     end
@@ -439,8 +442,6 @@ function model!(s::KPS4_3L, pos_, vel_)
         eqs2 = vcat(eqs2, vcat(force_eqs[:,i]))
         eqs2 = vcat(eqs2, acc[:,i] .~ [0.0; 0.0; -9.81] .+ (force[:,i] ./ s.masses[i]))
     end
-
-    println("force_eqs s.num_C ", force_eqs[:, s.num_C])
 
     eqs = vcat(eqs1, eqs2)
 

@@ -613,8 +613,10 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
 
     if mtk
         simple_sys, sys = model!(s, y0, yd0)
+        println("ode")
         prob = ODEProblem(simple_sys, nothing, tspan)
-        integrator = OrdinaryDiffEq.init(prob, solver; abstol=abstol, reltol=s.set.rel_tol, save_everystep=false)
+        tol=1e-2
+        integrator = OrdinaryDiffEq.init(prob, Rodas4(); dt=dt, abstol=tol, reltol=tol, save_everystep=false)
         return integrator, simple_sys
     else
         differential_vars = ones(Bool, length(y0))

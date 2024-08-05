@@ -368,11 +368,6 @@ function calc_aero_forces!(s::KPS4_3L, pos::SVector{N, KVec3}, vel::SVector{N, K
     s.forces[s.num_D] .+= (s.L_D .+ s.D_D) .- s.F_steering_d
     s.forces[s.num_E-2] .+= s.F_steering_c
     s.forces[s.num_E-1] .+= s.F_steering_d
-    println("lift forces ")
-    println("s.forces[s.num_C] ", s.forces[s.num_C])
-    println("s.L_C ", s.L_C)
-    println("s.dL_dα ", s.dL_dα)
-    println("s.dα ", dα)
     return nothing
 end
 
@@ -415,18 +410,6 @@ The result is stored in the array s.forces.
     v_app_perp = s.v_apparent - s.v_apparent ⋅ unit_vector * unit_vector
     half_drag_force = (0.25 * rho * s.set.cd_tether * norm(v_app_perp) * area) * v_app_perp 
     
-    # if i == s.num_C
-    #     println("spring forces ", i)
-    #     println("spring_force ", s.spring_force)
-    #     println("k ", k)
-    #     println("C ", c)
-    #     println("k1 ", k1)
-    #     println("k2 ", k2)
-    #     println("c1 ", c1)
-    #     println("l_0 ", l_0)
-    #     println("spring_vel ", spring_vel)
-    # end
-
     @inbounds s.forces[spring.p1] .+= half_drag_force + s.spring_force
     @inbounds s.forces[spring.p2] .+= half_drag_force - s.spring_force
     if i <= 3 @inbounds s.last_forces[i%3+1] .= s.forces[spring.p1] end
