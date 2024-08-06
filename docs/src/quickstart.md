@@ -111,12 +111,18 @@ Your folder structure should now look like this:
 shell> tree
 .
 ├── data
+│   ├── kite.obj
 │   ├── settings.yaml
 │   └── system.yaml
 ├── examples
+│   ├── bench.jl
 │   ├── compare_kps3_kps4.jl
-│   ├── plot2d.jl
-│   └── simulate_simple.jl
+│   ├── menu.jl
+│   ├── reel_out_1p.jl
+│   ├── reel_out_4p.jl
+│   ├── reel_out_4p_torque_control.jl
+│   ├── simulate_simple.jl
+│   └── simulate_steering.jl
 ├── Manifest.toml
 └── Project.toml
 
