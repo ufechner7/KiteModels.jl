@@ -57,9 +57,9 @@ for i in 1:length(kps.pos)
      push!(z, kps.pos[i][3])
 end
 ```
-And finally, we plot the position of the particles in the x-z plane. When you type ```using Plots``` you will be asked if you want to install the Plots package. Just press \<ENTER\> and it gets installed.
+And finally, we plot the position of the particles in the x-z plane. When you type ```using ControlPlots``` you will be asked if you want to install the ControlPlots package. Just press \<ENTER\> and it gets installed.
 ```julia
-using Plots
+using ControlPlots
 plot(x,z, xlabel="x [m]", ylabel="z [m]")
 ```
 ### Initial State
