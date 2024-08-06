@@ -1,4 +1,5 @@
 using Revise, KiteModels, OrdinaryDiffEq, ControlPlots, LinearAlgebra
+using Base: summarysize
 # using SteadyStateDiffEq
 
 update_settings()
@@ -13,7 +14,7 @@ steering = [0,0,-0.5]
 println("Running models")
 s2 = KPS4_3L(KCU(se()))
 s1 = KPS4_3L(KCU(se()))
-integrator2 = KiteModels.init_sim!(s2; stiffness_factor=0.1, prn=true, mtk=true)
+integrator2, simple_sys = KiteModels.init_sim!(s2; stiffness_factor=0.1, prn=true, mtk=true)
 integrator1 = KiteModels.init_sim!(s1; stiffness_factor=0.1, prn=true, mtk=false)
 println("compiling")
 total_old_time = 0.0
@@ -43,6 +44,10 @@ for i in 1:steps
     # plot2d(s2.pos, i-1; zoom=false, front=false, segments=se().segments)
     plot2d(vcat(s1.pos,s2.pos), i-1; zoom=false, front=false, segments=se().segments)
     println(norm(s1.pos-s2.pos)/3.0)
+    # for (i,u) in enumerate(integrator2.u)
+    #     println("i ", i, ", ", u)
+    # end
+    # println(integrator2.sol[simple_sys.vel[:,s2.num_A]][end])
 end
 # plot2d(s1.pos, steps; zoom=false, front=false, segments=se().segments)
 
@@ -50,6 +55,7 @@ old_time = (dt*steps) / total_old_time
 new_time = (dt*steps) / total_new_time
 println("times realtime old model: ", old_time)
 println("times realtime new model: ", new_time)
+println("avg steptime new model: ", total_new_time/steps)
 # println("old pos ", old_pos)
 # println("new pos ", new_pos)
 println("times faster new model: ", total_old_time/total_new_time)

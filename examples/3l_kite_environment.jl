@@ -87,7 +87,7 @@ function render()
 end
 
 function _calc_state(s::KPS4_3L)
-    _calc_reward(e.s)
+    _calc_reward(s)
     e.state .= vcat(
         _calc_reward(s),                # length 1
         calc_orient_quat(s),            # length 4

@@ -614,10 +614,11 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
     if mtk
         simple_sys, _ = model!(s, y0)
         s.prob = ODEProblem(simple_sys, nothing, tspan)
-        integrator = OrdinaryDiffEq.init(deepcopy(s.prob), solver; dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol)
+        integrator = OrdinaryDiffEq.init(deepcopy(s.prob), solver; dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol) # , saveat=dt!!!
         s.set_speeds_idx = parameter_index(integrator.f, :set_speeds)
         s.v_wind_gnd_idx = parameter_index(integrator.f, :v_wind_gnd)
-        return integrator
+        update_pos!(s, integrator)
+        return integrator, simple_sys
     else
         differential_vars = ones(Bool, length(y0))
         prob    = DAEProblem{true}(residual!, yd0, y0, tspan, s; differential_vars)
@@ -626,15 +627,16 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
     return integrator
 end
 
-function reset_sim!(s::AKM, integrator; stiffness_factor=0.035)
+function reset_sim!(s::KPS4_3L, integrator; stiffness_factor=0.035)
     if s.mtk
         clear!(s)
         s.stiffness_factor = stiffness_factor  
         dt = 1/s.set.sample_freq
-        integrator = OrdinaryDiffEq.init(deepcopy(s.prob), TRBDF2(autodiff=false); dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol)
+        integrator = OrdinaryDiffEq.init(deepcopy(s.prob), TRBDF2(autodiff=false); dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, saveat=dt)
+        update_pos!(s, integrator)
         return integrator
     end
-    println("Not an mtk model.")
+    println("Not an mtk model. Returning nothing.")
     return nothing
 end
 
@@ -665,7 +667,10 @@ function next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing,
     s.t_0 = integrator.t
     set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
     s.iter = 0
-    if s.set.solver == "IDA"
+    if mtk
+        # integrator = OrdinaryDiffEq.init(s.prob, TRBDF2(autodiff=false); dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol)
+        OrdinaryDiffEq.step!(integrator, dt, true)
+    elseif s.set.solver == "IDA"
         Sundials.step!(integrator, dt, true)
     else
         OrdinaryDiffEq.step!(integrator, dt, true)

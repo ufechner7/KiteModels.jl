@@ -303,6 +303,7 @@ function update_pos!(s, integrator)
     pos1 = reshape(SVector{3*(s.num_E-3), Float64}(integrator.u[1:(s.num_E-3)*3]), Size(3, s.num_E-3))
     pos2 = SVector{2, Float64}(integrator.u[3*(s.num_E-3)+1:3*(s.num_E-3)+2])
     pos3 = reshape(SVector{3*(s.num_A-s.num_E+1), Float64}(integrator.u[3*(s.num_E-2):3*(s.num_E-2 + s.num_A-s.num_E)+2]), Size(3, s.num_A-s.num_E+1))
+    vel_kite = SVector{3, SimFloat}(integrator.u[end-8:end-6])
     
     for i in 1:s.num_E-3
         s.pos[i] .= pos1[:,i]
@@ -311,8 +312,17 @@ function update_pos!(s, integrator)
         s.pos[i] .= pos3[:,j]
     end
     calc_kite_ref_frame!(s, s.pos[s.num_E], s.pos[s.num_C], s.pos[s.num_D])
+    s.l_connections .= pos2[:]
     s.pos[s.num_E-2] .= s.pos[s.num_C] .+ s.e_z .* pos2[1]
     s.pos[s.num_E-1] .= s.pos[s.num_D] .+ s.e_z .* pos2[2]
+
+    # calculate winch forces
+    for i in 1:3
+        calc_particle_forces!(s, s.pos[i], s.pos[i+3], [0,0,0], [0,0,0], s.springs[i], s.set.d_tether/1000, s.rho, i)
+    end
+
+    # calculate vel_kite = vel_A
+    s.vel_kite .= vel_kite
     nothing
 end
 
@@ -370,6 +380,7 @@ function model!(s::KPS4_3L, pos_)
 
     [eqs1 = vcat(eqs1, D.(pos[:,i]) .~ 0.0) for i in 1:3]
     [eqs1 = vcat(eqs1, D.(pos[:,i]) .~ vel[:,i]) for i in 4:s.num_E-3]
+    # println("div eqs1 segments ", div())
     eqs1 = [eqs1; D.(steering_pos) .~ steering_vel]
     [eqs1 = vcat(eqs1, D.(pos[:,i]) .~ vel[:,i]) for i in s.num_E:s.num_A]
     [eqs1 = vcat(eqs1, D.(vel[:,i]) .~ 0.0) for i in 1:3]
