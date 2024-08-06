@@ -27,7 +27,7 @@ we enter the package manager mode where we can add or delete packages.
 add KiteUtils
 add KitePodModels
 add KiteModels
-add Plots
+add ControlPlots
 st
 <BACKSPACE>
 ```
