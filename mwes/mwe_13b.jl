@@ -1,3 +1,10 @@
+using Pkg
+if ! ("ModelingToolkit" ∈ keys(Pkg.project().dependencies))
+    @info "Installing ModelingToolkit ..."
+    Pkg.add("ModelingToolkit")
+    Pkg.add("SymbolicIndexingInterface")
+end
+
 using ModelingToolkit
 using ModelingToolkit: t_nounits as t, D_nounits as D
 using SymbolicIndexingInterface
@@ -32,6 +39,11 @@ using OrdinaryDiffEq
 prob = ODEProblem(simplified_sys, x0, (0.0, 100.0), p)
 sol = solve(prob, Tsit5())
 get_decay2_f = getu(sol, decay2.f)
-@time sol[decay2.f][end]
-@time sol.u[end][2]
-@time get_decay2_f(sol)[end]
+
+function process_result(sol, get_decay2_f)
+    @time sol[decay2.f][end]
+    @time sol.u[end][2]
+    @time get_decay2_f(sol)[end]
+end
+
+process_result(sol)
