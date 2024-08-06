@@ -537,7 +537,7 @@ function copy_bin()
     end
     src_path = joinpath(dirname(pathof(@__MODULE__)), "..", PATH)
     cp(joinpath(src_path, "create_sys_image"), joinpath(PATH, "create_sys_image"), force=true)
-    cp(joinpath(src_path, "run_julia2"), joinpath(PATH, "run_julia"), force=true)
+    cp(joinpath(src_path, "run_julia"), joinpath(PATH, "run_julia"), force=true)
     chmod(joinpath(PATH, "create_sys_image"), 0o774)
     chmod(joinpath(PATH, "run_julia"), 0o774)
     PATH = "test"
