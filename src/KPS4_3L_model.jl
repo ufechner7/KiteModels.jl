@@ -34,7 +34,6 @@ function calc_aero_forces_model!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t
         y_lc(t)
         y_ld(t)
     end
-    s.model_y_lc = y_lc
     E_c = collect(E_c)
     v_cx = collect(v_cx)
     v_dx = collect(v_dx)
@@ -107,7 +106,6 @@ function calc_aero_forces_model!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t
     α_0 = pi/2 - s.set.width/2/s.set.radius
     α_middle = pi/2
     dα = (α_middle - α_0) / n
-    # println("calculating aero forces...")
     for i in 1:n*2
         if i <= n
             α = α_0 + -dα/2 + i*dα
@@ -247,7 +245,7 @@ Output:length
 - s.forces
 - s.v_wind_tether
 """
-@inline function inner_loop_model!(s::KPS4_3L, eqs2, force_eqs, t, force, pos, vel, length, c_spring, damping)
+@inline function inner_loop_model!(s::KPS4_3L, eqs2, force_eqs, t, force, pos, vel, length, c_spring, damping, v_wind_gnd)
     @variables begin
         height(t)[eachindex(s.springs)]
         rho(t)[eachindex(s.springs)]
@@ -288,7 +286,7 @@ Output:length
             eqs2
             height[i] ~ 0.5 * (pos[:,p1][3] + pos[:,p2][3])
             rho[i] ~ calc_rho(s.am, height[i])
-            v_wind_tether[:,i] .~ calc_wind_factor(s.am, height[i]) .* s.v_wind_gnd
+            v_wind_tether[:,i] .~ calc_wind_factor(s.am, height[i]) .* v_wind_gnd
         ]
 
         # TODO: @assert height > 0
@@ -302,12 +300,6 @@ Output:length
 end
 
 function update_pos!(s, integrator)
-    # println("updating pos...")
-    # for i in 1:s.num_A
-    #     for j in 1:3
-    #         s.pos[i][j] = integrator.sol(integrator.sol.t[end]; idxs=s.model_pos[j,i])
-    #     end
-    # end
     pos1 = reshape(SVector{3*(s.num_E-3), Float64}(integrator.u[1:(s.num_E-3)*3]), Size(3, s.num_E-3))
     pos2 = SVector{2, Float64}(integrator.u[3*(s.num_E-3)+1:3*(s.num_E-3)+2])
     pos3 = reshape(SVector{3*(s.num_A-s.num_E+1), Float64}(integrator.u[3*(s.num_E-2):3*(s.num_E-2 + s.num_A-s.num_E)+2]), Size(3, s.num_A-s.num_E+1))
@@ -331,6 +323,7 @@ function model!(s::KPS4_3L, pos_, vel_)
     [vel2_[:,i] .= vel_[i] for i in 1:s.num_A]
     @parameters begin
         set_speeds[1:3] = s.set_speeds
+        v_wind_gnd[1:3] = s.v_wind_gnd
     end
     @independent_variables t
     @variables begin
@@ -356,6 +349,7 @@ function model!(s::KPS4_3L, pos_, vel_)
     pos = collect(pos)
     vel = collect(vel)
     acc = collect(acc)
+    v_wind_gnd = collect(v_wind_gnd)
     lengths = collect(lengths)
     steering_pos = collect(steering_pos)
     steering_vel = collect(steering_vel)
@@ -385,14 +379,11 @@ function model!(s::KPS4_3L, pos_, vel_)
     eqs1 = [eqs1; D.(steering_vel) .~ steering_acc]
     [eqs1 = vcat(eqs1, D.(vel[:,i]) .~ acc[:,i]) for i in s.num_E:s.num_A]
 
-    println("set speeds 1 ", set_speeds[1])
-    println(calc_acc(reel_out_speed[1], norm(force[:,1%3+1]), set_speeds[1]))
     eqs1 = [
         eqs1
         D.(lengths) .~ reel_out_speed
         D.(reel_out_speed) .~ [calc_acc(reel_out_speed[i], norm(force[:,i%3+1]), set_speeds[i]) for i in 1:3] # TODO: add winch function
     ]
-    println(eqs1[end])
 
     # Compute the masses and forces
     eqs2 = []
@@ -418,7 +409,7 @@ function model!(s::KPS4_3L, pos_, vel_)
     ]
 
     eqs2, force_eqs = calc_aero_forces_model!(s, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z)
-    eqs2, force_eqs = inner_loop_model!(s, eqs2, force_eqs, t, force, pos, vel, segment_lengths, c_spring, damping)
+    eqs2, force_eqs = inner_loop_model!(s, eqs2, force_eqs, t, force, pos, vel, segment_lengths, c_spring, damping, v_wind_gnd)
     
     for i in 1:3
         eqs2 = vcat(eqs2, vcat(force_eqs[:,i]))
@@ -450,7 +441,5 @@ function model!(s::KPS4_3L, pos_, vel_)
     @time @named sys = ODESystem(eqs, t)
     println("making simple sys")
     @time simple_sys = structural_simplify(sys)
-    s.model_pos, s.model_vel, s.model_acc = pos, vel, acc
-    s.model_lengths, s.model_force = lengths, force
     return simple_sys, sys
 end

@@ -50,7 +50,7 @@ import KiteUtils.SysState
 # import Sundials.step!
 import OrdinaryDiffEq.init
 import OrdinaryDiffEq.step!
-using ModelingToolkit
+using ModelingToolkit, SymbolicIndexingInterface
 
 export KPS3, KPS4, KPS4_3L, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                              # constants and types
 export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                            # helper functions
@@ -615,6 +615,8 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
         simple_sys, _ = model!(s, y0, yd0)
         prob = ODEProblem(simple_sys, nothing, tspan)
         integrator = OrdinaryDiffEq.init(prob, solver; dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol)
+        s.set_speeds_idx = parameter_index(integrator.f, :set_speeds)
+        s.v_wind_gnd_idx = parameter_index(integrator.f, :v_wind_gnd)
         return integrator, prob
     else
         differential_vars = ones(Bool, length(y0))
@@ -624,11 +626,16 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
     return integrator
 end
 
-function reset_sim!(s::AKM, prob)
-    clear!(s)
-    dt = 1/s.set.sample_freq
-    integrator = OrdinaryDiffEq.init(prob, TRBDF2(autodiff=false); dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol)
-    return integrator
+function reset_sim!(s::AKM, prob; stiffness_factor=0.035)
+    if s.mtk
+        clear!(s)
+        s.stiffness_factor = stiffness_factor  
+        dt = 1/s.set.sample_freq
+        integrator = OrdinaryDiffEq.init(prob, TRBDF2(autodiff=false); dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol)
+        return integrator
+    end
+    println("Not an mtk model.")
+    return nothing
 end
 
 """
@@ -674,7 +681,11 @@ end
 
 function next_step!(s::KPS4_3L, integrator; set_values=zeros(KVec3), torque_control=false, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
     s.torque_control = torque_control
-    if !torque_control
+    set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
+    if s.mtk
+        integrator.ps[s.set_speeds_idx] .= set_values
+        integrator.ps[s.v_wind_gnd_idx] .= s.v_wind_gnd
+    elseif !torque_control
         s.set_speeds .= set_values
         s.set_torques .= 0.0
     else
@@ -682,13 +693,12 @@ function next_step!(s::KPS4_3L, integrator; set_values=zeros(KVec3), torque_cont
         s.set_torques .= set_values
     end
     s.t_0 = integrator.t
-    set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
     if s.set.solver == "IDA" && !s.mtk
         Sundials.step!(integrator, dt, true)
     else
         OrdinaryDiffEq.step!(integrator, dt, true)
         if s.mtk
-            update_pos!(s, integrator.u)
+            update_pos!(s, integrator)
         end
     end
     if s.stiffness_factor < 1.0

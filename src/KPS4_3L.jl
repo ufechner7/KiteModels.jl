@@ -176,13 +176,10 @@ $(TYPEDFIELDS)
     "Point number of A"
 
     "mtk variables"
-    mtk = false
-    model_pos = nothing
-    model_vel = nothing
-    model_acc = nothing
-    model_lengths = nothing
-    model_force = nothing
-    model_y_lc = nothing
+    mtk::Bool = false
+
+    set_speeds_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
+    v_wind_gnd_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
 
     half_drag_force::SVector{P, T} = zeros(SVector{P, T})
 
