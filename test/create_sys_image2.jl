@@ -4,11 +4,11 @@ if ! ("PackageCompiler" ∈ keys(Pkg.project().dependencies))
     Pkg.add("PackageCompiler")
 end
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
-    @info "Installing Plots ..."
+    @info "Installing ControlPlots ..."
     Pkg.add("ControlPlots")
 end
 @info "Loading packages ..."
-using KiteUtils, KitePodModels, KiteModels, Plots, AtmosphericModels, Reexport
+using KiteUtils, KitePodModels, KiteModels, ControlPlots, AtmosphericModels, Reexport
 using PackageCompiler
 
 @info "Creating sysimage ..."
