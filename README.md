@@ -35,6 +35,27 @@ at the Julia prompt. You can run the unit tests with the command:
 pkg"test KiteModels"
 ```
 
+## Advanced installation
+If you intend to modify or extend the code, it is suggested to fork the `KiteModels.jl` repository and to check out your fork:
+```bash
+git clone https://github.com/USERNAME/KiteModels.jl
+```
+where USERNAME is your github username.
+The compile a system image:
+```bash
+cd KiteModels.jl/bin
+./create_sys_image --update
+```
+If you know launch julia with:
+```bash
+cd ..
+./bin/run_julia
+```
+you can run the examples with
+```julia
+include("example/menu.jl")
+```
+
 ## One point model
 This model assumes the kite to be a point mass. This is sufficient to model the aerodynamic forces, but the dynamic concerning the turning action of the kite is not realistic.
 When combined with a controller for the turn rate it can be used to simulate a pumping kite power system with medium accuracy.
@@ -50,12 +71,6 @@ Dyneema or similar high strength materials for the tether the resulting system i
 
 ## Further reading
 These models are described in detail in [Dynamic Model of a Pumping Kite Power System](http://arxiv.org/abs/1406.6218).
-
-## Running the examples
-If you check out this repository, you get a menu with all the examples by running:
-```julia
-include("examples/menu.jl")
-```
 
 ## Replaying log files
 If you want to replay old flight log files in 2D and 3D to understand and explain better how kite power systems work, please have a look at [KiteViewer](https://github.com/ufechner7/KiteViewer) . How new log files can be created and replayed is explained in the documentation of [KiteSimulators](https://github.com/aenarete/KiteSimulators.jl) .
