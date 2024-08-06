@@ -28,9 +28,10 @@ println("re-init")
 @time integrator = OrdinaryDiffEq.init(prob, TRBDF2(autodiff=false); dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol)
 
 println("stepping")
-steps = 100
+steps = 10
 total_time = 0.0
 for i in 1:steps
+    integrator.p.tunable[3] = 1.0
     global total_time += @elapsed OrdinaryDiffEq.step!(integrator, dt, true)
     global total_time += @elapsed update_pos!(s, integrator)
     plot2d(s.pos, i-1; zoom=false, front=false, segments=se().segments)
