@@ -235,6 +235,11 @@ function init_pos_vel(s::KPS4_3L, X=zeros(5*s.set.segments+3))
     return pos, vel
 end
 
+function init_pos(s::KPS4_3L, X=zeros(5*s.set.segments+3))
+    pos, _, _ = init_pos_vel_acc(s, X)
+    return pos
+end
+
 function init_inner(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false, delta=0.0)
     pos, vel, acc = init_pos_vel_acc(s, X; old=old, delta=delta)
     vcat(pos[2:end], vel[2:end]), vcat(vel[2:end], acc[2:end])

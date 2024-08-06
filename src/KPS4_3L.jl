@@ -114,8 +114,8 @@ $(TYPEDFIELDS)
     res2::SVector{P, T} = zeros(SVector{P, T})
     "a copy of the actual positions as output for the user"
     pos::SVector{P, T} = zeros(SVector{P, T})
+    stable_pos::SVector{P, T} = zeros(SVector{P, T})
     vel::SVector{P, T} = zeros(SVector{P, T})
-    acc::SVector{P, T} = zeros(SVector{P, T})
     posd::SVector{P, T} = zeros(SVector{P, T})
     veld::SVector{P, T} = zeros(SVector{P, T})
     "velocity vector of the kite"
@@ -180,6 +180,7 @@ $(TYPEDFIELDS)
 
     set_speeds_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
     v_wind_gnd_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
+    prob::Union{OrdinaryDiffEq.ODEProblem, Nothing} = nothing
 
     half_drag_force::SVector{P, T} = zeros(SVector{P, T})
 
@@ -734,7 +735,7 @@ function find_steady_state!(s::KPS4_3L; prn=false, delta = 0.0, stiffness_factor
     results = nlsolve(test_initial_condition!, X00, autoscale=true, xtol=2e-7, ftol=2e-7, iterations=s.set.max_iter)
     if prn println("\nresult: $results") end
     if mtk
-        return init_pos_vel(s, results.zero)
+        return init_pos(s, results.zero), nothing
     else
         return init(s, results.zero)
     end

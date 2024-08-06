@@ -62,7 +62,7 @@ kps4_3l:
     tip_length: 0.62
     min_steering_line_distance: 1.0
     width:         4.1     # width of the kite                          [m]
-    aero_surfaces: 3      # number of aerodynamic surfaces in 3 line model
+    aero_surfaces: 5      # number of aerodynamic surfaces in 3 line model
 
 kcu:
     kcu_mass: 8.4                # mass of the kite control unit   [kg]

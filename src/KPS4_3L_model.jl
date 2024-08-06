@@ -316,11 +316,9 @@ function update_pos!(s, integrator)
     nothing
 end
 
-function model!(s::KPS4_3L, pos_, vel_)
+function model!(s::KPS4_3L, pos_)
     pos2_ = zeros(3, s.num_A)
-    vel2_ = zeros(3, s.num_A)
     [pos2_[:,i] .= pos_[i] for i in 1:s.num_A]
-    [vel2_[:,i] .= vel_[i] for i in 1:s.num_A]
     @parameters begin
         set_speeds[1:3] = s.set_speeds
         v_wind_gnd[1:3] = s.v_wind_gnd
@@ -328,7 +326,7 @@ function model!(s::KPS4_3L, pos_, vel_)
     @independent_variables t
     @variables begin
         pos(t)[1:3, 1:s.num_A] = pos2_
-        vel(t)[1:3, 1:s.num_A] = vel2_
+        vel(t)[1:3, 1:s.num_A] = zeros(3, s.num_A)
         acc(t)[1:3, 1:s.num_A] = zeros(3, s.num_A)
         lengths(t)[1:3] = s.l_tethers
         steering_pos(t)[1:2] = s.l_connections

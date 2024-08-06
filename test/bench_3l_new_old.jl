@@ -9,13 +9,12 @@ plot2d([[0,0,0]], 0)
 
 steering = [0,0,-0.5]
 
-"""
-Test old model
-"""
+
+println("Running models")
 s2 = KPS4_3L(KCU(se()))
 s1 = KPS4_3L(KCU(se()))
-integrator2, prob = KiteModels.init_sim!(s2; stiffness_factor=0.1, prn=false, mtk=true)
-integrator1 = KiteModels.init_sim!(s1; stiffness_factor=0.1, prn=false, mtk=false)
+integrator2 = KiteModels.init_sim!(s2; stiffness_factor=0.1, prn=true, mtk=true)
+integrator1 = KiteModels.init_sim!(s1; stiffness_factor=0.1, prn=true, mtk=false)
 println("compiling")
 total_old_time = 0.0
 total_new_time = 0.0
@@ -51,7 +50,6 @@ old_time = (dt*steps) / total_old_time
 new_time = (dt*steps) / total_new_time
 println("times realtime old model: ", old_time)
 println("times realtime new model: ", new_time)
-println("steering ", steering)
 # println("old pos ", old_pos)
 # println("new pos ", new_pos)
 println("times faster new model: ", total_old_time/total_new_time)
@@ -60,7 +58,6 @@ println("times faster new model: ", total_old_time/total_new_time)
 
 times realtime old model: 3.429651068617265
 times realtime new model: 98.6601089002389
-steering [0, 0, 0]
 times faster new model: 28.766806571962952
 
 debugging:
