@@ -4,12 +4,46 @@ CurrentModule = KiteModels
 # Quickstart
 
 ## Installation of Julia
-For a quick test of this program, it is NOT needed to install VSCode, git or bash. Just installing Julia is sufficient, and that can be done in a few minutes. On Linux, just execute the command:
+For a quick test of this program, it is NOT needed to install VSCode, git or bash. Just installing Julia is sufficient, and that can be done in a few minutes. 
+### Windows
+Please download and install Julia using `juliaup`. Launch the `Command Prompt` app and type:
+
 ```
-bash -ci "$(curl -fsSL https://raw.githubusercontent.com/abelsiqueira/jill/master/jill.sh)"
+winget install julia -s msstore
+juliaup add 1.10
+juliaup update
 ```
-On Windows, you can get Julia from the Windows store, or you download and install it from [https://julialang.org/downloads/](https://julialang.org/downloads/) . For Mac there are also different versions available on this download site.
-You do NOT need administrator permissions to install Julia, but make sure to check the option "add to path" when installing.
+If that doesn't work, download https://install.julialang.org/Julia.appinstaller and double-click on the downloaded file to install it.
+
+#### Optional
+It is suggested to install [Windows Terminal](https://learn.microsoft.com/en-us/windows/terminal/install) . Copy and paste works better, unicode works much better and you can use it with `bash` or `Command Prompt`, whatever you prefer. It is suggested to set one of these two as default using the `Settings` menu of Windows Terminal.
+
+### Linux
+
+Copy and past the following line to install julia:
+```
+curl -fsSL https://install.julialang.org | sh
+```
+Restart your terminal, and then execute:
+```
+juliaup add 1.10
+juliaup update
+```
+
+It is suggested to add the following line to your ```.bashrc``` file:
+```
+alias jl='./bin/run_julia'
+```
+This makes it possible to run Julia with the shortcut `jl` later.
+
+### Mac
+Please download and install `juliaup` as explained at https://github.com/JuliaLang/juliaup .
+
+Restart your terminal, and then execute:
+```
+juliaup add 1.10
+juliaup update
+```
 
 ## Create a test project
 Launch a command prompt and create a folder with the name "test":
