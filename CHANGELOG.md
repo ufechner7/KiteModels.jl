@@ -1,5 +1,11 @@
 # Changelog
 
+### KiteModels v0.6.3 - 2024-08-06
+#### Changed
+- the function `copy_examples()` copies now all examples
+- updated the documentation
+- improved the scripts in the bin folder, not relevant for most users
+
 ### KiteModels v0.6.2 - 2024-08-06
 #### Changed
 - renamed the example `simulate.jl` to `simulate_simple.jl`
@@ -7,9 +13,6 @@
 - add the script `menu.jl` that provides a menu with all the examples
 - bump ControlPlots to 0.1.4
 - bump KiteUtils to 0.7.4
-- the function `copy_examples()` copies now all examples
-- updated the documentation
-- improved the scripts in the bin folder, not relevant for most users
 
 ### KiteModels v0.6.1 - 2024-07-25
 #### Changed
