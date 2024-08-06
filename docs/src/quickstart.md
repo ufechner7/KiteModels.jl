@@ -5,45 +5,57 @@ CurrentModule = KiteModels
 
 ## Installation of Julia
 For a quick test of this program, it is NOT needed to install VSCode, git or bash. Just installing Julia is sufficient, and that can be done in a few minutes. 
-### Windows
-Please download and install Julia using `juliaup`. Launch the `Command Prompt` app and type:
+<details>
+  <summary>Windows</summary>
+    
+  ### Windows
+  Please download and install Julia using `juliaup`. Launch the `Command Prompt` app and type:
 
-```
-winget install julia -s msstore
-juliaup add 1.10
-juliaup update
-```
-If that doesn't work, download https://install.julialang.org/Julia.appinstaller and double-click on the downloaded file to install it.
+  ```
+  winget install julia -s msstore
+  juliaup add 1.10
+  juliaup update
+  ```
+  If that doesn't work, download https://install.julialang.org/Julia.appinstaller and double-click on the downloaded file to install it.
 
-#### Optional
-It is suggested to install [Windows Terminal](https://learn.microsoft.com/en-us/windows/terminal/install) . Copy and paste works better, unicode works much better and you can use it with `bash` or `Command Prompt`, whatever you prefer. It is suggested to set one of these two as default using the `Settings` menu of Windows Terminal.
+  #### Optional
+  It is suggested to install [Windows Terminal](https://learn.microsoft.com/en-us/windows/terminal/install) . Copy and paste works better, unicode works much better and you can use it with `bash` or `Command Prompt`, whatever you prefer. It is suggested to set one of these two as default using the `Settings` menu of Windows Terminal.
+</details>
 
-### Linux
+<details>
+  <summary>Linux</summary>
 
-Copy and past the following line to install julia:
-```
-curl -fsSL https://install.julialang.org | sh
-```
-Restart your terminal, and then execute:
-```
-juliaup add 1.10
-juliaup update
-```
+  ### Linux
 
-It is suggested to add the following line to your ```.bashrc``` file:
-```
-alias jl='./bin/run_julia'
-```
-This makes it possible to run Julia with the shortcut `jl` later.
+  Copy and past the following line to install julia:
+  ```
+  curl -fsSL https://install.julialang.org | sh
+  ```
+  Restart your terminal, and then execute:
+  ```
+  juliaup add 1.10
+  juliaup update
+  ```
 
-### Mac
-Please download and install `juliaup` as explained at https://github.com/JuliaLang/juliaup .
+  It is suggested to add the following line to your ```.bashrc``` file:
+  ```
+  alias jl='./bin/run_julia'
+  ```
+  This makes it possible to run Julia with the shortcut `jl` later.
+</details>
 
-Restart your terminal, and then execute:
-```
-juliaup add 1.10
-juliaup update
-```
+<details>
+  <summary>Mac</summary>
+
+  ### Mac
+  Please download and install `juliaup` as explained at https://github.com/JuliaLang/juliaup .
+
+  Restart your terminal, and then execute:
+  ```
+  juliaup add 1.10
+  juliaup update
+  ```
+</details>
 
 ## Create a test project
 Launch a command prompt and create a folder with the name "test":
