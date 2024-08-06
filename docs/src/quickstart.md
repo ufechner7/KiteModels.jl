@@ -23,6 +23,7 @@ For a quick test of this program, it is NOT needed to install VSCode, git or bas
 
   #### Optional
   It is suggested to install [Windows Terminal](https://learn.microsoft.com/en-us/windows/terminal/install) . Copy and paste works better, unicode works much better and you can use it with `bash` or `Command Prompt`, whatever you prefer. It is suggested to set one of these two as default using the `Settings` menu of Windows Terminal.
+  
 ```@raw html
 </details>
 ```
