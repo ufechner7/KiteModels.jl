@@ -19,7 +19,7 @@ winget install julia -s msstore
 juliaup add 1.10
 juliaup update
 ```
-If that doesn't work, download https://install.julialang.org/Julia.appinstaller and double-click on the downloaded file to install it.
+If that doesn't work, download [https://install.julialang.org/Julia.appinstaller](https://install.julialang.org/Julia.appinstaller) and double-click on the downloaded file to install it.
 
 #### Optional
 It is suggested to install [Windows Terminal](https://learn.microsoft.com/en-us/windows/terminal/install) . Copy and paste works better, unicode works much better and you can use it with `bash` or `Command Prompt`, whatever you prefer. It is suggested to set one of these two as default using the `Settings` menu of Windows Terminal.
