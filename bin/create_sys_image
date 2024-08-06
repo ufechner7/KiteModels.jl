@@ -65,4 +65,8 @@ fi
 echo "Precompiling package KiteModels..."
 julia --project -J $SOFILE -e "using KiteModels, KitePodModels, KiteUtils"
 echo "Precompiling package ControlPlots..."
-julia --project -J $SOFILE -e "using TestEnv; TestEnv.activate(); using ControlPlots"
+if [[ $branch != "" ]]; then
+    julia --project -J $SOFILE -e "using TestEnv; TestEnv.activate(); using ControlPlots"
+else
+    julia --project -J $SOFILE -e "using ControlPlots"
+fi
