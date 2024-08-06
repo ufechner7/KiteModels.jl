@@ -55,11 +55,12 @@ fi
 if test -f $SOFILE; then
     mv $SOFILE $SOFILE.bak
 fi
+mv kps-image_tmp.so $SOFILE
 julia  --project -e "using Pkg; Pkg.precompile(); Pkg.resolve()"
 cd src
 touch *.jl # make sure all modules get recompiled in the next step
 cd ..
-if [[ $branch != "" ]]; then
+echo "Precompiling package KiteModels..."
 julia --project -J $SOFILE -e "using KiteModels, KitePodModels, KiteUtils"
 echo "Precompiling package ControlPlots..."
 julia --project -J $SOFILE -e "using TestEnv; TestEnv.activate(); using ControlPlots"
