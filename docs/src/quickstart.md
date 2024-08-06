@@ -5,8 +5,11 @@ CurrentModule = KiteModels
 
 ## Installation of Julia
 For a quick test of this program, it is NOT needed to install VSCode, git or bash. Just installing Julia is sufficient, and that can be done in a few minutes. 
+
+```@raw html
 <details>
   <summary>Windows</summary>
+```
     
   ### Windows
   Please download and install Julia using `juliaup`. Launch the `Command Prompt` app and type:
@@ -20,10 +23,14 @@ For a quick test of this program, it is NOT needed to install VSCode, git or bas
 
   #### Optional
   It is suggested to install [Windows Terminal](https://learn.microsoft.com/en-us/windows/terminal/install) . Copy and paste works better, unicode works much better and you can use it with `bash` or `Command Prompt`, whatever you prefer. It is suggested to set one of these two as default using the `Settings` menu of Windows Terminal.
+```@raw html
 </details>
+```
 
+```@raw html
 <details>
   <summary>Linux</summary>
+```
 
   ### Linux
 
@@ -42,7 +49,10 @@ For a quick test of this program, it is NOT needed to install VSCode, git or bas
   alias jl='./bin/run_julia'
   ```
   This makes it possible to run Julia with the shortcut `jl` later.
+
+```@raw html
 </details>
+```
 
 <details>
   <summary>Mac</summary>
