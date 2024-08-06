@@ -614,7 +614,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
     if mtk
         simple_sys, _ = model!(s, y0)
         s.prob = ODEProblem(simple_sys, nothing, tspan)
-        integrator = OrdinaryDiffEq.init(deepcopy(s.prob), solver; dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol) # , saveat=dt!!!
+        integrator = OrdinaryDiffEq.init(deepcopy(s.prob), solver; dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, saveat=dt)
         s.set_speeds_idx = parameter_index(integrator.f, :set_speeds)
         s.v_wind_gnd_idx = parameter_index(integrator.f, :v_wind_gnd)
         update_pos!(s, integrator)

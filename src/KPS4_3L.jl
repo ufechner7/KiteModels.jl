@@ -409,7 +409,7 @@ The result is stored in the array s.forces.
     
     @inbounds s.forces[spring.p1] .+= half_drag_force + s.spring_force
     @inbounds s.forces[spring.p2] .+= half_drag_force - s.spring_force
-    if i <= 3 @inbounds s.last_forces[i%3+1] .= s.forces[spring.p1] end
+    if i <= 3 @inbounds s.last_forces[(i-1)%3+1] .= s.forces[spring.p1] end
     nothing
 end
 
@@ -456,8 +456,8 @@ function loop!(s::KPS4_3L, pos, vel, posd, veld)
     damping  = s.set.damping ./ L_0
     c_spring = s.set.c_spring ./ L_0
     for i in 1:s.set.segments*3
-        @inbounds s.masses[i] = mass_tether_particle[i%3+1]
-        @inbounds s.springs[i] = SP(s.springs[i].p1, s.springs[i].p2, s.segment_lengths[i%3+1], c_spring[i%3+1], damping[i%3+1])
+        @inbounds s.masses[i] = mass_tether_particle[(i-1)%3+1]
+        @inbounds s.springs[i] = SP(s.springs[i].p1, s.springs[i].p2, s.segment_lengths[(i-1)%3+1], c_spring[(i-1)%3+1], damping[(i-1)%3+1])
     end
     inner_loop!(s, pos, vel, s.v_wind_gnd, s.set.d_tether/1000.0)
     for i in s.num_E-2:s.num_E-1
@@ -574,11 +574,11 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
     # winch calculations
     res[end-5:end-3] .= lengthsd .- reel_out_speeds
     for i in 1:3
-        # @time res[end-3+i] = 1.0 - calc_acceleration(s.motors[i], 1.0, norm(s.forces[i%3+1]); set_speed=1.0, set_torque=s.set_torques[i], use_brake=true)
+        # @time res[end-3+i] = 1.0 - calc_acceleration(s.motors[i], 1.0, norm(s.forces[(i-1)%3+1]); set_speed=1.0, set_torque=s.set_torques[i], use_brake=true)
         if !s.torque_control
-            res[end-3+i] = reel_out_speedsd[i] - calc_acceleration(s.motors[i], reel_out_speeds[i], norm(s.forces[i%3+1]); set_speed=s.set_speeds[i], set_torque=nothing, use_brake=true)
+            res[end-3+i] = reel_out_speedsd[i] - calc_acceleration(s.motors[i], reel_out_speeds[i], norm(s.forces[(i-1)%3+1]); set_speed=s.set_speeds[i], set_torque=nothing, use_brake=true)
         else
-            res[end-3+i] = reel_out_speedsd[i] - calc_acceleration(s.motors[i], reel_out_speeds[i], norm(s.forces[i%3+1]); set_speed=nothing, set_torque=s.set_torques[i], use_brake=true)
+            res[end-3+i] = reel_out_speedsd[i] - calc_acceleration(s.motors[i], reel_out_speeds[i], norm(s.forces[(i-1)%3+1]); set_speed=nothing, set_torque=s.set_torques[i], use_brake=true)
         end
     end
 
@@ -653,7 +653,7 @@ function winch_force(s::KPS4_3L) norm.(s.last_forces) end
 function spring_forces(s::KPS4_3L)
     forces = zeros(SimFloat, s.num_A)
     for i in 1:s.set.segments*3
-        forces[i] =  s.springs[i].c_spring * (norm(s.pos[i+3] - s.pos[i]) - s.segment_lengths[i%3+1]) * s.stiffness_factor
+        forces[i] =  s.springs[i].c_spring * (norm(s.pos[i+3] - s.pos[i]) - s.segment_lengths[(i-1)%3+1]) * s.stiffness_factor
         if forces[i] > 4000.0
             println("Tether raptures for segment $i !")
         end

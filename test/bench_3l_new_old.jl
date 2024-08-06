@@ -28,7 +28,7 @@ total_old_time = 0.0
 total_new_time = 0.0
 for i in 1:steps
     if i==1
-        global steering = [0,0,0.3]
+        global steering = [0,0,0.3] # left right middle
     end
     if i==5
         global steering = [0,0,-0.3]
@@ -39,15 +39,19 @@ for i in 1:steps
     if i==20
         global steering = [0,0,0]
     end
+    println(s2.vel_kite)
     global total_new_time += @elapsed next_step!(s2, integrator2; set_values=steering)
     global total_old_time += @elapsed next_step!(s1, integrator1; set_values=steering)
-    # plot2d(s2.pos, i-1; zoom=false, front=false, segments=se().segments)
-    plot2d(vcat(s1.pos,s2.pos), i-1; zoom=false, front=false, segments=se().segments)
-    println(norm(s1.pos-s2.pos)/3.0)
+    plot2d(s2.pos, i-1; zoom=false, front=false, segments=se().segments)
+    # plot2d(vcat(s1.pos,s2.pos), i-1; zoom=false, front=false, segments=se().segments)
+    # println(norm(s1.pos-s2.pos)/3.0)
     # for (i,u) in enumerate(integrator2.u)
     #     println("i ", i, ", ", u)
     # end
-    # println(integrator2.sol[simple_sys.vel[:,s2.num_A]][end])
+    # println(s2.vel_kite)
+    println(s1.vel_kite)
+    # println(integrator2.sol[simple_sys.lengths[:]][end])
+    # println(integrator2.sol[simple_sys.reel_out_speed[:]][end])
 end
 # plot2d(s1.pos, steps; zoom=false, front=false, segments=se().segments)
 

@@ -180,9 +180,9 @@ The result is stored in the array s.forces.
     d_tether = s.set.d_tether/1000.0
     eqs2 = [
         eqs2
-        i <= s.set.segments*3 ? l_0 ~ length[i%3+1] : l_0 ~ s.springs[i].length # Unstressed length
-        i <= s.set.segments*3 ? k ~ c_spring[i%3+1] * s.stiffness_factor : k ~ s.springs[i].c_spring * s.stiffness_factor # Spring constant
-        i <= s.set.segments*3 ? c ~ damping[i%3+1] : c ~ s.springs[i].damping                    # Damping coefficient    
+        i <= s.set.segments*3 ? l_0 ~ length[(i-1)%3+1] : l_0 ~ s.springs[i].length # Unstressed length
+        i <= s.set.segments*3 ? k ~ c_spring[(i-1)%3+1] * s.stiffness_factor : k ~ s.springs[i].c_spring * s.stiffness_factor # Spring constant
+        i <= s.set.segments*3 ? c ~ damping[(i-1)%3+1] : c ~ s.springs[i].damping                    # Damping coefficient    
         segment .~ pos1 - pos2
         rel_vel .~ vel1 - vel2
         av_vel .~ 0.5 * (vel1 + vel2)
@@ -230,7 +230,7 @@ The result is stored in the array s.forces.
         force_eqs[j, s.springs[i].p2] = (force[j,s.springs[i].p2] ~ force_eqs[j, s.springs[i].p2].rhs + (half_drag_force[j] - spring_force[j]))
     end
     
-    # if i <= 3 @inbounds s.last_forces[i%3+1] .~ s.forces[spring.p1] end
+    # if i <= 3 @inbounds s.last_forces[(i-1)%3+1] .~ s.forces[spring.p1] end
     return eqs2, force_eqs
 end
 
@@ -303,7 +303,9 @@ function update_pos!(s, integrator)
     pos1 = reshape(SVector{3*(s.num_E-3), Float64}(integrator.u[1:(s.num_E-3)*3]), Size(3, s.num_E-3))
     pos2 = SVector{2, Float64}(integrator.u[3*(s.num_E-3)+1:3*(s.num_E-3)+2])
     pos3 = reshape(SVector{3*(s.num_A-s.num_E+1), Float64}(integrator.u[3*(s.num_E-2):3*(s.num_E-2 + s.num_A-s.num_E)+2]), Size(3, s.num_A-s.num_E+1))
-    vel_kite = SVector{3, SimFloat}(integrator.u[end-8:end-6])
+    s.vel_kite .= SVector{3, SimFloat}(integrator.u[end-8:end-6])
+    s.l_tethers .= SVector{3, SimFloat}(integrator.u[end-5:end-3])
+    s.reel_out_speeds .= SVector{3, SimFloat}(integrator.u[end-2:end])
     
     for i in 1:s.num_E-3
         s.pos[i] .= pos1[:,i]
@@ -315,14 +317,11 @@ function update_pos!(s, integrator)
     s.l_connections .= pos2[:]
     s.pos[s.num_E-2] .= s.pos[s.num_C] .+ s.e_z .* pos2[1]
     s.pos[s.num_E-1] .= s.pos[s.num_D] .+ s.e_z .* pos2[2]
-
+    
     # calculate winch forces
     for i in 1:3
         calc_particle_forces!(s, s.pos[i], s.pos[i+3], [0,0,0], [0,0,0], s.springs[i], s.set.d_tether/1000, s.rho, i)
     end
-
-    # calculate vel_kite = vel_A
-    s.vel_kite .= vel_kite
     nothing
 end
 
@@ -335,23 +334,23 @@ function model!(s::KPS4_3L, pos_)
     end
     @independent_variables t
     @variables begin
-        pos(t)[1:3, 1:s.num_A] = pos2_
-        vel(t)[1:3, 1:s.num_A] = zeros(3, s.num_A)
-        acc(t)[1:3, 1:s.num_A] = zeros(3, s.num_A)
+        pos(t)[1:3, 1:s.num_A] = pos2_ # left right middle
+        vel(t)[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
+        acc(t)[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
         lengths(t)[1:3] = s.l_tethers
         steering_pos(t)[1:2] = s.l_connections
         steering_vel(t)[1:2] = zeros(2)
         steering_acc(t)[1:2] = zeros(2)
-        reel_out_speed(t)[1:3] = zeros(3)
-        segment_lengths(t)[1:3] = zeros(3)
-        mass_tether_particle(t)[1:3]
-        damping(t)[1:3] = s.set.damping ./ s.l_tethers ./ s.set.segments
-        c_spring(t)[1:3] = s.set.c_spring ./ s.l_tethers ./ s.set.segments
+        reel_out_speed(t)[1:3] = zeros(3) # left right middle
+        segment_lengths(t)[1:3] = zeros(3) # left right middle
+        mass_tether_particle(t)[1:3] # left right middle
+        damping(t)[1:3] = s.set.damping ./ s.l_tethers ./ s.set.segments # left right middle
+        c_spring(t)[1:3] = s.set.c_spring ./ s.l_tethers ./ s.set.segments # left right middle
         P_c(t)[1:3] = 0.5 .* (s.pos[s.num_C]+s.pos[s.num_D])
         e_x(t)[1:3]
         e_y(t)[1:3]
         e_z(t)[1:3]
-        force(t)[1:3, 1:s.num_A] = zeros(3, s.num_A)
+        force(t)[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
     end
     # Collect the arrays into variables
     pos = collect(pos)
@@ -391,7 +390,7 @@ function model!(s::KPS4_3L, pos_)
     eqs1 = [
         eqs1
         D.(lengths) .~ reel_out_speed
-        D.(reel_out_speed) .~ [calc_acc(reel_out_speed[i], norm(force[:,i%3+1]), set_speeds[i]) for i in 1:3] # TODO: add winch function
+        D.(reel_out_speed) .~ [calc_acc(reel_out_speed[i], norm(force[:,(i-1)%3+1]), set_speeds[i]) for i in 1:3] # middle left right
     ]
 
     # Compute the masses and forces
@@ -426,7 +425,7 @@ function model!(s::KPS4_3L, pos_)
     end
     for i in 4:s.num_E-3
         eqs2 = vcat(eqs2, vcat(force_eqs[:,i]))
-        eqs2 = vcat(eqs2, acc[:,i] .~ [0.0; 0.0; -9.81] .+ (force[:,i] ./ mass_tether_particle[i%3+1]))
+        eqs2 = vcat(eqs2, acc[:,i] .~ [0.0; 0.0; -9.81] .+ (force[:,i] ./ mass_tether_particle[(i-1)%3+1]))
     end
     for i in s.num_E-2:s.num_E-1
         [force_eqs[j,i] = force[j,i] ~ force_eqs[j,i].rhs + [0.0; 0.0; -9.81][j] + 500.0 * ((vel[:,i]-vel[:,s.num_C]) ⋅ e_z) * e_z[j] for j in 1:3] # TODO: more damping
@@ -436,7 +435,7 @@ function model!(s::KPS4_3L, pos_)
         force_eqs[:,i] .= force[:,i] .~ tether_rhs .- f_xy
         force_eqs[:,i+3] .= force[:,i+3] .~ kite_rhs .+ f_xy
         eqs2 = vcat(eqs2, vcat(force_eqs[:,i]))
-        eqs2 = vcat(eqs2, steering_acc[i-s.num_E+3] ~ (force[:,i] ./ mass_tether_particle[i%3+1]) ⋅ e_z - (acc[:,i+3] ⋅ e_z))
+        eqs2 = vcat(eqs2, steering_acc[i-s.num_E+3] ~ (force[:,i] ./ mass_tether_particle[(i-1)%3+1]) ⋅ e_z - (acc[:,i+3] ⋅ e_z))
     end
     for i in s.num_E:s.num_A
         eqs2 = vcat(eqs2, vcat(force_eqs[:,i]))
