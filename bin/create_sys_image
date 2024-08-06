@@ -46,10 +46,12 @@ else
         echo "Using Manifest-1.10.toml.default ..."
     fi
 fi
-julia --pkgimages=no --project -e "include(\"./test/create_sys_image.jl\");"
+
 if [[ $branch != "" ]]; then
+    julia --pkgimages=no --project -e "include(\"./test/create_sys_image.jl\");"
     SOFILE="bin/kps-image-${julia_major}-${branch}.so"
 else
+    julia --pkgimages=no --project -e "include(\"./test/create_sys_image2.jl\");"
     SOFILE="bin/kps-image-${julia_major}.so"
 fi
 if test -f $SOFILE; then
