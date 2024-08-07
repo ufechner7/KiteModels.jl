@@ -557,7 +557,6 @@ An instance of a DAE integrator.
 function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_state_history=nothing, mtk=false, torque_control=false)
     clear!(s)
     s.stiffness_factor = stiffness_factor
-    println("type s ", typeof(s))
     if isa(s, KPS4_3L)
         s.mtk = mtk
     end
@@ -616,12 +615,10 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
 
     if s.mtk
         simple_sys, _ = model!(s, y0; torque_control=torque_control)
-        println(typeof(simple_sys))
         s.prob = ODEProblem(simple_sys, nothing, tspan)
         integrator = OrdinaryDiffEq.init(s.prob, solver; dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
         s.set_values_idx = parameter_index(integrator.f, :set_values)
         s.v_wind_gnd_idx = parameter_index(integrator.f, :v_wind_gnd)
-        println("getting getters...")
         s.get_pos = getu(integrator.sol, simple_sys.pos[:,:])
         s.get_kite_vel = getu(integrator.sol, simple_sys.vel[:,s.num_A])
         s.get_winch_forces = getu(integrator.sol, simple_sys.force[:,1:3])
