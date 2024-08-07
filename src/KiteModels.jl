@@ -557,8 +557,10 @@ An instance of a DAE integrator.
 function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_state_history=nothing, mtk=false, torque_control=false)
     clear!(s)
     s.stiffness_factor = stiffness_factor
-    s.mtk = mtk
-
+    if typeof(s) == KPS4_3L
+        s.mtk = mtk
+    end
+    
     found = false
     if isa(steady_state_history, SteadyStateHistory)
         while length(steady_state_history) > 1000 # around 1MB, 1ms max per for loop
@@ -634,7 +636,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
     return integrator
 end
 
-function reset_sim!(s::KPS4_3L, integrator; stiffness_factor=0.035)
+function reset_sim!(s::KPS4_3L; stiffness_factor=0.035)
     if s.mtk
         clear!(s)
         s.stiffness_factor = stiffness_factor  
