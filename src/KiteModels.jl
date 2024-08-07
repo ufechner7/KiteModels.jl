@@ -613,8 +613,9 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
 
     if mtk
         simple_sys, _ = model!(s, y0; torque_control=torque_control)
+        println(typeof(simple_sys))
         s.prob = ODEProblem(simple_sys, nothing, tspan)
-        integrator = OrdinaryDiffEq.init(deepcopy(s.prob), solver; dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
+        integrator = OrdinaryDiffEq.init(s.prob, solver; dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
         s.set_values_idx = parameter_index(integrator.f, :set_values)
         s.v_wind_gnd_idx = parameter_index(integrator.f, :v_wind_gnd)
         println("getting getters...")
@@ -638,7 +639,7 @@ function reset_sim!(s::KPS4_3L, integrator; stiffness_factor=0.035)
         clear!(s)
         s.stiffness_factor = stiffness_factor  
         dt = 1/s.set.sample_freq
-        integrator = OrdinaryDiffEq.init(deepcopy(s.prob), TRBDF2(autodiff=false); dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
+        integrator = OrdinaryDiffEq.init(s.prob, TRBDF2(autodiff=false); dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
         update_pos!(s, integrator)
         return integrator
     end

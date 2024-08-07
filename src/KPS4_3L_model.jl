@@ -315,7 +315,7 @@ function update_pos!(s, integrator)
     [s.winch_forces[i] .= (winch_forces[:,i]) for i in 1:3]
     s.tether_lengths .= tether_lengths
     s.reel_out_speeds .= tether_speeds
-
+    calc_kite_ref_frame!(s, s.pos[s.num_E], s.pos[s.num_C], s.pos[s.num_D])
     # pos1 = reshape(SVector{3*(s.num_E-3), Float64}(integrator.u[1:(s.num_E-3)*3]), Size(3, s.num_E-3))
     # pos2 = SVector{2, Float64}(integrator.u[3*(s.num_E-3)+1:3*(s.num_E-3)+2])
     # pos3 = reshape(SVector{3*(s.num_A-s.num_E+1), Float64}(integrator.u[3*(s.num_E-2):3*(s.num_E-2 + s.num_A-s.num_E)+2]), Size(3, s.num_A-s.num_E+1))

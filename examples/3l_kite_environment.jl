@@ -38,7 +38,7 @@ function step(reel_out_torques; prn=false)
             KiteModels.next_step!(e.s, e.integrator; set_values=reel_out_torques, torque_control=true)
         end
     end
-    
+    println(e.s.pos[end])
     _calc_rotation(old_heading, calc_heading(e.s))
     update_sys_state!(e.sys_state, e.s)
     e.i += 1
