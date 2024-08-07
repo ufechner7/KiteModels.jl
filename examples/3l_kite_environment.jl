@@ -57,7 +57,8 @@ function reset(name="sim_log", elevation=0.0, azimuth=0.0, tether_length=50.0, f
     end
     update_settings()
     @time e.logger = Logger(e.s.num_A, e.max_render_length)
-    @time e.integrator = KiteModels.reset_sim!(e.s, e.integrator; stiffness_factor=0.04)
+    println(e.integrator)
+    @time e.integrator = KiteModels.reset_sim!(e.s; stiffness_factor=0.04)
     e.sys_state = SysState(e.s)
     e.i = 1
     return _calc_state(e.s)

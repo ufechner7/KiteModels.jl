@@ -557,7 +557,8 @@ An instance of a DAE integrator.
 function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_state_history=nothing, mtk=false, torque_control=false)
     clear!(s)
     s.stiffness_factor = stiffness_factor
-    if typeof(s) == KPS4_3L
+    println("type s ", typeof(s))
+    if isa(s, KPS4_3L)
         s.mtk = mtk
     end
     
@@ -596,7 +597,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
         end
     end
     
-    if mtk
+    if s.mtk
         solver = TRBDF2(autodiff=false) # TRBDF2, Rodas4P, Rodas5P, Kvaerno5, KenCarp4, radau, QNDF
     elseif s.set.solver=="IDA"
         solver  = Sundials.IDA(linear_solver=Symbol(s.set.linear_solver), max_order = s.set.max_order)
@@ -613,7 +614,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
     tspan   = (0.0, dt) 
     abstol  = s.set.abs_tol # max error in m/s and m
 
-    if mtk
+    if s.mtk
         simple_sys, _ = model!(s, y0; torque_control=torque_control)
         println(typeof(simple_sys))
         s.prob = ODEProblem(simple_sys, nothing, tspan)
