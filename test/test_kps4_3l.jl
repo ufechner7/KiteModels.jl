@@ -531,7 +531,7 @@ end
     res1, res2 = find_steady_state!(kps4_3l; stiffness_factor=0.035, prn=true) 
     @test sum(res2) ≈ -9.81*(kps4_3l.num_A-5) # velocity and acceleration must be near zero. the three ground points and two last tether points dont have gravitational acceleration
     pre_tension = KiteModels.calc_pre_tension(kps4_3l)
-    println(kps4_3l.l_tethers)
+    println(kps4_3l.tether_lengths)
     println("length: ", tether_length(kps4_3l))
     @test pre_tension > 1.000001
     @test pre_tension < 1.01

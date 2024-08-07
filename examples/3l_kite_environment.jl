@@ -3,23 +3,7 @@ module Environment
 using KiteModels, StaticArrays, LinearAlgebra, OrdinaryDiffEq, Parameters
 export reset, step, render
 
-# kcu = nothing;
-# s = nothing;
-# max_render_length = 10000;
-# i = 1;
-# logger = nothing;
-# integrator = nothing;
 const StateVec = MVector{11, Float32}
-# state::StateVec = zeros(StateVec)
-# state_d::StateVec = zeros(StateVec)
-# state_dd::StateVec = zeros(StateVec)
-# last_state::StateVec = zeros(StateVec)
-# last_state_d::StateVec = zeros(StateVec)
-# wanted_elevation = 0.0
-# wanted_azimuth = 0.0
-# wanted_tether_length = 0.0
-# max_force = 5000.0
-# rotation = 0.0
 
 @with_kw mutable struct Env
     kcu::KCU = KCU(se())
@@ -27,7 +11,7 @@ const StateVec = MVector{11, Float32}
     max_render_length::Int = 10000
     i::Int = 1
     logger::Logger = Logger(s.num_A, max_render_length)
-    integrator::OrdinaryDiffEq.ODEIntegrator = KiteModels.init_sim!(s; stiffness_factor=0.04, prn=false, mtk=true)
+    integrator::OrdinaryDiffEq.ODEIntegrator = KiteModels.init_sim!(s; stiffness_factor=0.04, prn=false, mtk=true, torque_control=true)
     sys_state::SysState = SysState(s)
     state::StateVec = zeros(StateVec)
     state_d::StateVec = zeros(StateVec)
@@ -43,15 +27,15 @@ end
 
 const e = Env()
 
-function step(reel_out_speeds; prn=false)
-    reel_out_speeds = Vector{Float64}(reel_out_speeds)
+function step(reel_out_torques; prn=false)
+    reel_out_torques = Vector{Float64}(reel_out_torques) .* 100
 
     old_heading = calc_heading(e.s)
     if prn
-        KiteModels.next_step!(e.s, e.integrator; set_values=reel_out_speeds, torque_control=false)
+        KiteModels.next_step!(e.s, e.integrator; set_values=reel_out_torques, torque_control=false)
     else
         redirect_stdout(devnull) do
-            KiteModels.next_step!(e.s, e.integrator; set_values=reel_out_speeds, torque_control=false)
+            KiteModels.next_step!(e.s, e.integrator; set_values=reel_out_torques, torque_control=true)
         end
     end
     
@@ -61,7 +45,7 @@ function step(reel_out_speeds; prn=false)
     return _calc_state(e.s)
 end
 
-function reset(name="sim_log", elevation=0.0, azimuth=0.0, tether_length=50.0, force=5000.0)
+function reset(name="sim_log", elevation=0.0, azimuth=0.0, tether_length=50.0, force=5000.0, log=false)
     e.wanted_elevation = Float32(elevation)
     e.wanted_azimuth = Float32(azimuth)
     e.wanted_tether_length = Float32(tether_length)
@@ -72,17 +56,16 @@ function reset(name="sim_log", elevation=0.0, azimuth=0.0, tether_length=50.0, f
         save_log(e.logger, basename(name))
     end
     update_settings()
-    e.logger = Logger(e.s.num_A, e.max_render_length)
-    e.integrator = KiteModels.reset_sim!(e.s, e.integrator; stiffness_factor=0.04)
+    @time e.logger = Logger(e.s.num_A, e.max_render_length)
+    @time e.integrator = KiteModels.reset_sim!(e.s, e.integrator; stiffness_factor=0.04)
     e.sys_state = SysState(e.s)
     e.i = 1
     return _calc_state(e.s)
 end
 
 function render()
-    global sys_state, logger, i
-    if(i <= max_render_length)
-        log!(logger, sys_state)
+    if(e.i <= e.max_render_length)
+        log!(e.logger, e.sys_state)
     end
 end
 
@@ -91,7 +74,8 @@ function _calc_state(s::KPS4_3L)
     e.state .= vcat(
         _calc_reward(s),                # length 1
         calc_orient_quat(s),            # length 4
-        s.l_tethers,                    # length 3 # normalize to min and max l_tethers
+        s.tether_lengths,                    # length 3 # normalize to min and max 
+        
         KiteModels.calc_tether_elevation(s),       # length 1
         KiteModels.calc_tether_azimuth(s),         # length 1
         sum(winch_force(s)),            # length 1
@@ -114,8 +98,8 @@ end
 function _calc_reward(s::KPS4_3L)
     if (KiteModels.calc_tether_elevation(s) < e.wanted_elevation ||
         !(-2*π < e.rotation < 2*π) ||
-        s.l_tethers[1] > e.wanted_tether_length*1.5 ||
-        s.l_tethers[1] < e.wanted_tether_length*0.95 ||
+        s.tether_lengths[1] > e.wanted_tether_length*1.5 ||
+        s.tether_lengths[1] < e.wanted_tether_length*0.95 ||
         sum(winch_force(s)) > e.max_force)
         return 0.0
     end
@@ -141,11 +125,5 @@ function _calc_rotation(old_heading, new_heading)
     e.rotation += d_rotation
     return nothing
 end
-
-
-function close()
-    save_history(steady_state_history)
-end
-
 
 end

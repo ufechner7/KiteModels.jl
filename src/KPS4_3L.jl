@@ -107,7 +107,7 @@ $(TYPEDFIELDS)
     "spring force of the current tether segment, output of calc_particle_forces!"
     spring_force::T =     zeros(S, 3)
     "last winch force"
-    last_forces::SVector{3,T} = [zeros(S, 3) for _ in 1:3]
+    winch_forces::SVector{3,T} = [zeros(S, 3) for _ in 1:3]
     "a copy of the residual one (pos,vel) for debugging and unit tests"    
     res1::SVector{P, T} = zeros(SVector{P, T})
     "a copy of the residual two (vel,acc) for debugging and unit tests"
@@ -136,7 +136,7 @@ $(TYPEDFIELDS)
     # "reel out speed at the last time step"
     # last_reel_out_speeds::T =   zeros(S, 3)
     "unstretched tether length"
-    l_tethers::T =          zeros(S, 3)
+    tether_lengths::T =          zeros(S, 3)
     "lengths of the connections of the steering tethers to the kite"
     l_connections::MVector{2, S} =      zeros(S, 2)
     "air density at the height of the kite"
@@ -155,10 +155,8 @@ $(TYPEDFIELDS)
     springs::MVector{Q, SP}       = zeros(SP, Q)
     "vector of the forces, acting on the particles"
     forces::SVector{P, T} = zeros(SVector{P, T})
-    "synchronous speed of the motor/ generator"
-    set_speeds::KVec3  = zeros(KVec3)
-    "set_torque of the motor/generator"
-    set_torques::KVec3 = zeros(KVec3)
+    "synchronous speed or torque of the motor/ generator"
+    set_values::KVec3  = zeros(KVec3)
     torque_control::Bool = false
     "x vector of kite reference frame"
     e_x::T =                 zeros(S, 3)
@@ -178,9 +176,14 @@ $(TYPEDFIELDS)
     "mtk variables"
     mtk::Bool = false
 
-    set_speeds_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
+    set_values_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
     v_wind_gnd_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
     prob::Union{OrdinaryDiffEq.ODEProblem, Nothing} = nothing
+    get_pos::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
+    get_kite_vel::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
+    get_winch_forces::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
+    get_tether_lengths::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
+    get_tether_speeds::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
 
     half_drag_force::SVector{P, T} = zeros(SVector{P, T})
 
@@ -230,11 +233,11 @@ function clear!(s::KPS4_3L)
     height = sin(deg2rad(s.set.elevation)) * (s.set.l_tether)
     s.v_wind .= s.v_wind_gnd * calc_wind_factor(s.am, height)
 
-    s.l_tethers .= [s.set.l_tether for _ in 1:3]
+    s.tether_lengths .= [s.set.l_tether for _ in 1:3]
     s.α_l = π/2 - s.set.min_steering_line_distance/(2*s.set.radius)
     s.α_r = π/2 + s.set.min_steering_line_distance/(2*s.set.radius)
 
-    s.segment_lengths .= s.l_tethers ./ s.set.segments
+    s.segment_lengths .= s.tether_lengths ./ s.set.segments
     s.num_E = s.set.segments*3+3
     s.num_C = s.set.segments*3+3+1
     s.num_D = s.set.segments*3+3+2
@@ -409,7 +412,7 @@ The result is stored in the array s.forces.
     
     @inbounds s.forces[spring.p1] .+= half_drag_force + s.spring_force
     @inbounds s.forces[spring.p2] .+= half_drag_force - s.spring_force
-    if i <= 3 @inbounds s.last_forces[(i-1)%3+1] .= s.forces[spring.p1] end
+    if i <= 3 @inbounds s.winch_forces[(i-1)%3+1] .= s.forces[spring.p1] end
     nothing
 end
 
@@ -443,7 +446,7 @@ Calculate the vectors s.res1 and calculate s.res2 using loops
 that iterate over all tether segments. 
 """
 function loop!(s::KPS4_3L, pos, vel, posd, veld)
-    L_0      = s.l_tethers / s.set.segments
+    L_0      = s.tether_lengths / s.set.segments
     
     mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
 
@@ -565,7 +568,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
     @assert isfinite(s.pos[4][3])
 
     # core calculations
-    s.l_tethers .= lengths
+    s.tether_lengths .= lengths
     s.l_connections .= connection_lengths
     s.segment_lengths .= lengths ./ s.set.segments
     calc_aero_forces!(s, s.pos, s.vel)
@@ -574,11 +577,11 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
     # winch calculations
     res[end-5:end-3] .= lengthsd .- reel_out_speeds
     for i in 1:3
-        # @time res[end-3+i] = 1.0 - calc_acceleration(s.motors[i], 1.0, norm(s.forces[(i-1)%3+1]); set_speed=1.0, set_torque=s.set_torques[i], use_brake=true)
+        # @time res[end-3+i] = 1.0 - calc_acceleration(s.motors[i], 1.0, norm(s.forces[(i-1)%3+1]); set_speed=1.0, set_torque=s.set_values[i], use_brake=true)
         if !s.torque_control
-            res[end-3+i] = reel_out_speedsd[i] - calc_acceleration(s.motors[i], reel_out_speeds[i], norm(s.forces[(i-1)%3+1]); set_speed=s.set_speeds[i], set_torque=nothing, use_brake=true)
+            res[end-3+i] = reel_out_speedsd[i] - calc_acceleration(s.motors[i], reel_out_speeds[i], norm(s.forces[(i-1)%3+1]); set_speed=s.set_values[i], set_torque=nothing, use_brake=true)
         else
-            res[end-3+i] = reel_out_speedsd[i] - calc_acceleration(s.motors[i], reel_out_speeds[i], norm(s.forces[(i-1)%3+1]); set_speed=nothing, set_torque=s.set_torques[i], use_brake=true)
+            res[end-3+i] = reel_out_speedsd[i] - calc_acceleration(s.motors[i], reel_out_speeds[i], norm(s.forces[(i-1)%3+1]); set_speed=nothing, set_torque=s.set_values[i], use_brake=true)
         end
     end
 
@@ -645,7 +648,7 @@ end
 
 Return the absolute value of the force at the winch as calculated during the last timestep. 
 """
-function winch_force(s::KPS4_3L) norm.(s.last_forces) end
+function winch_force(s::KPS4_3L) norm.(s.winch_forces) end
 
 # ==================== end of getter functions ================================================
 

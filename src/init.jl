@@ -194,8 +194,8 @@ function init_pos_vel_acc(s::KPS4_3L, X=zeros(5*s.set.segments+3); delta = 0.0)
     e_z = normalize(vec_c)
     distance_c_l = 0.0 # distance between c and left steering line
     # distance_c_l = s.set.tip_length/2 # distance between c and left steering line
-    s.l_tethers[1] = norm(pos[s.num_C] + e_z .* (X[s.set.segments*2+6] + distance_c_l)) # find the right steering tether length
-    s.l_tethers[2] = s.l_tethers[1]
+    s.tether_lengths[1] = norm(pos[s.num_C] + e_z .* (X[s.set.segments*2+6] + distance_c_l)) # find the right steering tether length
+    s.tether_lengths[2] = s.tether_lengths[1]
     pos[s.num_E-2] .= pos[s.num_C] + e_z .* (distance_c_l)
     pos[s.num_E-1] .= pos[s.num_E-2] .* [1.0, -1.0, 1.0]
 
@@ -278,7 +278,7 @@ end
 # implemented
 function init(s::KPS4_3L, X=zeros(5*s.set.segments+3); delta=0.0)
     y_, yd_ = init_inner(s, X; delta = delta)
-    y = vcat(reduce(vcat, y_), reduce(vcat,[s.l_tethers, zeros(3)]))
+    y = vcat(reduce(vcat, y_), reduce(vcat,[s.tether_lengths, zeros(3)]))
     yd = vcat(reduce(vcat, yd_), zeros(6))
     MVector{6*(s.num_A-5)+4+6, SimFloat}(y), MVector{6*(s.num_A-5)+4+6, SimFloat}(yd)
 end

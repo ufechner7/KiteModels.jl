@@ -183,7 +183,7 @@ function unstretched_length(s::AKM) s.l_tether end
 
 Getter for the unstretched tether reel-out lenght (at zero force).
 """
-function unstretched_length(s::KPS4_3L) s.l_tethers[1] end
+function unstretched_length(s::KPS4_3L) s.tether_lengths[1] end
 
 """
     lift_drag(s::AKM)
@@ -390,7 +390,7 @@ function update_sys_state!(ss::SysState, s::KPS4_3L, zoom=1.0)
     ss.heading = calc_heading(s)
     ss.course = calc_course(s)
     ss.v_app = norm(s.v_apparent)
-    ss.l_tether = s.l_tethers[1]
+    ss.l_tether = s.tether_lengths[1]
     ss.v_reelout = s.reel_out_speeds[1]
     ss.depower = 100 - ((s.δ_left + s.δ_right)/2) / ((s.set.middle_length + s.set.tip_length)/2) * 100
     ss.steering = (s.δ_right - s.δ_left) / ((s.set.middle_length + s.set.tip_length)/2) * 100
@@ -466,9 +466,9 @@ function SysState(s::KPS4_3L, zoom=1.0)
     t_sim = 0
     depower = 100 - ((s.δ_left + s.δ_right)/2) / ((s.set.middle_length + s.set.tip_length)/2) * 100
     steering = (s.δ_right - s.δ_left) / ((s.set.middle_length + s.set.tip_length)/2) * 100
-    KiteUtils.SysState{P}(s.t_0, t_sim, 0, 0, orient, elevation, azimuth, s.l_tethers[1], s.reel_out_speeds[1], forces[1], depower, steering, 
+    KiteUtils.SysState{P}(s.t_0, t_sim, 0, 0, orient, elevation, azimuth, s.tether_lengths[1], s.reel_out_speeds[1], forces[1], depower, steering, 
                           heading, course, v_app_norm, s.vel_kite, X, Y, Z, 
-                          s.l_tethers[2], s.l_tethers[3], s.reel_out_speeds[2], s.reel_out_speeds[3], 
+                          s.tether_lengths[2], s.tether_lengths[3], s.reel_out_speeds[2], s.reel_out_speeds[3], 
                           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 end
 
@@ -554,7 +554,7 @@ Parameters:
 Returns:
 An instance of a DAE integrator.
 """
-function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_state_history=nothing, mtk=false)
+function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_state_history=nothing, mtk=false, torque_control=false)
     clear!(s)
     s.stiffness_factor = stiffness_factor
     s.mtk = mtk
@@ -612,13 +612,19 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
     abstol  = s.set.abs_tol # max error in m/s and m
 
     if mtk
-        simple_sys, _ = model!(s, y0)
+        simple_sys, _ = model!(s, y0; torque_control=torque_control)
         s.prob = ODEProblem(simple_sys, nothing, tspan)
-        integrator = OrdinaryDiffEq.init(deepcopy(s.prob), solver; dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, saveat=dt)
-        s.set_speeds_idx = parameter_index(integrator.f, :set_speeds)
+        integrator = OrdinaryDiffEq.init(deepcopy(s.prob), solver; dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
+        s.set_values_idx = parameter_index(integrator.f, :set_values)
         s.v_wind_gnd_idx = parameter_index(integrator.f, :v_wind_gnd)
+        println("getting getters...")
+        s.get_pos = getu(integrator.sol, simple_sys.pos[:,:])
+        s.get_kite_vel = getu(integrator.sol, simple_sys.vel[:,s.num_A])
+        s.get_winch_forces = getu(integrator.sol, simple_sys.force[:,1:3])
+        s.get_tether_lengths = getu(integrator.sol, simple_sys.tether_length)
+        s.get_tether_speeds = getu(integrator.sol, simple_sys.tether_speed)
         update_pos!(s, integrator)
-        return integrator, simple_sys
+        return integrator
     else
         differential_vars = ones(Bool, length(y0))
         prob    = DAEProblem{true}(residual!, yd0, y0, tspan, s; differential_vars)
@@ -632,7 +638,7 @@ function reset_sim!(s::KPS4_3L, integrator; stiffness_factor=0.035)
         clear!(s)
         s.stiffness_factor = stiffness_factor  
         dt = 1/s.set.sample_freq
-        integrator = OrdinaryDiffEq.init(deepcopy(s.prob), TRBDF2(autodiff=false); dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, saveat=dt)
+        integrator = OrdinaryDiffEq.init(deepcopy(s.prob), TRBDF2(autodiff=false); dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
         update_pos!(s, integrator)
         return integrator
     end
@@ -667,10 +673,7 @@ function next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing,
     s.t_0 = integrator.t
     set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
     s.iter = 0
-    if mtk
-        # integrator = OrdinaryDiffEq.init(s.prob, TRBDF2(autodiff=false); dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol)
-        OrdinaryDiffEq.step!(integrator, dt, true)
-    elseif s.set.solver == "IDA"
+    if s.set.solver == "IDA"
         Sundials.step!(integrator, dt, true)
     else
         OrdinaryDiffEq.step!(integrator, dt, true)
@@ -687,24 +690,19 @@ end
 function next_step!(s::KPS4_3L, integrator; set_values=zeros(KVec3), torque_control=false, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
     s.torque_control = torque_control
     set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
+    s.set_values .= set_values
     if s.mtk
-        integrator.ps[s.set_speeds_idx] .= set_values
+        integrator.ps[s.set_values_idx] .= set_values
         integrator.ps[s.v_wind_gnd_idx] .= s.v_wind_gnd
-    elseif !torque_control
-        s.set_speeds .= set_values
-        s.set_torques .= 0.0
-    else
-        s.set_speeds .= 0.0
-        s.set_torques .= set_values
     end
     s.t_0 = integrator.t
-    if s.set.solver == "IDA" && !s.mtk
+    if s.mtk
+        OrdinaryDiffEq.step!(integrator, dt, true)
+        update_pos!(s, integrator)
+    elseif s.set.solver == "IDA"
         Sundials.step!(integrator, dt, true)
     else
         OrdinaryDiffEq.step!(integrator, dt, true)
-        if s.mtk
-            update_pos!(s, integrator)
-        end
     end
     if s.stiffness_factor < 1.0
         s.stiffness_factor+=0.01

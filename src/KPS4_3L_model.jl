@@ -1,8 +1,13 @@
 
-function calc_acc(reel_out_speed::SimFloat, norm_::SimFloat, set_speed::SimFloat)
-    return calc_acceleration(AsyncMachine(se()), reel_out_speed, norm_; set_speed=set_speed, set_torque=nothing, use_brake=true)
+function calc_acc_speed(tether_speed::SimFloat, norm_::SimFloat, set_speed::SimFloat)
+    return calc_acceleration(TorqueControlledMachine(se()), tether_speed, norm_; set_speed=set_speed, set_torque=nothing, use_brake=true)
 end
-@register_symbolic calc_acc(reel_out_speed, norm_, set_speed)
+@register_symbolic calc_acc_speed(tether_speed, norm_, set_speed)
+
+function calc_acc_torque(tether_speed::SimFloat, norm_::SimFloat, set_torque::SimFloat)
+    return calc_acceleration(TorqueControlledMachine(se()), tether_speed, norm_; set_speed=nothing, set_torque=set_torque, use_brake=true)
+end
+@register_symbolic calc_acc_torque(tether_speed, norm_, set_torque)
 
 """
     calc_aero_forces!(s::KPS4_3L, pos, vel)
@@ -300,36 +305,47 @@ Output:length
 end
 
 function update_pos!(s, integrator)
-    pos1 = reshape(SVector{3*(s.num_E-3), Float64}(integrator.u[1:(s.num_E-3)*3]), Size(3, s.num_E-3))
-    pos2 = SVector{2, Float64}(integrator.u[3*(s.num_E-3)+1:3*(s.num_E-3)+2])
-    pos3 = reshape(SVector{3*(s.num_A-s.num_E+1), Float64}(integrator.u[3*(s.num_E-2):3*(s.num_E-2 + s.num_A-s.num_E)+2]), Size(3, s.num_A-s.num_E+1))
-    s.vel_kite .= SVector{3, SimFloat}(integrator.u[end-8:end-6])
-    s.l_tethers .= SVector{3, SimFloat}(integrator.u[end-5:end-3])
-    s.reel_out_speeds .= SVector{3, SimFloat}(integrator.u[end-2:end])
+    pos = s.get_pos(integrator)
+    kite_vel = s.get_kite_vel(integrator)
+    winch_forces = s.get_winch_forces(integrator)
+    tether_lengths = s.get_tether_lengths(integrator)
+    tether_speeds = s.get_tether_speeds(integrator)
+    [s.pos[i] .= pos[:,i] for i in 1:s.num_A]
+    s.vel_kite .= kite_vel
+    [s.winch_forces[i] .= (winch_forces[:,i]) for i in 1:3]
+    s.tether_lengths .= tether_lengths
+    s.reel_out_speeds .= tether_speeds
+
+    # pos1 = reshape(SVector{3*(s.num_E-3), Float64}(integrator.u[1:(s.num_E-3)*3]), Size(3, s.num_E-3))
+    # pos2 = SVector{2, Float64}(integrator.u[3*(s.num_E-3)+1:3*(s.num_E-3)+2])
+    # pos3 = reshape(SVector{3*(s.num_A-s.num_E+1), Float64}(integrator.u[3*(s.num_E-2):3*(s.num_E-2 + s.num_A-s.num_E)+2]), Size(3, s.num_A-s.num_E+1))
+    # s.vel_kite .= SVector{3, SimFloat}(integrator.u[end-8:end-6])
+    # s.tether_lengths .= SVector{3, SimFloat}(integrator.u[end-5:end-3])
+    # s.reel_out_speeds .= SVector{3, SimFloat}(integrator.u[end-2:end])
     
-    for i in 1:s.num_E-3
-        s.pos[i] .= pos1[:,i]
-    end
-    for (j,i) in enumerate(s.num_E:s.num_A)
-        s.pos[i] .= pos3[:,j]
-    end
-    calc_kite_ref_frame!(s, s.pos[s.num_E], s.pos[s.num_C], s.pos[s.num_D])
-    s.l_connections .= pos2[:]
-    s.pos[s.num_E-2] .= s.pos[s.num_C] .+ s.e_z .* pos2[1]
-    s.pos[s.num_E-1] .= s.pos[s.num_D] .+ s.e_z .* pos2[2]
+    # for i in 1:s.num_E-3
+    #     s.pos[i] .= pos1[:,i]
+    # end
+    # for (j,i) in enumerate(s.num_E:s.num_A)
+    #     s.pos[i] .= pos3[:,j]
+    # end
+    # calc_kite_ref_frame!(s, s.pos[s.num_E], s.pos[s.num_C], s.pos[s.num_D])
+    # s.l_connections .= pos2[:]
+    # s.pos[s.num_E-2] .= s.pos[s.num_C] .+ s.e_z .* pos2[1]
+    # s.pos[s.num_E-1] .= s.pos[s.num_D] .+ s.e_z .* pos2[2]
     
-    # calculate winch forces
-    for i in 1:3
-        calc_particle_forces!(s, s.pos[i], s.pos[i+3], [0,0,0], [0,0,0], s.springs[i], s.set.d_tether/1000, s.rho, i)
-    end
+    # # calculate winch forces
+    # for i in 1:3
+    #     calc_particle_forces!(s, s.pos[i], s.pos[i+3], [0,0,0], [0,0,0], s.springs[i], s.set.d_tether/1000, s.rho, i)
+    # end
     nothing
 end
 
-function model!(s::KPS4_3L, pos_)
+function model!(s::KPS4_3L, pos_; torque_control=false)
     pos2_ = zeros(3, s.num_A)
     [pos2_[:,i] .= pos_[i] for i in 1:s.num_A]
     @parameters begin
-        set_speeds[1:3] = s.set_speeds
+        set_values[1:3] = s.set_values
         v_wind_gnd[1:3] = s.v_wind_gnd
     end
     @independent_variables t
@@ -337,15 +353,15 @@ function model!(s::KPS4_3L, pos_)
         pos(t)[1:3, 1:s.num_A] = pos2_ # left right middle
         vel(t)[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
         acc(t)[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
-        lengths(t)[1:3] = s.l_tethers
+        tether_length(t)[1:3] = s.tether_lengths
         steering_pos(t)[1:2] = s.l_connections
         steering_vel(t)[1:2] = zeros(2)
         steering_acc(t)[1:2] = zeros(2)
-        reel_out_speed(t)[1:3] = zeros(3) # left right middle
-        segment_lengths(t)[1:3] = zeros(3) # left right middle
+        tether_speed(t)[1:3] = zeros(3) # left right middle
+        segment_length(t)[1:3] = zeros(3) # left right middle
         mass_tether_particle(t)[1:3] # left right middle
-        damping(t)[1:3] = s.set.damping ./ s.l_tethers ./ s.set.segments # left right middle
-        c_spring(t)[1:3] = s.set.c_spring ./ s.l_tethers ./ s.set.segments # left right middle
+        damping(t)[1:3] = s.set.damping ./ s.tether_lengths ./ s.set.segments # left right middle
+        c_spring(t)[1:3] = s.set.c_spring ./ s.tether_lengths ./ s.set.segments # left right middle
         P_c(t)[1:3] = 0.5 .* (s.pos[s.num_C]+s.pos[s.num_D])
         e_x(t)[1:3]
         e_y(t)[1:3]
@@ -357,12 +373,12 @@ function model!(s::KPS4_3L, pos_)
     vel = collect(vel)
     acc = collect(acc)
     v_wind_gnd = collect(v_wind_gnd)
-    lengths = collect(lengths)
+    tether_length = collect(tether_length)
     steering_pos = collect(steering_pos)
     steering_vel = collect(steering_vel)
     steering_acc = collect(steering_acc)
-    reel_out_speed = collect(reel_out_speed)
-    segment_lengths = collect(segment_lengths)
+    tether_speed = collect(tether_speed)
+    segment_length = collect(segment_length)
     mass_tether_particle = collect(mass_tether_particle)
     damping = collect(damping)
     c_spring = collect(c_spring)
@@ -387,11 +403,12 @@ function model!(s::KPS4_3L, pos_)
     eqs1 = [eqs1; D.(steering_vel) .~ steering_acc]
     [eqs1 = vcat(eqs1, D.(vel[:,i]) .~ acc[:,i]) for i in s.num_E:s.num_A]
 
-    eqs1 = [
-        eqs1
-        D.(lengths) .~ reel_out_speed
-        D.(reel_out_speed) .~ [calc_acc(reel_out_speed[i], norm(force[:,(i-1)%3+1]), set_speeds[i]) for i in 1:3] # middle left right
-    ]
+    eqs1 = vcat(eqs1, D.(tether_length) .~ tether_speed)
+    if torque_control
+        eqs1 = vcat(eqs1, D.(tether_speed) .~ [calc_acc_torque(tether_speed[i], norm(force[:,(i-1)%3+1]), set_values[i]) for i in 1:3])
+    else
+        eqs1 = vcat(eqs1, D.(tether_speed) .~ [calc_acc_speed(tether_speed[i], norm(force[:,(i-1)%3+1]), set_values[i]) for i in 1:3])
+    end
 
     # Compute the masses and forces
     eqs2 = []
@@ -406,10 +423,10 @@ function model!(s::KPS4_3L, pos_)
         vel[:,s.num_E-1] .~ vel[:,s.num_D] .+ e_z .* steering_vel[2]
         acc[:,s.num_E-2] .~ acc[:,s.num_C] .+ e_z .* steering_acc[1]
         acc[:,s.num_E-1] .~ acc[:,s.num_D] .+ e_z .* steering_acc[2]
-        segment_lengths .~ lengths ./ s.set.segments
-        mass_tether_particle .~ mass_per_meter .* segment_lengths
-        damping .~ s.set.damping ./ segment_lengths
-        c_spring .~ s.set.c_spring ./ segment_lengths
+        segment_length .~ tether_length ./ s.set.segments
+        mass_tether_particle .~ mass_per_meter .* segment_length
+        damping .~ s.set.damping ./ segment_length
+        c_spring .~ s.set.c_spring ./ segment_length
         P_c ~ 0.5 .* (pos[:,s.num_C]+pos[:,s.num_D])
         e_y .~ (pos[:,s.num_C] .- pos[:,s.num_D]) ./ norm(pos[:,s.num_C] .- pos[:,s.num_D])
         e_z .~ (pos[:,s.num_E] .- P_c) ./ norm(pos[:,s.num_E] .- P_c)
@@ -417,7 +434,7 @@ function model!(s::KPS4_3L, pos_)
     ]
 
     eqs2, force_eqs = calc_aero_forces_model!(s, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z)
-    eqs2, force_eqs = inner_loop_model!(s, eqs2, force_eqs, t, force, pos, vel, segment_lengths, c_spring, damping, v_wind_gnd)
+    eqs2, force_eqs = inner_loop_model!(s, eqs2, force_eqs, t, force, pos, vel, segment_length, c_spring, damping, v_wind_gnd)
     
     for i in 1:3
         eqs2 = vcat(eqs2, vcat(force_eqs[:,i]))

@@ -14,7 +14,7 @@ steering = [0,0,-0.5]
 println("Running models")
 s2 = KPS4_3L(KCU(se()))
 s1 = KPS4_3L(KCU(se()))
-integrator2, simple_sys = KiteModels.init_sim!(s2; stiffness_factor=0.1, prn=true, mtk=true)
+integrator2 = KiteModels.init_sim!(s2; stiffness_factor=0.1, prn=true, mtk=true, torque_control=true)
 integrator1 = KiteModels.init_sim!(s1; stiffness_factor=0.1, prn=true, mtk=false)
 println("compiling")
 total_old_time = 0.0
@@ -39,7 +39,6 @@ for i in 1:steps
     if i==20
         global steering = [0,0,0]
     end
-    println(s2.vel_kite)
     global total_new_time += @elapsed next_step!(s2, integrator2; set_values=steering)
     global total_old_time += @elapsed next_step!(s1, integrator1; set_values=steering)
     plot2d(s2.pos, i-1; zoom=false, front=false, segments=se().segments)
@@ -49,7 +48,10 @@ for i in 1:steps
     #     println("i ", i, ", ", u)
     # end
     # println(s2.vel_kite)
-    println(s1.vel_kite)
+    # println(s2.vel_kite)
+    if i%5 == 1
+        # println(summarysize(integrator2))
+    end
     # println(integrator2.sol[simple_sys.lengths[:]][end])
     # println(integrator2.sol[simple_sys.reel_out_speed[:]][end])
 end
