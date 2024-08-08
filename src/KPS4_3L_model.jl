@@ -161,12 +161,13 @@ function calc_aero_forces_model!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t
         d_c_eq
         l_d_eq
         d_d_eq
-        F_steering_c ~ ((0.1 * (L_C ⋅ -e_z)) .* -e_z)
-        F_steering_d ~ ((0.1 * (L_D ⋅ -e_z)) .* -e_z)
+        F_steering_c ~ ((0.2 * (L_C ⋅ -e_z)) .* -e_z)
+        F_steering_d ~ ((0.2 * (L_D ⋅ -e_z)) .* -e_z)
     ]
     
-    force_eqs[:,s.num_C] .= (force[:,s.num_C] .~ (L_C .+ D_C) .- F_steering_c) 
-    force_eqs[:,s.num_D] .= (force[:,s.num_D] .~ (L_D .+ D_D) .- F_steering_d)
+    force_eqs[:,s.num_C] .= (force[:,s.num_C] .~ (L_C .+ D_C)) 
+    force_eqs[:,s.num_D] .= (force[:,s.num_D] .~ (L_D .+ D_D))
+    force_eqs[:,s.num_A] .= (force[:,s.num_A] .~ 0.0 .- F_steering_c .- F_steering_d)
     force_eqs[:,s.num_E-2] .= (force[:,s.num_E-2] .~ F_steering_c)
     force_eqs[:,s.num_E-1] .= (force[:,s.num_E-1] .~ F_steering_d)
     return eqs2, force_eqs
@@ -426,10 +427,10 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
     for i in s.num_E-2:s.num_E-1
         [force_eqs[j,i] = force[j,i] ~ force_eqs[j,i].rhs + [0.0; 0.0; -9.81][j] + 500.0 * ((vel[:,i]-vel[:,s.num_C]) ⋅ e_z) * e_z[j] for j in 1:3] # TODO: more damping
         tether_rhs = [force_eqs[j,i].rhs for j in 1:3]
-        kite_rhs = [force_eqs[j,i+3].rhs for j in 1:3]
+        kite_rhs = [force_eqs[j,s.num_A].rhs for j in 1:3]
         f_xy = dot(tether_rhs, e_z) .* e_z
         force_eqs[:,i] .= force[:,i] .~ tether_rhs .- f_xy
-        force_eqs[:,i+3] .= force[:,i+3] .~ kite_rhs .+ f_xy
+        force_eqs[:,i+3] .= force[:,s.num_A] .~ kite_rhs .+ f_xy
         eqs2 = vcat(eqs2, vcat(force_eqs[:,i]))
         eqs2 = vcat(eqs2, steering_acc[i-s.num_E+3] ~ (force[:,i] ./ mass_tether_particle[(i-1)%3+1]) ⋅ e_z - (acc[:,i+3] ⋅ e_z))
     end
