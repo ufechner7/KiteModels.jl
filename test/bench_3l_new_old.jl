@@ -28,16 +28,16 @@ total_old_time = 0.0
 total_new_time = 0.0
 for i in 1:steps
     if i==1
-        global steering = [0,0,0.3] # left right middle
+        global steering = [0,0,-1] # left right middle
     end
     if i==5
-        global steering = [0,0,-0.3]
+        global steering = [0,0,-1]
     end
     if i==15
-        global steering = [0,0.3,0.0]
+        global steering = [0,1.0,0.0]
     end
     if i==20
-        global steering = [0,0,0]
+        global steering = [1.0,0,0]
     end
     global total_new_time += @elapsed next_step!(s2, integrator2; set_values=steering)
     global total_old_time += @elapsed next_step!(s1, integrator1; set_values=steering)
@@ -47,7 +47,8 @@ for i in 1:steps
     # for (i,u) in enumerate(integrator2.u)
     #     println("i ", i, ", ", u)
     # end
-    # println(s2.vel_kite)
+    println(s2.pos[s2.num_A])
+    println(integrator2.last_stepfail)
     # println(s2.vel_kite)
     if i%5 == 1
         # println(summarysize(integrator2))

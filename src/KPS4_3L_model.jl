@@ -306,38 +306,17 @@ end
 
 function update_pos!(s, integrator)
     pos = s.get_pos(integrator)
-    kite_vel = s.get_kite_vel(integrator)
-    winch_forces = s.get_winch_forces(integrator)
-    tether_lengths = s.get_tether_lengths(integrator)
-    tether_speeds = s.get_tether_speeds(integrator)
+    s.steering_pos .= s.get_steering_pos(integrator)
     [s.pos[i] .= pos[:,i] for i in 1:s.num_A]
-    s.vel_kite .= kite_vel
+    s.veld[s.num_E-2] .= s.get_line_acc(integrator)
+    s.vel_kite .= s.get_kite_vel(integrator)
+    winch_forces = s.get_winch_forces(integrator)
     [s.winch_forces[i] .= (winch_forces[:,i]) for i in 1:3]
-    s.tether_lengths .= tether_lengths
-    s.reel_out_speeds .= tether_speeds
+    s.tether_lengths .= s.get_tether_lengths(integrator)
+    s.reel_out_speeds .= s.get_tether_speeds(integrator)
     calc_kite_ref_frame!(s, s.pos[s.num_E], s.pos[s.num_C], s.pos[s.num_D])
-    # pos1 = reshape(SVector{3*(s.num_E-3), Float64}(integrator.u[1:(s.num_E-3)*3]), Size(3, s.num_E-3))
-    # pos2 = SVector{2, Float64}(integrator.u[3*(s.num_E-3)+1:3*(s.num_E-3)+2])
-    # pos3 = reshape(SVector{3*(s.num_A-s.num_E+1), Float64}(integrator.u[3*(s.num_E-2):3*(s.num_E-2 + s.num_A-s.num_E)+2]), Size(3, s.num_A-s.num_E+1))
-    # s.vel_kite .= SVector{3, SimFloat}(integrator.u[end-8:end-6])
-    # s.tether_lengths .= SVector{3, SimFloat}(integrator.u[end-5:end-3])
-    # s.reel_out_speeds .= SVector{3, SimFloat}(integrator.u[end-2:end])
-    
-    # for i in 1:s.num_E-3
-    #     s.pos[i] .= pos1[:,i]
-    # end
-    # for (j,i) in enumerate(s.num_E:s.num_A)
-    #     s.pos[i] .= pos3[:,j]
-    # end
-    # calc_kite_ref_frame!(s, s.pos[s.num_E], s.pos[s.num_C], s.pos[s.num_D])
-    # s.l_connections .= pos2[:]
-    # s.pos[s.num_E-2] .= s.pos[s.num_C] .+ s.e_z .* pos2[1]
-    # s.pos[s.num_E-1] .= s.pos[s.num_D] .+ s.e_z .* pos2[2]
-    
-    # # calculate winch forces
-    # for i in 1:3
-    #     calc_particle_forces!(s, s.pos[i], s.pos[i+3], [0,0,0], [0,0,0], s.springs[i], s.set.d_tether/1000, s.rho, i)
-    # end
+
+    @assert all(abs.(s.steering_pos) .<= s.set.tip_length)
     nothing
 end
 
@@ -354,7 +333,7 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
         vel(t)[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
         acc(t)[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
         tether_length(t)[1:3] = s.tether_lengths
-        steering_pos(t)[1:2] = s.l_connections
+        steering_pos(t)[1:2] = s.steering_pos
         steering_vel(t)[1:2] = zeros(2)
         steering_acc(t)[1:2] = zeros(2)
         tether_speed(t)[1:3] = zeros(3) # left right middle

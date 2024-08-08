@@ -120,7 +120,7 @@ $(TYPEDFIELDS)
     veld::SVector{P, T} = zeros(SVector{P, T})
     "velocity vector of the kite"
     vel_kite::T =          zeros(S, 3)
-    vel_connection::T =          zeros(S, 3)
+    steering_vel::T =          zeros(S, 3)
     "unstressed segment lengths of the three tethers [m]"
     segment_lengths::T =           zeros(S, 3)
     "lift coefficient of the kite, depending on the angle of attack"
@@ -138,7 +138,7 @@ $(TYPEDFIELDS)
     "unstretched tether length"
     tether_lengths::T =          zeros(S, 3)
     "lengths of the connections of the steering tethers to the kite"
-    l_connections::MVector{2, S} =      zeros(S, 2)
+    steering_pos::MVector{2, S} =      zeros(S, 2)
     "air density at the height of the kite"
     rho::S =               0.0
     # "actual relative depower setting,  must be between    0 .. 1.0"
@@ -180,6 +180,8 @@ $(TYPEDFIELDS)
     v_wind_gnd_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
     prob::Union{OrdinaryDiffEq.ODEProblem, Nothing} = nothing
     get_pos::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
+    get_steering_pos::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
+    get_line_acc::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_kite_vel::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_winch_forces::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_tether_lengths::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
@@ -569,7 +571,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
 
     # core calculations
     s.tether_lengths .= lengths
-    s.l_connections .= connection_lengths
+    s.steering_pos .= connection_lengths
     s.segment_lengths .= lengths ./ s.set.segments
     calc_aero_forces!(s, s.pos, s.vel)
     loop!(s, s.pos, s.vel, s.posd, s.veld)
@@ -605,7 +607,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4_3L, time) where S
     res[6*num_particles+4] = (s.res2[s.num_E-1]) ⋅ s.e_z - (s.res2[s.num_D] ⋅ s.e_z)
 
     s.vel_kite .= s.vel[s.num_A]
-    s.vel_connection .= ((s.vel[s.num_E-2]-s.vel[s.num_C]) ⋅ s.e_z)
+    s.steering_vel .= ((s.vel[s.num_E-2]-s.vel[s.num_C]) ⋅ s.e_z)
     s.reel_out_speeds .= reel_out_speeds
 
     @assert isfinite(norm(res))

@@ -620,6 +620,8 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
         s.set_values_idx = parameter_index(integrator.f, :set_values)
         s.v_wind_gnd_idx = parameter_index(integrator.f, :v_wind_gnd)
         s.get_pos = getu(integrator.sol, simple_sys.pos[:,:])
+        s.get_steering_pos = getu(integrator.sol, simple_sys.steering_pos)
+        s.get_line_acc = getu(integrator.sol, simple_sys.acc[:,s.num_E-2])
         s.get_kite_vel = getu(integrator.sol, simple_sys.vel[:,s.num_A])
         s.get_winch_forces = getu(integrator.sol, simple_sys.force[:,1:3])
         s.get_tether_lengths = getu(integrator.sol, simple_sys.tether_length)
