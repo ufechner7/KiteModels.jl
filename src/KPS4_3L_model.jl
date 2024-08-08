@@ -199,7 +199,7 @@ The result is stored in the array s.forces.
         spring_vel .~ rel_vel ⋅ unit_vector
     ]
 
-    if i >= s.num_E  # kite springs
+    if i >= s.num_E-2  # kite springs
         for j in 1:3
             eqs2 = [
                 eqs2
