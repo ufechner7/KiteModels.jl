@@ -142,7 +142,7 @@ function calc_aero_forces_model!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t
             α > s.α_r ?
                 d[i] ~ δ_right :
                 d[i] ~ (δ_right - δ_left) / (s.α_r - s.α_l) * (α - s.α_l) + (δ_left)
-            aoa[i] ~ π - acos2((v_a_xr[:,i]./norm(v_a_xr[:,i])) ⋅ e_x) + asin(clamp(d[i]/kite_length[i], -1.0, 1.0))
+            aoa[i] ~ -asin((v_a_xr[:,i]./norm(v_a_xr[:,i])) ⋅ e_r[:,i]) + asin(clamp(d[i]/kite_length[i], -1.0, 1.0))
             dL_dα[:,i] .~ 0.5*s.rho*(norm(v_a_xr[:,i]))^2*s.set.radius*kite_length[i]*rad_cl_model(aoa[i]) .* ((v_a_xr[:,i] × e_drift[:,i]) ./ norm(v_a_xr[:,i] × e_drift[:,i]))
             dD_dα[:,i] .~ 0.5*s.rho*norm(v_a_xr[:,i])*s.set.radius*kite_length[i]*rad_cd_model(aoa[i]) .* v_a_xr[:,i] # the sideways drag cannot be calculated with the C_d formula
         ]
@@ -199,7 +199,7 @@ The result is stored in the array s.forces.
         spring_vel .~ rel_vel ⋅ unit_vector
     ]
 
-    if i > s.num_E  # kite springs
+    if i >= s.num_E  # kite springs
         for j in 1:3
             eqs2 = [
                 eqs2
