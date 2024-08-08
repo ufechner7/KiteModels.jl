@@ -21,10 +21,15 @@ julia_major=${julia_version:0:3}
 if [[ $julia_major == "1.1" ]]; then
     julia_major=${julia_version:0:4} 
 fi
-branch=$(git rev-parse --abbrev-ref HEAD | sed 's/\//-/g')
+if [ -d .git ] || git rev-parse --git-dir > /dev/null 2>&1 ; then
+    branch=$(git rev-parse --abbrev-ref HEAD | sed 's/\//-/g')
+else
+    branch=""
+fi
 if test -f "kps-image-${julia_major}-${branch}.so"; then
     mv bin/kps-image-${julia_major}-${branch}.so kps-image-${julia_major}-${branch}.so.bak
 fi
+julia -e "using Pkg; Pkg.add(\"TestEnv\")"
 
 if [[ $update == true ]]; then
     echo "Updating packages..."
@@ -41,13 +46,27 @@ else
         echo "Using Manifest-1.10.toml.default ..."
     fi
 fi
-# julia --project -e "using Pkg; Pkg.precompile()"
 julia --pkgimages=no --project -e "include(\"./test/create_sys_image.jl\");"
-mv kps-image_tmp.so bin/kps-image-${julia_major}-${branch}.so
+if [[ $branch != "" ]]; then
+    SOFILE="bin/kps-image-${julia_major}-${branch}.so"
+else
+    SOFILE="bin/kps-image-${julia_major}.so"
+fi
+if test -f $SOFILE; then
+    mv $SOFILE $SOFILE.bak
+fi
+mv kps-image_tmp.so $SOFILE
 julia  --project -e "using Pkg; Pkg.precompile(); Pkg.resolve()"
-cd src
-touch *.jl # make sure all modules get recompiled in the next step
-cd ..
-julia --project -J bin/kps-image-${julia_major}-${branch}.so -e "using KiteModels, KitePodModels, KiteUtils"
+if [ -d src ]; then
+    cd src
+    touch *.jl # make sure all modules get recompiled in the next step
+    cd ..
+fi
+echo "Precompiling package KiteModels..."
+julia --project -J $SOFILE -e "using KiteModels, KitePodModels, KiteUtils"
 echo "Precompiling package ControlPlots..."
-julia --project -J bin/kps-image-${julia_major}-${branch}.so -e "using TestEnv; TestEnv.activate(); using ControlPlots"
+if [[ $branch != "" ]]; then
+    julia --project -J $SOFILE -e "using TestEnv; TestEnv.activate(); using ControlPlots"
+else
+    julia --project -J $SOFILE -e "using ControlPlots"
+fi

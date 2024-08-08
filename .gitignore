@@ -25,3 +25,5 @@ bin/kps-image-1.10-torque.so
 bin/kps-image-1.10-feat-KPS4_3L.so
 data/.steady_state_history.bin
 data/sim_log.bin
+docs/src/winch.png
+bin/kps-image-1.10-main.so.bak

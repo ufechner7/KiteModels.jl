@@ -38,8 +38,8 @@ They can be customized later. The second command creates an examples folder with
 First, an instance of the model of the kite control unit (KCU) is created which is needed by the Kite Power System model KPS3. Then we create a kps instance, passing the kcu model as parameter. We need to declare these variables as const to achieve a decent performance.
 ```julia
 using KiteModels
-const kcu = KCU(se())
-const kps = KPS4(kcu)
+kcu::KCU = KCU(se())
+kps = KPS4(kcu)
 ```
 Then we call the function `find_steady_state` which uses a non-linear solver to find the solution for a given elevation angle, reel-out speed and wind speed. 
 ```julia
@@ -57,11 +57,10 @@ for i in 1:length(kps.pos)
      push!(z, kps.pos[i][3])
 end
 ```
-And finally, we plot the position of the particles in the x-z plane. When you type ```using Plots``` you will be asked if you want to install the Plots package. Just press \<ENTER\> and it gets installed.
+And finally, we plot the position of the particles in the x-z plane. When you type ```using ControlPlots``` you will be asked if you want to install the ControlPlots package. Just press \<ENTER\> and it gets installed.
 ```julia
-using Plots
-plot(x,z, xlabel="x [m]", ylabel="z [m]", legend=false)
-plot!(x, z, seriestype = :scatter)
+using ControlPlots
+plot(x,z, xlabel="x [m]", ylabel="z [m]", scatter=true)
 ```
 ### Initial State
 ![Initial State](initial_state_4p.png)
