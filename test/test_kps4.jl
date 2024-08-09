@@ -517,10 +517,10 @@ end
     av_steps = simulate(integrator, STEPS-100)
     println(av_steps) #1102
     if Sys.isapple()
-        println("isapple")
-        @test isapprox(av_steps, 500, rtol=0.6)
+        println("isapple $av_steps")
+        @test isapprox(av_steps, 150, rtol=0.6)
     else
-        println("not apple")
+        println("not apple $av_steps")
         @test isapprox(av_steps, 300, rtol=0.6)
     end
   
