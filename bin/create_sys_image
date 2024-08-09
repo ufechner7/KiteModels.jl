@@ -22,7 +22,7 @@ if [[ $julia_major == "1.1" ]]; then
     julia_major=${julia_version:0:4} 
 fi
 if [ -d .git ] || git rev-parse --git-dir > /dev/null 2>&1 ; then
-    branch=$(git rev-parse --abbrev-ref HEAD)
+    branch=$(git rev-parse --abbrev-ref HEAD | sed 's/\//-/g')
 else
     branch=""
 fi

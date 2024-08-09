@@ -96,7 +96,7 @@ let
         (integrator.p.iter - start) / steps
     end
     integrator = KiteModels.init_sim!(kps4, prn=STATISTIC)
-    kps4.stiffness_factor = 0.5
+    kps4.stiffness_factor = 0.04
     simulate(integrator, 100, true)
 end
 

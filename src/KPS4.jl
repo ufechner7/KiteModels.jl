@@ -44,6 +44,8 @@ const SPRINGS_INPUT = [0.    1.  150.
                        5.    2.   -1. # s8, p11, p8
                        2.    3.   -1.] # s9, p8, p9
 
+# KCU = p7, A = p8, B = p9, C = p10, D = p11
+
 # struct, defining the phyical parameters of one spring
 @with_kw struct Spring{I, S}
     p1::I = 1         # number of the first point
@@ -53,7 +55,7 @@ const SPRINGS_INPUT = [0.    1.  150.
     damping::S  = 0.1 # damping coefficent [Ns/m]
 end
 
-const SP = Spring{Int16, Float64}
+const SP = Spring{Int16, SimFloat}
 const KITE_PARTICLES = 4
 const KITE_SPRINGS = 9
 const KITE_ANGLE = 3.83 # angle between the kite and the last tether segment due to the mass of the control pod
@@ -164,10 +166,10 @@ $(TYPEDFIELDS)
     z::T =                 zeros(S, 3)
 end
 
-@inline @inbounds function norm(vec::SVector{3, Float64})
+@inline @inbounds function norm(vec::SVector{3, SimFloat})
     sqrt(vec[1]*vec[1]+vec[2]*vec[2]+vec[3]*vec[3])
 end
-@inline @inbounds function norm(vec::MVector{3, Float64})
+@inline @inbounds function norm(vec::MVector{3, SimFloat})
     sqrt(vec[1]*vec[1]+vec[2]*vec[2]+vec[3]*vec[3])
 end
 
@@ -223,7 +225,7 @@ Calculate the drag force of the tether segment, defined by the parameters pos1, 
 and distribute it equally on the two particles, that are attached to the segment.
 The result is stored in the array s.forces. 
 """
-@inline function calc_particle_forces!(s, pos1, pos2, vel1, vel2, spring, segments, d_tether, rho, i)
+@inline function calc_particle_forces!(s::KPS4, pos1, pos2, vel1, vel2, spring, segments, d_tether, rho, i)
     l_0 = spring.length # Unstressed length
     k = spring.c_spring * s.stiffness_factor  # Spring constant
     c = spring.damping                        # Damping coefficient    
@@ -424,7 +426,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
     posd1, veld1 = partd[:,:,1], partd[:,:,2]
     posd = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(posd1[:,i-1]) end for i in 1:div(T,6)+1)
     veld = SVector{div(T,6)+1}(if i==1 SVector(0.0,0,0) else SVector(veld1[:,i-1]) end for i in 1:div(T,6)+1)
-    @assert ! isnan(pos[2][3])
+    @assert isfinite(pos[2][3])
 
     # core calculations
     s.l_tether = length
