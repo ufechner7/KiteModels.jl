@@ -11,13 +11,16 @@ The model has the following subcomponents, implemented in separate packages:
 - WinchModel from [WinchModels](https://github.com/aenarete/WinchModels.jl) 
 - KitePodModel from  [KitePodModels](https://github.com/aenarete/KitePodModels.jl)
 
-This package is part of Julia Kite Power Tools, which consist of the following packages:
+This package is part of Julia Kite Power Tools, which consists of the following packages:
 <p align="center"><img src="./docs/src/kite_power_tools.png" width="500" /></p>
 
 ## News
+#### August 2024
+- a new kite model, KPS3_3L was contributed. It uses three lines to the ground and three winches for steering a ram-air foil kite.
+- a new KCU model was added which assumes a linear relationship between the depower settings and the depower angle and thus is easier to configure that the original model
 #### July 2024
 - a new groundstation / winch type is now supported, the `TorqueControlledMachine`. It can be configured in the section `winch` of the `settings.yaml` file. It uses a set torque as input.
-- a Python interfaces is now provided, see: [pykitemodels](https://github.com/ufechner7/pykitemodels)
+- a Python interface is now provided, see: [pykitemodels](https://github.com/ufechner7/pykitemodels)
 #### April 2024
 - added support for the native Julia DAE solver DFBDF. It is much more accurate and faster than the IDA solver that was used before.
 
@@ -25,7 +28,7 @@ This package is part of Julia Kite Power Tools, which consist of the following p
 If you want to run simulations and see the results in 3D, please install the meta package  [KiteSimulators](https://github.com/aenarete/KiteSimulators.jl) . If you are not interested in 3D visualization or control you can just install this package.
 
 ## Installation
-Install [Julia 1.10](http://www.julialang.org) or later using [juliaup](https://github.com/JuliaLang/juliaup), if you haven't already. You can add KiteModels from  Julia's package manager, by typing 
+Install [Julia 1.10](https://ufechner7.github.io/2024/08/09/installing-julia-with-juliaup.html) or later, if you haven't already. You can add KiteModels from  Julia's package manager, by typing 
 ```julia
 using Pkg
 pkg"add KiteModels"
