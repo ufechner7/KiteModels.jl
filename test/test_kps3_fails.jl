@@ -34,6 +34,7 @@ function set_defaults()
 end
 
 set_defaults()
+println("alpha_cl: $(se().alpha_cl), cl_list: $(se().cl_list)")
 
 @testset "calc_cl              " begin
     @test isapprox(kps.calc_cl(-5.0), 0.150002588978, atol=1e-4) 
@@ -42,4 +43,5 @@ set_defaults()
     @test isapprox(kps.calc_cl(20.0), 1.0, atol=1e-4)
 end
 end
+
 nothing
