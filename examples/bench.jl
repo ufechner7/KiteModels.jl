@@ -18,7 +18,7 @@ kcu::KCU = KCU(set)
 kps4::KPS4 = KPS4(kcu)
 
 function simulate(integrator, steps)
-    start = integrator.p.iter
+    iter = 0
     for i in 1:steps
         if PRINT
             lift, drag = KiteModels.lift_drag(kps4)
@@ -27,8 +27,9 @@ function simulate(integrator, steps)
         end
 
         KiteModels.next_step!(kps4, integrator; set_speed=0, dt=dt)
+        iter += kps4.iter
     end
-    (integrator.p.iter - start) / steps
+    iter / steps
 end
 
 integrator = KiteModels.init_sim!(kps4, stiffness_factor=0.5, prn=STATISTIC)
@@ -41,7 +42,7 @@ speed = (STEPS-100) / runtime * dt
 println("Simulation speed: $(round(speed, digits=2)) times realtime.")
 lift, drag = KiteModels.lift_drag(kps4)
 println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
-println("Average number of callbacks per time step: $av_steps")
+println("Average number of callbacks per time step: $(round(av_steps, digits=2))")
 
 # Ryzen 7950X, GMRES solver
 # Total simulation time: 0.418 s
@@ -56,7 +57,7 @@ println("Average number of callbacks per time step: $av_steps")
 # Average number of callbacks per time step: 227.8
 
 # Ryzen 7950X, DFBDF solver
-# Total simulation time: 0.102 s
-# Simulation speed: 247.33 times realtime.
-# lift, drag  [N]: 597.54, 129.31
+# Total simulation time: 0.105 s
+# Simulation speed: 238.6 times realtime.
+# lift, drag  [N]: 598.0, 129.43
 # Average number of callbacks per time step:  64.0

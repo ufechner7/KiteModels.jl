@@ -35,7 +35,7 @@ v_speed = zeros(STEPS)
 v_force = zeros(STEPS)
 
 function simulate(integrator, steps, plot=false)
-    start = integrator.p.iter
+    iter = 0
     for i in 1:steps
         if PRINT
             lift, drag = KiteModels.lift_drag(kps4)
@@ -54,6 +54,7 @@ function simulate(integrator, steps, plot=false)
         v_speed[i] = kps4.v_reel_out
         v_force[i] = winch_force(kps4)
         KiteModels.next_step!(kps4, integrator; set_torque, dt)
+        iter += kps4.iter
         
         if plot
             reltime = i*dt-dt
@@ -63,7 +64,7 @@ function simulate(integrator, steps, plot=false)
             end
         end
     end
-    (integrator.p.iter - start) / steps
+    iter / steps
 end
 
 integrator = KiteModels.init_sim!(kps4, stiffness_factor=0.5, prn=STATISTIC)
@@ -82,7 +83,7 @@ else
 end
 lift, drag = KiteModels.lift_drag(kps4)
 println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
-println("Average number of callbacks per time step: $av_steps")
+println("Average number of callbacks per time step: $(round(av_steps, digits=2))")
 
 if PLOT
     p = plotx(v_time, v_speed, v_force; ylabels=["v_reelout  [m/s]","tether_force [N]"], fig="winch")
@@ -98,12 +99,12 @@ end
 
 # Solver: DFBDF, reltol=0.001
 # Total simulation time: 0.178 s
-# Simulation speed: 140.08 times realtime.
-# lift, drag  [N]: 558.69, 105.3
-# Average number of callbacks per time step: 114.64
+# Simulation speed: 198.04 times realtime.
+# lift, drag  [N]: 633.13, 119.82
+# Average number of callbacks per time step: 75.67
 
 # Solver: IDA
-# Total simulation time: 1.385 s
-# Simulation speed: 18.05 times realtime.
-# lift, drag  [N]: 543.58, 102.19
-# Average number of callbacks per time step: 756.074
+# Total simulation time: 0.662 s
+# Simulation speed: 37.78 times realtime.
+# lift, drag  [N]: 639.63, 121.71
+# Average number of callbacks per time step: 379.91

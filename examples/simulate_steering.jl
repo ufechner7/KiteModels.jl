@@ -28,7 +28,7 @@ if PLOT
 end
 
 function simulate(integrator, steps, plot=false)
-    start = integrator.p.iter
+    iter = 0
     lines, sc, txt = nothing, nothing, nothing
     for i in 1:steps
         if PRINT
@@ -47,6 +47,7 @@ function simulate(integrator, steps, plot=false)
 
 
         KiteModels.next_step!(kps3, integrator; set_speed=0, dt)
+        iter += kps3.iter
 
         if plot
             reltime = i*dt-dt
@@ -55,7 +56,7 @@ function simulate(integrator, steps, plot=false)
             end
         end
     end
-    (integrator.p.iter - start) / steps
+    iter / steps
 end
 
 integrator = KiteModels.init_sim!(kps3, stiffness_factor=0.04, prn=STATISTIC)
@@ -72,7 +73,6 @@ else
 end
 lift, drag = KiteModels.lift_drag(kps3)
 println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
-println("Average number of callbacks per time step: $av_steps")
+println("Average number of callbacks per time step: $(round(av_steps, digits=2))")
 
-# 30 to 39 times realtime in 504 iterations with integrator :Dense
-# 30 to 40 times realtime in 388 iterations with integrator :GMRES
+# 407 times realtime with 45.74 callbacks per time step
