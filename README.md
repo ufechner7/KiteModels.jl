@@ -17,7 +17,7 @@ This package is part of Julia Kite Power Tools, which consists of the following 
 ## News
 #### August 2024
 - a new kite model, KPS3_3L was contributed. It uses three lines to the ground and three winches for steering a ram-air foil kite.
-- a new KCU model was added which assumes a linear relationship between the depower settings and the depower angle and thus is easier to configure that the original model
+- a new KCU model was added which assumes a linear relationship between the depower settings and the depower angle and thus is easier to configure than the original model.
 #### July 2024
 - a new groundstation / winch type is now supported, the `TorqueControlledMachine`. It can be configured in the section `winch` of the `settings.yaml` file. It uses a set torque as input.
 - a Python interface is now provided, see: [pykitemodels](https://github.com/ufechner7/pykitemodels)
