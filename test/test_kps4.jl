@@ -515,7 +515,6 @@ end
     println("\nStarting simulation...")
     simulate(integrator, 100)
     av_steps = simulate(integrator, STEPS-100)
-    println(av_steps) #1102
     if Sys.isapple()
         println("isapple $av_steps")
         @test isapprox(av_steps, 150, rtol=0.6)
