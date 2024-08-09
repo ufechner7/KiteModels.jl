@@ -499,11 +499,12 @@ end
 end
 
 function simulate(integrator, steps)
-    start = integrator.p.iter
+    iter = 0
     for i in 1:steps
         KiteModels.next_step!(kps4, integrator; set_speed=0)
+        iter += kps4.iter
     end
-    (integrator.p.iter - start) / steps
+    iter / steps
 end
 
 @testset "test_simulate        " begin
@@ -520,7 +521,7 @@ end
         @test isapprox(av_steps, 500, rtol=0.6)
     else
         println("not apple")
-        @test_broken isapprox(av_steps, 300, rtol=0.6)
+        @test isapprox(av_steps, 300, rtol=0.6)
     end
   
     lift, drag = KiteModels.lift_drag(kps4)
