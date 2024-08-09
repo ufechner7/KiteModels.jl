@@ -42,6 +42,8 @@ for i in 1:steps
     global total_new_time += @elapsed next_step!(s, integrator; set_values=steering)
     plot2d(s.pos, i-1; zoom=false, front=false, segments=se().segments)
     println(s.vel_kite ⋅ s.e_x)
+    println(s.vel_kite)
+    println(s.e_x)
     last_iter = integrator.iter
     readline()
     # println(s.vel_kite)

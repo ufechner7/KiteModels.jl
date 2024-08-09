@@ -1,11 +1,11 @@
 
 function calc_acc_speed(tether_speed::SimFloat, norm_::SimFloat, set_speed::SimFloat)
-    return calc_acceleration(TorqueControlledMachine(se()), tether_speed, norm_; set_speed=set_speed, set_torque=nothing, use_brake=true)
+    return calc_acceleration(TorqueControlledMachine(se()), tether_speed, norm_; set_speed=set_speed, set_torque=nothing, use_brake=false)
 end
 @register_symbolic calc_acc_speed(tether_speed, norm_, set_speed)
 
 function calc_acc_torque(tether_speed::SimFloat, norm_::SimFloat, set_torque::SimFloat)
-    return calc_acceleration(TorqueControlledMachine(se()), tether_speed, norm_; set_speed=nothing, set_torque=set_torque, use_brake=true)
+    return calc_acceleration(TorqueControlledMachine(se()), tether_speed, norm_; set_speed=nothing, set_torque=set_torque, use_brake=false)
 end
 @register_symbolic calc_acc_torque(tether_speed, norm_, set_torque)
 
