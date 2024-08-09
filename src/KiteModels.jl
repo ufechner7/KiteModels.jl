@@ -51,7 +51,7 @@ import KiteUtils.SysState
 import OrdinaryDiffEq.init
 import OrdinaryDiffEq.step!
 
-export KPS3, KPS4, KPS4_3L, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                              # constants and types
+export KPS3, KPS4, KPS4_3L, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                     # constants and types
 export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                            # helper functions
 export clear!, find_steady_state!, residual!                                                  # low level workers
 export init_sim!, next_step!                                                                  # high level workers
@@ -120,10 +120,10 @@ end
 
 steady_state_history_file = joinpath(get_data_path(), ".steady_state_history.bin")
 
-include("KPS4.jl") # include code, specific for the four point kite model
+include("KPS4.jl")    # include code, specific for the four point kite model
 include("KPS4_3L.jl") # include code, specific for the four point kite model
-include("KPS3.jl") # include code, specific for the one point kite model
-include("init.jl") # functions to calculate the inital state vector, the inital masses and initial springs
+include("KPS3.jl")    # include code, specific for the one point kite model
+include("init.jl")    # functions to calculate the inital state vector, the inital masses and initial springs
 
 # Calculate the lift and drag coefficient as a function of the angle of attack alpha.
 function set_cl_cd!(s::AKM, alpha)   
@@ -785,12 +785,12 @@ end
     kps4_::KPS4 = KPS4(KCU(se()))
     kps3_::KPS3 = KPS3(KCU(se()))
     @assert ! isnothing(kps4_.wm)
-    # @compile_workload begin
-    #     # all calls in this block will be precompiled, regardless of whether
-    #     # they belong to your package or not (on Julia 1.8 and higher)
-    #     integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
-    #     integrator = KiteModels.init_sim!(kps4_; stiffness_factor=0.5, prn=false)       
-    #     nothing
-    # end
+    @compile_workload begin
+        # all calls in this block will be precompiled, regardless of whether
+        # they belong to your package or not (on Julia 1.8 and higher)
+        integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
+        integrator = KiteModels.init_sim!(kps4_; stiffness_factor=0.5, prn=false)       
+        nothing
+    end
 end
 end
