@@ -1,6 +1,6 @@
 #= MIT License
 
-Copyright (c) 2020, 2021, 2022 Uwe Fechner
+Copyright (c) 2024 Uwe Fechner and Bart van de Lint
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -47,22 +47,6 @@ const SPRINGS_INPUT_3L = [1.      4.  -1. # s1: E, A
 const KITE_SPRINGS_3L = 6
 const KITE_PARTICLES_3L = 4
 const KITE_ANGLE_3L = 0.0
-# struct, defining the phyical parameters of one spring
-# @with_kw struct Spring{I, S}
-#     p1::I = 1         # number of the first point
-#     p2::I = 2         # number of the second point
-#     length::S = 1.0   # current unstressed spring length
-#     c_spring::S = 1.0 # spring constant [N/m]
-#     damping::S  = 0.1 # damping coefficent [Ns/m]
-# end
-
-# const SP = Spring{Int16, SimFloat}
-# const PRE_STRESS  = 0.9998   # Multiplier for the initial spring lengths.
-# const KS = deg2rad(16.565 * 1.064 * 0.875 * 1.033 * 0.9757 * 1.083)  # max steering
-# const DRAG_CORR = 0.93       # correction of the drag for the 4-point model
-# function zero(::Type{SP})
-#     SP(0,0,0,0,0)
-# end
 
 """
     mutable struct KPS4_3L{S, T, P, Q, SP} <: AbstractKiteModel
