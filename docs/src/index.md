@@ -28,8 +28,6 @@ at the Julia prompt. You can run the unit tests with the command:
 pkg"test KiteModels"
 ```
 
-If you are using Windows, it is suggested to install git and bash, too. This is explained for example here: [Julia on Windows](https://github.com/ufechner7/KiteViewer/blob/main/doc/Windows.md) .
-
 ## Provides
 The type [`AbstractKiteModel`](@ref) with the implementation [`KPS3`](@ref) and [`KPS4`](@ref), representing the one point and four point kite model, together with the high level simulation interface consisting of the functions
 [`init_sim!`](@ref) and [`next_step!`](@ref). Other kite models can be added inside or outside of this package by implementing the non-generic methods required for an AbstractKiteModel.
