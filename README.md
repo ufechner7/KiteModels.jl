@@ -47,6 +47,7 @@ pkg"test KiteModels"
 ```
 You can copy the examples to your project with:
 ```
+using KiteModels
 copy_settings()
 copy_examples()
 ```
