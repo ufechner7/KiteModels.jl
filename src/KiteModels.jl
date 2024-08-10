@@ -540,7 +540,9 @@ function calc_pre_tension(s::KPS4_3L)
 end
 
 """
-helper function for init sim
+    fields_equal(a::AKM, b::AKM)
+
+Helper function for the [`init_sim!()`](@ref) function. It compares the fields of two instances of the AbstractKiteModel.
 """
 function fields_equal(a::AKM, b::AKM)
     if typeof(a) != typeof(b)
@@ -557,6 +559,8 @@ end
 
 const SteadyStateHistory = Vector{Tuple{AbstractKiteModel, Vector{SimFloat}, Vector{SimFloat}}}
 """
+    load_history()
+
 Load the saved pairs of abstract kite models and corresponding integrators. It is assumed that a certain set of settings
 always leads to the same integrator.
 """
@@ -573,7 +577,12 @@ function load_history()
 end
 
 """
-In order to delete the integrator history: just delete data/.steady_state_history.bin
+    save_history(history::SteadyStateHistory)
+
+Save the staty state history to the file `data/.steady_state_history.bin`. 
+The history is used to speed up the initialisation.
+
+In order to delete the integrator history: just delete the file `data/.steady_state_history.bin` .
 """
 function save_history(history::SteadyStateHistory)
     serialize(steady_state_history_file, history)
