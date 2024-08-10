@@ -36,7 +36,7 @@ module KiteModels
 using PrecompileTools: @setup_workload, @compile_workload 
 using Dierckx, StaticArrays, Rotations, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, OrdinaryDiffEq, Serialization
 import Sundials
-using Reexport
+using Reexport, Pkg
 @reexport using KitePodModels
 @reexport using WinchModels
 @reexport using AtmosphericModels
@@ -747,7 +747,6 @@ end
 function install_examples()
     copy_examples()
     copy_settings()
-    using Pkg
     Pkg.add("KiteUtils")
     Pkg.add("KitePodModels")
     Pkg.add("WinchModels")
