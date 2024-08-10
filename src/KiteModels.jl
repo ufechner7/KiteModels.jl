@@ -744,6 +744,16 @@ function copy_examples()
     copy_files("examples", readdir(src_path))
 end
 
+function install_examples()
+    copy_examples()
+    copy_settings()
+    using Pkg
+    Pkg.add("KiteUtils")
+    Pkg.add("KitePodModels")
+    Pkg.add("WinchModels")
+    Pkg.add("ControlPlots")
+end
+
 function copy_files(relpath, files)
     if ! isdir(relpath) 
         mkdir(relpath)

@@ -48,8 +48,12 @@ pkg"test KiteModels"
 You can copy the examples to your project with:
 ```
 using KiteModels
-copy_settings()
-copy_examples()
+KiteModels.install_examples()
+```
+This also adds the extra packages, needed for the examples to the project. Furthermore it creates a folder `data`
+with some example input files. You can now run the examples with the command:
+```
+include("examples/menu.jl")
 ```
 
 ## Advanced installation
