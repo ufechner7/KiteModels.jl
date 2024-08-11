@@ -17,7 +17,7 @@ using KiteModels
     @test isfile(joinpath(tmpdir, "examples", "reel_out_4p_torque_control.jl"))
     @test isfile(joinpath(tmpdir, "examples", "simulate_simple.jl"))
     @test isfile(joinpath(tmpdir, "examples", "simulate_steering.jl"))
-    if ! iswindows()
+    if ! Sys.iswindows()
         rm(tmpdir, recursive=true)
     end
     cd(path)
