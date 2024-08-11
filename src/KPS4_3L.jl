@@ -72,10 +72,6 @@ $(TYPEDFIELDS)
     motors::SVector{3, AbstractWinchModel}
     "Iterations, number of calls to the function residual!"
     iter:: Int64 = 0
-    "Function for calculation the lift coefficent, using a spline based on the provided value pairs."
-    calc_cl = Spline1D(se().alpha_cl, se().cl_list)
-    "Function for calculation the drag coefficent, using a spline based on the provided value pairs."
-    calc_cd = Spline1D(se().alpha_cd, se().cd_list)   
     "wind vector at the height of the kite" 
     v_wind::T =           zeros(S, 3)
     "wind vector at reference height" 
@@ -222,8 +218,6 @@ function clear!(s::KPS4_3L)
     s.drag_force .= [0.0, 0, 0]
     s.lift_force .= [0.0, 0, 0]
     s.rho = s.set.rho_0
-    s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
-    s.calc_cd = Spline1D(s.set.alpha_cd, s.set.cd_list) 
 end
 
 
@@ -233,9 +227,7 @@ function KPS4_3L(kcu::KCU)
     s.num_E = s.set.segments*3+3
     s.num_C = s.set.segments*3+3+1
     s.num_D = s.set.segments*3+3+2
-    s.num_A = s.set.segments*3+3+3
-    s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
-    s.calc_cd = Spline1D(s.set.alpha_cd, s.set.cd_list)       
+    s.num_A = s.set.segments*3+3+3     
     clear!(s)
     return s
 end
