@@ -10,7 +10,7 @@ STEPS = 200
 PLOT = false
 FRONT_VIEW = false
 ZOOM = false
-PRINT = true
+PRINT = false
 STATISTIC = true
 ALPHA_ZERO = 8.8 
 # end of user parameter section #
@@ -88,8 +88,8 @@ if PLOT
 end
 # savefig("docs/src/reelout_force_4p.png")
 
-# Solver: DFBDF, reltol=0.001
-# Total simulation time: 0.178 s
-# Simulation speed: 140.08 times realtime.
-# lift, drag  [N]: 558.69, 105.3
-# Average number of callbacks per time step: 114.64
+# Solver: DFBDF, reltol=0.001, Ryzen desktop
+# Total simulation time: 0.066 s
+# Simulation speed: 75.37 times realtime.
+# lift, drag  [N]: 848.7, 310.27
+# Average number of callbacks per time step: 136.47
