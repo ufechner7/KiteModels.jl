@@ -65,11 +65,11 @@ $(TYPEDFIELDS)
 """
 @with_kw mutable struct KPS4_3L{S, T, P, Q, SP} <: AbstractKiteModel
     "Reference to the settings struct"
-    set::Settings = se()
+    set::Settings
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
     "Reference to the motor models as implemented in the package WinchModels. index 1: middle motor, index 2: left motor, index 3: right motor"
-    motors::SVector{3, AbstractWinchModel} = [AsyncMachine(se()) for _ in 1:3]
+    motors::SVector{3, AbstractWinchModel}
     "Iterations, number of calls to the function residual!"
     iter:: Int64 = 0
     "Function for calculation the lift coefficent, using a spline based on the provided value pairs."
@@ -228,9 +228,8 @@ end
 
 
 function KPS4_3L(kcu::KCU)
-    set = se()
-    s = KPS4_3L{SimFloat, KVec3, set.segments*3+2+KITE_PARTICLES, set.segments*3+KITE_SPRINGS_3L, SP}()
-    s.set = set
+    set = kcu.set
+    s = KPS4_3L{SimFloat, KVec3, set.segments*3+2+KITE_PARTICLES, set.segments*3+KITE_SPRINGS_3L, SP}(set=kcu.set, motors=[AsyncMachine(set) for _ in 1:3])
     # E = segments*3+1, C = segments*3+2, D = segments*3+3, A = segments*3+4
     s.num_E = s.set.segments*3+3
     s.num_C = s.set.segments*3+3+1
