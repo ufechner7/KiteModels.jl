@@ -6,8 +6,8 @@ set = deepcopy(se("system_3l.yaml"))
 # the following values can be changed to match your interest
 dt = 0.05
 set.solver="DFBDF" # IDA or DFBDF
-STEPS = 100
-PLOT = true
+STEPS = 200
+PLOT = false
 FRONT_VIEW = false
 ZOOM = false
 PRINT = true
@@ -34,7 +34,7 @@ v_speed = zeros(STEPS)
 v_force = zeros(STEPS)
 
 function simulate(integrator, steps, plot=false)
-    start = integrator.p.iter
+    iter = 0
     for i in 1:steps
         if PRINT
             lift, drag = KiteModels.lift_drag(kps4_3l)
@@ -50,6 +50,7 @@ function simulate(integrator, steps, plot=false)
         v_speed[i] = kps4_3l.reel_out_speeds[1]
         v_force[i] = winch_force(kps4_3l)[1]
         KiteModels.next_step!(kps4_3l, integrator; set_values=set_speeds, dt=dt)
+        iter += kps4_3l.iter
         
         if plot
             reltime = i*dt-dt
@@ -59,7 +60,8 @@ function simulate(integrator, steps, plot=false)
             end
         end
     end
-    (integrator.p.iter - start) / steps
+    println("iter: $iter", " steps: $steps")
+    return iter/steps
 end
 
 integrator = KiteModels.init_sim!(kps4_3l, stiffness_factor=0.3, prn=STATISTIC)

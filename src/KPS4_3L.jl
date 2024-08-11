@@ -311,6 +311,7 @@ function next_step!(s::KPS4_3L, integrator; set_values=zeros(KVec3), torque_cont
     end
     s.t_0 = integrator.t
     set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
+    s.iter = 0
     if s.set.solver == "IDA"
         Sundials.step!(integrator, dt, true)
     else
