@@ -2,7 +2,7 @@
 
 #= MIT License
 
-Copyright (c) 2020, 2021, 2022 Uwe Fechner
+Copyright (c) 2020, 2021, 2022, 2024 Uwe Fechner
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -36,7 +36,7 @@ module KiteModels
 using PrecompileTools: @setup_workload, @compile_workload 
 using Dierckx, StaticArrays, Rotations, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, OrdinaryDiffEq, Serialization
 import Sundials
-using Reexport
+using Reexport, Pkg
 @reexport using KitePodModels
 @reexport using WinchModels
 @reexport using AtmosphericModels
@@ -51,7 +51,7 @@ import KiteUtils.SysState
 import OrdinaryDiffEq.init
 import OrdinaryDiffEq.step!
 
-export KPS3, KPS4, KPS4_3L, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                              # constants and types
+export KPS3, KPS4, KPS4_3L, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                     # constants and types
 export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                            # helper functions
 export clear!, find_steady_state!, residual!                                                  # low level workers
 export init_sim!, next_step!                                                                  # high level workers
@@ -120,10 +120,11 @@ end
 
 steady_state_history_file = joinpath(get_data_path(), ".steady_state_history.bin")
 
-include("KPS4.jl") # include code, specific for the four point kite model
-include("KPS4_3L.jl") # include code, specific for the four point kite model
-include("KPS3.jl") # include code, specific for the one point kite model
-include("init.jl") # functions to calculate the inital state vector, the inital masses and initial springs
+
+include("KPS4.jl")    # include code, specific for the four point kite model
+include("KPS4_3L.jl") # include code, specific for the four point three line kite model
+include("KPS3.jl")    # include code, specific for the one point kite model
+include("init.jl")    # functions to calculate the inital state vector, the inital masses and initial springs
 
 # Calculate the lift and drag coefficient as a function of the angle of attack alpha.
 function set_cl_cd!(s::AKM, alpha)   
@@ -239,6 +240,7 @@ function tether_length(s::AKM)
     end
     return length
 end
+
 
 """
     tether_length(s::AKM)
@@ -379,6 +381,16 @@ end
 #     var_05::MyFloat
 # end 
 
+function calc_orient_quat(s::AKM)
+    x, _, z = kite_ref_frame(s)
+    pos_kite_ = pos_kite(s)
+    pos_before = pos_kite_ .+ z
+   
+    rotation = rot(pos_kite_, pos_before, -x)
+    q = QuatRotation(rotation)
+    return Rotations.params(q)
+end
+
 function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
     ss.time = s.t_0
     pos = s.pos
@@ -388,13 +400,7 @@ function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
         ss.Y[i] = pos[i][2] * zoom
         ss.Z[i] = pos[i][3] * zoom
     end
-    x, y, z = kite_ref_frame(s)
-    pos_kite_ = pos_kite(s)
-    pos_before = pos_kite_ + z
-   
-    rotation = rot(pos_kite_, pos_before, -x)
-    q = QuatRotation(rotation)
-    ss.orient .= Rotations.params(q)
+    ss.orient .= calc_orient_quat(s)
     ss.elevation = calc_elevation(s)
     ss.azimuth = calc_azimuth(s)
     ss.force = winch_force(s)
@@ -581,6 +587,56 @@ end
 
 
 """
+    fields_equal(a::AKM, b::AKM)
+
+Helper function for the [`init_sim!()`](@ref) function. It compares the fields of two instances of the AbstractKiteModel.
+"""
+function fields_equal(a::AKM, b::AKM)
+    if typeof(a) != typeof(b)
+        return false
+    end
+    for field in fieldnames(typeof(a.set))
+        if getfield(a.set, field) != getfield(b.set, field)
+            return false
+        end
+    end
+    return true
+end
+
+
+const SteadyStateHistory = Vector{Tuple{AbstractKiteModel, Vector{SimFloat}, Vector{SimFloat}}}
+"""
+    load_history()
+
+Load the saved pairs of abstract kite models and corresponding integrators. It is assumed that a certain set of settings
+always leads to the same integrator.
+"""
+function load_history()
+    history = SteadyStateHistory()
+    try
+        if isfile(steady_state_history_file)
+            append!(history, deserialize(steady_state_history_file))
+        end
+    catch
+        println("Unable to load steady state history file. Try deleting data/.steady_state_history.bin.")
+    end
+    return history
+end
+
+"""
+    save_history(history::SteadyStateHistory)
+
+Save the staty state history to the file `data/.steady_state_history.bin`. 
+The history is used to speed up the initialisation.
+
+In order to delete the integrator history: just delete the file `data/.steady_state_history.bin` .
+"""
+function save_history(history::SteadyStateHistory)
+    serialize(steady_state_history_file, history)
+end
+
+
+"""
     init_sim!(s; t_end=1.0, stiffness_factor=0.035, prn=false)
 
 Initialises the integrator of the model.
@@ -681,31 +737,7 @@ function next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing,
     s.t_0 = integrator.t
     set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
     s.iter = 0
-    if s.set.solver == "IDA"
-        Sundials.step!(integrator, dt, true)
-    else
-        OrdinaryDiffEq.step!(integrator, dt, true)
-    end
-    if s.stiffness_factor < 1.0
-        s.stiffness_factor+=0.01
-        if s.stiffness_factor > 1.0
-            s.stiffness_factor = 1.0
-        end
-    end
-    integrator.t
-end
 
-function next_step!(s::KPS4_3L, integrator; set_values=zeros(KVec3), torque_control=false, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
-    s.torque_control = torque_control
-    if !torque_control
-        s.set_speeds .= set_values
-        s.set_torques .= 0.0
-    else
-        s.set_speeds .= 0.0
-        s.set_torques .= set_values
-    end
-    s.t_0 = integrator.t
-    set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
     if s.set.solver == "IDA"
         Sundials.step!(integrator, dt, true)
     else
@@ -733,6 +765,15 @@ function copy_examples()
     end
     src_path = joinpath(dirname(pathof(@__MODULE__)), "..", PATH)
     copy_files("examples", readdir(src_path))
+end
+
+function install_examples()
+    copy_examples()
+    copy_settings()
+    Pkg.add("KiteUtils")
+    Pkg.add("KitePodModels")
+    Pkg.add("WinchModels")
+    Pkg.add("ControlPlots")
 end
 
 function copy_files(relpath, files)
@@ -785,12 +826,12 @@ end
     kps4_::KPS4 = KPS4(KCU(se()))
     kps3_::KPS3 = KPS3(KCU(se()))
     @assert ! isnothing(kps4_.wm)
-    # @compile_workload begin
-    #     # all calls in this block will be precompiled, regardless of whether
-    #     # they belong to your package or not (on Julia 1.8 and higher)
-    #     integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
-    #     integrator = KiteModels.init_sim!(kps4_; stiffness_factor=0.5, prn=false)       
-    #     nothing
-    # end
+    @compile_workload begin
+        # all calls in this block will be precompiled, regardless of whether
+        # they belong to your package or not (on Julia 1.8 and higher)
+        integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
+        integrator = KiteModels.init_sim!(kps4_; stiffness_factor=0.5, prn=false)       
+        nothing
+    end
 end
 end

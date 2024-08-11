@@ -499,28 +499,28 @@ end
 end
 
 function simulate(integrator, steps)
-    start = integrator.p.iter
+    iter = 0
     for i in 1:steps
         KiteModels.next_step!(kps4, integrator; set_speed=0)
+        iter += kps4.iter
     end
-    (integrator.p.iter - start) / steps
+    iter / steps
 end
 
 @testset "test_simulate        " begin
     STEPS = 500
     kps4.set.depower = 23.6
     kps4.set.solver = "IDA"
-    integrator = KiteModels.init_sim!(kps4; stiffness_factor=0.035, prn=false)
+    integrator = KiteModels.init_sim!(kps4; stiffness_factor=0.5, prn=false)
     println("\nStarting simulation...")
     simulate(integrator, 100)
     av_steps = simulate(integrator, STEPS-100)
-    println(av_steps) #1102
     if Sys.isapple()
-        println("isapple")
-        @test isapprox(av_steps, 500, rtol=0.6)
+        println("isapple $av_steps")
+        @test isapprox(av_steps, 300, rtol=0.6)
     else
-        println("not apple")
-        @test_broken isapprox(av_steps, 300, rtol=0.6)
+        println("not apple $av_steps")
+        @test isapprox(av_steps, 300, rtol=0.6)
     end
   
     lift, drag = KiteModels.lift_drag(kps4)

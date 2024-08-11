@@ -11,13 +11,16 @@ The model has the following subcomponents, implemented in separate packages:
 - WinchModel from [WinchModels](https://github.com/aenarete/WinchModels.jl) 
 - KitePodModel from  [KitePodModels](https://github.com/aenarete/KitePodModels.jl)
 
-This package is part of Julia Kite Power Tools, which consist of the following packages:
+This package is part of Julia Kite Power Tools, which consists of the following packages:
 <p align="center"><img src="./docs/src/kite_power_tools.png" width="500" /></p>
 
 ## News
+#### August 2024
+- a new kite model, KPS3_3L was contributed. It uses three lines to the ground and three winches for steering a ram-air foil kite.
+- a new KCU model was added which assumes a linear relationship between the depower settings and the depower angle and thus is easier to configure than the original model.
 #### July 2024
 - a new groundstation / winch type is now supported, the `TorqueControlledMachine`. It can be configured in the section `winch` of the `settings.yaml` file. It uses a set torque as input.
-- a Python interfaces is now provided, see: [pykitemodels](https://github.com/ufechner7/pykitemodels)
+- a Python interface is now provided, see: [pykitemodels](https://github.com/ufechner7/pykitemodels)
 #### April 2024
 - added support for the native Julia DAE solver DFBDF. It is much more accurate and faster than the IDA solver that was used before.
 
@@ -25,7 +28,15 @@ This package is part of Julia Kite Power Tools, which consist of the following p
 If you want to run simulations and see the results in 3D, please install the meta package  [KiteSimulators](https://github.com/aenarete/KiteSimulators.jl) . If you are not interested in 3D visualization or control you can just install this package.
 
 ## Installation
-Install [Julia 1.10](http://www.julialang.org) or later using [juliaup](https://github.com/JuliaLang/juliaup), if you haven't already. You can add KiteModels from  Julia's package manager, by typing 
+Install [Julia 1.10](https://ufechner7.github.io/2024/08/09/installing-julia-with-juliaup.html) or later, if you haven't already. 
+
+Before installing this software it is suggested to create a new project, for example like this:
+```bash
+mkdir test
+cd test
+julia --project="."
+```
+Then add KiteModels from  Julia's package manager, by typing:
 ```julia
 using Pkg
 pkg"add KiteModels"
@@ -33,6 +44,16 @@ pkg"add KiteModels"
 at the Julia prompt. You can run the unit tests with the command:
 ```julia
 pkg"test KiteModels"
+```
+You can copy the examples to your project with:
+```julia
+using KiteModels
+KiteModels.install_examples()
+```
+This also adds the extra packages, needed for the examples to the project. Furthermore, it creates a folder `data`
+with some example input files. You can now run the examples with the command:
+```julia
+include("examples/menu.jl")
 ```
 
 ## Advanced installation
@@ -67,7 +88,7 @@ This model assumes the kite to consist of four-point masses with aerodynamic for
 ## Tether
 The tether is modeled as point masses, connected by spring-damper elements. Aerodynamic drag is modeled realistically. When reeling out or in the unstreched length of the spring-damper elements
 is varied. This does not translate into physics directly, but it avoids adding point masses at run-time, which would be even worse because it would introduce discontinuities. When using
-Dyneema or similar high strength materials for the tether the resulting system is very stiff which is a challenge for the solver.
+Dyneema or similar high-strength materials for the tether the resulting system is very stiff which is a challenge for the solver.
 
 ## Further reading
 These models are described in detail in [Dynamic Model of a Pumping Kite Power System](http://arxiv.org/abs/1406.6218).
@@ -96,4 +117,4 @@ If you like this software, please consider donating to [Flood in Kenya](https://
 **Documentation** [Stable Version](https://ufechner7.github.io/KiteModels.jl/stable) --- [Development Version](https://ufechner7.github.io/KiteModels.jl/dev)
 
 
-Author: Uwe Fechner (uwe.fechner.msc@gmail.com)
+Author: Uwe Fechner (uwe.fechner.msc@gmail.com), Bart van de Lint

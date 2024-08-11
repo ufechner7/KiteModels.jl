@@ -1,5 +1,13 @@
 # Changelog
 
+### Unreleased
+#### Added
+- a new kite model, KPS3_3L was contributed by Bart van de Lint. It uses three lines to the ground and three winches for steering a ram-air foil kite.
+- caching for the initial equilibrium
+- function `KiteModels.install_examples()` that copies the examples, the data folder and installs the required extra packages
+#### Fixed
+- the calculation of the call-backs per time step was fixed in all examples and the tests
+
 ### KiteModels v0.6.3 - 2024-08-06
 #### Changed
 - the function `copy_examples()` copies now all examples
