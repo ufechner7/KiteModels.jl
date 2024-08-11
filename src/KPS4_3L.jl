@@ -250,6 +250,124 @@ function calc_kite_ref_frame!(s::KPS4_3L, E, C, D)
     return nothing
 end
 
+function calc_tether_elevation(s::KPS4_3L)
+    KiteUtils.calc_elevation(s.pos[6])
+end
+
+function calc_tether_azimuth(s::KPS4_3L)
+    KiteUtils.azimuth_east(s.pos[6])
+end
+
+function update_sys_state!(ss::SysState, s::KPS4_3L, zoom=1.0)
+    ss.time = s.t_0
+    pos = s.pos
+    P = length(pos)
+    for i in 1:P
+        ss.X[i] = pos[i][1] * zoom
+        ss.Y[i] = pos[i][2] * zoom
+        ss.Z[i] = pos[i][3] * zoom
+    end
+    ss.orient .= calc_orient_quat(s)
+    ss.elevation = calc_elevation(s)
+    ss.azimuth = calc_azimuth(s)
+    ss.force = winch_force(s)[1]
+    ss.heading = calc_heading(s)
+    ss.course = calc_course(s)
+    ss.v_app = norm(s.v_apparent)
+    ss.l_tether = s.l_tethers[1]
+    ss.v_reelout = s.reel_out_speeds[1]
+    ss.depower = 100 - ((s.δ_left + s.δ_right)/2) / ((s.set.middle_length + s.set.tip_length)/2) * 100
+    ss.steering = (s.δ_right - s.δ_left) / ((s.set.middle_length + s.set.tip_length)/2) * 100
+    ss.vel_kite .= s.vel_kite
+    nothing
+end
+
+function SysState(s::KPS4_3L, zoom=1.0)
+    pos = s.pos
+    P = length(pos)
+    X = zeros(MVector{P, MyFloat})
+    Y = zeros(MVector{P, MyFloat})
+    Z = zeros(MVector{P, MyFloat})
+    for i in 1:P
+        X[i] = pos[i][1] * zoom
+        Y[i] = pos[i][2] * zoom
+        Z[i] = pos[i][3] * zoom
+    end
+    
+    orient = MVector{4, Float32}(calc_orient_quat(s))
+    elevation = calc_elevation(s)
+    azimuth = calc_azimuth(s)
+    forces = winch_force(s)
+    heading = calc_heading(s)
+    course = calc_course(s)
+    v_app_norm = norm(s.v_apparent)
+    t_sim = 0
+    depower = 100 - ((s.δ_left + s.δ_right)/2) / ((s.set.middle_length + s.set.tip_length)/2) * 100
+    steering = (s.δ_right - s.δ_left) / ((s.set.middle_length + s.set.tip_length)/2) * 100
+    KiteUtils.SysState{P}(s.t_0, t_sim, 0, 0, orient, elevation, azimuth, s.l_tethers[1], s.reel_out_speeds[1], forces[1], depower, steering, 
+                          heading, course, v_app_norm, s.vel_kite, X, Y, Z, 
+                          s.l_tethers[2], s.l_tethers[3], s.reel_out_speeds[2], s.reel_out_speeds[3], 
+                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+end
+
+function next_step!(s::KPS4_3L, integrator; set_values=zeros(KVec3), torque_control=false, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
+    s.torque_control = torque_control
+    if !torque_control
+        s.set_speeds .= set_values
+        s.set_torques .= 0.0
+    else
+        s.set_speeds .= 0.0
+        s.set_torques .= set_values
+    end
+    s.t_0 = integrator.t
+    set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
+    if s.set.solver == "IDA"
+        Sundials.step!(integrator, dt, true)
+    else
+        OrdinaryDiffEq.step!(integrator, dt, true)
+    end
+    if s.stiffness_factor < 1.0
+        s.stiffness_factor+=0.01
+        if s.stiffness_factor > 1.0
+            s.stiffness_factor = 1.0
+        end
+    end
+    integrator.t
+end
+
+function calc_pre_tension(s::KPS4_3L)
+    forces = spring_forces(s)
+    avg_force = 0.0
+    for i in 1:s.num_A
+        avg_force += forces[i]
+    end
+    avg_force /= s.num_A
+    res = avg_force/s.set.c_spring
+    if res < 0.0 res = 0.0 end
+    if isnan(res) res = 0.0 end
+    return res + 1.0
+end
+
+"""
+    unstretched_length(s::KPS4_3L)
+
+Getter for the unstretched tether reel-out lenght (at zero force).
+"""
+function unstretched_length(s::KPS4_3L) s.l_tethers[1] end
+
+"""
+    tether_length(s::KPS4_3L)
+
+Calculate and return the real, stretched tether lenght.
+"""
+function tether_length(s::KPS4_3L)
+    length = 0.0
+    for i in 3:3:s.num_E-3
+        length += norm(s.pos[i+3] - s.pos[i])
+    end
+    return length
+end
+
 """
     calc_aero_forces!(s::KPS4_3L, pos, vel)
 
