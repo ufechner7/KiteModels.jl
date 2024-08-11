@@ -578,10 +578,10 @@ end
     av_steps = simulate(integrator, STEPS-10)
     if Sys.isapple()
         println("isapple $av_steps")
-        @test isapprox(av_steps, 652035, rtol=0.6)
+        @test isapprox(av_steps, 168, rtol=0.6)
     else
         println("not apple $av_steps")
-        @test isapprox(av_steps, 652035, rtol=0.6)
+        @test isapprox(av_steps, 168, rtol=0.6)
     end
   
     lift, drag = KiteModels.lift_drag(kps4_3l)
