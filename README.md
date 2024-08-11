@@ -50,7 +50,7 @@ You can copy the examples to your project with:
 using KiteModels
 KiteModels.install_examples()
 ```
-This also adds the extra packages, needed for the examples to the project. Furthermore it creates a folder `data`
+This also adds the extra packages, needed for the examples to the project. Furthermore, it creates a folder `data`
 with some example input files. You can now run the examples with the command:
 ```julia
 include("examples/menu.jl")
@@ -88,7 +88,7 @@ This model assumes the kite to consist of four-point masses with aerodynamic for
 ## Tether
 The tether is modeled as point masses, connected by spring-damper elements. Aerodynamic drag is modeled realistically. When reeling out or in the unstreched length of the spring-damper elements
 is varied. This does not translate into physics directly, but it avoids adding point masses at run-time, which would be even worse because it would introduce discontinuities. When using
-Dyneema or similar high strength materials for the tether the resulting system is very stiff which is a challenge for the solver.
+Dyneema or similar high-strength materials for the tether the resulting system is very stiff which is a challenge for the solver.
 
 ## Further reading
 These models are described in detail in [Dynamic Model of a Pumping Kite Power System](http://arxiv.org/abs/1406.6218).
