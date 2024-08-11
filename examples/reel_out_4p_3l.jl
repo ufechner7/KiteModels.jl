@@ -1,7 +1,7 @@
 using Printf
 using KiteModels, KitePodModels, KiteUtils
 
-set = deepcopy(se())
+set = deepcopy(se("system_3l.yaml"))
 
 # the following values can be changed to match your interest
 dt = 0.05
@@ -86,20 +86,8 @@ if PLOT
 end
 # savefig("docs/src/reelout_force_4p.png")
 
-# Solver: DFBDF, reltol=0.000001
-# Total simulation time: 1.049 s
-# Simulation speed: 23.83 times realtime.
-# lift, drag  [N]: 545.24, 102.55
-# Average number of callbacks per time step: 625.604
-
 # Solver: DFBDF, reltol=0.001
 # Total simulation time: 0.178 s
 # Simulation speed: 140.08 times realtime.
 # lift, drag  [N]: 558.69, 105.3
 # Average number of callbacks per time step: 114.64
-
-# Solver: IDA
-# Total simulation time: 1.385 s
-# Simulation speed: 18.05 times realtime.
-# lift, drag  [N]: 543.58, 102.19
-# Average number of callbacks per time step: 756.074
