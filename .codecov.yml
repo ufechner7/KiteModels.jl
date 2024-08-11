@@ -10,7 +10,7 @@ coverage:
           - unit
         paths: 
           - "src"
-       # advanced settings
+        # advanced settings
         branches: 
           - main
         if_ci_failed: error #success, failure, error, ignore
