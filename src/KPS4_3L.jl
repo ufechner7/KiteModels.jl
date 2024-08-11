@@ -230,7 +230,6 @@ end
 function KPS4_3L(kcu::KCU)
     set = kcu.set
     s = KPS4_3L{SimFloat, KVec3, set.segments*3+2+KITE_PARTICLES, set.segments*3+KITE_SPRINGS_3L, SP}(set=kcu.set, motors=[AsyncMachine(set) for _ in 1:3])
-    # E = segments*3+1, C = segments*3+2, D = segments*3+3, A = segments*3+4
     s.num_E = s.set.segments*3+3
     s.num_C = s.set.segments*3+3+1
     s.num_D = s.set.segments*3+3+2
