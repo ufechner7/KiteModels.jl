@@ -42,7 +42,7 @@ function simulate(integrator, steps, plot=false)
             println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
         end
         acc = 0.0
-        if kps4_3l.t_0 > 15.0
+        if kps4_3l.t_0 > 1.0
             acc = 0.1
         end
         set_speeds = kps4_3l.set_speeds.+acc*dt
