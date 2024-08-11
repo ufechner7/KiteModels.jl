@@ -48,7 +48,6 @@ const KITE_SPRINGS_3L = 6
 const KITE_PARTICLES_3L = 4
 const KITE_ANGLE_3L = 0.0
 
-
 """
     mutable struct KPS4_3L{S, T, P, Q, SP} <: AbstractKiteModel
 
@@ -250,7 +249,6 @@ function calc_kite_ref_frame!(s::KPS4_3L, E, C, D)
     s.e_x .= cross(s.e_y, s.e_z)
     return nothing
 end
-
 
 function calc_tether_elevation(s::KPS4_3L)
     KiteUtils.calc_elevation(s.pos[6])
@@ -557,7 +555,6 @@ function loop!(s::KPS4_3L, pos, vel, posd, veld)
     for i in 1:s.set.segments*3
         @inbounds s.masses[i] = mass_tether_particle
         @inbounds s.springs[i] = SP(s.springs[i].p1, s.springs[i].p2, s.segment_lengths[i%3+1], c_spring, damping)
-
     end
     inner_loop!(s, pos, vel, s.v_wind_gnd, s.set.d_tether/1000.0)
     for i in s.num_E-2:s.num_E-1

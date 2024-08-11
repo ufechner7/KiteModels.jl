@@ -120,9 +120,8 @@ end
 
 steady_state_history_file = joinpath(get_data_path(), ".steady_state_history.bin")
 
-
 include("KPS4.jl")    # include code, specific for the four point kite model
-include("KPS4_3L.jl") # include code, specific for the four point three line kite model
+include("KPS4_3L.jl") # include code, specific for the four point kite model
 include("KPS3.jl")    # include code, specific for the one point kite model
 include("init.jl")    # functions to calculate the inital state vector, the inital masses and initial springs
 
@@ -174,13 +173,6 @@ end
 Getter for the unstretched tether reel-out lenght (at zero force).
 """
 function unstretched_length(s::AKM) s.l_tether end
-
-"""
-    unstretched_length(s::KPS4_3L)
-
-Getter for the unstretched tether reel-out lenght (at zero force).
-"""
-function unstretched_length(s::KPS4_3L) s.l_tethers[1] end
 
 """
     lift_drag(s::AKM)
@@ -243,19 +235,6 @@ end
 
 
 """
-    tether_length(s::AKM)
-
-Calculate and return the real, stretched tether lenght.
-"""
-function tether_length(s::KPS4_3L)
-    length = 0.0
-    for i in 3:3:s.num_E-3
-        length += norm(s.pos[i+3] - s.pos[i])
-    end
-    return length
-end
-
-"""
     orient_euler(s::AKM)
 
 Calculate and return the orientation of the kite in euler angles (roll, pitch, yaw)
@@ -275,16 +254,6 @@ function orient_euler(s::AKM)
     SVector(roll, pitch, yaw)
 end
 
-function calc_orient_quat(s::AKM)
-    x, _, z = kite_ref_frame(s)
-    pos_kite_ = pos_kite(s)
-    pos_before = pos_kite_ .+ z
-   
-    rotation = rot(pos_kite_, pos_before, -x)
-    q = QuatRotation(rotation)
-    return Rotations.params(q)
-end
-
 """
     calc_elevation(s::AKM)
 
@@ -294,10 +263,6 @@ function calc_elevation(s::AKM)
     KiteUtils.calc_elevation(pos_kite(s))
 end
 
-function calc_tether_elevation(s::KPS4_3L)
-    KiteUtils.calc_elevation(s.pos[6])
-end
-
 """
     calc_azimuth(s::AKM)
 
@@ -305,10 +270,6 @@ Determine the azimuth angle of the kite in radian.
 """
 function calc_azimuth(s::AKM)
     KiteUtils.azimuth_east(pos_kite(s))
-end
-
-function calc_tether_azimuth(s::KPS4_3L)
-    KiteUtils.azimuth_east(s.pos[6])
 end
 
 """
@@ -415,36 +376,6 @@ function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
     nothing
 end
 
-function update_sys_state!(ss::SysState, s::KPS4_3L, zoom=1.0)
-    ss.time = s.t_0
-    pos = s.pos
-    P = length(pos)
-    for i in 1:P
-        ss.X[i] = pos[i][1] * zoom
-        ss.Y[i] = pos[i][2] * zoom
-        ss.Z[i] = pos[i][3] * zoom
-    end
-    x, y, z = kite_ref_frame(s)
-    pos_kite_ = pos_kite(s)
-    pos_before = pos_kite_ + z
-   
-    rotation = rot(pos_kite_, pos_before, -x)
-    q = QuatRotation(rotation)
-    ss.orient .= Rotations.params(q)
-    ss.elevation = calc_elevation(s)
-    ss.azimuth = calc_azimuth(s)
-    ss.force = winch_force(s)[1]
-    ss.heading = calc_heading(s)
-    ss.course = calc_course(s)
-    ss.v_app = norm(s.v_apparent)
-    ss.l_tether = s.l_tethers[1]
-    ss.v_reelout = s.reel_out_speeds[1]
-    ss.depower = 100 - ((s.δ_left + s.δ_right)/2) / ((s.set.middle_length + s.set.tip_length)/2) * 100
-    ss.steering = (s.δ_right - s.δ_left) / ((s.set.middle_length + s.set.tip_length)/2) * 100
-    ss.vel_kite .= s.vel_kite
-    nothing
-end
-
 """
     SysState(s::AKM, zoom=1.0)
 
@@ -484,41 +415,6 @@ function SysState(s::AKM, zoom=1.0)
                           heading, course, v_app_norm, s.vel_kite, X, Y, Z, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 end
 
-function SysState(s::KPS4_3L, zoom=1.0)
-    pos = s.pos
-    P = length(pos)
-    X = zeros(MVector{P, MyFloat})
-    Y = zeros(MVector{P, MyFloat})
-    Z = zeros(MVector{P, MyFloat})
-    for i in 1:P
-        X[i] = pos[i][1] * zoom
-        Y[i] = pos[i][2] * zoom
-        Z[i] = pos[i][3] * zoom
-    end
-    
-    x, y, z = kite_ref_frame(s)
-    pos_kite_ = pos_kite(s)
-    pos_before = pos_kite_ + z
-   
-    rotation = rot(pos_kite_, pos_before, -x)
-    q = QuatRotation(rotation)
-    orient = MVector{4, Float32}(Rotations.params(q))
-
-    elevation = calc_elevation(s)
-    azimuth = calc_azimuth(s)
-    forces = winch_force(s)
-    heading = calc_heading(s)
-    course = calc_course(s)
-    v_app_norm = norm(s.v_apparent)
-    t_sim = 0
-    depower = 100 - ((s.δ_left + s.δ_right)/2) / ((s.set.middle_length + s.set.tip_length)/2) * 100
-    steering = (s.δ_right - s.δ_left) / ((s.set.middle_length + s.set.tip_length)/2) * 100
-    KiteUtils.SysState{P}(s.t_0, t_sim, 0, 0, orient, elevation, azimuth, s.l_tethers[1], s.reel_out_speeds[1], forces[1], depower, steering, 
-                          heading, course, v_app_norm, s.vel_kite, X, Y, Z, 
-                          s.l_tethers[2], s.l_tethers[3], s.reel_out_speeds[2], s.reel_out_speeds[3], 
-                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-end
-
 function calc_pre_tension(s::AKM)
     forces = spring_forces(s)
     av_force = 0.0
@@ -531,60 +427,6 @@ function calc_pre_tension(s::AKM)
     if isnan(res) res = 0.0 end
     return res + 1.0
 end
-
-function calc_pre_tension(s::KPS4_3L)
-    forces = spring_forces(s)
-    avg_force = 0.0
-    for i in 1:s.num_A
-        avg_force += forces[i]
-    end
-    avg_force /= s.num_A
-    res = avg_force/s.set.c_spring
-    if res < 0.0 res = 0.0 end
-    if isnan(res) res = 0.0 end
-    return res + 1.0
-end
-
-"""
-helper function for init sim
-"""
-function fields_equal(a::AKM, b::AKM)
-    if typeof(a) != typeof(b)
-        return false
-    end
-    for field in fieldnames(typeof(a.set))
-        if getfield(a.set, field) != getfield(b.set, field)
-            return false
-        end
-    end
-    return true
-end
-
-
-const SteadyStateHistory = Vector{Tuple{AbstractKiteModel, Vector{SimFloat}, Vector{SimFloat}}}
-"""
-Load the saved pairs of abstract kite models and corresponding integrators. It is assumed that a certain set of settings
-always leads to the same integrator.
-"""
-function load_history()
-    history = SteadyStateHistory()
-    try
-        if isfile(steady_state_history_file)
-            append!(history, deserialize(steady_state_history_file))
-        end
-    catch
-        println("Unable to load steady state history file. Try deleting data/.steady_state_history.bin.")
-    end
-    return history
-end
-
-"""
-In order to delete the integrator history: just delete data/.steady_state_history.bin
-"""
-function save_history(history::SteadyStateHistory)
-    serialize(steady_state_history_file, history)
-end
-
 
 """
     fields_equal(a::AKM, b::AKM)
@@ -737,7 +579,6 @@ function next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing,
     s.t_0 = integrator.t
     set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
     s.iter = 0
-
     if s.set.solver == "IDA"
         Sundials.step!(integrator, dt, true)
     else
