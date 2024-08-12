@@ -1,13 +1,19 @@
 using Printf
 using KiteModels, KitePodModels, KiteUtils
 
+using Pkg
+if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
+    using TestEnv; TestEnv.activate()
+end
+using ControlPlots
+
 set = deepcopy(se("system_3l.yaml"))
 
 # the following values can be changed to match your interest
 dt = 0.05
 set.solver="DFBDF" # IDA or DFBDF
 STEPS = 200
-PLOT = true
+PLOT = false
 FRONT_VIEW = false
 ZOOM = false
 PRINT = false
@@ -20,14 +26,6 @@ set.version = 2
 
 kcu::KCU = KCU(set)
 kps4_3l::KPS4_3L = KPS4_3L(kcu)
-
-# if PLOT
-    using Pkg
-    if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
-        using TestEnv; TestEnv.activate()
-    end
-    using ControlPlots
-# end
 
 v_time = zeros(STEPS)
 v_speed = zeros(STEPS)
@@ -90,7 +88,8 @@ end
 # savefig("docs/src/reelout_force_4p.png")
 
 # Solver: DFBDF, reltol=0.001, Ryzen desktop
-# Total simulation time: 0.066 s
-# Simulation speed: 75.37 times realtime.
-# lift, drag  [N]: 848.7, 310.27
-# Average number of callbacks per time step: 136.47
+# Solver: DFBDF
+# Total simulation time: 0.229 s
+# Simulation speed: 21.83 times realtime.
+# lift, drag  [N]: 826.05, 313.43
+# Average number of callbacks per time step: 439.85

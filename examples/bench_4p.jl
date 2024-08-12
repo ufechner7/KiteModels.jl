@@ -18,7 +18,7 @@ set.linear_solver="GMRES"       # GMRES, LapackDense or Dense
 STEPS = 200
 PRINT = false
 STATISTIC = false
-PLOT=true
+PLOT=false
 # end of user parameter section #
 
 kcu::KCU = KCU(set)
@@ -74,20 +74,8 @@ if PLOT
     display(p)
 end
 
-# Ryzen 7950X, GMRES solver
-# Total simulation time: 0.418 s
-# Simulation speed: 59.77 times realtime.
-# lift, drag  [N]: 597.54, 129.31
-# Average number of callbacks per time step: 234.5
-
-# Ryzen 7950X, LapackDense solver
-# Total simulation time: 0.36 s
-# Simulation speed: 69.39 times realtime.
-# lift, drag  [N]: 597.55, 129.31
-# Average number of callbacks per time step: 227.8
-
-# Ryzen 7950X, DFBDF solver
-# Total simulation time: 0.105 s
-# Simulation speed: 238.6 times realtime.
-# lift, drag  [N]: 598.0, 129.43
-# Average number of callbacks per time step:  64.0
+# Ryzen 7950X, Solver: DFBDF
+# Total simulation time: 0.048 s
+# Simulation speed: 104.06 times realtime.
+# lift, drag  [N]: 454.94, 96.5
+# Average number of callbacks per time step: 152.65
