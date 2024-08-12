@@ -325,9 +325,11 @@ function calc_aero_forces!(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
     alpha_3 = rad2deg(π - acos2(normalize(va_xy3) ⋅ x) - rel_steering * KS) + s.set.alpha_ztip
     alpha_4 = rad2deg(π - acos2(normalize(va_xy4) ⋅ x) + rel_steering * KS) + s.set.alpha_ztip
     s.alpha_2 = alpha_2
-    s.alpha_2b = rad2deg(π/2 + asin2(normalize(va_xz2) ⋅ x) - alpha_depower)  + s.set.alpha_zero
+    s.alpha_2b = rad2deg(π/2 + asin2(normalize(va_xz2) ⋅ x))
     s.alpha_3 = alpha_3
+    s.alpha3b = rad2deg(π/2 + asin2(normalize(va_xy3) ⋅ x))
     s.alpha_4 = alpha_4
+    s.alpha4b = rad2deg(π/2 + asin2(normalize(va_xy4) ⋅ x))
 
     CL2, CD2 = calc_cl(alpha_2), DRAG_CORR * calc_cd(alpha_2)
     CL3, CD3 = calc_cl(alpha_3), DRAG_CORR * calc_cd(alpha_3)
