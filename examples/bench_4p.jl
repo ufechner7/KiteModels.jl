@@ -18,7 +18,7 @@ set.linear_solver="GMRES"       # GMRES, LapackDense or Dense
 STEPS = 200
 PRINT = false
 STATISTIC = false
-PLOT=false
+PLOT=true
 # end of user parameter section #
 
 kcu::KCU = KCU(set)
@@ -28,11 +28,11 @@ v_time = zeros(STEPS)
 v_speed = zeros(STEPS)
 v_force = zeros(STEPS)
 
-function simulate(integrator, steps)
+function simulate(integrator, steps, offset=0)
     iter = 0
     for i in 1:steps
         acc = 0.0
-        if kps4.t_0 > 3.0
+        if kps4.t_0 > 3.0 + offset
             acc = 0.1
         end
         v_time[i] = kps4.t_0
@@ -53,26 +53,20 @@ end
 
 integrator = KiteModels.init_sim!(kps4, stiffness_factor=0.5, prn=STATISTIC)
 
+println("\nStarting simulation...")
+simulate(integrator, 100, 100)
+runtime = @elapsed av_steps = simulate(integrator, STEPS-100)
+println("\nSolver: $(set.solver)")
+println("Total simulation time: $(round(runtime, digits=3)) s")
+speed = (STEPS-100) / runtime * dt
+println("Simulation speed: $(round(speed, digits=2)) times realtime.")
 if PLOT
-    av_steps = simulate(integrator, STEPS)
-else
-    println("\nStarting simulation...")
-    simulate(integrator, 100)
-    runtime = @elapsed av_steps = simulate(integrator, STEPS-100)
-    println("\nSolver: $(set.solver)")
-    println("Total simulation time: $(round(runtime, digits=3)) s")
-    speed = (STEPS-100) / runtime * dt
-    println("Simulation speed: $(round(speed, digits=2)) times realtime.")
-end
-
-lift, drag = KiteModels.lift_drag(kps4)
-println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
-println("Average number of callbacks per time step: $(round(av_steps, digits=2))")
-
-if PLOT
-    p = plotx(v_time, v_speed, v_force; ylabels=["v_reelout  [m/s]","tether_force [N]"], fig="winch")
+    p = plotx(v_time[1:STEPS-100], v_speed[1:STEPS-100], v_force[1:STEPS-100]; ylabels=["v_reelout  [m/s]","tether_force [N]"], fig="winch")
     display(p)
 end
+lift, drag = KiteModels.lift_drag(kps4_3l)
+println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
+println("Average number of callbacks per time step: $av_steps")
 
 # Ryzen 7950X, Solver: DFBDF
 # Total simulation time: 0.048 s
