@@ -66,6 +66,7 @@ set_zero_subnormals(true)       # required to avoid drastic slow down on Intel C
 # Constants
 const G_EARTH = 9.81            # gravitational acceleration
 const BRIDLE_DRAG = 1.1         # should probably be removed
+const SYS_3L = "system_3l.yaml" # default system project for the 3L model
 
 # Type definitions
 """
@@ -94,8 +95,8 @@ const SVec3    = SVector{3, SimFloat}
 # disadvantage: changing the cl and cd curves requires a restart of the program     
 const calc_cl = Spline1D(se().alpha_cl, se().cl_list)
 const calc_cd = Spline1D(se().alpha_cd, se().cd_list)
-const rad_cl = Spline1D(deg2rad.(se().alpha_cl), se().cl_list)
-const rad_cd = Spline1D(deg2rad.(se().alpha_cd), se().cd_list) 
+const rad_cl = Spline1D(deg2rad.(se(SYS_3L).alpha_cl), se(SYS_3L).cl_list)
+const rad_cd = Spline1D(deg2rad.(se(SYS_3L).alpha_cd), se(SYS_3L).cd_list) 
 
 """
     abstract type AbstractKiteModel
