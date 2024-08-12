@@ -88,7 +88,6 @@ end
 # savefig("docs/src/reelout_force_4p.png")
 
 # Solver: DFBDF, reltol=0.001, Ryzen desktop
-# Solver: DFBDF
 # Total simulation time: 0.229 s
 # Simulation speed: 21.83 times realtime.
 # lift, drag  [N]: 826.05, 313.43
