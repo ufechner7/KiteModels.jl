@@ -133,11 +133,13 @@ $(TYPEDFIELDS)
     "aoa at paricle B"
     alpha_2::S =           0.0
     "aoa at paricle B, corrected formula"
-    alpha_2b::S =           0.0
+    alpha_2b::S =          0.0
     "aoa at paricle C"
     alpha_3::S =           0.0
+    alpha_3b::S =          0.0
     "aoa at paricle D"
     alpha_4::S =           0.0
+    alpha_4b::S =          0.0
     "relative start time of the current time interval"
     t_0::S =               0.0
     "reel out speed of the winch"
@@ -327,9 +329,9 @@ function calc_aero_forces!(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
     s.alpha_2 = alpha_2
     s.alpha_2b = rad2deg(π/2 + asin2(normalize(va_xz2) ⋅ x))
     s.alpha_3 = alpha_3
-    s.alpha3b = rad2deg(π/2 + asin2(normalize(va_xy3) ⋅ x))
+    s.alpha_3b = rad2deg(π/2 + asin2(normalize(va_xy3) ⋅ x))
     s.alpha_4 = alpha_4
-    s.alpha4b = rad2deg(π/2 + asin2(normalize(va_xy4) ⋅ x))
+    s.alpha_4b = rad2deg(π/2 + asin2(normalize(va_xy4) ⋅ x))
 
     CL2, CD2 = calc_cl(alpha_2), DRAG_CORR * calc_cd(alpha_2)
     CL3, CD3 = calc_cl(alpha_3), DRAG_CORR * calc_cd(alpha_3)
