@@ -76,7 +76,7 @@ println("Average number of callbacks per time step: $av_steps")
 # savefig("docs/src/reelout_force_4p.png")
 
 # Solver: DFBDF, reltol=0.001, Ryzen desktop
-# Total simulation time: 0.229 s
-# Simulation speed: 21.83 times realtime.
-# lift, drag  [N]: 826.05, 313.43
-# Average number of callbacks per time step: 439.85
+# Total simulation time: 0.139 s
+# Simulation speed: 36.05 times realtime.
+# lift, drag  [N]: 798.46, 314.82
+# Average number of callbacks per time step: 257.6

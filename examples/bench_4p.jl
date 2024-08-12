@@ -69,7 +69,7 @@ println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
 println("Average number of callbacks per time step: $av_steps")
 
 # Ryzen 7950X, Solver: DFBDF
-# Total simulation time: 0.048 s
-# Simulation speed: 104.06 times realtime.
-# lift, drag  [N]: 454.94, 96.5
-# Average number of callbacks per time step: 152.65
+# Total simulation time: 0.043 s
+# Simulation speed: 116.99 times realtime.
+# lift, drag  [N]: 798.46, 314.82
+# Average number of callbacks per time step: 126.41
