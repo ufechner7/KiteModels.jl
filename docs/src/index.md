@@ -35,6 +35,26 @@ at the Julia prompt. You can run the unit tests with the command:
 ```julia
 pkg"test KiteModels"
 ```
+You can copy the examples to your project with:
+```julia
+using KiteModels
+KiteModels.install_examples()
+```
+This also adds the extra packages, needed for the examples to the project. Furthermore, it creates a folder `data`
+with some example input files. You can now run the examples with the command:
+```julia
+include("examples/menu.jl")
+```
+
+## News
+#### August 2024
+- a new kite model, KPS3_3L was contributed. It uses three lines to the ground and three winches for steering a ram-air foil kite.
+- a new KCU model was added which assumes a linear relationship between the depower settings and the depower angle and thus is easier to configure than the original model.
+#### July 2024
+- a new groundstation / winch-type is now supported, the `TorqueControlledMachine`. It can be configured in the section `winch` of the `settings.yaml` file. It uses a set torque as input.
+- a Python interface is now provided, see: [pykitemodels](https://github.com/ufechner7/pykitemodels)
+#### April 2024
+- added support for the native Julia DAE solver DFBDF. It is much more accurate and faster than the IDA solver that was used before.
 
 ## Provides
 The type [`AbstractKiteModel`](@ref) with the implementation [`KPS3`](@ref), [`KPS4`](@ref) and [`KPS4_3L`](@ref), representing the one point, the four point kite model and the four point - three lines model, together with the high level simulation interface consisting of the functions [`init_sim!`](@ref) and [`next_step!`](@ref). Other kite models can be added inside or outside of this package by implementing the non-generic methods required for an AbstractKiteModel.
