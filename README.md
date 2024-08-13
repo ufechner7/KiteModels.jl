@@ -4,6 +4,7 @@
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://ufechner7.github.io/KiteModels.jl/dev)
 [![CI](https://github.com/ufechner7/KiteModels.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/ufechner7/KiteModels.jl/actions/workflows/CI.yml)
 [![Coverage](https://codecov.io/gh/ufechner7/KiteModels.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/ufechner7/KiteModels.jl)
+[![DOI](https://zenodo.org/badge/443855286.svg)](https://zenodo.org/doi/10.5281/zenodo.13310253)
 
 ## Kite power system models, consisting of tether and kite
 The model has the following subcomponents, implemented in separate packages:
