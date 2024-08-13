@@ -5,7 +5,7 @@ rm -rf /tmp/test
 mkdir /tmp/test
 cd /tmp/test
 export JULIA_DEPOT_PATH=/tmp/testdepot 
-julia --project="." -e "using Pkg; pkg\"add KiteModels#v0.6.3\"; using KiteModels"
+julia --project="." -e "using Pkg; pkg\"add KiteModels@0.6.3\"; using KiteModels"
 cd ..
 rm -rf /tmp/test2   
 mkdir /tmp/test2
