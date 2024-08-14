@@ -665,8 +665,8 @@ end
     # list = [OtherType("hello"), OtherType("world!")]
     set_data_path()
 
-    kps4_::KPS4 = KPS4(KCU(se()))
-    kps3_::KPS3 = KPS3(KCU(se()))
+    kps4_::KPS4 = KPS4(KCU(se("system.yaml")))
+    kps3_::KPS3 = KPS3(KCU(se("system.yaml")))
     kps4_3l_::KPS4_3L = KPS4_3L(KCU(se(SYS_3L)))
     @assert ! isnothing(kps4_.wm)
     @compile_workload begin
