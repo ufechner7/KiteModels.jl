@@ -1,5 +1,9 @@
 # Changelog
 
+### Unreleased
+#### Changed
+- bump KiteUtils to 0.7.7
+
 ### KiteModels v0.6.4 - 2024-08-12
 #### Added
 - a new kite model, KPS3_3L was contributed by Bart van de Lint. It uses three lines to the ground and three winches for steering a ram-air foil kite.
