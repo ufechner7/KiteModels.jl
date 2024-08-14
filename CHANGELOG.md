@@ -3,6 +3,7 @@
 ### Unreleased
 #### Changed
 - bump KiteUtils to 0.7.7
+- add new examples to menu
 
 ### KiteModels v0.6.4 - 2024-08-12
 #### Added
