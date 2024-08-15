@@ -721,7 +721,7 @@ end
 """
     copy_examples()
 
-Copy the example scripts to the folder "examples"
+Copy all example scripts to the folder "examples"
 (it will be created if it doesn't exist).
 """
 function copy_examples()
@@ -730,14 +730,19 @@ function copy_examples()
         mkdir(PATH)
     end
     src_path = joinpath(dirname(pathof(@__MODULE__)), "..", PATH)
-    cp(joinpath(src_path, "compare_kps3_kps4.jl"), joinpath(PATH, "compare_kps3_kps4.jl"), force=true)
-    cp(joinpath(src_path, "simulate.jl"), joinpath(PATH, "simulate.jl"), force=true)
-    cp(joinpath(src_path, "reel_out_1p.jl"), joinpath(PATH, "reel_out_1p.jl"), force=true)
-    cp(joinpath(src_path, "reel_out_4p.jl"), joinpath(PATH, "reel_out_4p.jl"), force=true)
-    chmod(joinpath(PATH, "compare_kps3_kps4.jl"), 0o664)
-    chmod(joinpath(PATH, "simulate.jl"), 0o664)
-    chmod(joinpath(PATH, "reel_out_1p.jl"), 0o664)
-    chmod(joinpath(PATH, "reel_out_4p.jl"), 0o664)
+    copy_files("examples", readdir(src_path))
+end
+
+function copy_files(relpath, files)
+    if ! isdir(relpath) 
+        mkdir(relpath)
+    end
+    src_path = joinpath(dirname(pathof(@__MODULE__)), "..", relpath)
+    for file in files
+        cp(joinpath(src_path, file), joinpath(relpath, file), force=true)
+        chmod(joinpath(relpath, file), 0o774)
+    end
+    files
 end
 
 """
@@ -752,8 +757,8 @@ function copy_bin()
         mkdir(PATH)
     end
     src_path = joinpath(dirname(pathof(@__MODULE__)), "..", PATH)
-    cp(joinpath(src_path, "create_sys_image2"), joinpath(PATH, "create_sys_image"), force=true)
-    cp(joinpath(src_path, "run_julia2"), joinpath(PATH, "run_julia"), force=true)
+    cp(joinpath(src_path, "create_sys_image"), joinpath(PATH, "create_sys_image"), force=true)
+    cp(joinpath(src_path, "run_julia"), joinpath(PATH, "run_julia"), force=true)
     chmod(joinpath(PATH, "create_sys_image"), 0o774)
     chmod(joinpath(PATH, "run_julia"), 0o774)
     PATH = "test"
