@@ -13,7 +13,7 @@ dt = 0.05
 set.solver="DFBDF" # IDA or DFBDF
 STEPS = 600
 PLOT = true
-PRINT = true
+PRINT = false
 STATISTIC = false
 # end of user parameter section #
 
@@ -28,6 +28,8 @@ if PLOT
     using ControlPlots
 end
 
+logger = Logger(set.segments + 5, STEPS)
+
 function simulate(integrator, steps)
     iter = 0
     for i in 1:steps
@@ -38,6 +40,8 @@ function simulate(integrator, steps)
         end
 
         KiteModels.next_step!(kps4, integrator; set_speed=0, dt)
+        sys_state = KiteModels.SysState(kps4)
+        log!(logger, sys_state)
         iter += kps4.iter
     end
     iter / steps
@@ -45,6 +49,11 @@ end
 
 integrator = KiteModels.init_sim!(kps4, stiffness_factor=0.5, prn=STATISTIC)
 av_steps = simulate(integrator, STEPS)
+
+if PLOT 
+    p = plot(logger.time_vec, rad2deg.(logger.elevation_vec))
+    display(p)
+end
 
 lift, drag = KiteModels.lift_drag(kps4)
 println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
