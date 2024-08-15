@@ -25,3 +25,4 @@ bin/kps-image-1.10-torque.so
 bin/kps-image-1.10-feat-KPS4_3L.so
 data/.steady_state_history.bin
 data/sim_log.bin
+bin/kps-image-1.10-kps4_3l_example.so

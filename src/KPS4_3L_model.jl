@@ -24,7 +24,7 @@ Parameters:
 
 Updates the vector s.forces of the first parameter.
 """
-function calc_aero_forces_model!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z)
+function calc_aero_forces_model!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, rho)
     n = s.set.aero_surfaces
     @variables begin
         δ_left(t)
@@ -143,8 +143,8 @@ function calc_aero_forces_model!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t
                 d[i] ~ δ_right :
                 d[i] ~ (δ_right - δ_left) / (s.α_r - s.α_l) * (α - s.α_l) + (δ_left)
             aoa[i] ~ -asin((v_a_xr[:,i]./norm(v_a_xr[:,i])) ⋅ e_r[:,i]) + asin(clamp(d[i]/kite_length[i], -1.0, 1.0))
-            dL_dα[:,i] .~ 0.5*s.rho*(norm(v_a_xr[:,i]))^2*s.set.radius*kite_length[i]*rad_cl_model(aoa[i]) .* ((v_a_xr[:,i] × e_drift[:,i]) ./ norm(v_a_xr[:,i] × e_drift[:,i]))
-            dD_dα[:,i] .~ 0.5*s.rho*norm(v_a_xr[:,i])*s.set.radius*kite_length[i]*rad_cd_model(aoa[i]) .* v_a_xr[:,i] # the sideways drag cannot be calculated with the C_d formula
+            dL_dα[:,i] .~ 0.5*rho*(norm(v_a_xr[:,i]))^2*s.set.radius*kite_length[i]*rad_cl_model(aoa[i]) .* ((v_a_xr[:,i] × e_drift[:,i]) ./ norm(v_a_xr[:,i] × e_drift[:,i]))
+            dD_dα[:,i] .~ 0.5*rho*norm(v_a_xr[:,i])*s.set.radius*kite_length[i]*rad_cd_model(aoa[i]) .* v_a_xr[:,i] # the sideways drag cannot be calculated with the C_d formula
         ]
         if i <= n
             [l_c_eq[j] = (L_C[j] ~ l_c_eq[j].rhs + dL_dα[j,i] * dα) for j in 1:3]
@@ -346,6 +346,7 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
         e_y(t)[1:3]
         e_z(t)[1:3]
         force(t)[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
+        rho_kite(t) = 0.0
     end
     # Collect the arrays into variables
     pos = collect(pos)
@@ -410,9 +411,10 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
         e_y .~ (pos[:,s.num_C] .- pos[:,s.num_D]) ./ norm(pos[:,s.num_C] .- pos[:,s.num_D])
         e_z .~ (pos[:,s.num_E] .- P_c) ./ norm(pos[:,s.num_E] .- P_c)
         e_x .~ cross(e_y, e_z)
+        rho_kite ~ calc_rho(s.am, pos[3,s.num_A])
     ]
 
-    eqs2, force_eqs = calc_aero_forces_model!(s, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z)
+    eqs2, force_eqs = calc_aero_forces_model!(s, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, rho_kite)
     eqs2, force_eqs = inner_loop_model!(s, eqs2, force_eqs, t, force, pos, vel, segment_length, c_spring, damping, v_wind_gnd)
     
     for i in 1:3
@@ -424,7 +426,8 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
         eqs2 = vcat(eqs2, acc[:,i] .~ [0.0; 0.0; -9.81] .+ (force[:,i] ./ mass_tether_particle[(i-1)%3+1]))
     end
     for i in s.num_E-2:s.num_E-1
-        [force_eqs[j,i] = force[j,i] ~ force_eqs[j,i].rhs + [0.0; 0.0; -9.81][j] + 500.0 * ((vel[:,i]-vel[:,s.num_C]) ⋅ e_z) * e_z[j] for j in 1:3] # TODO: more damping
+        flap_resistance = [50.0 * ((vel[:,i]-vel[:,s.num_C]) ⋅ e_z) * e_z[j] for j in 1:3]
+        [force_eqs[j,i] = force[j,i] ~ force_eqs[j,i].rhs + [0.0; 0.0; -9.81][j] + flap_resistance[j] for j in 1:3]
         tether_rhs = [force_eqs[j,i].rhs for j in 1:3]
         kite_rhs = [force_eqs[j,i+3].rhs for j in 1:3]
         f_xy = dot(tether_rhs, e_z) .* e_z

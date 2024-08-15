@@ -572,7 +572,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
                 if fields_equal(akm_steady_state_pair[1], s)
                     if prn println("Found similar steady state, ") end
                     for field in fieldnames(typeof(s))
-                        setfield!(s, field, getfield(akm_steady_state_pair[1], field)) # deepcopy??
+                        setfield!(s, field, getfield(akm_steady_state_pair[1], field))
                     end
                     y0 = akm_steady_state_pair[2]
                     yd0 = akm_steady_state_pair[3]
@@ -641,6 +641,7 @@ function reset_sim!(s::KPS4_3L; stiffness_factor=0.035)
         clear!(s)
         s.stiffness_factor = stiffness_factor  
         dt = 1/s.set.sample_freq
+        # TRBDF2, Rodas4P, Rodas5P, Kvaerno5, KenCarp4, radau, QNDF
         integrator = OrdinaryDiffEq.init(s.prob, TRBDF2(autodiff=false); dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
         update_pos!(s, integrator)
         return integrator
