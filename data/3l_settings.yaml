@@ -16,8 +16,8 @@ initial:
     depower:   25.0        # initial depower settings    [%]
 
 solver:
-    abs_tol: 0.006        # absolute tolerance of the DAE solver [m, m/s]
-    rel_tol: 0.01         # relative tolerance of the DAE solver [-]
+    abs_tol: 0.0006        # absolute tolerance of the DAE solver [m, m/s]
+    rel_tol: 0.001         # relative tolerance of the DAE solver [-]
     solver: "DFBDF"        # DAE solver, IDA or DImplicitEuler, DFBDF
     linear_solver: "GMRES" # can be GMRES or Dense or LapackDense (only for IDA)
     max_order: 4           # maximal order, usually between 3 and 5

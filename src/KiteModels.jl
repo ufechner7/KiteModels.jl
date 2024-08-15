@@ -597,7 +597,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
     end
     
     if s.mtk
-        solver = TRBDF2(autodiff=false) # TRBDF2, Rodas4P, Rodas5P, Kvaerno5, KenCarp4, radau, QNDF
+        solver = KenCarp4(autodiff=false) # TRBDF2, Rodas4P, Rodas5P, Kvaerno5, KenCarp4, radau, QNDF
     elseif s.set.solver=="IDA"
         solver  = Sundials.IDA(linear_solver=Symbol(s.set.linear_solver), max_order = s.set.max_order)
     elseif s.set.solver=="DImplicitEuler"
@@ -641,8 +641,9 @@ function reset_sim!(s::KPS4_3L; stiffness_factor=0.035)
         clear!(s)
         s.stiffness_factor = stiffness_factor  
         dt = 1/s.set.sample_freq
+        # 1. KenCarp4
         # TRBDF2, Rodas4P, Rodas5P, Kvaerno5, KenCarp4, radau, QNDF
-        integrator = OrdinaryDiffEq.init(s.prob, TRBDF2(autodiff=false); dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
+        integrator = OrdinaryDiffEq.init(s.prob, KenCarp4(autodiff=false); dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
         update_pos!(s, integrator)
         return integrator
     end
