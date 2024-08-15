@@ -3,7 +3,7 @@ using Base: summarysize
 # using SteadyStateDiffEq
 
 update_settings()
-steps = 100
+steps = 150
 dt = 1/se().sample_freq
 tspan   = (0.0, dt) 
 # plot2d([[0,0,0]], 0)
@@ -35,8 +35,8 @@ for i in 1:steps
     if i == 20
         global steering = [10,10,-30]
     end
-    if i == 90
-        global steering = [10,9.9,-30]
+    if i == 50
+        global steering = [0,10.0,-40]
     end
     # if i == 10
     #     global steering = [-0.5,10.5,-0]
@@ -46,7 +46,7 @@ for i in 1:steps
     # end
     # println(s.steering_pos, "\t tether_lengths \t", s.reel_out_speeds)
     heading = calc_heading(s)
-    println(s.steering_pos)
+    # println(s.steering_pos)
     if heading > pi
         heading -= 2*pi
     end
