@@ -45,24 +45,24 @@ steering_poss = [[],[]]
 reel_out_speedss = [[],[]]
 headings = []
 for i in 1:steps
-    global total_new_time, sys_state
+    global total_new_time, sys_state, steering
     if i == 1
-        global steering = [5,5,-30.0] # left right middle
+        steering = [5,5,-30.0] # left right middle
     end
     if i == 20
-        global steering = [10,10,-30]
+        steering = [10,10,-30]
     end
     if i == 50
-        global steering = [0,10.0,-40]
+        steering = [0,10.0,-40]
     end
 
     if sys_state.heading > pi
         sys_state.heading -= 2*pi
     end
-    sys_state.var_01 =  s.steering_pos[1]
-    sys_state.var_02 =  s.steering_pos[2]
-    sys_state.var_03 =  s.reel_out_speeds[1]
-    sys_state.var_04 =  s.reel_out_speeds[2]
+    sys_state.var_01 =  mtk_kite.steering_pos[1]
+    sys_state.var_02 =  mtk_kite.steering_pos[2]
+    sys_state.var_03 =  mtk_kite.reel_out_speeds[1]
+    sys_state.var_04 =  mtk_kite.reel_out_speeds[2]
 
     total_new_time += @elapsed next_step!(mtk_kite, mtk_integrator; set_values=steering)
 
