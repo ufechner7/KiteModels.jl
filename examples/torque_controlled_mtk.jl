@@ -1,5 +1,6 @@
-using Revise, KiteModels, OrdinaryDiffEq, LinearAlgebra
+using Revise, KiteModels, OrdinaryDiffEq, LinearAlgebra, Timers
 using Base: summarysize
+tick()
 
 using Pkg
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
@@ -41,9 +42,7 @@ log!(logger, sys_state)
 println("stepping")
 total_old_time = 0.0
 total_new_time = 0.0
-steering_poss = [[],[]]
-reel_out_speedss = [[],[]]
-headings = []
+toc()
 for i in 1:steps
     global total_new_time, sys_state, steering
     if i == 1
