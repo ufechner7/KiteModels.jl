@@ -1,4 +1,4 @@
-using Revise, KiteModels, OrdinaryDiffEq, LinearAlgebra, Timers
+using KiteModels, OrdinaryDiffEq, LinearAlgebra, Timers
 using Base: summarysize
 tic()
 
