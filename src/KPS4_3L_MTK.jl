@@ -376,10 +376,10 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
         eqs2 = vcat(eqs2, acc[:,i] .~ [0.0; 0.0; -9.81] .+ (force[:,i] ./ mass_tether_particle[(i-1)%3+1]))
     end
     for i in s.num_E-2:s.num_E-1
-        flap_resistance   = [50.0 * ((vel[:,i]-vel[:,s.num_C]) ⋅ e_z) * e_z[j] for j in 1:3]
+        flap_resistance   = [50.0 * ((vel[:,i]-vel[:, s.num_C]) ⋅ e_z) * e_z[j] for j in 1:3]
         [force_eqs[j,i]   = force[j,i] ~ force_eqs[j,i].rhs + [0.0; 0.0; -9.81][j] + flap_resistance[j] for j in 1:3]
-        tether_rhs        = [force_eqs[j,i].rhs for j in 1:3]
-        kite_rhs          = [force_eqs[j,i+3].rhs for j in 1:3]
+        tether_rhs        = [force_eqs[j, i].rhs for j in 1:3]
+        kite_rhs          = [force_eqs[j, i+3].rhs for j in 1:3]
         f_xy              = dot(tether_rhs, e_z) .* e_z
         force_eqs[:,i]   .= force[:,i] .~ tether_rhs .- f_xy
         force_eqs[:,i+3] .= force[:,i+3] .~ kite_rhs .+ f_xy
