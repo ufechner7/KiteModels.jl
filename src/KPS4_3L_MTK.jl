@@ -357,10 +357,10 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
         vel[:,s.num_E-1] .~ vel[:,s.num_D] .+ e_z .* steering_vel[2]
         acc[:,s.num_E-2] .~ acc[:,s.num_C] .+ e_z .* steering_acc[1]
         acc[:,s.num_E-1] .~ acc[:,s.num_D] .+ e_z .* steering_acc[2]
-        segment_length        ~ tether_length  / s.set.segments
-        mass_tether_particle  ~ mass_per_meter * segment_length
-        damping               ~ s.set.damping  / segment_length
-        c_spring              ~ s.set.c_spring / segment_length
+        segment_length .~ tether_length ./ s.set.segments
+        mass_tether_particle .~ mass_per_meter .* segment_length
+        damping .~ s.set.damping ./ segment_length
+        c_spring .~ s.set.c_spring ./ segment_length
         P_c ~ 0.5 .* (pos[:,s.num_C]+pos[:,s.num_D])
         e_y .~ (pos[:,s.num_C] .- pos[:,s.num_D]) ./ norm(pos[:,s.num_C] .- pos[:,s.num_D])
         e_z .~ (pos[:,s.num_E] .- P_c) ./ norm(pos[:,s.num_E] .- P_c)
