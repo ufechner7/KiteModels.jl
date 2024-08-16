@@ -1,5 +1,6 @@
-using Revise, KiteModels, OrdinaryDiffEq, LinearAlgebra
+using Revise, KiteModels, OrdinaryDiffEq, LinearAlgebra, Timers
 using Base: summarysize
+tic()
 
 using Pkg
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
@@ -34,6 +35,7 @@ println("stepping")
 total_old_time = 0.0
 total_new_time = 0.0
 
+toc()
 for i in 1:steps
     global total_new_time, sys_state
     if i == 1
