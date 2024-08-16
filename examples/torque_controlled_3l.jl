@@ -33,9 +33,7 @@ end
 println("stepping")
 total_old_time = 0.0
 total_new_time = 0.0
-steering_poss = [[],[]]
-reel_out_speedss = [[],[]]
-headings = []
+
 for i in 1:steps
     global total_new_time, sys_state
     if i == 1
@@ -48,9 +46,6 @@ for i in 1:steps
         global steering = [0,10.0,-40]
     end
 
-    if sys_state.heading > pi
-        sys_state.heading -= 2*pi
-    end
     sys_state.var_01 =  s.steering_pos[1]
     sys_state.var_02 =  s.steering_pos[2]
     sys_state.var_03 =  s.reel_out_speeds[1]
@@ -68,6 +63,7 @@ new_time = (dt*steps) / total_new_time
 println("times realtime new model: ", new_time)
 println("avg steptime new model: ", total_new_time/steps)
 
-plotx(logger.time_vec, [logger.var_01_vec,  logger.var_02_vec], [logger.var_03_vec,  logger.var_04_vec], rad2deg.(logger.heading_vec); 
+plotx(logger.time_vec, [logger.var_01_vec,  logger.var_02_vec], [logger.var_03_vec,  logger.var_04_vec], 
+      rad2deg.(logger.heading_vec); 
       ylabels=["Steering", "Reelout speed", "Heading [deg]"], 
       labels=[["Steering Pos 1", "Steering Pos 2"], ["v_ro 1", "v_ro 2"], "Heading"], title="Steering and Heading")
