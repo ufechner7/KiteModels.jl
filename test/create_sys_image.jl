@@ -14,5 +14,6 @@ push!(LOAD_PATH,joinpath(pwd(),"src"))
 PackageCompiler.create_sysimage(
     [:Dierckx, :StaticArrays, :Parameters, :NLsolve, :DocStringExtensions, :Sundials, :KiteUtils, :KitePodModels, :AtmosphericModels, :OrdinaryDiffEq];
     sysimage_path="kps-image_tmp.so",
+    include_transitive_dependencies=false,
     precompile_execution_file=joinpath("test", "test_for_precompile.jl")
 )
