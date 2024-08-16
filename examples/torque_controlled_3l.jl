@@ -60,10 +60,11 @@ for i in 1:steps
 end
 
 new_time = (dt*steps) / total_new_time
-println("times realtime new model: ", new_time)
-println("avg steptime new model: ", total_new_time/steps)
+println("times realtime implicit model: ", new_time)
+println("avg steptime implicit model:   ", total_new_time/steps)
 
 plotx(logger.time_vec, [logger.var_01_vec,  logger.var_02_vec], [logger.var_03_vec,  logger.var_04_vec], 
       rad2deg.(logger.heading_vec); 
       ylabels=["Steering", "Reelout speed", "Heading [deg]"], 
-      labels=[["Steering Pos 1", "Steering Pos 2"], ["v_ro 1", "v_ro 2"], "Heading"], title="Steering and Heading")
+      labels=[["Steering Pos 1", "Steering Pos 2"], ["v_ro 1", "v_ro 2"], "Heading"], 
+      fig="Steering and Heading implicit model")
