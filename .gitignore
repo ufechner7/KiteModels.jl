@@ -1,4 +1,6 @@
 *.xopp
+*.so
+*.so.bak
 /Manifest.toml
 /Manifest.toml.1.7
 bin/kps-image-1.8-initial.so

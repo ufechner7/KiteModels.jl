@@ -16,8 +16,8 @@ initial:
     depower:   25.0        # initial depower settings    [%]
 
 solver:
-    abs_tol: 0.006        # absolute tolerance of the DAE solver [m, m/s]
-    rel_tol: 0.01         # relative tolerance of the DAE solver [-]
+    abs_tol: 0.0006        # absolute tolerance of the DAE solver [m, m/s]
+    rel_tol: 0.001         # relative tolerance of the DAE solver [-]
     solver: "DFBDF"        # DAE solver, IDA or DImplicitEuler, DFBDF
     linear_solver: "GMRES" # can be GMRES or Dense or LapackDense (only for IDA)
     max_order: 4           # maximal order, usually between 3 and 5
@@ -62,7 +62,7 @@ kps4_3l:
     tip_length: 0.62
     min_steering_line_distance: 1.0
     width:         4.1     # width of the kite                          [m]
-    aero_surfaces: 3      # number of aerodynamic surfaces in 3 line model
+    aero_surfaces: 5      # number of aerodynamic surfaces in 3 line model
 
 kcu:
     kcu_mass: 8.4                # mass of the kite control unit   [kg]
@@ -90,13 +90,19 @@ tether:
                            # SK75: 109 to 132 GPa according to datasheet
 
 winch:
+    winch_model: "TorqueControlledMachine" # or TorqueControlledMachine
     max_force: 4000        # maximal (nominal) tether force; short overload allowed [N]
-    v_ro_max:  8.0         # maximal reel-out speed                      [m/s]
-    v_ro_min: -8.0         # minimal reel-out speed (=max reel-in speed) [m/s]
+    v_ro_max:  8.0         # maximal reel-out speed                          [m/s]
+    v_ro_min: -8.0         # minimal reel-out speed (=max reel-in speed)     [m/s]
+    drum_radius: 0.110    # radius of the drum                              [m]
+    gear_ratio: 1.0        # gear ratio of the winch                         [-]   
+    inertia_total: 0.104   # total inertia, as seen from the motor/generator [kgm²]
+    f_coulomb: 122.0       # coulomb friction                                [N]
+    c_vf: 30.6             # coefficient for the viscous friction            [Ns/m]
 
 environment:
-    v_wind: 15.51             # wind speed at reference height          [m/s]
-    v_wind_ref: [15.51, 0.0]  # wind speed vector at reference height   [m/s]
+    v_wind: 9.51             # wind speed at reference height          [m/s]
+    v_wind_ref: [9.51, 0.0]  # wind speed vector at reference height   [m/s]
     temp_ref: 15.0           # temperature at reference height         [°C]
     height_gnd: 0.0          # height of groundstation above see level [m]
     h_ref:  6.0              # reference height for the wind speed     [m]

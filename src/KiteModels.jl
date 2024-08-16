@@ -34,7 +34,7 @@ Scientific background: http://arxiv.org/abs/1406.6218 =#
 module KiteModels
 
 using PrecompileTools: @setup_workload, @compile_workload 
-using Dierckx, StaticArrays, Rotations, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, OrdinaryDiffEq, Serialization
+using Dierckx, StaticArrays, Rotations, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, OrdinaryDiffEq, Serialization, DataInterpolations
 import Sundials
 using Reexport, Pkg
 @reexport using KitePodModels
@@ -50,11 +50,12 @@ import KiteUtils.SysState
 # import Sundials.step!
 import OrdinaryDiffEq.init
 import OrdinaryDiffEq.step!
+using ModelingToolkit, SymbolicIndexingInterface
 
 export KPS3, KPS4, KPS4_3L, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                     # constants and types
 export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                            # helper functions
-export clear!, find_steady_state!, residual!                                                  # low level workers
-export init_sim!, next_step!                                                                  # high level workers
+export clear!, find_steady_state!, residual!, model!                                                  # low level workers
+export init_sim!, reset_sim!, next_step!, init_pos_vel, update_pos!                                                                  # high level workers
 export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, calc_orient_quat, load_history  # getters
 export winch_force, lift_drag, lift_over_drag, unstretched_length, tether_length, v_wind_kite # getters
 export save_history # setter / saver
@@ -95,8 +96,10 @@ const SVec3    = SVector{3, SimFloat}
 # disadvantage: changing the cl and cd curves requires a restart of the program     
 const calc_cl = Spline1D(se().alpha_cl, se().cl_list)
 const calc_cd = Spline1D(se().alpha_cd, se().cd_list)
-const rad_cl = Spline1D(deg2rad.(se(SYS_3L).alpha_cl), se(SYS_3L).cl_list)
-const rad_cd = Spline1D(deg2rad.(se(SYS_3L).alpha_cd), se(SYS_3L).cd_list) 
+const rad_cl = Spline1D(deg2rad.(se().alpha_cl), se().cl_list, k=3)
+const rad_cd = Spline1D(deg2rad.(se().alpha_cd), se().cd_list, k=3) 
+const rad_cl_mtk = CubicSpline(se().cl_list, deg2rad.(se().alpha_cl); extrapolate=true) 
+const rad_cd_mtk = CubicSpline(se().cd_list, deg2rad.(se().alpha_cd); extrapolate=true) 
 
 """
     abstract type AbstractKiteModel
@@ -121,10 +124,11 @@ end
 
 steady_state_history_file = joinpath(get_data_path(), ".steady_state_history.bin")
 
-include("KPS4.jl")    # include code, specific for the four point kite model
-include("KPS4_3L.jl") # include code, specific for the four point kite model
-include("KPS3.jl")    # include code, specific for the one point kite model
-include("init.jl")    # functions to calculate the inital state vector, the inital masses and initial springs
+include("KPS4.jl") # include code, specific for the four point kite model
+include("KPS4_3L.jl") # include code, specific for the four point 3 line kite model
+include("KPS4_3L_MTK.jl") # include code, specific for the four point 3 line kite model
+include("KPS3.jl") # include code, specific for the one point kite model
+include("init.jl") # functions to calculate the inital state vector, the inital masses and initial springs
 
 # Calculate the lift and drag coefficient as a function of the angle of attack alpha.
 function set_cl_cd!(s::AKM, alpha)   
@@ -174,6 +178,7 @@ end
 Getter for the unstretched tether reel-out lenght (at zero force).
 """
 function unstretched_length(s::AKM) s.l_tether end
+
 
 """
     lift_drag(s::AKM)
@@ -253,6 +258,16 @@ function orient_euler(s::AKM)
         yaw += 2π
     end
     SVector(roll, pitch, yaw)
+end
+
+function calc_orient_quat(s::AKM)
+    x, _, z = kite_ref_frame(s)
+    pos_kite_ = pos_kite(s)
+    pos_before = pos_kite_ .+ z
+   
+    rotation = rot(pos_kite_, pos_before, -x)
+    q = QuatRotation(rotation)
+    return Rotations.params(q)
 end
 
 """
@@ -342,16 +357,6 @@ end
 #     var_04::MyFloat
 #     var_05::MyFloat
 # end 
-
-function calc_orient_quat(s::AKM)
-    x, _, z = kite_ref_frame(s)
-    pos_kite_ = pos_kite(s)
-    pos_before = pos_kite_ .+ z
-   
-    rotation = rot(pos_kite_, pos_before, -x)
-    q = QuatRotation(rotation)
-    return Rotations.params(q)
-end
 
 function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
     ss.time = s.t_0
@@ -494,13 +499,15 @@ Parameters:
 Returns:
 An instance of a DAE integrator.
 """
-function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_state_history=nothing)
+function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_state_history=nothing, mtk=false, torque_control=false)
     clear!(s)
     s.stiffness_factor = stiffness_factor
-
+    if isa(s, KPS4_3L)
+        s.mtk = mtk
+        s.torque_control = torque_control
+    end
+    
     found = false
-    y0 = nothing
-    yd0 = nothing
     if isa(steady_state_history, SteadyStateHistory)
         while length(steady_state_history) > 1000 # around 1MB, 1ms max per for loop
             pop!(steady_state_history)
@@ -511,7 +518,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
                 if fields_equal(akm_steady_state_pair[1], s)
                     if prn println("Found similar steady state, ") end
                     for field in fieldnames(typeof(s))
-                        setfield!(s, field, getfield(akm_steady_state_pair[1], field)) # deepcopy??
+                        setfield!(s, field, getfield(akm_steady_state_pair[1], field))
                     end
                     y0 = akm_steady_state_pair[2]
                     yd0 = akm_steady_state_pair[3]
@@ -525,33 +532,56 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
     end
     if !found
         y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor=stiffness_factor, prn=prn)
-        y0  = Vector{SimFloat}(y0)
-        yd0 = Vector{SimFloat}(yd0)
+        if !mtk
+            y0  = Vector{SimFloat}(y0)
+            yd0 = Vector{SimFloat}(yd0)
+        end
 
         if isa(steady_state_history, SteadyStateHistory)
             pushfirst!(steady_state_history, (deepcopy(s), deepcopy(y0), deepcopy(yd0)))
         end
     end
     
-    if s.set.solver=="IDA"
+    if isa(s, KPS4_3L) && s.mtk
+        solver = KenCarp4(autodiff=false) # TRBDF2, Rodas4P, Rodas5P, Kvaerno5, KenCarp4, radau, QNDF
+    elseif s.set.solver=="IDA"
         solver  = Sundials.IDA(linear_solver=Symbol(s.set.linear_solver), max_order = s.set.max_order)
     elseif s.set.solver=="DImplicitEuler"
         solver  = DImplicitEuler(autodiff=false)
     elseif s.set.solver=="DFBDF"
-        solver  = DFBDF(autodiff=false, max_order=Val{s.set.max_order}())
+        solver  = DFBDF(autodiff=false, max_order=Val{s.set.max_order}())        
     else
         println("Error! Invalid solver in settings.yaml: $(s.set.solver)")
         return nothing
     end
+
     dt = 1/s.set.sample_freq
     tspan   = (0.0, dt) 
     abstol  = s.set.abs_tol # max error in m/s and m
-    differential_vars = ones(Bool, length(y0))
-    prob    = DAEProblem{true}(residual!, yd0, y0, tspan, s; differential_vars)
-    integrator = OrdinaryDiffEq.init(prob, solver; abstol=abstol, reltol=s.set.rel_tol, save_everystep=false)
 
+    if isa(s, KPS4_3L) && s.mtk
+        simple_sys, _ = model!(s, y0; torque_control=torque_control)
+        s.prob = ODEProblem(simple_sys, nothing, tspan)
+        integrator = OrdinaryDiffEq.init(s.prob, solver; dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
+        s.set_values_idx = parameter_index(integrator.f, :set_values)
+        s.v_wind_gnd_idx = parameter_index(integrator.f, :v_wind_gnd)
+        s.get_pos = getu(integrator.sol, simple_sys.pos[:,:])
+        s.get_steering_pos = getu(integrator.sol, simple_sys.steering_pos)
+        s.get_line_acc = getu(integrator.sol, simple_sys.acc[:,s.num_E-2])
+        s.get_kite_vel = getu(integrator.sol, simple_sys.vel[:,s.num_A])
+        s.get_winch_forces = getu(integrator.sol, simple_sys.force[:,1:3])
+        s.get_tether_lengths = getu(integrator.sol, simple_sys.tether_length)
+        s.get_tether_speeds = getu(integrator.sol, simple_sys.tether_speed)
+        update_pos!(s, integrator)
+        return integrator
+    else
+        differential_vars = ones(Bool, length(y0))
+        prob    = DAEProblem{true}(residual!, yd0, y0, tspan, s; differential_vars)
+    end
+    integrator = OrdinaryDiffEq.init(prob, solver; abstol=abstol, reltol=s.set.rel_tol, save_everystep=false)
     return integrator
 end
+
 
 """
     next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
