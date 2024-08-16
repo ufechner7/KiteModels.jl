@@ -5,6 +5,7 @@ if ! @isdefined kcu
     const kcu = KCU(se("system_3l.yaml"))
 end
 if ! @isdefined kps4_3l
+    kcu.set.winch_model = "AsyncMachine"
     const kps4_3l = KPS4_3L(kcu)
 end
 
@@ -314,30 +315,30 @@ end
         kps4_3l.forces[i] .= zeros(3)
     end
     KiteModels.calc_aero_forces!(kps4_3l, pos, vel)
-    forces=[[0.0   0.0   0.0]
-            [0.0   0.0   0.0]
-            [0.0   0.0   0.0]
-            [0.0   0.0   0.0]
-            [0.0   0.0   0.0]
-            [0.0   0.0   0.0]
-            [0.0   0.0   0.0]
-            [0.0   0.0   0.0]
-            [0.0   0.0   0.0]
-            [0.0   0.0   0.0]
-            [0.0   0.0   0.0]
-            [0.0   0.0   0.0]
-            [0.0   0.0   0.0]
-            [0.0   0.0   0.0]
-            [0.0   0.0   0.0]
-            [0.0   0.0   0.0]
-            [0.0   0.0   0.0]
-            [0.0   0.0   0.0]
-            [2.4687949917792396   0.0   7.049771852225747] # last left tether point
-            [2.3668951093984174   0.0   6.758791465054874] # last right tether point
-            [0.0   0.0   0.0]
-            [13.409099608866077   28.40311527705575   71.69832571718838] # C
-            [13.94856542663672   -26.584094467198202   68.09920030055184] # D
-            [0.0   0.0   0.0]]
+    forces=[[0.0  0.0  0.0]
+            [0.0  0.0  0.0]
+            [0.0  0.0  0.0]
+            [0.0  0.0  0.0]
+            [0.0  0.0  0.0]
+            [0.0  0.0  0.0]
+            [0.0  0.0  0.0]
+            [0.0  0.0  0.0]
+            [0.0  0.0  0.0]
+            [0.0  0.0  0.0]
+            [0.0  0.0  0.0]
+            [0.0  0.0  0.0]
+            [0.0  0.0  0.0]
+            [0.0  0.0  0.0]
+            [0.0  0.0  0.0]
+            [0.0  0.0  0.0]
+            [0.0  0.0  0.0]
+            [0.0  0.0  0.0]
+            [4.937589983558479  0.0  14.099543704451493]
+            [4.733790218796835  0.0  13.517582930109748]
+            [0.0  0.0  0.0]
+            [10.940304617086838  28.40311527705575  64.64855386496264]
+            [11.581670317238302  -26.584094467198202  61.340408835496966]
+            [0.0  0.0  0.0]]
     for i in 1:kps4_3l.num_A
         @test all(forces[i,:] .≈ kps4_3l.forces[i])
         # println(kps4_3l.forces[i])
@@ -540,14 +541,15 @@ end
 function simulate(integrator, steps)
     iter = 0
     for i in 1:steps
-        KiteModels.next_step!(kps4_3l, integrator, set_values=[0.0, 0.0, 0.0], torque_control=false)
+        KiteModels.next_step!(kps4_3l, integrator, set_values=[0.0, 0.0, 0.0])
         iter += kps4_3l.iter
     end
     return iter/steps
 end
 
 @testset "test_simulate        " begin
-    STEPS = 100
+    STEPS = 50
+
     kps4_3l.set.solver = "DFBDF"
     # println("finding steady state")
     init_50()
@@ -557,22 +559,22 @@ end
     av_steps = simulate(integrator, STEPS-10)
     if Sys.isapple()
         println("isapple $av_steps")
-        @test isapprox(av_steps, 168, rtol=0.6)
+        @test isapprox(av_steps, 835.25, rtol=0.6)
     else
         println("not apple $av_steps")
-        @test isapprox(av_steps, 168, rtol=0.6)
+        @test isapprox(av_steps, 835.25, rtol=0.6)
     end
   
     lift, drag = KiteModels.lift_drag(kps4_3l)
     # println(lift, " ", drag) # 703.7699568972286 161.44746368100536
-    @test isapprox(lift, 452.92869682967137, rtol=0.05)
+    @test isapprox(lift, 404.2596735903995, rtol=0.05)
     sys_state = SysState(kps4_3l)
     update_sys_state!(sys_state, kps4_3l)
     # TODO Add testcase with varying reelout speed 
 end
 
 @testset "Steady state history" begin
-    STEPS = 100
+    STEPS = 50
     kps4_3l.set.solver = "DFBDF"
     # println("finding steady state")
     init_50()

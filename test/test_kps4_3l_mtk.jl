@@ -540,7 +540,7 @@ end
 function simulate(integrator, steps)
     iter = 0
     for i in 1:steps
-        KiteModels.next_step!(kps4_3l, integrator, set_values=[0.0, 0.0, 0.0], torque_control=false)
+        KiteModels.next_step!(kps4_3l, integrator, set_values=[0.0, 0.0, 0.0])
         iter += kps4_3l.iter
     end
     return iter/steps
