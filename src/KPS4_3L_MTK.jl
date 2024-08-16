@@ -79,8 +79,6 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
     l_d_eq::SizedArray{Tuple{3}, Symbolics.Equation} = SizedArray{Tuple{3}, Symbolics.Equation}(collect(L_D .~ 0))
     d_c_eq::SizedArray{Tuple{3}, Symbolics.Equation} = SizedArray{Tuple{3}, Symbolics.Equation}(collect(D_C .~ 0))
     d_d_eq::SizedArray{Tuple{3}, Symbolics.Equation} = SizedArray{Tuple{3}, Symbolics.Equation}(collect(D_D .~ 0))
-    F_steering_c = collect(F_steering_c)
-    F_steering_d = collect(F_steering_d)
     kite_length = zeros(MVector{n*2, SimFloat})
     α = zero(SimFloat)
     α_0 = zero(SimFloat)
