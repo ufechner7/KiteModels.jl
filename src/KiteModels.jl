@@ -670,20 +670,6 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
     return integrator
 end
 
-function reset_sim!(s::KPS4_3L; stiffness_factor=0.035)
-    if s.mtk
-        clear!(s)
-        s.stiffness_factor = stiffness_factor  
-        dt = 1/s.set.sample_freq
-        # 1. KenCarp4
-        # TRBDF2, Rodas4P, Rodas5P, Kvaerno5, KenCarp4, radau, QNDF
-        integrator = OrdinaryDiffEq.init(s.prob, KenCarp4(autodiff=false); dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
-        update_pos!(s, integrator)
-        return integrator
-    end
-    println("Not an mtk model. Returning nothing.")
-    return nothing
-end
 
 """
     next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)

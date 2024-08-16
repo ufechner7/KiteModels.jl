@@ -316,19 +316,34 @@ function SysState(s::KPS4_3L, zoom=1.0)
                           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 end
 
+function reset_sim!(s::KPS4_3L; stiffness_factor=0.035)
+    if s.mtk
+        clear!(s)
+        s.stiffness_factor = stiffness_factor  
+        dt = 1/s.set.sample_freq
+        # 1. KenCarp4
+        # TRBDF2, Rodas4P, Rodas5P, Kvaerno5, KenCarp4, radau, QNDF
+        integrator = OrdinaryDiffEq.init(s.prob, KenCarp4(autodiff=false); dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
+        update_pos!(s, integrator)
+        return integrator
+    end
+    println("Not an mtk model. Returning nothing.")
+    return nothing
+end
+
 function next_step!(s::KPS4_3L, integrator; set_values=zeros(KVec3), torque_control=false, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
     s.torque_control = torque_control
-    if !torque_control
-        s.set_speeds .= set_values
-        s.set_torques .= 0.0
-    else
-        s.set_speeds .= 0.0
-        s.set_torques .= set_values
+    set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
+    s.set_values .= set_values
+    if s.mtk
+        integrator.ps[s.set_values_idx] .= set_values
+        integrator.ps[s.v_wind_gnd_idx] .= s.v_wind_gnd
     end
     s.t_0 = integrator.t
-    set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
-    s.iter = 0
-    if s.set.solver == "IDA"
+    if s.mtk
+        OrdinaryDiffEq.step!(integrator, dt, true)
+        update_pos!(s, integrator)
+    elseif s.set.solver == "IDA"
         Sundials.step!(integrator, dt, true)
     else
         OrdinaryDiffEq.step!(integrator, dt, true)
