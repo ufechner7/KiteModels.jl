@@ -75,20 +75,6 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
         F_steering_d(t)[1:3]
         d(t)[1:n*2]
     end
-    F = collect(F)
-    e_r = collect(e_r)
-    y_l = collect(y_l)
-    v_kite = collect(v_kite)
-    v_a = collect(v_a)
-    e_drift = collect(e_drift)
-    v_a_xr = collect(v_a_xr)
-    aoa = collect(aoa)
-    dL_dα = collect(dL_dα)
-    dD_dα = collect(dD_dα)
-    L_C = collect(L_C)
-    L_D = collect(L_D)
-    D_C = collect(D_C)
-    D_D = collect(D_D)
     l_c_eq::SizedArray{Tuple{3}, Symbolics.Equation} = SizedArray{Tuple{3}, Symbolics.Equation}(collect(L_C .~ 0))
     l_d_eq::SizedArray{Tuple{3}, Symbolics.Equation} = SizedArray{Tuple{3}, Symbolics.Equation}(collect(L_D .~ 0))
     d_c_eq::SizedArray{Tuple{3}, Symbolics.Equation} = SizedArray{Tuple{3}, Symbolics.Equation}(collect(D_C .~ 0))
