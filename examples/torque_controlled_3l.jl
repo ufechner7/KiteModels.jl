@@ -19,7 +19,6 @@ logger = Logger(3*set.segments + 6, steps)
 
 steering = [5,5,-30.0]
 
-
 println("Running models")
 s = KPS4_3L(KCU(set))
 integrator = KiteModels.init_sim!(s; stiffness_factor=0.1, prn=false, mtk=false, torque_control=true)
@@ -72,5 +71,3 @@ println("avg steptime new model: ", total_new_time/steps)
 plotx(logger.time_vec, [logger.var_01_vec,  logger.var_02_vec], [logger.var_03_vec,  logger.var_04_vec], rad2deg.(logger.heading_vec); 
       ylabels=["Steering", "Reelout speed", "Heading [deg]"], 
       labels=[["Steering Pos 1", "Steering Pos 2"], ["v_ro 1", "v_ro 2"], "Heading"], title="Steering and Heading")
-
-
