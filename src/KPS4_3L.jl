@@ -1,6 +1,6 @@
 #= MIT License
 
-Copyright (c) 2020, 2021, 2022 Uwe Fechner
+Copyright (c) 2024 Uwe Fechner and Bart van de Lint
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -47,22 +47,6 @@ const SPRINGS_INPUT_3L = [1.      4.  -1. # s1: E, A
 const KITE_SPRINGS_3L = 6
 const KITE_PARTICLES_3L = 4
 const KITE_ANGLE_3L = 0.0
-# struct, defining the phyical parameters of one spring
-# @with_kw struct Spring{I, S}
-#     p1::I = 1         # number of the first point
-#     p2::I = 2         # number of the second point
-#     length::S = 1.0   # current unstressed spring length
-#     c_spring::S = 1.0 # spring constant [N/m]
-#     damping::S  = 0.1 # damping coefficent [Ns/m]
-# end
-
-# const SP = Spring{Int16, SimFloat}
-# const PRE_STRESS  = 0.9998   # Multiplier for the initial spring lengths.
-# const KS = deg2rad(16.565 * 1.064 * 0.875 * 1.033 * 0.9757 * 1.083)  # max steering
-# const DRAG_CORR = 0.93       # correction of the drag for the 4-point model
-# function zero(::Type{SP})
-#     SP(0,0,0,0,0)
-# end
 
 """
     mutable struct KPS4_3L{S, T, P, Q, SP} <: AbstractKiteModel
@@ -81,17 +65,13 @@ $(TYPEDFIELDS)
 """
 @with_kw mutable struct KPS4_3L{S, T, P, Q, SP} <: AbstractKiteModel
     "Reference to the settings struct"
-    set::Settings = se()
+    set::Settings
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
     "Reference to the motor models as implemented in the package WinchModels. index 1: middle motor, index 2: left motor, index 3: right motor"
-    motors::SVector{3, AbstractWinchModel} = [AsyncMachine(se()) for _ in 1:3]
+    motors::SVector{3, AbstractWinchModel}
     "Iterations, number of calls to the function residual!"
     iter:: Int64 = 0
-    "Function for calculation the lift coefficent, using a spline based on the provided value pairs."
-    calc_cl = Spline1D(se().alpha_cl, se().cl_list)
-    "Function for calculation the drag coefficent, using a spline based on the provided value pairs."
-    calc_cd = Spline1D(se().alpha_cd, se().cd_list)   
     "wind vector at the height of the kite" 
     v_wind::T =           zeros(S, 3)
     "wind vector at reference height" 
@@ -258,16 +238,12 @@ end
 
 
 function KPS4_3L(kcu::KCU)
-    set = se()
-    s = KPS4_3L{SimFloat, KVec3, set.segments*3+2+KITE_PARTICLES, set.segments*3+KITE_SPRINGS_3L, SP}()
-    s.set = set
-    # E = segments*3+1, C = segments*3+2, D = segments*3+3, A = segments*3+4
+    set = kcu.set
+    s = KPS4_3L{SimFloat, KVec3, set.segments*3+2+KITE_PARTICLES, set.segments*3+KITE_SPRINGS_3L, SP}(set=kcu.set, motors=[AsyncMachine(set) for _ in 1:3])
     s.num_E = s.set.segments*3+3
     s.num_C = s.set.segments*3+3+1
     s.num_D = s.set.segments*3+3+2
-    s.num_A = s.set.segments*3+3+3
-    s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
-    s.calc_cd = Spline1D(s.set.alpha_cd, s.set.cd_list)       
+    s.num_A = s.set.segments*3+3+3     
     clear!(s)
     return s
 end
@@ -278,6 +254,125 @@ function calc_kite_ref_frame!(s::KPS4_3L, E, C, D)
     s.e_z .= normalize(E - P_c)
     s.e_x .= cross(s.e_y, s.e_z)
     return nothing
+end
+
+function calc_tether_elevation(s::KPS4_3L)
+    KiteUtils.calc_elevation(s.pos[6])
+end
+
+function calc_tether_azimuth(s::KPS4_3L)
+    KiteUtils.azimuth_east(s.pos[6])
+end
+
+function update_sys_state!(ss::SysState, s::KPS4_3L, zoom=1.0)
+    ss.time = s.t_0
+    pos = s.pos
+    P = length(pos)
+    for i in 1:P
+        ss.X[i] = pos[i][1] * zoom
+        ss.Y[i] = pos[i][2] * zoom
+        ss.Z[i] = pos[i][3] * zoom
+    end
+    ss.orient .= calc_orient_quat(s)
+    ss.elevation = calc_elevation(s)
+    ss.azimuth = calc_azimuth(s)
+    ss.force = winch_force(s)[1]
+    ss.heading = calc_heading(s)
+    ss.course = calc_course(s)
+    ss.v_app = norm(s.v_apparent)
+    ss.l_tether = s.l_tethers[1]
+    ss.v_reelout = s.reel_out_speeds[1]
+    ss.depower = 100 - ((s.δ_left + s.δ_right)/2) / ((s.set.middle_length + s.set.tip_length)/2) * 100
+    ss.steering = (s.δ_right - s.δ_left) / ((s.set.middle_length + s.set.tip_length)/2) * 100
+    ss.vel_kite .= s.vel_kite
+    nothing
+end
+
+function SysState(s::KPS4_3L, zoom=1.0)
+    pos = s.pos
+    P = length(pos)
+    X = zeros(MVector{P, MyFloat})
+    Y = zeros(MVector{P, MyFloat})
+    Z = zeros(MVector{P, MyFloat})
+    for i in 1:P
+        X[i] = pos[i][1] * zoom
+        Y[i] = pos[i][2] * zoom
+        Z[i] = pos[i][3] * zoom
+    end
+    
+    orient = MVector{4, Float32}(calc_orient_quat(s))
+    elevation = calc_elevation(s)
+    azimuth = calc_azimuth(s)
+    forces = winch_force(s)
+    heading = calc_heading(s)
+    course = calc_course(s)
+    v_app_norm = norm(s.v_apparent)
+    t_sim = 0
+    depower = 100 - ((s.δ_left + s.δ_right)/2) / ((s.set.middle_length + s.set.tip_length)/2) * 100
+    steering = (s.δ_right - s.δ_left) / ((s.set.middle_length + s.set.tip_length)/2) * 100
+    KiteUtils.SysState{P}(s.t_0, t_sim, 0, 0, orient, elevation, azimuth, s.l_tethers[1], s.reel_out_speeds[1], forces[1], depower, steering, 
+                          heading, course, v_app_norm, s.vel_kite, X, Y, Z, 
+                          s.l_tethers[2], s.l_tethers[3], s.reel_out_speeds[2], s.reel_out_speeds[3], 
+                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+end
+
+function next_step!(s::KPS4_3L, integrator; set_values=zeros(KVec3), torque_control=false, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
+    s.torque_control = torque_control
+    if !torque_control
+        s.set_speeds .= set_values
+        s.set_torques .= 0.0
+    else
+        s.set_speeds .= 0.0
+        s.set_torques .= set_values
+    end
+    s.t_0 = integrator.t
+    set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
+    s.iter = 0
+    if s.set.solver == "IDA"
+        Sundials.step!(integrator, dt, true)
+    else
+        OrdinaryDiffEq.step!(integrator, dt, true)
+    end
+    if s.stiffness_factor < 1.0
+        s.stiffness_factor+=0.01
+        if s.stiffness_factor > 1.0
+            s.stiffness_factor = 1.0
+        end
+    end
+    integrator.t
+end
+
+function calc_pre_tension(s::KPS4_3L)
+    forces = spring_forces(s)
+    avg_force = 0.0
+    for i in 1:s.num_A
+        avg_force += forces[i]
+    end
+    avg_force /= s.num_A
+    res = avg_force/s.set.c_spring
+    if res < 0.0 res = 0.0 end
+    if isnan(res) res = 0.0 end
+    return res + 1.0
+end
+
+"""
+    unstretched_length(s::KPS4_3L)
+
+Getter for the unstretched tether reel-out lenght (at zero force).
+"""
+function unstretched_length(s::KPS4_3L) s.l_tethers[1] end
+
+"""
+    tether_length(s::KPS4_3L)
+
+Calculate and return the real, stretched tether lenght.
+"""
+function tether_length(s::KPS4_3L)
+    length = 0.0
+    for i in 3:3:s.num_E-3
+        length += norm(s.pos[i+3] - s.pos[i])
+    end
+    return length
 end
 
 """
@@ -320,6 +415,7 @@ function calc_aero_forces!(s::KPS4_3L, pos::SVector{N, KVec3}, vel::SVector{N, K
     s.L_D .= SVec3(zeros(SVec3))
     s.D_C .= SVec3(zeros(SVec3))
     s.D_D .= SVec3(zeros(SVec3))
+    # println("calculating aero forces...")
     @inbounds @simd for i in 1:n*2
         if i <= n
             α = α_0 + -dα/2 + i*dα
@@ -351,6 +447,9 @@ function calc_aero_forces!(s::KPS4_3L, pos::SVector{N, KVec3}, vel::SVector{N, K
             d = (s.δ_right - s.δ_left) / (s.α_r - s.α_l) * (α - s.α_l) + (s.δ_left)
         end
         aoa = π - acos2(normalize(s.v_a_xr) ⋅ s.e_x) + asin(clamp(d/kite_length, -1.0, 1.0))
+        # println("aoa ", aoa)
+        # println("asin ", asin(clamp(d/kite_length, -1.0, 1.0)))
+        # println("acos ", pi - acos2(normalize(s.v_a_xr) ⋅ s.e_x))
         s.dL_dα .= 0.5*s.rho*(norm(s.v_a_xr))^2*s.set.radius*kite_length*rad_cl(aoa) .* normalize(s.v_a_xr × s.e_drift)
         s.dD_dα .= 0.5*s.rho*norm(s.v_a_xr)*s.set.radius*kite_length*rad_cd(aoa) .* s.v_a_xr # the sideways drag cannot be calculated with the C_d formula
         if i <= n

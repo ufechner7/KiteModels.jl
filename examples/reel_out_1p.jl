@@ -30,7 +30,7 @@ v_speed = zeros(STEPS)
 v_force = zeros(STEPS)
 
 function simulate(integrator, steps, plot=false)
-    start = integrator.p.iter
+    iter = 0
     for i in 1:steps
         if PRINT
             lift, drag = KiteModels.lift_drag(kps3)
@@ -46,6 +46,7 @@ function simulate(integrator, steps, plot=false)
         v_speed[i] = kps3.v_reel_out
         v_force[i] = winch_force(kps3)
         KiteModels.next_step!(kps3, integrator; set_speed, dt)
+        iter += kps3.iter
         if plot 
             reltime = i*dt-dt
             if mod(i, 5) == 1
@@ -54,7 +55,7 @@ function simulate(integrator, steps, plot=false)
             end
         end
     end
-    (integrator.p.iter - start) / steps
+    iter / steps
 end
 
 integrator = KiteModels.init_sim!(kps3, stiffness_factor=0.04, prn=STATISTIC)
@@ -72,7 +73,7 @@ else
 end
 lift, drag = KiteModels.lift_drag(kps3)
 println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
-println("Average number of callbacks per time step: $av_steps")
+println("Average number of callbacks per time step: $(round(av_steps, digits=2))")
 
 p1 = plotx(v_time, v_speed, v_force; ylabels=["v_reelout  [m/s]", "tether_force [N]"], fig="winch")
 display(p1)

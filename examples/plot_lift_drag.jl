@@ -1,3 +1,5 @@
+# plot the lift and drag as function of angle of attack
+
 using Printf
 using KiteModels, KitePodModels, KiteUtils
 
@@ -11,8 +13,6 @@ dt = 0.05
 set.solver="DFBDF" # IDA or DFBDF
 STEPS = 600
 PLOT = true
-FRONT_VIEW = false
-ZOOM = true
 PRINT = false
 STATISTIC = false
 # end of user parameter section #
@@ -28,7 +28,9 @@ if PLOT
     using ControlPlots
 end
 
-function simulate(integrator, steps, plot=false)
+logger = Logger(set.segments + 5, STEPS)
+
+function simulate(integrator, steps)
     iter = 0
     for i in 1:steps
         if PRINT
@@ -38,30 +40,21 @@ function simulate(integrator, steps, plot=false)
         end
 
         KiteModels.next_step!(kps4, integrator; set_speed=0, dt)
+        sys_state = KiteModels.SysState(kps4)
+        log!(logger, sys_state)
         iter += kps4.iter
-        
-        if plot
-            reltime = i*dt-dt
-            if mod(i, 5) == 1
-                plot2d(kps4.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=set.segments)                       
-            end
-        end
     end
     iter / steps
 end
 
 integrator = KiteModels.init_sim!(kps4, stiffness_factor=0.5, prn=STATISTIC)
+av_steps = simulate(integrator, STEPS)
 
-if PLOT
-    av_steps = simulate(integrator, STEPS, true)
-else
-    println("\nStarting simulation...")
-    simulate(integrator, 100)
-    runtime = @elapsed av_steps = simulate(integrator, STEPS-100)
-    println("\nTotal simulation time: $(round(runtime, digits=3)) s")
-    speed = (STEPS-100) / runtime * dt
-    println("Simulation speed: $(round(speed, digits=2)) times realtime.")
+if PLOT 
+    p = plot(logger.time_vec, rad2deg.(logger.elevation_vec))
+    display(p)
 end
+
 lift, drag = KiteModels.lift_drag(kps4)
 println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
 println("Average number of callbacks per time step: $av_steps")

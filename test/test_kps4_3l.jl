@@ -531,7 +531,7 @@ end
     res1, res2 = find_steady_state!(kps4_3l; stiffness_factor=0.035, prn=true) 
     @test sum(res2) ≈ -9.81*(kps4_3l.num_A-5) # velocity and acceleration must be near zero. the three ground points and two last tether points dont have gravitational acceleration
     pre_tension = KiteModels.calc_pre_tension(kps4_3l)
-    println(kps4_3l.tether_lengths)
+    println(kps4_3l.l_tethers)
     println("length: ", tether_length(kps4_3l))
     @test pre_tension > 1.000001
     @test pre_tension < 1.01
@@ -559,11 +559,12 @@ end
 end
 
 function simulate(integrator, steps)
-    start = integrator.p.iter
+    iter = 0
     for i in 1:steps
         KiteModels.next_step!(kps4_3l, integrator, set_values=[0.0, 0.0, 0.0], torque_control=false)
+        iter += kps4_3l.iter
     end
-    (integrator.p.iter - start) / steps
+    return iter/steps
 end
 
 @testset "test_simulate        " begin
@@ -575,13 +576,12 @@ end
     # println("\nStarting simulation...")
     simulate(integrator, 100)
     av_steps = simulate(integrator, STEPS-10)
-    # println(av_steps) #1102
     if Sys.isapple()
-        # println("isapple")
-        @test isapprox(av_steps, 500, rtol=0.6)
+        println("isapple $av_steps")
+        @test isapprox(av_steps, 168, rtol=0.6)
     else
-        # println("not apple")
-        @test isapprox(av_steps, 300, rtol=0.6)
+        println("not apple $av_steps")
+        @test isapprox(av_steps, 168, rtol=0.6)
     end
   
     lift, drag = KiteModels.lift_drag(kps4_3l)

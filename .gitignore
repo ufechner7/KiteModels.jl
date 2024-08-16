@@ -25,8 +25,9 @@ bin/kps-image-1.10-torque.so
 bin/kps-image-1.10-feat-KPS4_3L.so
 data/.steady_state_history.bin
 data/sim_log.bin
-bin/kps-image-1.10-kps4_3l_example.so
 docs/src/winch.png
 bin/kps-image-1.10-main.so.bak
 bin/kps-image-1.10-1-Bart-1-main.so
-
+bin/kps-image-1.10-kps4_3l_example.so
+data/settings_v9.yaml
+data/system_v9.yaml

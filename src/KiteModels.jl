@@ -2,7 +2,7 @@
 
 #= MIT License
 
-Copyright (c) 2020, 2021, 2022 Uwe Fechner
+Copyright (c) 2020, 2021, 2022, 2024 Uwe Fechner
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -34,9 +34,9 @@ Scientific background: http://arxiv.org/abs/1406.6218 =#
 module KiteModels
 
 using PrecompileTools: @setup_workload, @compile_workload 
-using Dierckx, StaticArrays, Rotations, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, OrdinaryDiffEq, Serialization, DataInterpolations
+using Dierckx, StaticArrays, Rotations, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, OrdinaryDiffEq, Serialization, DataInterpolations, Serialization
 import Sundials
-using Reexport
+using Reexport, Pkg
 @reexport using KitePodModels
 @reexport using WinchModels
 @reexport using AtmosphericModels
@@ -52,7 +52,7 @@ import OrdinaryDiffEq.init
 import OrdinaryDiffEq.step!
 using ModelingToolkit, SymbolicIndexingInterface
 
-export KPS3, KPS4, KPS4_3L, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                              # constants and types
+export KPS3, KPS4, KPS4_3L, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                     # constants and types
 export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                            # helper functions
 export clear!, find_steady_state!, residual!, model!                                                  # low level workers
 export init_sim!, reset_sim!, next_step!, init_pos_vel, update_pos!                                                                  # high level workers
@@ -67,6 +67,7 @@ set_zero_subnormals(true)       # required to avoid drastic slow down on Intel C
 # Constants
 const G_EARTH = 9.81            # gravitational acceleration
 const BRIDLE_DRAG = 1.1         # should probably be removed
+const SYS_3L = "system_3l.yaml" # default system project for the 3L model
 
 # Type definitions
 """
@@ -244,18 +245,6 @@ function tether_length(s::AKM)
     return length
 end
 
-"""
-    tether_length(s::AKM)
-
-Calculate and return the real, stretched tether lenght.
-"""
-function tether_length(s::KPS4_3L)
-    length = 0.0
-    for i in 3:3:s.num_E-3
-        length += norm(s.pos[i+3] - s.pos[i])
-    end
-    return length
-end
 
 """
     orient_euler(s::AKM)
@@ -337,6 +326,61 @@ function calc_course(s::AKM)
     KiteUtils.calc_course(s.vel_kite, elevation, azimuth)
 end
 
+# mutable struct SysState{P}
+#     "time since start of simulation in seconds"
+#     time::Float64
+#     "time needed for one simulation timestep"
+#     t_sim::Float64
+#     "state of system state control"
+#     sys_state::Int16
+#     "mechanical energy [Wh]"
+#     e_mech::Float64
+#     "orientation of the kite (quaternion, order w,x,y,z)"
+#     orient::MVector{4, Float32}
+#     "elevation angle in radians"
+#     elevation::MyFloat
+#     "azimuth angle in radians"
+#     azimuth::MyFloat
+#     "tether length [m]"
+#     l_tether::MyFloat
+#     "reel out velocity [m/s]"
+#     v_reelout::MyFloat
+#     "tether force [N]"
+#     force::MyFloat
+#     "depower settings [0..1]"
+#     depower::MyFloat
+#     "steering settings [-1..1]"
+#     steering::MyFloat
+#     "heading angle in radian"
+#     heading::MyFloat
+#     "course angle in radian"
+#     course::MyFloat
+#     "norm of apparent wind speed [m/s]"
+#     v_app::MyFloat
+#     "velocity vector of the kite"
+#     vel_kite::MVector{3, MyFloat}
+#     "vector of particle positions in x"
+#     X::MVector{P, MyFloat}
+#     "vector of particle positions in y"
+#     Y::MVector{P, MyFloat}
+#     "vector of particle positions in z"
+#     Z::MVector{P, MyFloat}
+#     var_01::MyFloat
+#     var_02::MyFloat
+#     var_03::MyFloat
+#     var_04::MyFloat
+#     var_05::MyFloat
+# end 
+
+function calc_orient_quat(s::AKM)
+    x, _, z = kite_ref_frame(s)
+    pos_kite_ = pos_kite(s)
+    pos_before = pos_kite_ .+ z
+   
+    rotation = rot(pos_kite_, pos_before, -x)
+    q = QuatRotation(rotation)
+    return Rotations.params(q)
+end
 
 function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
     ss.time = s.t_0
@@ -347,13 +391,7 @@ function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
         ss.Y[i] = pos[i][2] * zoom
         ss.Z[i] = pos[i][3] * zoom
     end
-    x, y, z = kite_ref_frame(s)
-    pos_kite_ = pos_kite(s)
-    pos_before = pos_kite_ + z
-   
-    rotation = rot(pos_kite_, pos_before, -x)
-    q = QuatRotation(rotation)
-    ss.orient .= Rotations.params(q)
+    ss.orient .= calc_orient_quat(s)
     ss.elevation = calc_elevation(s)
     ss.azimuth = calc_azimuth(s)
     ss.force = winch_force(s)
@@ -485,21 +523,10 @@ function calc_pre_tension(s::AKM)
     return res + 1.0
 end
 
-function calc_pre_tension(s::KPS4_3L)
-    forces = spring_forces(s)
-    avg_force = 0.0
-    for i in 1:s.num_A
-        avg_force += forces[i]
-    end
-    avg_force /= s.num_A
-    res = avg_force/s.set.c_spring
-    if res < 0.0 res = 0.0 end
-    if isnan(res) res = 0.0 end
-    return res + 1.0
-end
-
 """
-helper function for init sim
+    fields_equal(a::AKM, b::AKM)
+
+Helper function for the [`init_sim!()`](@ref) function. It compares the fields of two instances of the AbstractKiteModel.
 """
 function fields_equal(a::AKM, b::AKM)
     if typeof(a) != typeof(b)
@@ -516,6 +543,8 @@ end
 
 const SteadyStateHistory = Vector{Tuple{AbstractKiteModel, Vector{SimFloat}, Vector{SimFloat}}}
 """
+    load_history()
+
 Load the saved pairs of abstract kite models and corresponding integrators. It is assumed that a certain set of settings
 always leads to the same integrator.
 """
@@ -532,7 +561,12 @@ function load_history()
 end
 
 """
-In order to delete the integrator history: just delete data/.steady_state_history.bin
+    save_history(history::SteadyStateHistory)
+
+Save the staty state history to the file `data/.steady_state_history.bin`. 
+The history is used to speed up the initialisation.
+
+In order to delete the integrator history: just delete the file `data/.steady_state_history.bin` .
 """
 function save_history(history::SteadyStateHistory)
     serialize(steady_state_history_file, history)
@@ -733,6 +767,15 @@ function copy_examples()
     copy_files("examples", readdir(src_path))
 end
 
+function install_examples()
+    copy_examples()
+    copy_settings()
+    Pkg.add("KiteUtils")
+    Pkg.add("KitePodModels")
+    Pkg.add("WinchModels")
+    Pkg.add("ControlPlots")
+end
+
 function copy_files(relpath, files)
     if ! isdir(relpath) 
         mkdir(relpath)
@@ -780,15 +823,17 @@ end
     # list = [OtherType("hello"), OtherType("world!")]
     set_data_path()
 
-    kps4_::KPS4 = KPS4(KCU(se()))
-    kps3_::KPS3 = KPS3(KCU(se()))
+    kps4_::KPS4 = KPS4(KCU(se("system.yaml")))
+    kps3_::KPS3 = KPS3(KCU(se("system.yaml")))
+    kps4_3l_::KPS4_3L = KPS4_3L(KCU(se(SYS_3L)))
     @assert ! isnothing(kps4_.wm)
-    # @compile_workload begin
-    #     # all calls in this block will be precompiled, regardless of whether
-    #     # they belong to your package or not (on Julia 1.8 and higher)
-    #     integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
-    #     integrator = KiteModels.init_sim!(kps4_; stiffness_factor=0.5, prn=false)       
-    #     nothing
-    # end
+    @compile_workload begin
+        # all calls in this block will be precompiled, regardless of whether
+        # they belong to your package or not (on Julia 1.8 and higher)
+        integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
+        integrator = KiteModels.init_sim!(kps4_; stiffness_factor=0.25, prn=false)     
+        integrator = KiteModels.init_sim!(kps4_3l_; stiffness_factor=0.5, prn=false)   
+        nothing
+    end
 end
 end

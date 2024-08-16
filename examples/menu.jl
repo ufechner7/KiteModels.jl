@@ -1,6 +1,8 @@
 using REPL.TerminalMenus
 
-options = ["bench = include(\"bench.jl\")", 
+options = ["bench = include(\"bench.jl\")",
+           "bench_4p = include(\"bench_4p.jl\")",
+           "bench_4p_3l = include(\"bench_4p_3l.jl\")",
            "compare_kps3_kps4 = include(\"compare_kps3_kps4.jl\")",
            "reel_out_1p = include(\"reel_out_1p.jl\")",
            "reel_out_4p = include(\"reel_out_4p.jl\")",
