@@ -4,25 +4,25 @@ using Base: summarysize
 
 update_settings()
 set = se("system_3l.yaml")
-set.abs_tol = 0.06
-set.rel_tol = 0.1
+set.abs_tol = 0.006
+set.rel_tol = 0.01
 steps = 150
 dt = 1/set.sample_freq
 tspan   = (0.0, dt) 
 # plot2d([[0,0,0]], 0)
 
-steering = [0,0,0]
+steering = [5,5,-30.0]
 
 
 println("Running models")
 if ! @isdefined mtk_kite; mtk_kite = KPS4_3L(KCU(set)); end;
-if ! @isdefined integrator; integrator = KiteModels.init_sim!(mtk_kite; stiffness_factor=0.1, prn=true, mtk=true, torque_control=true);
+if ! @isdefined integrator; integrator = KiteModels.init_sim!(mtk_kite; stiffness_factor=0.1, prn=false, mtk=true, torque_control=true);
 else integrator = KiteModels.reset_sim!(mtk_kite; stiffness_factor=1.0); end;
 # integrator = KiteModels.init_sim!(mtk_kite; stiffness_factor=0.1, prn=true, mtk=true, torque_control=true)
 
 println("compiling")
 total_new_time = 0.0
-for i in 1:2
+for i in 1:5
     global total_new_time += @elapsed next_step!(mtk_kite, integrator; set_values=steering)
 end
 println("stepping")

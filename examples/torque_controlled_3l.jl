@@ -4,23 +4,23 @@ using Base: summarysize
 
 update_settings()
 set = se("system_3l.yaml")
-set.abs_tol = 0.06
-set.rel_tol = 0.1
+set.abs_tol = 0.006
+set.rel_tol = 0.01
 steps = 150
 dt = 1/set.sample_freq
 tspan   = (0.0, dt) 
 # plot2d([[0,0,0]], 0)
 
-steering = [0,0,0]
+steering = [5,5,-30.0]
 
 
 println("Running models")
 s = KPS4_3L(KCU(set))
-integrator = KiteModels.init_sim!(s; stiffness_factor=0.1, prn=true, mtk=false, torque_control=true)
+integrator = KiteModels.init_sim!(s; stiffness_factor=0.1, prn=false, mtk=false, torque_control=true)
 
 println("compiling")
 total_new_time = 0.0
-for i in 1:2
+for i in 1:5
     global total_new_time += @elapsed next_step!(s, integrator; set_values=steering)
 end
 println("stepping")
