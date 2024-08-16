@@ -1,4 +1,4 @@
-using Revise, KiteModels, OrdinaryDiffEq, ControlPlots, LinearAlgebra, Plots
+using Revise, KiteModels, OrdinaryDiffEq, LinearAlgebra, Plots
 using Base: summarysize
 # using SteadyStateDiffEq
 
