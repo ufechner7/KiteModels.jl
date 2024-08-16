@@ -39,13 +39,6 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
         y_lc(t)
         y_ld(t)
     end
-    E_c = collect(E_c)
-    v_cx = collect(v_cx)
-    v_dx = collect(v_dx)
-    v_dy = collect(v_dy)
-    v_dz = collect(v_dz)
-    v_cy = collect(v_cy)
-    v_cz = collect(v_cz)
 
     eqs2 = [
         eqs2
@@ -352,22 +345,7 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
     pos = collect(pos)
     vel = collect(vel)
     acc = collect(acc)
-    v_wind_gnd = collect(v_wind_gnd)
-    tether_length = collect(tether_length)
-    steering_pos = collect(steering_pos)
-    steering_vel = collect(steering_vel)
-    steering_acc = collect(steering_acc)
-    tether_speed = collect(tether_speed)
-    segment_length = collect(segment_length)
-    mass_tether_particle = collect(mass_tether_particle)
-    damping = collect(damping)
-    c_spring = collect(c_spring)
-    P_c = collect(P_c)
-    e_x = collect(e_x)
-    e_y = collect(e_y)
-    e_z = collect(e_z)
-    force = collect(force)
-
+ 
     D = Differential(t)
 
     eqs1 = []
@@ -445,7 +423,7 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
 
     # @assert false
     println("making mtk model")
-    @time @named sys = ODESystem(eqs, t)
+    @time @named sys = ODESystem(Symbolics.scalarize.(reduce(vcat, Symbolics.scalarize.(eqs))), t)
     println("making simple sys")
     @time simple_sys = structural_simplify(sys)
     return simple_sys, sys
