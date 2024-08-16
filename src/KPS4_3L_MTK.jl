@@ -222,7 +222,7 @@ end
 
 
 
-"""calc_aero_forces
+"""
     inner_loop_mtk!(s::KPS4_3L, eqs2, force_eqs, t, force, pos, vel, length, c_spring, damping, v_wind_gnd)
 
 Calculate the forces, acting on all particles.
@@ -299,7 +299,6 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
         set_values[1:3] = s.set_values
         v_wind_gnd[1:3] = s.v_wind_gnd
     end
-    @independent_variables t
     @variables begin
         pos(t)[1:3, 1:s.num_A] = pos2_ # left right middle
         vel(t)[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
@@ -324,8 +323,6 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
     pos = collect(pos)
     vel = collect(vel)
     acc = collect(acc)
- 
-    D = Differential(t)
 
     eqs1 = []
     mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
@@ -353,16 +350,16 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
 
     eqs2 = [
         eqs2
-        pos[:,s.num_E-2] .~ pos[:,s.num_C] .+ e_z .* steering_pos[1]
-        pos[:,s.num_E-1] .~ pos[:,s.num_D] .+ e_z .* steering_pos[2]
-        vel[:,s.num_E-2] .~ vel[:,s.num_C] .+ e_z .* steering_vel[1]
-        vel[:,s.num_E-1] .~ vel[:,s.num_D] .+ e_z .* steering_vel[2]
-        acc[:,s.num_E-2] .~ acc[:,s.num_C] .+ e_z .* steering_acc[1]
-        acc[:,s.num_E-1] .~ acc[:,s.num_D] .+ e_z .* steering_acc[2]
-        segment_length .~ tether_length ./ s.set.segments
-        mass_tether_particle .~ mass_per_meter .* segment_length
-        damping .~ s.set.damping ./ segment_length
-        c_spring .~ s.set.c_spring ./ segment_length
+        pos[:,s.num_E-2] ~ pos[:,s.num_C] .+ e_z .* steering_pos[1]
+        pos[:,s.num_E-1] ~ pos[:,s.num_D] .+ e_z .* steering_pos[2]
+        vel[:,s.num_E-2] ~ vel[:,s.num_C] .+ e_z .* steering_vel[1]
+        vel[:,s.num_E-1] ~ vel[:,s.num_D] .+ e_z .* steering_vel[2]
+        acc[:,s.num_E-2] ~ acc[:,s.num_C] .+ e_z .* steering_acc[1]
+        acc[:,s.num_E-1] ~ acc[:,s.num_D] .+ e_z .* steering_acc[2]
+        segment_length       ~ tether_length  ./ s.set.segments
+        mass_tether_particle ~ mass_per_meter .* segment_length
+        damping              ~ s.set.damping  ./ segment_length
+        c_spring             ~ s.set.c_spring ./ segment_length
         P_c ~ 0.5 .* (pos[:,s.num_C]+pos[:,s.num_D])
         e_y .~ (pos[:,s.num_C] .- pos[:,s.num_D]) ./ norm(pos[:,s.num_C] .- pos[:,s.num_D])
         e_z .~ (pos[:,s.num_E] .- P_c) ./ norm(pos[:,s.num_E] .- P_c)

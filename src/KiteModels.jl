@@ -51,6 +51,7 @@ import KiteUtils.SysState
 import OrdinaryDiffEq.init
 import OrdinaryDiffEq.step!
 using ModelingToolkit, SymbolicIndexingInterface
+using ModelingToolkit: t_nounits as t, D_nounits as D
 
 export KPS3, KPS4, KPS4_3L, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                     # constants and types
 export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                            # helper functions
