@@ -1,6 +1,6 @@
-using Revise, KiteModels, OrdinaryDiffEq, LinearAlgebra, Timers
+using KiteModels, OrdinaryDiffEq, LinearAlgebra, Timers
 using Base: summarysize
-tick()
+tic()
 
 using Pkg
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
