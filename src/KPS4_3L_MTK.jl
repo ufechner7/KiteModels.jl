@@ -10,7 +10,7 @@ end
 @register_symbolic calc_acc_torque(tether_speed, norm_, set_torque)
 
 """
-    calc_aero_forces!(s::KPS4_3L, pos, vel)
+    calc_aero_forces!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, rho)
 
 Calculates the aerodynamic forces acting on the kite particles.
 
@@ -152,7 +152,9 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
 end
 
 """ 
-    calc_particle_forces!(s::KPS4_3L, pos1, pos2, vel1, vel2, spring, d_tether, rho, i)
+    calc_particle_forces!(s::KPS4_3L, eqs2, force_eqs, force, pos1, pos2, vel1, vel2, length, c_spring, damping, rho, i,
+                          l_0, k, c, segment, rel_vel, av_vel, norm1, unit_vector, k1, k2, c1, spring_vel,
+                          spring_force, v_apparent, v_wind_tether, area, v_app_perp, half_drag_force)
 
 Calculate the drag force and spring force of the tether segment, defined by the parameters pos1, pos2, vel1 and vel2
 and distribute it equally on the two particles, that are attached to the segment.
@@ -221,7 +223,7 @@ end
 
 
 """calc_aero_forces
-    inner_loop_mtk!(s::KPS4_3L, pos, vel, v_wind_gnd, segments, d_tether)
+    inner_loop_mtk!(s::KPS4_3L, eqs2, force_eqs, t, force, pos, vel, length, c_spring, damping, v_wind_gnd)
 
 Calculate the forces, acting on all particles.
 
@@ -306,10 +308,10 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
         steering_pos(t)[1:2] = s.steering_pos
         steering_vel(t)[1:2] = zeros(2)
         steering_acc(t)[1:2] = zeros(2)
-        tether_speed(t)[1:3] = zeros(3) # left right middle
+        tether_speed(t)[1:3] = zeros(3)   # left right middle
         segment_length(t)[1:3] = zeros(3) # left right middle
-        mass_tether_particle(t)[1:3] # left right middle
-        damping(t)[1:3] = s.set.damping ./ s.tether_lengths ./ s.set.segments # left right middle
+        mass_tether_particle(t)[1:3]      # left right middle
+        damping(t)[1:3] = s.set.damping ./ s.tether_lengths ./ s.set.segments   # left right middle
         c_spring(t)[1:3] = s.set.c_spring ./ s.tether_lengths ./ s.set.segments # left right middle
         P_c(t)[1:3] = 0.5 .* (s.pos[s.num_C]+s.pos[s.num_D])
         e_x(t)[1:3]
