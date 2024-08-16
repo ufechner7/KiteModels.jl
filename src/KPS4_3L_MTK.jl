@@ -80,14 +80,14 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
     d_c_eq = SizedArray{Tuple{3}, Symbolics.Equation}(collect(D_C .~ 0))
     d_d_eq = SizedArray{Tuple{3}, Symbolics.Equation}(collect(D_D .~ 0))
     kite_length = zeros(MVector{n*2, SimFloat})
-    α = zero(SimFloat)
-    α_0 = zero(SimFloat)
-    α_middle = zero(SimFloat)
-    dα = zero(SimFloat)
+    α           = zero(SimFloat)
+    α_0         = zero(SimFloat)
+    α_middle    = zero(SimFloat)
+    dα          = zero(SimFloat)
     # Calculate the lift and drag
-    α_0 = pi/2 - s.set.width/2/s.set.radius
-    α_middle = pi/2
-    dα = (α_middle - α_0) / n
+    α_0         = pi/2 - s.set.width/2/s.set.radius
+    α_middle    = pi/2
+    dα          = (α_middle - α_0) / n
     for i in 1:n*2
         if i <= n
             α = α_0 + -dα/2 + i*dα
@@ -214,7 +214,6 @@ The result is stored in the array s.forces.
         force_eqs[j, s.springs[i].p2] = (force[j,s.springs[i].p2] ~ force_eqs[j, s.springs[i].p2].rhs + (half_drag_force[j] - spring_force[j]))
     end
     
-    # if i <= 3 @inbounds s.last_forces[(i-1)%3+1] .~ s.forces[spring.p1] end
     return eqs2, force_eqs
 end
 
