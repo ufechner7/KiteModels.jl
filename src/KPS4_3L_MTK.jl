@@ -140,12 +140,12 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
         d_c_eq
         l_d_eq
         d_d_eq
-        F_steering_c ~ ((0.2 * (L_C ⋅ -e_z)) .* -e_z)
-        F_steering_d ~ ((0.2 * (L_D ⋅ -e_z)) .* -e_z)
+        F_steering_c ~ ((0.2 * (L_C ⋅ -e_z)) * -e_z)
+        F_steering_d ~ ((0.2 * (L_D ⋅ -e_z)) * -e_z)
     ]
     
-    force_eqs[:,s.num_C] .= (force[:,s.num_C] .~ (L_C .+ D_C) .- F_steering_c) 
-    force_eqs[:,s.num_D] .= (force[:,s.num_D] .~ (L_D .+ D_D) .- F_steering_d)
+    force_eqs[:,s.num_C]   .= (force[:,s.num_C]   .~ (L_C + D_C) - F_steering_c) 
+    force_eqs[:,s.num_D]   .= (force[:,s.num_D]   .~ (L_D + D_D) - F_steering_d)
     force_eqs[:,s.num_E-2] .= (force[:,s.num_E-2] .~ F_steering_c)
     force_eqs[:,s.num_E-1] .= (force[:,s.num_E-1] .~ F_steering_d)
     return eqs2, force_eqs
