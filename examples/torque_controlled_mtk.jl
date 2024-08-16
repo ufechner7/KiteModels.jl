@@ -16,14 +16,14 @@ steering = [5,5,-30.0]
 
 println("Running models")
 if ! @isdefined mtk_kite; mtk_kite = KPS4_3L(KCU(set)); end;
-if ! @isdefined integrator; integrator = KiteModels.init_sim!(mtk_kite; stiffness_factor=0.1, prn=false, mtk=true, torque_control=true);
-else integrator = KiteModels.reset_sim!(mtk_kite; stiffness_factor=1.0); end;
-# integrator = KiteModels.init_sim!(mtk_kite; stiffness_factor=0.1, prn=true, mtk=true, torque_control=true)
+if ! @isdefined mtk_integrator; mtk_integrator = KiteModels.init_sim!(mtk_kite; stiffness_factor=0.1, prn=false, mtk=true, torque_control=true);
+else mtk_integrator = KiteModels.reset_sim!(mtk_kite; stiffness_factor=1.0); end;
+# mtk_integrator = KiteModels.init_sim!(mtk_kite; stiffness_factor=0.1, prn=true, mtk=true, torque_control=true)
 
 println("compiling")
 total_new_time = 0.0
 for i in 1:5
-    global total_new_time += @elapsed next_step!(mtk_kite, integrator; set_values=steering)
+    global total_new_time += @elapsed next_step!(mtk_kite, mtk_integrator; set_values=steering)
 end
 println("stepping")
 total_old_time = 0.0
@@ -59,7 +59,7 @@ for i in 1:steps
     push!(reel_out_speedss[1], mtk_kite.reel_out_speeds[1])
     push!(reel_out_speedss[2], mtk_kite.reel_out_speeds[2])
     # println(norm.(mtk_kite.winch_forces))
-    global total_new_time += @elapsed next_step!(mtk_kite, integrator; set_values=steering)
+    global total_new_time += @elapsed next_step!(mtk_kite, mtk_integrator; set_values=steering)
     # plot2d(mtk_kite.pos, i-1; zoom=false, front=true, segments=set.segments)
 end
 
