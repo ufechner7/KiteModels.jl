@@ -3,8 +3,11 @@ using Base: summarysize
 # using SteadyStateDiffEq
 
 update_settings()
+set = se("system_3l.yaml")
+set.abs_tol = 0.06
+set.rel_tol = 0.1
 steps = 150
-dt = 1/se().sample_freq
+dt = 1/set.sample_freq
 tspan   = (0.0, dt) 
 # plot2d([[0,0,0]], 0)
 
@@ -12,10 +15,8 @@ steering = [0,0,0]
 
 
 println("Running models")
-if ! @isdefined s; s = KPS4_3L(KCU(se())); end;
-if ! @isdefined integrator; integrator = KiteModels.init_sim!(s; stiffness_factor=0.1, prn=true, mtk=true, torque_control=true);
-else integrator = KiteModels.reset_sim!(s; stiffness_factor=1.0); end;
-# integrator = KiteModels.init_sim!(s; stiffness_factor=0.1, prn=true, mtk=true, torque_control=true)
+s = KPS4_3L(KCU(set))
+integrator = KiteModels.init_sim!(s; stiffness_factor=0.1, prn=true, mtk=false, torque_control=true)
 
 println("compiling")
 total_new_time = 0.0
@@ -57,9 +58,9 @@ for i in 1:steps
     push!(reel_out_speedss[2], s.reel_out_speeds[2])
     # println(norm.(s.winch_forces))
     global total_new_time += @elapsed next_step!(s, integrator; set_values=steering)
-    # plot2d(s.pos, i-1; zoom=false, front=true, segments=se().segments)
+    # plot2d(s.pos, i-1; zoom=false, front=true, segments=set.segments)
 end
-# plot2d(s1.pos, steps; zoom=false, front=false, segments=se().segments)
+# plot2d(s1.pos, steps; zoom=false, front=false, segments=set.segments)
 
 new_time = (dt*steps) / total_new_time
 println("times realtime new model: ", new_time)

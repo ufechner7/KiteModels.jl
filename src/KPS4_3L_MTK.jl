@@ -1,11 +1,11 @@
 
 function calc_acc_speed(tether_speed::SimFloat, norm_::SimFloat, set_speed::SimFloat)
-    return calc_acceleration(TorqueControlledMachine(se()), tether_speed, norm_; set_speed=set_speed, set_torque=nothing, use_brake=false)
+    return calc_acceleration(AsyncMachine(se("system_3l.yaml")), tether_speed, norm_; set_speed=set_speed, set_torque=nothing, use_brake=false)
 end
 @register_symbolic calc_acc_speed(tether_speed, norm_, set_speed)
 
-function calc_acc_torque(tether_speed::SimFloat, norm_::SimFloat, set_torque::SimFloat)
-    return calc_acceleration(TorqueControlledMachine(se()), tether_speed, norm_; set_speed=nothing, set_torque=set_torque, use_brake=false)
+function calc_acc_torque(tether_speed::SimFloat, norm_::SimFloat, set_torque::SimFloat) # should have access to s somehow
+    return calc_acceleration(TorqueControlledMachine(se("system_3l.yaml")), tether_speed, norm_; set_speed=nothing, set_torque=set_torque, use_brake=false)
 end
 @register_symbolic calc_acc_torque(tether_speed, norm_, set_torque)
 
@@ -24,7 +24,7 @@ Parameters:
 
 Updates the vector s.forces of the first parameter.
 """
-function calc_aero_forces_model!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, rho)
+function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, rho)
     n = s.set.aero_surfaces
     @variables begin
         δ_left(t)
@@ -143,8 +143,8 @@ function calc_aero_forces_model!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t
                 d[i] ~ δ_right :
                 d[i] ~ (δ_right - δ_left) / (s.α_r - s.α_l) * (α - s.α_l) + (δ_left)
             aoa[i] ~ -asin((v_a_xr[:,i]./norm(v_a_xr[:,i])) ⋅ e_r[:,i]) + asin(clamp(d[i]/kite_length[i], -1.0, 1.0))
-            dL_dα[:,i] .~ 0.5*rho*(norm(v_a_xr[:,i]))^2*s.set.radius*kite_length[i]*rad_cl_model(aoa[i]) .* ((v_a_xr[:,i] × e_drift[:,i]) ./ norm(v_a_xr[:,i] × e_drift[:,i]))
-            dD_dα[:,i] .~ 0.5*rho*norm(v_a_xr[:,i])*s.set.radius*kite_length[i]*rad_cd_model(aoa[i]) .* v_a_xr[:,i] # the sideways drag cannot be calculated with the C_d formula
+            dL_dα[:,i] .~ 0.5*rho*(norm(v_a_xr[:,i]))^2*s.set.radius*kite_length[i]*rad_cl_mtk(aoa[i]) .* ((v_a_xr[:,i] × e_drift[:,i]) ./ norm(v_a_xr[:,i] × e_drift[:,i]))
+            dD_dα[:,i] .~ 0.5*rho*norm(v_a_xr[:,i])*s.set.radius*kite_length[i]*rad_cd_mtk(aoa[i]) .* v_a_xr[:,i] # the sideways drag cannot be calculated with the C_d formula
         ]
         if i <= n
             [l_c_eq[j] = (L_C[j] ~ l_c_eq[j].rhs + dL_dα[j,i] * dα) for j in 1:3]
@@ -179,7 +179,7 @@ Calculate the drag force and spring force of the tether segment, defined by the 
 and distribute it equally on the two particles, that are attached to the segment.
 The result is stored in the array s.forces. 
 """
-@inline function calc_particle_forces_model!(s::KPS4_3L, eqs2, force_eqs, force, pos1, pos2, vel1, vel2, length, c_spring, damping, rho, i,
+@inline function calc_particle_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos1, pos2, vel1, vel2, length, c_spring, damping, rho, i,
     l_0, k, c, segment, rel_vel, av_vel, norm1, unit_vector, k1, k2, c1, spring_vel,
             spring_force, v_apparent, v_wind_tether, area, v_app_perp, half_drag_force)
     d_tether = s.set.d_tether/1000.0
@@ -242,7 +242,7 @@ end
 
 
 """calc_aero_forces
-    inner_loop_model!(s::KPS4_3L, pos, vel, v_wind_gnd, segments, d_tether)
+    inner_loop_mtk!(s::KPS4_3L, pos, vel, v_wind_gnd, segments, d_tether)
 
 Calculate the forces, acting on all particles.
 
@@ -250,7 +250,7 @@ Output:length
 - s.forces
 - s.v_wind_tether
 """
-@inline function inner_loop_model!(s::KPS4_3L, eqs2, force_eqs, t, force, pos, vel, length, c_spring, damping, v_wind_gnd)
+@inline function inner_loop_mtk!(s::KPS4_3L, eqs2, force_eqs, t, force, pos, vel, length, c_spring, damping, v_wind_gnd)
     @variables begin
         height(t)[eachindex(s.springs)]
         rho(t)[eachindex(s.springs)]
@@ -295,7 +295,7 @@ Output:length
         ]
 
         # TODO: @assert height > 0
-        eqs2, force_eqs = calc_particle_forces_model!(s, eqs2, force_eqs, force, pos[:,p1], pos[:,p2], vel[:,p1], vel[:,p2], length, c_spring, damping, rho[i], i,
+        eqs2, force_eqs = calc_particle_forces_mtk!(s, eqs2, force_eqs, force, pos[:,p1], pos[:,p2], vel[:,p1], vel[:,p2], length, c_spring, damping, rho[i], i,
             l_0[i], k[i], c[i], segment[:,i], rel_vel[:,i], av_vel[:,i], norm1[i], 
             unit_vector[:,i], k1[i], k2[i], c1[i], spring_vel[i],
             spring_force[:,i], v_apparent[:,i], v_wind_tether[:,i], area[i], v_app_perp[:,i], half_drag_force[:,i])
@@ -414,8 +414,8 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
         rho_kite ~ calc_rho(s.am, pos[3,s.num_A])
     ]
 
-    eqs2, force_eqs = calc_aero_forces_model!(s, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, rho_kite)
-    eqs2, force_eqs = inner_loop_model!(s, eqs2, force_eqs, t, force, pos, vel, segment_length, c_spring, damping, v_wind_gnd)
+    eqs2, force_eqs = calc_aero_forces_mtk!(s, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, rho_kite)
+    eqs2, force_eqs = inner_loop_mtk!(s, eqs2, force_eqs, t, force, pos, vel, segment_length, c_spring, damping, v_wind_gnd)
     
     for i in 1:3
         eqs2 = vcat(eqs2, vcat(force_eqs[:,i]))
@@ -444,7 +444,7 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
     eqs = vcat(eqs1, eqs2)
 
     # @assert false
-    println("making model")
+    println("making mtk model")
     @time @named sys = ODESystem(eqs, t)
     println("making simple sys")
     @time simple_sys = structural_simplify(sys)

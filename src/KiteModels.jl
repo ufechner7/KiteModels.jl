@@ -98,8 +98,8 @@ const calc_cl = Spline1D(se().alpha_cl, se().cl_list)
 const calc_cd = Spline1D(se().alpha_cd, se().cd_list)
 const rad_cl = Spline1D(deg2rad.(se().alpha_cl), se().cl_list, k=3)
 const rad_cd = Spline1D(deg2rad.(se().alpha_cd), se().cd_list, k=3) 
-const rad_cl_model = CubicSpline(se().cl_list, deg2rad.(se().alpha_cl); extrapolate=true) 
-const rad_cd_model = CubicSpline(se().cd_list, deg2rad.(se().alpha_cd); extrapolate=true) 
+const rad_cl_mtk = CubicSpline(se().cl_list, deg2rad.(se().alpha_cl); extrapolate=true) 
+const rad_cd_mtk = CubicSpline(se().cd_list, deg2rad.(se().alpha_cd); extrapolate=true) 
 
 """
     abstract type AbstractKiteModel
@@ -126,7 +126,7 @@ steady_state_history_file = joinpath(get_data_path(), ".steady_state_history.bin
 
 include("KPS4.jl") # include code, specific for the four point kite model
 include("KPS4_3L.jl") # include code, specific for the four point 3 line kite model
-include("KPS4_3L_model.jl") # include code, specific for the four point 3 line kite model
+include("KPS4_3L_MTK.jl") # include code, specific for the four point 3 line kite model
 include("KPS3.jl") # include code, specific for the one point kite model
 include("init.jl") # functions to calculate the inital state vector, the inital masses and initial springs
 
@@ -179,12 +179,6 @@ Getter for the unstretched tether reel-out lenght (at zero force).
 """
 function unstretched_length(s::AKM) s.l_tether end
 
-"""
-    unstretched_length(s::KPS4_3L)
-
-Getter for the unstretched tether reel-out lenght (at zero force).
-"""
-function unstretched_length(s::KPS4_3L) s.tether_lengths[1] end
 
 """
     lift_drag(s::AKM)
@@ -285,10 +279,6 @@ function calc_elevation(s::AKM)
     KiteUtils.calc_elevation(pos_kite(s))
 end
 
-function calc_tether_elevation(s::KPS4_3L)
-    KiteUtils.calc_elevation(s.pos[6])
-end
-
 """
     calc_azimuth(s::AKM)
 
@@ -296,10 +286,6 @@ Determine the azimuth angle of the kite in radian.
 """
 function calc_azimuth(s::AKM)
     KiteUtils.azimuth_east(pos_kite(s))
-end
-
-function calc_tether_azimuth(s::KPS4_3L)
-    KiteUtils.azimuth_east(s.pos[6])
 end
 
 """
@@ -372,16 +358,6 @@ end
 #     var_05::MyFloat
 # end 
 
-function calc_orient_quat(s::AKM)
-    x, _, z = kite_ref_frame(s)
-    pos_kite_ = pos_kite(s)
-    pos_before = pos_kite_ .+ z
-   
-    rotation = rot(pos_kite_, pos_before, -x)
-    q = QuatRotation(rotation)
-    return Rotations.params(q)
-end
-
 function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
     ss.time = s.t_0
     pos = s.pos
@@ -402,36 +378,6 @@ function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
     ss.v_reelout = s.v_reel_out
     ss.depower = s.depower
     ss.steering = s.steering
-    ss.vel_kite .= s.vel_kite
-    nothing
-end
-
-function update_sys_state!(ss::SysState, s::KPS4_3L, zoom=1.0)
-    ss.time = s.t_0
-    pos = s.pos
-    P = length(pos)
-    for i in 1:P
-        ss.X[i] = pos[i][1] * zoom
-        ss.Y[i] = pos[i][2] * zoom
-        ss.Z[i] = pos[i][3] * zoom
-    end
-    x, y, z = kite_ref_frame(s)
-    pos_kite_ = pos_kite(s)
-    pos_before = pos_kite_ + z
-   
-    rotation = rot(pos_kite_, pos_before, -x)
-    q = QuatRotation(rotation)
-    ss.orient .= Rotations.params(q)
-    ss.elevation = calc_elevation(s)
-    ss.azimuth = calc_azimuth(s)
-    ss.force = winch_force(s)[1]
-    ss.heading = calc_heading(s)
-    ss.course = calc_course(s)
-    ss.v_app = norm(s.v_apparent)
-    ss.l_tether = s.tether_lengths[1]
-    ss.v_reelout = s.reel_out_speeds[1]
-    ss.depower = 100 - ((s.δ_left + s.δ_right)/2) / ((s.set.middle_length + s.set.tip_length)/2) * 100
-    ss.steering = (s.δ_right - s.δ_left) / ((s.set.middle_length + s.set.tip_length)/2) * 100
     ss.vel_kite .= s.vel_kite
     nothing
 end
@@ -473,41 +419,6 @@ function SysState(s::AKM, zoom=1.0)
     t_sim = 0
     KiteUtils.SysState{P}(s.t_0, t_sim, 0, 0, orient, elevation, azimuth, s.l_tether, s.v_reel_out, force, s.depower, s.steering, 
                           heading, course, v_app_norm, s.vel_kite, X, Y, Z, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-end
-
-function SysState(s::KPS4_3L, zoom=1.0)
-    pos = s.pos
-    P = length(pos)
-    X = zeros(MVector{P, MyFloat})
-    Y = zeros(MVector{P, MyFloat})
-    Z = zeros(MVector{P, MyFloat})
-    for i in 1:P
-        X[i] = pos[i][1] * zoom
-        Y[i] = pos[i][2] * zoom
-        Z[i] = pos[i][3] * zoom
-    end
-    
-    x, y, z = kite_ref_frame(s)
-    pos_kite_ = pos_kite(s)
-    pos_before = pos_kite_ + z
-   
-    rotation = rot(pos_kite_, pos_before, -x)
-    q = QuatRotation(rotation)
-    orient = MVector{4, Float32}(Rotations.params(q))
-
-    elevation = calc_elevation(s)
-    azimuth = calc_azimuth(s)
-    forces = winch_force(s)
-    heading = calc_heading(s)
-    course = calc_course(s)
-    v_app_norm = norm(s.v_apparent)
-    t_sim = 0
-    depower = 100 - ((s.δ_left + s.δ_right)/2) / ((s.set.middle_length + s.set.tip_length)/2) * 100
-    steering = (s.δ_right - s.δ_left) / ((s.set.middle_length + s.set.tip_length)/2) * 100
-    KiteUtils.SysState{P}(s.t_0, t_sim, 0, 0, orient, elevation, azimuth, s.tether_lengths[1], s.reel_out_speeds[1], forces[1], depower, steering, 
-                          heading, course, v_app_norm, s.vel_kite, X, Y, Z, 
-                          s.tether_lengths[2], s.tether_lengths[3], s.reel_out_speeds[2], s.reel_out_speeds[3], 
-                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 end
 
 function calc_pre_tension(s::AKM)
@@ -593,6 +504,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
     s.stiffness_factor = stiffness_factor
     if isa(s, KPS4_3L)
         s.mtk = mtk
+        s.torque_control = torque_control
     end
     
     found = false
@@ -619,7 +531,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
         end
     end
     if !found
-        y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor=stiffness_factor, prn=prn, mtk=mtk)
+        y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor=stiffness_factor, prn=prn)
         if !mtk
             y0  = Vector{SimFloat}(y0)
             yd0 = Vector{SimFloat}(yd0)
@@ -630,7 +542,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
         end
     end
     
-    if s.mtk
+    if isa(s, KPS4_3L) && s.mtk
         solver = KenCarp4(autodiff=false) # TRBDF2, Rodas4P, Rodas5P, Kvaerno5, KenCarp4, radau, QNDF
     elseif s.set.solver=="IDA"
         solver  = Sundials.IDA(linear_solver=Symbol(s.set.linear_solver), max_order = s.set.max_order)
@@ -647,7 +559,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
     tspan   = (0.0, dt) 
     abstol  = s.set.abs_tol # max error in m/s and m
 
-    if s.mtk
+    if isa(s, KPS4_3L) && s.mtk
         simple_sys, _ = model!(s, y0; torque_control=torque_control)
         s.prob = ODEProblem(simple_sys, nothing, tspan)
         integrator = OrdinaryDiffEq.init(s.prob, solver; dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
@@ -699,32 +611,6 @@ function next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing,
     set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
     s.iter = 0
     if s.set.solver == "IDA"
-        Sundials.step!(integrator, dt, true)
-    else
-        OrdinaryDiffEq.step!(integrator, dt, true)
-    end
-    if s.stiffness_factor < 1.0
-        s.stiffness_factor+=0.01
-        if s.stiffness_factor > 1.0
-            s.stiffness_factor = 1.0
-        end
-    end
-    integrator.t
-end
-
-function next_step!(s::KPS4_3L, integrator; set_values=zeros(KVec3), torque_control=false, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
-    s.torque_control = torque_control
-    set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
-    s.set_values .= set_values
-    if s.mtk
-        integrator.ps[s.set_values_idx] .= set_values
-        integrator.ps[s.v_wind_gnd_idx] .= s.v_wind_gnd
-    end
-    s.t_0 = integrator.t
-    if s.mtk
-        OrdinaryDiffEq.step!(integrator, dt, true)
-        update_pos!(s, integrator)
-    elseif s.set.solver == "IDA"
         Sundials.step!(integrator, dt, true)
     else
         OrdinaryDiffEq.step!(integrator, dt, true)

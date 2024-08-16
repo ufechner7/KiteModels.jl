@@ -68,6 +68,10 @@ $(TYPEDFIELDS)
     set::Settings
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
+    "Function for calculation the lift coefficent, using a spline based on the provided value pairs."
+    calc_cl = Spline1D(se().alpha_cl, se().cl_list)
+    "Function for calculation the drag coefficent, using a spline based on the provided value pairs."
+    calc_cd = Spline1D(se().alpha_cd, se().cd_list)
     "Reference to the motor models as implemented in the package WinchModels. index 1: middle motor, index 2: left motor, index 3: right motor"
     motors::SVector{3, AbstractWinchModel}
     "Iterations, number of calls to the function residual!"
@@ -206,6 +210,7 @@ end
 Initialize the kite power model.
 """
 function clear!(s::KPS4_3L)
+    s.iter = 0
     s.t_0 = 0.0                              # relative start time of the current time interval
     s.reel_out_speeds = zeros(3)
     # s.last_reel_out_speeds = zeros(3)
@@ -239,7 +244,12 @@ end
 
 function KPS4_3L(kcu::KCU)
     set = kcu.set
-    s = KPS4_3L{SimFloat, KVec3, set.segments*3+2+KITE_PARTICLES, set.segments*3+KITE_SPRINGS_3L, SP}(set=kcu.set, motors=[AsyncMachine(set) for _ in 1:3])
+    if set.winch_model == "TorqueControlledMachine"
+        s = KPS4_3L{SimFloat, KVec3, set.segments*3+2+KITE_PARTICLES, set.segments*3+KITE_SPRINGS_3L, SP}(set=kcu.set, motors=[TorqueControlledMachine(set) for _ in 1:3])
+        println("Using torque control.")
+    else
+        s = KPS4_3L{SimFloat, KVec3, set.segments*3+2+KITE_PARTICLES, set.segments*3+KITE_SPRINGS_3L, SP}(set=kcu.set, motors=[AsyncMachine(set) for _ in 1:3])
+    end
     s.num_E = s.set.segments*3+3
     s.num_C = s.set.segments*3+3+1
     s.num_D = s.set.segments*3+3+2
@@ -276,12 +286,12 @@ function update_sys_state!(ss::SysState, s::KPS4_3L, zoom=1.0)
     ss.orient .= calc_orient_quat(s)
     ss.elevation = calc_elevation(s)
     ss.azimuth = calc_azimuth(s)
-    ss.force = winch_force(s)[1]
+    ss.force = winch_force(s)[3]
     ss.heading = calc_heading(s)
     ss.course = calc_course(s)
     ss.v_app = norm(s.v_apparent)
-    ss.l_tether = s.l_tethers[1]
-    ss.v_reelout = s.reel_out_speeds[1]
+    ss.l_tether = s.tether_lengths[3]
+    ss.v_reelout = s.reel_out_speeds[3]
     ss.depower = 100 - ((s.δ_left + s.δ_right)/2) / ((s.set.middle_length + s.set.tip_length)/2) * 100
     ss.steering = (s.δ_right - s.δ_left) / ((s.set.middle_length + s.set.tip_length)/2) * 100
     ss.vel_kite .= s.vel_kite
@@ -310,9 +320,9 @@ function SysState(s::KPS4_3L, zoom=1.0)
     t_sim = 0
     depower = 100 - ((s.δ_left + s.δ_right)/2) / ((s.set.middle_length + s.set.tip_length)/2) * 100
     steering = (s.δ_right - s.δ_left) / ((s.set.middle_length + s.set.tip_length)/2) * 100
-    KiteUtils.SysState{P}(s.t_0, t_sim, 0, 0, orient, elevation, azimuth, s.l_tethers[1], s.reel_out_speeds[1], forces[1], depower, steering, 
+    KiteUtils.SysState{P}(s.t_0, t_sim, 0, 0, orient, elevation, azimuth, s.tether_lengths[3], s.reel_out_speeds[3], forces[3], depower, steering, 
                           heading, course, v_app_norm, s.vel_kite, X, Y, Z, 
-                          s.l_tethers[2], s.l_tethers[3], s.reel_out_speeds[2], s.reel_out_speeds[3], 
+                          s.tether_lengths[1], s.tether_lengths[2], s.reel_out_speeds[1], s.reel_out_speeds[2], 
                           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 end
 
@@ -331,8 +341,8 @@ function reset_sim!(s::KPS4_3L; stiffness_factor=0.035)
     return nothing
 end
 
-function next_step!(s::KPS4_3L, integrator; set_values=zeros(KVec3), torque_control=false, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
-    s.torque_control = torque_control
+function next_step!(s::KPS4_3L, integrator; set_values=zeros(KVec3), v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
+    s.iter = 0
     set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
     s.set_values .= set_values
     if s.mtk
@@ -375,7 +385,7 @@ end
 
 Getter for the unstretched tether reel-out lenght (at zero force).
 """
-function unstretched_length(s::KPS4_3L) s.l_tethers[1] end
+function unstretched_length(s::KPS4_3L) s.tether_lengths[3] end
 
 """
     tether_length(s::KPS4_3L)
@@ -478,8 +488,8 @@ function calc_aero_forces!(s::KPS4_3L, pos::SVector{N, KVec3}, vel::SVector{N, K
     s.lift_force .= s.L_C .+ s.L_D
     s.drag_force .= s.D_C .+ s.D_D
     
-    s.F_steering_c .= ((0.1 * (s.L_C ⋅ -s.e_z)) .* -s.e_z)
-    s.F_steering_d .= ((0.1 * (s.L_D ⋅ -s.e_z)) .* -s.e_z)
+    s.F_steering_c .= ((0.2 * (s.L_C ⋅ -s.e_z)) .* -s.e_z)
+    s.F_steering_d .= ((0.2 * (s.L_D ⋅ -s.e_z)) .* -s.e_z)
     s.forces[s.num_C] .+= (s.L_C .+ s.D_C) .- s.F_steering_c
     s.forces[s.num_D] .+= (s.L_D .+ s.D_D) .- s.F_steering_d
     s.forces[s.num_E-2] .+= s.F_steering_c
@@ -580,7 +590,7 @@ function loop!(s::KPS4_3L, pos, vel, posd, veld)
     end
     inner_loop!(s, pos, vel, s.v_wind_gnd, s.set.d_tether/1000.0)
     for i in s.num_E-2:s.num_E-1
-        @inbounds s.forces[i] .+= SVector(0, 0, -G_EARTH) .+ 500.0 .* ((vel[i]-vel[s.num_C]) ⋅ s.e_z) .* s.e_z # TODO: more damping
+        @inbounds s.forces[i] .+= SVector(0, 0, -G_EARTH) .+ 500.0 .* ((vel[i]-vel[s.num_C]) ⋅ s.e_z) .* s.e_z
         F_xy = SVector(s.forces[i] .- (s.forces[i] ⋅ s.e_z) * s.e_z)
         @inbounds s.forces[i] .-= F_xy
         @inbounds s.forces[i+3] .+= F_xy
@@ -812,7 +822,7 @@ Find an initial equilibrium, based on the inital parameters
         - s.set.segments*2 parameters for left_tether
 
 """
-function find_steady_state!(s::KPS4_3L; prn=false, delta = 0.0, stiffness_factor=0.035, mtk=false)
+function find_steady_state!(s::KPS4_3L; prn=false, delta = 0.0, stiffness_factor=0.035)
     s.stiffness_factor = stiffness_factor
     res = zeros(MVector{6*(s.num_A-5)+4+6, SimFloat})
     iter = 0
@@ -853,7 +863,7 @@ function find_steady_state!(s::KPS4_3L; prn=false, delta = 0.0, stiffness_factor
     X00 = zeros(SimFloat, 5*s.set.segments+3)
     results = nlsolve(test_initial_condition!, X00, autoscale=true, xtol=2e-7, ftol=2e-7, iterations=s.set.max_iter)
     if prn println("\nresult: $results") end
-    if mtk
+    if s.mtk
         return init_pos(s, results.zero), nothing
     else
         return init(s, results.zero)
