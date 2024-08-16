@@ -421,7 +421,6 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
 
     eqs = vcat(eqs1, eqs2)
 
-    # @assert false
     println("making mtk model")
     @time @named sys = ODESystem(Symbolics.scalarize.(reduce(vcat, Symbolics.scalarize.(eqs))), t)
     println("making simple sys")
