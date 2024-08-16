@@ -253,15 +253,6 @@ Output:length
         v_app_perp(t)[1:3, eachindex(s.springs)]
         half_drag_force(t)[1:3, eachindex(s.springs)]
     end
-    v_wind_tether = collect(v_wind_tether)
-    segment = collect(segment)
-    rel_vel = collect(rel_vel)
-    av_vel = collect(av_vel)
-    unit_vector = collect(unit_vector)
-    spring_force = collect(spring_force)
-    v_apparent = collect(v_apparent)
-    v_app_perp = collect(v_app_perp)
-    half_drag_force = collect(half_drag_force)
     
     for i in eachindex(s.springs)
         p1 = s.springs[i].p1  # First point nr.
@@ -285,14 +276,14 @@ end
 
 function update_pos!(s, integrator)
     pos = s.get_pos(integrator)
-    s.steering_pos .= s.get_steering_pos(integrator)
-    [s.pos[i] .= pos[:,i] for i in 1:s.num_A]
-    s.veld[s.num_E-2] .= s.get_line_acc(integrator)
+    s.steering_pos     .= s.get_steering_pos(integrator)
+    [s.pos[i]          .= pos[:,i] for i in 1:s.num_A]
+    s.veld[s.num_E-2]  .= s.get_line_acc(integrator)
     s.vel_kite .= s.get_kite_vel(integrator)
     winch_forces = s.get_winch_forces(integrator)
     [s.winch_forces[i] .= (winch_forces[:,i]) for i in 1:3]
-    s.tether_lengths .= s.get_tether_lengths(integrator)
-    s.reel_out_speeds .= s.get_tether_speeds(integrator)
+    s.tether_lengths   .= s.get_tether_lengths(integrator)
+    s.reel_out_speeds  .= s.get_tether_speeds(integrator)
     calc_kite_ref_frame!(s, s.pos[s.num_E], s.pos[s.num_C], s.pos[s.num_D])
 
     @assert all(abs.(s.steering_pos) .<= s.set.tip_length)
@@ -339,12 +330,11 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
 
     [eqs1 = vcat(eqs1, D.(pos[:,i]) .~ 0.0) for i in 1:3]
     [eqs1 = vcat(eqs1, D.(pos[:,i]) .~ vel[:,i]) for i in 4:s.num_E-3]
-    # println("div eqs1 segments ", div())
-    eqs1 = [eqs1; D.(steering_pos) .~ steering_vel]
+    eqs1 = [eqs1; D.(steering_pos)  .~ steering_vel]
     [eqs1 = vcat(eqs1, D.(pos[:,i]) .~ vel[:,i]) for i in s.num_E:s.num_A]
     [eqs1 = vcat(eqs1, D.(vel[:,i]) .~ 0.0) for i in 1:3]
     [eqs1 = vcat(eqs1, D.(vel[:,i]) .~ acc[:,i]) for i in 4:s.num_E-3]
-    eqs1 = [eqs1; D.(steering_vel) .~ steering_acc]
+    eqs1 = [eqs1; D.(steering_vel)  .~ steering_acc]
     [eqs1 = vcat(eqs1, D.(vel[:,i]) .~ acc[:,i]) for i in s.num_E:s.num_A]
 
     eqs1 = vcat(eqs1, D.(tether_length) .~ tether_speed)
