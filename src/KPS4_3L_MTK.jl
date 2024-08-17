@@ -375,7 +375,8 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
     ]
 
     eqs2, force_eqs = calc_aero_forces_mtk!(s, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, rho_kite)
-    eqs2, force_eqs = inner_loop_mtk!(s, eqs2, force_eqs, t, force, pos, vel, segment_length, c_spring, damping, v_wind_gnd)
+    eqs2, force_eqs = inner_loop_mtk!(s, eqs2, force_eqs, t, force, pos, vel, segment_length, c_spring, damping, 
+                                      v_wind_gnd)
     
     for i in 1:3
         eqs2 = vcat(eqs2, vcat(force_eqs[:, i]))
@@ -394,11 +395,12 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
         force_eqs[:,i]   .= force[:,i] .~ tether_rhs .- f_xy
         force_eqs[:,i+3] .= force[:,i+3] .~ kite_rhs .+ f_xy
         eqs2              = vcat(eqs2, vcat(force_eqs[:,i]))
-        eqs2              = vcat(eqs2, steering_acc[i-s.num_E+3] ~ (force[:,i] ./ mass_tether_particle[(i-1)%3+1]) ⋅ e_z - (acc[:,i+3] ⋅ e_z))
+        eqs2              = vcat(eqs2, steering_acc[i-s.num_E+3] ~ (force[:,i] ./ mass_tether_particle[(i-1) % 3 + 1]) ⋅ 
+                                                                    e_z - (acc[:, i+3] ⋅ e_z))
     end
     for i in s.num_E:s.num_A
         eqs2 = vcat(eqs2, vcat(force_eqs[:,i]))
-        eqs2 = vcat(eqs2, acc[:,i] .~ [0.0; 0.0; -9.81] .+ (force[:,i] ./ s.masses[i]))
+        eqs2 = vcat(eqs2, acc[:, i] .~ [0.0; 0.0; -9.81] .+ (force[:, i] ./ s.masses[i]))
     end
 
     eqs = vcat(eqs1, eqs2)
