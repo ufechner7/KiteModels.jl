@@ -80,33 +80,33 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
     l_d_eq = SizedArray{Tuple{3}, Symbolics.Equation}(collect(L_D .~ 0))
     d_c_eq = SizedArray{Tuple{3}, Symbolics.Equation}(collect(D_C .~ 0))
     d_d_eq = SizedArray{Tuple{3}, Symbolics.Equation}(collect(D_D .~ 0))
-    kite_length = zeros(MVector{n*2, SimFloat})
+    kite_length = zeros(MVector{2n, SimFloat})
     α           = zero(SimFloat)
     α_0         = zero(SimFloat)
     α_middle    = zero(SimFloat)
     dα          = zero(SimFloat)
     # Calculate the lift and drag
-    α_0         = pi/2 - s.set.width/2/s.set.radius
-    α_middle    = pi/2
+    α_0         = π/2 - s.set.width/2/s.set.radius
+    α_middle    = π/2
     dα          = (α_middle - α_0) / n
     for i in 1:n*2
         if i <= n
-            α = α_0 + -dα/2 + i*dα
+            α = α_0 + -dα/2 + i * dα
         else
-            α = pi - (α_0 + -dα/2 + (i-n)*dα)
+            α = pi - (α_0 + -dα/2 + (i-n) * dα)
         end
 
         eqs2 = [
             eqs2
-            F[:,i]          ~ E_c + e_y * cos(α) * s.set.radius - e_z * sin(α) * s.set.radius
-            e_r[:,i]        ~ (E_c - F[:,i]) / norm(E_c - F[:,i])
-            y_l[i]          ~ cos(α) * s.set.radius
+            F[:, i]          ~ E_c + e_y * cos(α) * s.set.radius - e_z * sin(α) * s.set.radius
+            e_r[:, i]        ~ (E_c - F[:, i]) / norm(E_c - F[:, i])
+            y_l[i]           ~ cos(α) * s.set.radius
             α < π/2 ?
-                v_kite[:,i] ~ ((v_cx - v_dx) / (y_lc - y_ld) * (y_l[i] - y_ld) + v_dx) + v_cy + v_cz :
-                v_kite[:,i] ~ ((v_cx - v_dx) / (y_lc - y_ld) * (y_l[i] - y_ld) + v_dx) + v_dy + v_dz
-            v_a[:,i]        ~ s.v_wind .- v_kite[:,i]
-            e_drift[:,i]    ~ (e_r[:,i] × e_x)
-            v_a_xr[:,i]     ~ v_a[:,i] .- (v_a[:,i] ⋅ e_drift[:,i]) .* e_drift[:,i]
+                v_kite[:, i] ~ ((v_cx - v_dx) / (y_lc - y_ld) * (y_l[i] - y_ld) + v_dx) + v_cy + v_cz :
+                v_kite[:, i] ~ ((v_cx - v_dx) / (y_lc - y_ld) * (y_l[i] - y_ld) + v_dx) + v_dy + v_dz
+            v_a[:,i]         ~ s.v_wind .- v_kite[:,i]
+            e_drift[:, i]    ~ (e_r[:, i] × e_x)
+            v_a_xr[:, i]     ~ v_a[:, i] .- (v_a[:, i] ⋅ e_drift[:, i]) .* e_drift[:, i]
         ]
         if α < π/2
             kite_length[i] = (s.set.tip_length + (s.set.middle_length-s.set.tip_length)*α*s.set.radius/(0.5*s.set.width))
