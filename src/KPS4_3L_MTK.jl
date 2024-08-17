@@ -1,3 +1,4 @@
+# Implementation of the three-line model using ModellingToolkit.jl
 
 function calc_acc_speed(tether_speed::SimFloat, norm_::SimFloat, set_speed::SimFloat)
     calc_acceleration(AsyncMachine(se()), tether_speed, norm_; set_speed, set_torque=nothing, use_brake=false)
