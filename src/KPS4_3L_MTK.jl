@@ -278,8 +278,8 @@ function update_pos!(s, integrator)
     s.steering_pos     .= s.get_steering_pos(integrator)
     [s.pos[i]          .= pos[:,i] for i in 1:s.num_A]
     s.veld[s.num_E-2]  .= s.get_line_acc(integrator)
-    s.vel_kite .= s.get_kite_vel(integrator)
-    winch_forces = s.get_winch_forces(integrator)
+    s.vel_kite         .= s.get_kite_vel(integrator)
+    winch_forces        = s.get_winch_forces(integrator)
     [s.winch_forces[i] .= (winch_forces[:,i]) for i in 1:3]
     s.tether_lengths   .= s.get_tether_lengths(integrator)
     s.reel_out_speeds  .= s.get_tether_speeds(integrator)
