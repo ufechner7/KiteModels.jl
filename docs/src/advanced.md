@@ -157,4 +157,5 @@ Good: `norm1        ~ norm(segment)`
 
 The next steps:
 - re-implement the KPS4 model using ModelingToolkit
+- add a Matlab/ Simulink wrapper similar to the Python wrapper [pykitemodels](https://github.com/ufechner7/pykitemodels)
 
