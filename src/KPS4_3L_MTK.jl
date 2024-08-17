@@ -42,17 +42,18 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
 
     eqs2 = [
         eqs2
-        δ_left  ~ (pos[:,s.num_E-2].-pos[:,s.num_C]) ⋅ e_z
-        δ_right ~ (pos[:,s.num_E-1].-pos[:,s.num_D]) ⋅ e_z
-        E_c     ~ pos[:,s.num_E] .+ e_z .* (-s.set.bridle_center_distance + s.set.radius) # in the aero calculations, E_c is the center of the circle shape on which the kite lies
-        v_cx    ~ dot(vel[:,s.num_C], e_x).*e_x
-        v_dx    ~ dot(vel[:,s.num_D], e_x).*e_x
-        v_dy    ~ dot(vel[:,s.num_D], e_y).*e_y
-        v_dz    ~ dot(vel[:,s.num_D], e_z).*e_z
-        v_cy    ~ dot(vel[:,s.num_C], e_y).*e_y
-        v_cz    ~ dot(vel[:,s.num_C], e_z).*e_z
-        y_lc    ~ norm(pos[:,s.num_C] .- 0.5 .* (pos[:,s.num_C].+pos[:,s.num_D]))
-        y_ld    ~ -norm(pos[:,s.num_D] .- 0.5 .* (pos[:,s.num_C].+pos[:,s.num_D]))
+        δ_left  ~ (pos[:,s.num_E-2] - pos[:,s.num_C]) ⋅ e_z
+        δ_right ~ (pos[:,s.num_E-1] - pos[:,s.num_D]) ⋅ e_z
+        # in the aero calculations, E_c is the center of the circle shape on which the kite lies
+        E_c     ~ pos[:,s.num_E] + e_z * (-s.set.bridle_center_distance + s.set.radius)
+        v_cx    ~ dot(vel[:,s.num_C], e_x) * e_x
+        v_dx    ~ dot(vel[:,s.num_D], e_x) * e_x
+        v_dy    ~ dot(vel[:,s.num_D], e_y) * e_y
+        v_dz    ~ dot(vel[:,s.num_D], e_z) * e_z
+        v_cy    ~ dot(vel[:,s.num_C], e_y) * e_y
+        v_cz    ~ dot(vel[:,s.num_C], e_z) * e_z
+        y_lc    ~  norm(pos[:,s.num_C] - 0.5 * (pos[:,s.num_C] + pos[:,s.num_D]))
+        y_ld    ~ -norm(pos[:,s.num_D] - 0.5 * (pos[:,s.num_C] + pos[:,s.num_D]))
     ]
 
     # integrating loop variables
