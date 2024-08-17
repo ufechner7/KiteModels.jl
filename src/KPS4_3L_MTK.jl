@@ -109,20 +109,25 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
             v_a_xr[:, i]     ~ v_a[:, i] .- (v_a[:, i] ⋅ e_drift[:, i]) .* e_drift[:, i]
         ]
         if α < π/2
-            kite_length[i] = (s.set.tip_length + (s.set.middle_length-s.set.tip_length)*α*s.set.radius/(0.5*s.set.width))
+            kite_length[i] = (s.set.tip_length + (s.set.middle_length-s.set.tip_length) * α 
+                              * s.set.radius/(0.5*s.set.width))
         else
-            kite_length[i] = (s.set.tip_length + (s.set.middle_length-s.set.tip_length)*(π-α)*s.set.radius/(0.5*s.set.width))
+            kite_length[i] = (s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (π-α) 
+                              * s.set.radius/(0.5*s.set.width))
         end
         eqs2 = [
             eqs2
             α < s.α_l ?
-                d[i]   ~ δ_left :
+                d[i]    ~ δ_left :
             α > s.α_r ?
-                d[i]   ~ δ_right :
-                d[i]   ~ (δ_right - δ_left) / (s.α_r - s.α_l) * (α - s.α_l) + (δ_left)
-            aoa[i]     ~ -asin((v_a_xr[:,i] / norm(v_a_xr[:,i])) ⋅ e_r[:,i]) + asin(clamp(d[i] / kite_length[i], -1.0, 1.0))
-            dL_dα[:,i] ~ 0.5 * rho * (norm(v_a_xr[:,i]))^2 * s.set.radius*kite_length[i] * rad_cl_mtk(aoa[i]) * ((v_a_xr[:,i] × e_drift[:,i]) / norm(v_a_xr[:,i] × e_drift[:,i]))
-            dD_dα[:,i] ~ 0.5 * rho * norm(v_a_xr[:,i]) * s.set.radius*kite_length[i] * rad_cd_mtk(aoa[i]) * v_a_xr[:,i] # the sideways drag cannot be calculated with the C_d formula
+                d[i]    ~ δ_right :
+                d[i]    ~ (δ_right - δ_left) / (s.α_r - s.α_l) * (α - s.α_l) + (δ_left)
+            aoa[i]      ~ -asin((v_a_xr[:, i] / norm(v_a_xr[:, i])) ⋅ e_r[:, i]) + 
+                           asin(clamp(d[i] / kite_length[i], -1.0, 1.0))
+            dL_dα[:, i] ~ 0.5 * rho * (norm(v_a_xr[:, i]))^2 * s.set.radius * kite_length[i] * rad_cl_mtk(aoa[i]) * 
+                                ((v_a_xr[:, i] × e_drift[:, i]) / norm(v_a_xr[:, i] × e_drift[:, i]))
+            dD_dα[:, i] ~ 0.5 * rho * norm(v_a_xr[:, i]) * s.set.radius * kite_length[i] * rad_cd_mtk(aoa[i]) * 
+                                v_a_xr[:,i] # the sideways drag cannot be calculated with the C_d formula
         ]
         if i <= n
             [l_c_eq[j] = (L_C[j] ~ l_c_eq[j].rhs + dL_dα[j,i] * dα) for j in 1:3]
