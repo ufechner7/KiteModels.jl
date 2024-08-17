@@ -235,7 +235,6 @@ function clear!(s::KPS4_3L)
     s.calc_cd = Spline1D(s.set.alpha_cd, s.set.cd_list) 
 end
 
-
 function KPS4_3L(kcu::KCU)
     set = kcu.set
     if set.winch_model == "TorqueControlledMachine"
