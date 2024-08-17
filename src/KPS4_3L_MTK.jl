@@ -130,11 +130,11 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
                                 v_a_xr[:,i] # the sideways drag cannot be calculated with the C_d formula
         ]
         if i <= n
-            [l_c_eq[j] = (L_C[j] ~ l_c_eq[j].rhs + dL_dα[j,i] * dα) for j in 1:3]
-            [d_c_eq[j] = (D_C[j] ~ d_c_eq[j].rhs + dD_dα[j,i] * dα) for j in 1:3]
+            [l_c_eq[j] = (L_C[j] ~ l_c_eq[j].rhs + dL_dα[j, i] * dα) for j in 1:3]
+            [d_c_eq[j] = (D_C[j] ~ d_c_eq[j].rhs + dD_dα[j, i] * dα) for j in 1:3]
         else 
-            [l_d_eq[j] = (L_D[j] ~ l_d_eq[j].rhs + dL_dα[j,i] * dα) for j in 1:3]
-            [d_d_eq[j] = (D_D[j] ~ d_d_eq[j].rhs + dD_dα[j,i] * dα) for j in 1:3]
+            [l_d_eq[j] = (L_D[j] ~ l_d_eq[j].rhs + dL_dα[j, i] * dα) for j in 1:3]
+            [d_d_eq[j] = (D_D[j] ~ d_d_eq[j].rhs + dD_dα[j, i] * dα) for j in 1:3]
         end
     end
     
@@ -156,23 +156,24 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
 end
 
 """ 
-    calc_particle_forces!(s::KPS4_3L, eqs2, force_eqs, force, pos1, pos2, vel1, vel2, length, c_spring, damping, rho, i,
-                          l_0, k, c, segment, rel_vel, av_vel, norm1, unit_vector, k1, k2, c1, spring_vel,
+    calc_particle_forces!(s::KPS4_3L, eqs2, force_eqs, force, pos1, pos2, vel1, vel2, length, c_spring, damping, 
+                          rho, i, l_0, k, c, segment, rel_vel, av_vel, norm1, unit_vector, k1, k2, c1, spring_vel,
                           spring_force, v_apparent, v_wind_tether, area, v_app_perp, half_drag_force)
 
 Calculate the drag force and spring force of the tether segment, defined by the parameters pos1, pos2, vel1 and vel2
 and distribute it equally on the two particles, that are attached to the segment.
 The result is stored in the array s.forces. 
 """
-@inline function calc_particle_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos1, pos2, vel1, vel2, length, c_spring, damping, rho, i,
-    l_0, k, c, segment, rel_vel, av_vel, norm1, unit_vector, k1, k2, c1, spring_vel,
+function calc_particle_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos1, pos2, vel1, vel2, length, c_spring, 
+    damping, rho, i, l_0, k, c, segment, rel_vel, av_vel, norm1, unit_vector, k1, k2, c1, spring_vel,
             spring_force, v_apparent, v_wind_tether, area, v_app_perp, half_drag_force)
     d_tether = s.set.d_tether/1000.0
     eqs2 = [
         eqs2
-        i <= s.set.segments*3 ? l_0 ~ length[(i-1)%3+1] : l_0 ~ s.springs[i].length # Unstressed length
-        i <= s.set.segments*3 ? k ~ c_spring[(i-1)%3+1] * s.stiffness_factor : k ~ s.springs[i].c_spring * s.stiffness_factor # Spring constant
-        i <= s.set.segments*3 ? c ~ damping[(i-1)%3+1] : c ~ s.springs[i].damping                    # Damping coefficient    
+        i <= s.set.segments*3 ? l_0 ~ length[(i-1) % 3 + 1] : l_0 ~ s.springs[i].length # Unstressed length
+        i <= s.set.segments*3 ? k   ~ c_spring[(i-1) % 3 + 1] * s.stiffness_factor :
+                                k   ~ s.springs[i].c_spring * s.stiffness_factor        # Spring constant
+        i <= s.set.segments*3 ? c   ~ damping[(i-1) % 3 + 1] : c ~ s.springs[i].damping # Damping coefficient    
         segment     .~ pos1 - pos2
         rel_vel     .~ vel1 - vel2
         av_vel      .~ 0.5 * (vel1 + vel2)
@@ -216,8 +217,10 @@ The result is stored in the array s.forces.
     ]
 
     for j in 1:3
-        force_eqs[j, s.springs[i].p1] = (force[j,s.springs[i].p1] ~ force_eqs[j, s.springs[i].p1].rhs + (half_drag_force[j] + spring_force[j]))
-        force_eqs[j, s.springs[i].p2] = (force[j,s.springs[i].p2] ~ force_eqs[j, s.springs[i].p2].rhs + (half_drag_force[j] - spring_force[j]))
+        force_eqs[j, s.springs[i].p1] = 
+            (force[j,s.springs[i].p1] ~ force_eqs[j, s.springs[i].p1].rhs + (half_drag_force[j] + spring_force[j]))
+        force_eqs[j, s.springs[i].p2] = 
+            (force[j,s.springs[i].p2] ~ force_eqs[j, s.springs[i].p2].rhs + (half_drag_force[j] - spring_force[j]))
     end
     
     return eqs2, force_eqs
@@ -264,16 +267,17 @@ Output:length
         p2 = s.springs[i].p2
         eqs2 = [
             eqs2
-            height[i]          ~ 0.5 * (pos[:,p1][3] + pos[:,p2][3])
-            rho[i]             ~ calc_rho(s.am, height[i])
-            v_wind_tether[:,i] ~ calc_wind_factor(s.am, height[i]) * v_wind_gnd
+            height[i]           ~ 0.5 * (pos[:, p1][3] + pos[:, p2][3])
+            rho[i]              ~ calc_rho(s.am, height[i])
+            v_wind_tether[:, i] ~ calc_wind_factor(s.am, height[i]) * v_wind_gnd
         ]
 
         # TODO: @assert height > 0
-        eqs2, force_eqs = calc_particle_forces_mtk!(s, eqs2, force_eqs, force, pos[:,p1], pos[:,p2], vel[:,p1], vel[:,p2], length, c_spring, damping, rho[i], i,
-            l_0[i], k[i], c[i], segment[:,i], rel_vel[:,i], av_vel[:,i], norm1[i], 
-            unit_vector[:,i], k1[i], k2[i], c1[i], spring_vel[i],
-            spring_force[:,i], v_apparent[:,i], v_wind_tether[:,i], area[i], v_app_perp[:,i], half_drag_force[:,i])
+        eqs2, force_eqs = calc_particle_forces_mtk!(s, eqs2, force_eqs, force, pos[:, p1], pos[:, p2], vel[:, p1], 
+                          vel[:, p2], length, c_spring, damping, rho[i], i, l_0[i], k[i], c[i], segment[:, i], 
+                          rel_vel[:, i], av_vel[:, i], norm1[i], unit_vector[:, i], k1[i], k2[i], c1[i], spring_vel[i],
+                          spring_force[:, i], v_apparent[:,i], v_wind_tether[:, i], area[i], v_app_perp[:, i], 
+                          half_drag_force[:, i])
     end
 
     return eqs2, force_eqs
@@ -330,20 +334,22 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
     eqs1 = []
     mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
 
-    [eqs1 = vcat(eqs1, D.(pos[:,i]) .~ 0.0) for i in 1:3]
-    [eqs1 = vcat(eqs1, D.(pos[:,i]) .~ vel[:,i]) for i in 4:s.num_E-3]
-    eqs1 = [eqs1; D.(steering_pos)  .~ steering_vel]
-    [eqs1 = vcat(eqs1, D.(pos[:,i]) .~ vel[:,i]) for i in s.num_E:s.num_A]
-    [eqs1 = vcat(eqs1, D.(vel[:,i]) .~ 0.0) for i in 1:3]
-    [eqs1 = vcat(eqs1, D.(vel[:,i]) .~ acc[:,i]) for i in 4:s.num_E-3]
-    eqs1 = [eqs1; D.(steering_vel)  .~ steering_acc]
-    [eqs1 = vcat(eqs1, D.(vel[:,i]) .~ acc[:,i]) for i in s.num_E:s.num_A]
+    [eqs1 = vcat(eqs1, D.(pos[:, i]) .~ 0.0) for i in 1:3]
+    [eqs1 = vcat(eqs1, D.(pos[:, i]) .~ vel[:,i]) for i in 4:s.num_E-3]
+    eqs1 = [eqs1; D.(steering_pos)   .~ steering_vel]
+    [eqs1 = vcat(eqs1, D.(pos[:, i]) .~ vel[:,i]) for i in s.num_E:s.num_A]
+    [eqs1 = vcat(eqs1, D.(vel[:, i]) .~ 0.0) for i in 1:3]
+    [eqs1 = vcat(eqs1, D.(vel[:, i]) .~ acc[:,i]) for i in 4:s.num_E-3]
+    eqs1 = [eqs1; D.(steering_vel)   .~ steering_acc]
+    [eqs1 = vcat(eqs1, D.(vel[:, i]) .~ acc[:,i]) for i in s.num_E:s.num_A]
 
     eqs1 = vcat(eqs1, D.(tether_length) .~ tether_speed)
     if torque_control
-        eqs1 = vcat(eqs1, D.(tether_speed) .~ [calc_acc_torque(tether_speed[i], norm(force[:,(i-1)%3+1]), set_values[i]) for i in 1:3])
+        eqs1 = vcat(eqs1, D.(tether_speed) .~ [calc_acc_torque(tether_speed[i], norm(force[:, (i-1) % 3 + 1]),
+                                                               set_values[i]) for i in 1:3])
     else
-        eqs1 = vcat(eqs1, D.(tether_speed) .~ [calc_acc_speed(tether_speed[i], norm(force[:,(i-1)%3+1]), set_values[i]) for i in 1:3])
+        eqs1 = vcat(eqs1, D.(tether_speed) .~ [calc_acc_speed(tether_speed[i], norm(force[:,(i-1) % 3 + 1]), 
+                                                               set_values[i]) for i in 1:3])
     end
 
     # Compute the masses and forces
