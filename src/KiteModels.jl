@@ -34,7 +34,8 @@ Scientific background: http://arxiv.org/abs/1406.6218 =#
 module KiteModels
 
 using PrecompileTools: @setup_workload, @compile_workload 
-using Dierckx, StaticArrays, Rotations, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, OrdinaryDiffEq, Serialization, DataInterpolations
+using Dierckx, StaticArrays, Rotations, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, OrdinaryDiffEq, 
+      Serialization, DataInterpolations
 import Sundials
 using Reexport, Pkg
 @reexport using KitePodModels
@@ -55,8 +56,8 @@ using ModelingToolkit: t_nounits as t, D_nounits as D
 
 export KPS3, KPS4, KPS4_3L, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                     # constants and types
 export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                            # helper functions
-export clear!, find_steady_state!, residual!, model!                                                  # low level workers
-export init_sim!, reset_sim!, next_step!, init_pos_vel, update_pos!                                                                  # high level workers
+export clear!, find_steady_state!, residual!, model!                                          # low level workers
+export init_sim!, reset_sim!, next_step!, init_pos_vel, update_pos!                           # high level workers
 export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, calc_orient_quat, load_history  # getters
 export winch_force, lift_drag, lift_over_drag, unstretched_length, tether_length, v_wind_kite # getters
 export save_history # setter / saver
@@ -354,9 +355,8 @@ end
 #     Z::MVector{P, MyFloat}
 #     var_01::MyFloat
 #     var_02::MyFloat
-#     var_03::MyFloat
-#     var_04::MyFloat
-#     var_05::MyFloat
+#     ...
+#     var_16::MyFloat
 # end 
 
 function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
@@ -500,7 +500,8 @@ Parameters:
 Returns:
 An instance of a DAE integrator.
 """
-function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_state_history=nothing, mtk=false, torque_control=false)
+function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_state_history=nothing, mtk=false, 
+                   torque_control=false)
     clear!(s)
     s.stiffness_factor = stiffness_factor
     if isa(s, KPS4_3L)
@@ -563,7 +564,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
     if isa(s, KPS4_3L) && s.mtk
         simple_sys, _ = model!(s, y0; torque_control=torque_control)
         s.prob = ODEProblem(simple_sys, nothing, tspan)
-        integrator = OrdinaryDiffEq.init(s.prob, solver; dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
+        integrator = OrdinaryDiffEq.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
         s.set_values_idx = parameter_index(integrator.f, :set_values)
         s.v_wind_gnd_idx = parameter_index(integrator.f, :v_wind_gnd)
         s.get_pos = getu(integrator.sol, simple_sys.pos[:,:])
@@ -585,7 +586,8 @@ end
 
 
 """
-    next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
+    next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, v_wind_gnd=s.set.v_wind, wind_dir=0.0, 
+               dt=1/s.set.sample_freq)
 
 Calculates the next simulation step.
 
@@ -603,7 +605,8 @@ Either a value for `set_speed` or for `set_torque` required.
 Returns:
 The end time of the time step in seconds.
 """
-function next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
+function next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, v_wind_gnd=s.set.v_wind, wind_dir=0.0, 
+                    dt=1/s.set.sample_freq)
     KitePodModels.on_timer(s.kcu)
     KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
     s.sync_speed = set_speed
