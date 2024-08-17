@@ -203,9 +203,9 @@ The result is stored in the array s.forces.
     end
     eqs2 = [
         eqs2
-        v_apparent .~ v_wind_tether .- av_vel
-        area ~ norm1 * d_tether
-        v_app_perp ~ v_apparent .- v_apparent ⋅ unit_vector * unit_vector
+        v_apparent       ~ v_wind_tether - av_vel
+        area             ~ norm1 * d_tether
+        v_app_perp       ~ v_apparent - v_apparent ⋅ unit_vector * unit_vector
         half_drag_force .~ (0.25 * rho * s.set.cd_tether * norm(v_app_perp) * area) .* v_app_perp
     ]
 
