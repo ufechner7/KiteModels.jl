@@ -167,15 +167,15 @@ The result is stored in the array s.forces.
         i <= s.set.segments*3 ? l_0 ~ length[(i-1)%3+1] : l_0 ~ s.springs[i].length # Unstressed length
         i <= s.set.segments*3 ? k ~ c_spring[(i-1)%3+1] * s.stiffness_factor : k ~ s.springs[i].c_spring * s.stiffness_factor # Spring constant
         i <= s.set.segments*3 ? c ~ damping[(i-1)%3+1] : c ~ s.springs[i].damping                    # Damping coefficient    
-        segment .~ pos1 - pos2
-        rel_vel .~ vel1 - vel2
-        av_vel .~ 0.5 * (vel1 + vel2)
-        norm1 ~ norm(segment)
+        segment     .~ pos1 - pos2
+        rel_vel     .~ vel1 - vel2
+        av_vel      .~ 0.5 * (vel1 + vel2)
+        norm1        ~ norm(segment)
         unit_vector .~ segment / norm1
-        k1 ~ 0.25 * k # compression stiffness kite segments
-        k2 ~ 0.1 * k  # compression stiffness tether segments
-        c1 ~ 6.0 * c  # damping kite segments
-        spring_vel .~ rel_vel ⋅ unit_vector
+        k1           ~ 0.25 * k # compression stiffness kite segments
+        k2           ~ 0.1 * k  # compression stiffness tether segments
+        c1           ~ 6.0 * c  # damping kite segments
+        spring_vel  .~ rel_vel ⋅ unit_vector
     ]
 
     if i >= s.num_E-2  # kite springs
@@ -184,8 +184,8 @@ The result is stored in the array s.forces.
                 eqs2
                 spring_force[j] ~ ifelse(
                     (norm1 - l_0) > 0.0,
-                    (k*(l_0 - norm1) - c1 * spring_vel) * unit_vector[j],
-                    (k1*(l_0 - norm1) - c * spring_vel) * unit_vector[j]
+                    (k  * (l_0 - norm1) - c1 * spring_vel) * unit_vector[j],
+                    (k1 * (l_0 - norm1) -  c * spring_vel) * unit_vector[j]
                 )
             ]
         end
@@ -195,8 +195,8 @@ The result is stored in the array s.forces.
                 eqs2
                 spring_force[j] ~ ifelse(
                     (norm1 - l_0) > 0.0,
-                    (k*(l_0 - norm1) - c * spring_vel) * unit_vector[j],
-                    (k2*(l_0 - norm1) - c * spring_vel) * unit_vector[j]
+                    (k  * (l_0 - norm1) - c * spring_vel) * unit_vector[j],
+                    (k2 * (l_0 - norm1) - c * spring_vel) * unit_vector[j]
                     )
             ]
         end
