@@ -133,8 +133,7 @@ while the time for the second execution is the same (5.5s). So now about 47s of 
 
 - add the packages `TestEnv` and `Revise` to your global environment, not to any project
 
-- avoid hard-coded numeric values like `9.81` in the code, instead define a global constant `G_EARTH` or read this 
-value from a configuration file
+- avoid hard-coded numeric values like `9.81` in the code, instead define a global constant `G_EARTH` or read this value from a configuration file
 
 - stick to a line length limit of 120 characters
 
@@ -142,8 +141,7 @@ value from a configuration file
 Bad: `norm1        .~ norm(segment)`
 Good: `norm1        ~ norm(segment)`
 
-- if you need to refer to the settings you can use `se()` which will load the settings of the active project. To define
-the active project use a line like `set = se("system_3l.yaml")` at the beginning of your program.
+- if you need to refer to the settings you can use `se()` which will load the settings of the active project. To define the active project use a line like `set = se("system_3l.yaml")` at the beginning of your program.
 - use the `\cdot` operator for the dot product for improved readability
 - use a space after a comma, e.g. `force_eqs[j, i]`
 - enclose operators like `+` and `*` in single spaces, like `0.5 * (s.pos[s.num_C] + s.pos[s.num_D])`;  
