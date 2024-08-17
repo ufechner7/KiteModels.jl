@@ -117,18 +117,12 @@ $(TYPEDFIELDS)
     t_0::S =               0.0
     "reel out speed of the winch"
     reel_out_speeds::T =        zeros(S, 3)
-    # "reel out speed at the last time step"
-    # last_reel_out_speeds::T =   zeros(S, 3)
     "unstretched tether length"
     tether_lengths::T =          zeros(S, 3)
     "lengths of the connections of the steering tethers to the kite"
     steering_pos::MVector{2, S} =      zeros(S, 2)
     "air density at the height of the kite"
     rho::S =               0.0
-    # "actual relative depower setting,  must be between    0 .. 1.0"
-    # depower::S =           0.0
-    # "actual relative steering setting, must be between -1.0 .. 1.0"
-    # steering::S =          0.0
     "multiplier for the stiffniss of tether and bridle"
     stiffness_factor::S =  1.0
     "initial masses of the point masses"
@@ -331,9 +325,7 @@ function reset_sim!(s::KPS4_3L; stiffness_factor=0.035)
         clear!(s)
         s.stiffness_factor = stiffness_factor  
         dt = 1/s.set.sample_freq
-        # 1. KenCarp4
-        # TRBDF2, Rodas4P, Rodas5P, Kvaerno5, KenCarp4, radau, QNDF
-        integrator = OrdinaryDiffEq.init(s.prob, KenCarp4(autodiff=false); dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
+        integrator = OrdinaryDiffEq.init(s.prob, KenCarp4(autodiff=false); dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
         update_pos!(s, integrator)
         return integrator
     end
@@ -472,9 +464,6 @@ function calc_aero_forces!(s::KPS4_3L, pos::SVector{N, KVec3}, vel::SVector{N, K
             d = (s.δ_right - s.δ_left) / (s.α_r - s.α_l) * (α - s.α_l) + (s.δ_left)
         end
         aoa = π - acos2(normalize(s.v_a_xr) ⋅ s.e_x) + asin(clamp(d/kite_length, -1.0, 1.0))
-        # println("aoa ", aoa)
-        # println("asin ", asin(clamp(d/kite_length, -1.0, 1.0)))
-        # println("acos ", pi - acos2(normalize(s.v_a_xr) ⋅ s.e_x))
         s.dL_dα .= 0.5*s.rho*(norm(s.v_a_xr))^2*s.set.radius*kite_length*rad_cl(aoa) .* normalize(s.v_a_xr × s.e_drift)
         s.dD_dα .= 0.5*s.rho*norm(s.v_a_xr)*s.set.radius*kite_length*rad_cd(aoa) .* s.v_a_xr # the sideways drag cannot be calculated with the C_d formula
         if i <= n
@@ -853,9 +842,6 @@ function find_steady_state!(s::KPS4_3L; prn=false, delta = 0.0, stiffness_factor
             F[3*s.set.segments+5+i] = s.res2[j][2]
             F[4*s.set.segments+4+i] = s.res2[j][3]
         end
-        # if iter%100 == 0
-        #     plot2d(s.pos, iter; zoom=false, front=false, segments=s.set.segments)
-        # end
         iter += 1
         return nothing
     end
