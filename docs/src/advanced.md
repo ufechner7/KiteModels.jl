@@ -128,9 +128,34 @@ A second run of this command needs about 5.5 s which means the startup time (loa
 Without a system image the first time execution of the script "simulate_simple.jl" on the same computer is about 71 seconds
 while the time for the second execution is the same (5.5s). So now about 47s of time are saved after each restart.
 
+## Hints for Developers
+### Coding style
+
+- add the packages `TestEnv` and `Revise` to your global environment, not to any project
+
+- avoid hard-coded numeric values like `9.81` in the code, instead define a global constant `G_EARTH` or read this value from a configuration file
+
+- stick to a line length limit of 120 characters
+
+- try to avoid dot operators unless you have to. 
+Bad: `norm1        .~ norm(segment)`
+Good: `norm1        ~ norm(segment)`
+
+- if you need to refer to the settings you can use `se()` which will load the settings of the active project. To define the active project use a line like `set = se("system_3l.yaml")` at the beginning of your program.
+- use the `\cdot` operator for the dot product for improved readability
+- use a space after a comma, e.g. `force_eqs[j, i]`
+- enclose operators like `+` and `*` in single spaces, like `0.5 * (s.pos[s.num_C] + s.pos[s.num_D])`;  
+  exception: `mass_tether_particle[i-1]`
+- try to align the equation signs for improved readability like this:
+```julia
+    tether_rhs        = [force_eqs[j, i].rhs for j in 1:3]
+    kite_rhs          = [force_eqs[j, i+3].rhs for j in 1:3]
+    f_xy              = dot(tether_rhs, e_z) * e_z
+```
+
 ## Outlook
 
 The next steps:
-- reduce memory allocations
-- add export as FMI for co-simulation component
+- re-implement the KPS4 model using ModelingToolkit
+- add a Matlab/ Simulink wrapper similar to the Python wrapper [pykitemodels](https://github.com/ufechner7/pykitemodels)
 

@@ -1,5 +1,6 @@
 using Test
 using KiteModels
+using Pkg
 
 @testset "Testing KiteModels...." begin
     path=pwd()
@@ -36,4 +37,7 @@ using KiteModels
         rm(tmpdir, recursive=true)
     end
     cd(path)
+    @test ! ("TestEnv" ∈ keys(Pkg.project().dependencies))
+    @test ! ("Revise" ∈ keys(Pkg.project().dependencies))
+    @test ! ("Plots" ∈ keys(Pkg.project().dependencies))
 end
