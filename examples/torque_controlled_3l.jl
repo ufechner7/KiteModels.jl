@@ -54,7 +54,7 @@ for i in 1:steps
     sys_state.var_04 =  s.reel_out_speeds[2]
     total_new_time += @elapsed next_step!(s, integrator; set_values=steering)
 
-    sys_state = KiteModels.SysState(s)
+    KiteModels.update_sys_state!(sys_state, s)
     if sys_state.heading > pi
         sys_state.heading -= 2*pi
     end

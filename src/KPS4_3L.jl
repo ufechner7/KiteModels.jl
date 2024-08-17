@@ -322,7 +322,7 @@ function SysState(s::KPS4_3L, zoom=1.0)
     steering = (s.δ_right - s.δ_left) / ((s.set.middle_length + s.set.tip_length)/2) * 100
     KiteUtils.SysState{P}(s.t_0, t_sim, 0, 0, orient, elevation, azimuth, s.tether_lengths[3], s.reel_out_speeds[3], forces[3], depower, steering, 
                           heading, course, v_app_norm, s.vel_kite, X, Y, Z, 
-                          s.tether_lengths[1], s.tether_lengths[2], s.reel_out_speeds[1], s.reel_out_speeds[2], 
+                          0, 0, 0, 0, 
                           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 end
 

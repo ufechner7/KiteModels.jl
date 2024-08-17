@@ -10,20 +10,21 @@ using ControlPlots
 
 update_settings()
 set = se("system_3l.yaml")
+set.winch_model = "AsyncMachine"
 set.abs_tol = 0.006
 set.rel_tol = 0.01
-steps = 150
+steps = 100 # check why not turning
 dt = 1/set.sample_freq
 tspan   = (0.0, dt)
 
 logger = Logger(3*set.segments + 6, steps)
 
-steering = [5,5,-30.0]
+steering = [0,0,-0.2]
 
 println("Running models")
 if ! @isdefined mtk_kite; mtk_kite = KPS4_3L(KCU(set)); end
 if ! @isdefined mtk_integrator
-    mtk_integrator = KiteModels.init_sim!(mtk_kite; stiffness_factor=0.1, prn=false, mtk=true, torque_control=true)
+    mtk_integrator = KiteModels.init_sim!(mtk_kite; stiffness_factor=0.1, prn=false, mtk=true, torque_control=false)
 else 
     mtk_integrator = KiteModels.reset_sim!(mtk_kite; stiffness_factor=1.0)
 end
@@ -46,13 +47,13 @@ toc()
 for i in 1:steps
     global total_new_time, sys_state, steering
     if i == 1
-        steering = [5,5,-30.0] # left right middle
+        steering = [0,0,-0.15] # left right middle
     end
     if i == 20
-        steering = [10,10,-30]
+        steering = [0,1.0,0]
     end
     if i == 50
-        steering = [0,10.0,-40]
+        steering = [0,0,-0.05]
     end
 
     if sys_state.heading > pi
