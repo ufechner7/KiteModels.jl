@@ -1,11 +1,11 @@
 
 function calc_acc_speed(tether_speed::SimFloat, norm_::SimFloat, set_speed::SimFloat)
-    return calc_acceleration(AsyncMachine(se()), tether_speed, norm_; set_speed=set_speed, set_torque=nothing, use_brake=false)
+    calc_acceleration(AsyncMachine(se()), tether_speed, norm_; set_speed, set_torque=nothing, use_brake=false)
 end
 @register_symbolic calc_acc_speed(tether_speed, norm_, set_speed)
 
-function calc_acc_torque(tether_speed::SimFloat, norm_::SimFloat, set_torque::SimFloat) # should have access to s somehow
-    return calc_acceleration(TorqueControlledMachine(se()), tether_speed, norm_; set_speed=nothing, set_torque=set_torque, use_brake=false)
+function calc_acc_torque(tether_speed::SimFloat, norm_::SimFloat, set_torque::SimFloat)
+    calc_acceleration(TorqueControlledMachine(se()), tether_speed, norm_; set_speed=nothing, set_torque, use_brake=false)
 end
 @register_symbolic calc_acc_torque(tether_speed, norm_, set_torque)
 
@@ -58,23 +58,23 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
 
     # integrating loop variables
     @variables begin
-        F(t)[1:3, 1:n*2]
-        e_r(t)[1:3, 1:n*2]
-        y_l(t)[1:n*2]
-        v_kite(t)[1:3, 1:n*2]
-        v_a(t)[1:3, 1:n*2]
-        e_drift(t)[1:3, 1:n*2]
-        v_a_xr(t)[1:3, 1:n*2]
+        F(t)[1:3, 1:2n]
+        e_r(t)[1:3, 1:2n]
+        y_l(t)[1:2n]
+        v_kite(t)[1:3, 1:2n]
+        v_a(t)[1:3, 1:2n]
+        e_drift(t)[1:3, 1:2n]
+        v_a_xr(t)[1:3, 1:2n]
         aoa(t)[1:n*2]
-        dL_dα(t)[1:3, 1:n*2]
-        dD_dα(t)[1:3, 1:n*2]
+        dL_dα(t)[1:3, 1:2n]
+        dD_dα(t)[1:3, 1:2n]
         L_C(t)[1:3]
         L_D(t)[1:3]
         D_C(t)[1:3]
         D_D(t)[1:3]
         F_steering_c(t)[1:3]
         F_steering_d(t)[1:3]
-        d(t)[1:n*2]
+        d(t)[1:2n]
     end
     l_c_eq = SizedArray{Tuple{3}, Symbolics.Equation}(collect(L_C .~ 0))
     l_d_eq = SizedArray{Tuple{3}, Symbolics.Equation}(collect(L_D .~ 0))
