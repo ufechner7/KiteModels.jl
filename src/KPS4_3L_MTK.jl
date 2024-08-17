@@ -19,9 +19,6 @@ Parameters:
 - pos:              vector of the particle positions
 - vel:              vector of the particle velocities
 - rho:              air density [kg/m^3]
-- rel_depower:      value between  0.0 and  1.0
-- alpha_depower:    depower angle [degrees]
-- rel_steering:     value between -1.0 and +1.0
 
 Updates the vector s.forces of the first parameter.
 """
