@@ -12,7 +12,7 @@ update_settings()
 set = se("system_3l.yaml")
 set.abs_tol = 0.006
 set.rel_tol = 0.01
-steps = 150
+steps = 110
 dt = 1/set.sample_freq
 tspan   = (0.0, dt)
 
@@ -25,7 +25,7 @@ if ! @isdefined mtk_kite; mtk_kite = KPS4_3L(KCU(set)); end
 if ! @isdefined mtk_integrator
     mtk_integrator = KiteModels.init_sim!(mtk_kite; stiffness_factor=0.1, prn=false, mtk=true, torque_control=true)
 else 
-    mtk_integrator = KiteModels.reset_sim!(mtk_kite; stiffness_factor=1.0)
+    mtk_integrator = KiteModels.reset_sim!(mtk_kite; stiffness_factor=0.1)
 end
 
 println("compiling")
@@ -46,13 +46,16 @@ toc()
 for i in 1:steps
     global total_new_time, sys_state, steering
     if i == 1
-        steering = [5,5,-30.0] # left right middle
+        steering = [5,5,-26.0] # left right middle
     end
     if i == 20
-        steering = [10,10,-30]
+        steering = [0,10,-33]
     end
     if i == 50
-        steering = [0,10.0,-40]
+        steering = [0,0.0,-20]
+    end
+    if i == 70
+        steering = [0,0, -25]
     end
 
     if sys_state.heading > pi
