@@ -11,7 +11,7 @@ end
 
 pos, vel = nothing, nothing
 
-@testset verbose = true "KPS4_3L tests...." begin
+@testset verbose = true "KPS4_3L_MTK tests...." begin
 
 function set_defaults()
     KiteModels.clear!(kps4_3l)
@@ -25,7 +25,12 @@ function set_defaults()
     kps4_3l.set.min_steering_line_distance = 1.0
     kps4_3l.set.width = 3.0
     kps4_3l.set.aero_surfaces = 3
-    
+    kps4_3l.set.c_s = 2.59
+    kps4_3l.set.mass = 0.9
+    kps4_3l.set.drum_radius = 0.11
+    kps4_3l.set.gear_ratio = 1.0
+    kps4_3l.set.inertia_total = 0.104
+    kps4_3l.set.profile_law = 3
     kps4_3l.set.sim_settings = "3l_settings.yaml"
     kps4_3l.set.sim_time = 100.0
     kps4_3l.set.abs_tol = 0.006
@@ -35,18 +40,16 @@ function set_defaults()
     kps4_3l.set.version = 2
     kps4_3l.set.cl_list = [0.0, 0.5, 0.0, 0.08, 0.125, 0.15, 0.0, 1.0, 1.0, 0.0, -0.5, 0.0]
     kps4_3l.set.cd_list = [0.5, 0.5, 0.5,  1.0,   0.2,  0.1, 0.2, 1.0, 0.5, 0.5,  0.5]
-    kps4_3l.set.alpha_zero = 10.0
     kps4_3l.set.d_tether = 1.0
     kps4_3l.set.v_wind_ref = [15.51, 0.0]
-    kps4_3l.set.depower = 25.0
-    kps4_3l.set.alpha = 0.08163
+    kps4_3l.set.v_wind = 15.51
     KiteModels.clear!(kps4_3l)
     # kps4_3l.set.
 end
 
 set_defaults()
 
-
+pos1 = nothing
 @testset "test_model!       " begin
     kps4_3l.stiffness_factor = 0.04
     res =  zeros(MVector{6*(kps4_3l.num_A-5)+4+6, SimFloat})
@@ -93,12 +96,14 @@ set_defaults()
     @test all(kps4_3l.vel_kite .== 0)
     @test isapprox(kps4_3l.L_C, kps4_3l.L_D .* [1,-1,1], atol=1e-5)
     @test isapprox(kps4_3l.D_C, kps4_3l.D_D .* [1,-1,1], atol=1e-5)
-    @test all(kps4_3l.L_C .≈ [-3.854487931062484e-16, 44.37153488157456, 130.00938152289982])
-    @test all(kps4_3l.D_C .≈ [27.481989100499398, 2.043332695144172, -0.9730736677531289])
+    @test all(kps4_3l.L_C .≈ [-1.050236194673068e-16, 112.36591385162515, 327.9801594516224])
+    @test all(kps4_3l.D_C .≈ [70.49414103359018, 4.935335969053079, -2.364032694118963])
+    # println(kps4_3l.L_C)
+    # println(kps4_3l.D_C)
 
 
     # test step
-    pos_ = deepcopy(kps4_3l.pos)
+    global pos1 = deepcopy(kps4_3l.pos)
     kps4_3l.stiffness_factor = 1.0
     kps4_3l.iter = 0
     KiteModels.set_v_wind_ground!(kps4_3l, calc_height(kps4_3l), kps4_3l.set.v_wind, 0.0)
@@ -111,9 +116,48 @@ set_defaults()
     kps4_3l.t_0 = integrator.t
     OrdinaryDiffEq.step!(integrator, dt, true)
     update_pos!(kps4_3l, integrator)
-    @test all(kps4_3l.pos[4:kps4_3l.num_A] .!= pos_[4:kps4_3l.num_A])
+    @test all(kps4_3l.pos[4:kps4_3l.num_A] .!= pos1[4:kps4_3l.num_A])
     @test integrator.last_stepfail == false
 end
+
+@testset "test_init         " begin
+    
+end
+
+@testset "test_step         " begin
+    
+end
+
+@testset "test_reset        " begin
+    reset_sim!
+end
+
+@testset "test_simulate     " begin
+    # STEPS = 50
+
+    # kps4_3l.set.solver = "DFBDF"
+    # # println("finding steady state")
+    # init_50()
+    # integrator = KiteModels.init_sim!(kps4_3l; stiffness_factor=0.035, prn=false)
+    # # println("\nStarting simulation...")
+    # simulate(integrator, STEPS)
+    # av_steps = simulate(integrator, STEPS-10)
+    # if Sys.isapple()
+    #     println("isapple $av_steps")
+    #     @test isapprox(av_steps, 835.25, rtol=0.6)
+    # else
+    #     println("not apple $av_steps")
+    #     @test isapprox(av_steps, 835.25, rtol=0.6)
+    # end
+  
+    # lift, drag = KiteModels.lift_drag(kps4_3l)
+    # # println(lift, " ", drag) # 703.7699568972286 161.44746368100536
+    # @test isapprox(lift, 404.2596735903995, rtol=0.05)
+    # sys_state = SysState(kps4_3l)
+    # update_sys_state!(sys_state, kps4_3l)
+    # # TODO Add testcase with varying reelout speed 
+end
+# println(kps4_3l.set)
 
 end
 nothing

@@ -567,6 +567,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
         integrator = OrdinaryDiffEq.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
         s.set_values_idx = parameter_index(integrator.f, :set_values)
         s.v_wind_gnd_idx = parameter_index(integrator.f, :v_wind_gnd)
+        s.v_wind_idx = parameter_index(integrator.f, :v_wind)
         s.stiffness_factor_idx = parameter_index(integrator.f, :stiffness_factor)
         s.get_pos = getu(integrator.sol, simple_sys.pos[:,:])
         s.get_steering_pos = getu(integrator.sol, simple_sys.steering_pos)

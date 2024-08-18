@@ -13,7 +13,7 @@ set = se("system_3l.yaml")
 set.winch_model = "AsyncMachine"
 set.abs_tol = 0.006
 set.rel_tol = 0.01
-steps = 40 # check why not turning
+steps = 100
 dt = 1/set.sample_freq
 tspan   = (0.0, dt)
 
@@ -26,7 +26,7 @@ if ! @isdefined mtk_kite; mtk_kite = KPS4_3L(KCU(set)); end
 if ! @isdefined mtk_integrator
     mtk_integrator = KiteModels.init_sim!(mtk_kite; stiffness_factor=0.1, prn=false, mtk=true, torque_control=false)
 else 
-    mtk_integrator = KiteModels.reset_sim!(mtk_kite; stiffness_factor=1.0)
+    mtk_integrator = KiteModels.reset_sim!(mtk_kite; stiffness_factor=0.1)
 end
 
 println("compiling")
@@ -53,10 +53,10 @@ for i in 1:steps
         steering = [0,1.0,0]
     end
     if i == 50
-        steering = [1,0,-0.05]
+        steering = [1,0,-0.15]
     end
-    if i == 80
-        steering = [0,0,-0.05]
+    if i == 60
+        steering = [0,0,-0.15]
     end
 
     if sys_state.heading > pi
