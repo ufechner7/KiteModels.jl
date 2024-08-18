@@ -332,6 +332,92 @@ function SysState(s::KPS4_3L, zoom=1.0)
                           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 end
 
+
+"""
+    init_sim!(s; t_end=1.0, stiffness_factor=0.035, prn=false)
+
+Initialises the integrator of the model.
+
+Parameters:
+- s:     an instance of an abstract kite model
+- t_end: end time of the simulation; normally not needed
+- stiffness_factor: factor applied to the tether stiffness during initialisation
+- prn: if set to true, print the detailed solver results
+- steady_state_history: an instance of SteadyStateHistory containing old pairs of AKM objects and integrators
+
+Returns:
+An instance of a DAE integrator.
+"""
+function init_sim!(s::KPS4_3L; t_end=1.0, stiffness_factor=0.035, prn=false, mtk=false, 
+                   torque_control=false)
+    clear!(s)
+    s.stiffness_factor = stiffness_factor
+    s.mtk = mtk
+    s.torque_control = torque_control
+    
+    if s.mtk
+        pos = init_pos(s)
+        simple_sys, _ = steady_state_model!(s, pos; torque_control=s.torque_control)
+        prob = SteadyStateProblem(simple_sys)
+    else
+        y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor=stiffness_factor, prn=prn)
+        if !mtk
+            y0  = Vector{SimFloat}(y0)
+            yd0 = Vector{SimFloat}(yd0)
+        end
+
+        if isa(steady_state_history, SteadyStateHistory)
+            pushfirst!(steady_state_history, (deepcopy(s), deepcopy(y0), deepcopy(yd0)))
+        end
+    end
+    
+    if isa(s, KPS4_3L) && s.mtk
+        solver = KenCarp4(autodiff=false) # TRBDF2, Rodas4P, Rodas5P, Kvaerno5, KenCarp4, radau, QNDF
+    elseif s.set.solver=="IDA"
+        solver  = Sundials.IDA(linear_solver=Symbol(s.set.linear_solver), max_order = s.set.max_order)
+    elseif s.set.solver=="DImplicitEuler"
+        solver  = DImplicitEuler(autodiff=false)
+    elseif s.set.solver=="DFBDF"
+        solver  = DFBDF(autodiff=false, max_order=Val{s.set.max_order}())        
+    else
+        println("Error! Invalid solver in settings.yaml: $(s.set.solver)")
+        return nothing
+    end
+
+    dt = 1/s.set.sample_freq
+    tspan   = (0.0, dt) 
+    abstol  = s.set.abs_tol # max error in m/s and m
+
+    if isa(s, KPS4_3L) && s.mtk
+        simple_sys, _ = model!(s, y0; torque_control=s.torque_control)
+        s.prob = ODEProblem(simple_sys, nothing, tspan)
+        integrator = OrdinaryDiffEq.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
+        s.set_values_idx = parameter_index(integrator.f, :set_values)
+        s.v_wind_gnd_idx = parameter_index(integrator.f, :v_wind_gnd)
+        s.v_wind_idx = parameter_index(integrator.f, :v_wind)
+        s.stiffness_factor_idx = parameter_index(integrator.f, :stiffness_factor)
+        s.get_pos = getu(integrator.sol, simple_sys.pos[:,:])
+        s.get_steering_pos = getu(integrator.sol, simple_sys.steering_pos)
+        s.get_line_acc = getu(integrator.sol, simple_sys.acc[:,s.num_E-2])
+        s.get_kite_vel = getu(integrator.sol, simple_sys.vel[:,s.num_A])
+        s.get_winch_forces = getu(integrator.sol, simple_sys.force[:,1:3])
+        s.get_L_C = getu(integrator.sol, simple_sys.L_C)
+        s.get_L_D = getu(integrator.sol, simple_sys.L_D)
+        s.get_D_C = getu(integrator.sol, simple_sys.D_C)
+        s.get_D_D = getu(integrator.sol, simple_sys.D_D)
+        s.get_tether_lengths = getu(integrator.sol, simple_sys.tether_length)
+        s.get_tether_speeds = getu(integrator.sol, simple_sys.tether_speed)
+        update_pos!(s, integrator)
+        return integrator
+    else
+        differential_vars = ones(Bool, length(y0))
+        prob    = DAEProblem{true}(residual!, yd0, y0, tspan, s; differential_vars)
+    end
+    integrator = OrdinaryDiffEq.init(prob, solver; abstol=abstol, reltol=s.set.rel_tol, save_everystep=false)
+    return integrator
+end
+
+
 function reset_sim!(s::KPS4_3L; stiffness_factor=0.035)
     if s.mtk
         clear!(s)
