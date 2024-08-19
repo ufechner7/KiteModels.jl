@@ -1,4 +1,4 @@
-# plot the lift and drag as function of angle of attack
+# plot the lift and drag coefficients as function of angle of attack
 
 using Printf
 using KiteModels, KitePodModels, KiteUtils
@@ -15,7 +15,7 @@ STEPS = 450
 PLOT = true
 PRINT = false
 STATISTIC = false
-DEPOWER = 0.22:0.01:0.40
+DEPOWER = 0.40:-0.01:0.21
 # end of user parameter section #
 
 if PLOT
@@ -43,9 +43,14 @@ function sim_cl_cd(kps4::KPS4, logger, rel_depower; steps=STEPS)
     simulate(kps4, integrator, logger, steps)
 end
 
+CL = zeros(length(DEPOWER))
+CD = zeros(length(DEPOWER))
+AOA = zeros(length(DEPOWER))
+
 elev = set.elevation
+i = 1
 for depower in DEPOWER
-    global elev, kps4
+    global elev, i
     logger = Logger(set.segments + 5, STEPS)
     set.depower = 100*depower
     set.depower_gain = 10
@@ -56,11 +61,18 @@ for depower in DEPOWER
     elev = rad2deg(logger.elevation_vec[end])
     set.elevation = elev
     aoa = kps4.alpha_2
-    cl2 = kps4.calc_cl(kps4.alpha_2)
+    CL[i] = cl
+    CD[i] = cd
+    AOA[i] = aoa
     println("Depower: $depower, CL $(round(cl, digits=2)), CD: $(round(cd, digits=2)), aoa: $(round(aoa, digits=2)), CL/CD: $(round(cl/cd, digits=2))")
     println("elevation: $(round((elev), digits=2))")
     if depower in [DEPOWER[begin+1], DEPOWER[end]] && PLOT
         p = plot(logger.time_vec, rad2deg.(logger.elevation_vec), fig="depower: $depower")
         display(p)
     end
+    i+=1
 end
+
+display(plot(AOA, CL, xlabel="AOA [deg]", ylabel="CL", fig="CL vs AOA"))
+display(plot(AOA, CD, xlabel="AOA [deg]", ylabel="CD", fig="CD vs AOA"))
+nothing
