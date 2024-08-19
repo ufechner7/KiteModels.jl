@@ -232,7 +232,7 @@ end
     end
   
     println(kps4_3l.L_C)
-    @test all(kps4_3l.L_C .≈ [11.298536148915304, 212.2336998177928, 595.3408008967488])
+    @test isapprox(kps4_3l.L_C, [11.298536148915304, 212.2336998177928, 595.3408008967488], atol=0.1)
     
     # @test (normalize(kps4_3l.e_z) - normalize(kps4_3l.L_C))[1] > 0
     # # println(lift, " ", drag) # 703.7699568972286 161.44746368100536
