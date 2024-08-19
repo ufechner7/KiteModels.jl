@@ -15,7 +15,7 @@ STEPS = 450
 PLOT = true
 PRINT = false
 STATISTIC = false
-DEPOWER = 0.22:0.01:0.36
+DEPOWER = 0.22:0.01:0.40
 # end of user parameter section #
 
 if PLOT
@@ -45,7 +45,7 @@ end
 
 elev = set.elevation
 for depower in DEPOWER
-    global elev
+    global elev, kps4
     logger = Logger(set.segments + 5, STEPS)
     set.depower = 100*depower
     set.depower_gain = 10
@@ -55,8 +55,9 @@ for depower in DEPOWER
     cl, cd = sim_cl_cd(kps4, logger, depower)
     elev = rad2deg(logger.elevation_vec[end])
     set.elevation = elev
-
-    println("Depower: $depower, CL, CD: $(round(cl, digits=2)), $(round(cd, digits=2)), CL/CD: $(round(cl/cd, digits=2))")
+    aoa = kps4.alpha_2
+    cl2 = kps4.calc_cl(kps4.alpha_2)
+    println("Depower: $depower, CL $(round(cl, digits=2)), CD: $(round(cd, digits=2)), aoa: $(round(aoa, digits=2)), CL/CD: $(round(cl/cd, digits=2))")
     println("elevation: $(round((elev), digits=2))")
     if depower in [DEPOWER[begin+1], DEPOWER[end]] && PLOT
         p = plot(logger.time_vec, rad2deg.(logger.elevation_vec), fig="depower: $depower")
