@@ -16,5 +16,7 @@ CL = zeros(length(ALPHA))
 CD = zeros(length(ALPHA))
 for (i, alpha) in pairs(ALPHA)
     CL[i] = KiteModels.calc_cl(alpha)
+    CD[i] = KiteModels.calc_cd(alpha)
 end
-plot(ALPHA, CL)
+display(plot(ALPHA, CL))
+display(plot(ALPHA, CD))
