@@ -522,6 +522,20 @@ Return the absolute value of the force at the winch as calculated during the las
 """
 function winch_force(s::KPS4) norm(s.last_force) end
 
+"""
+    cl_cd(s::KPS4)
+
+Calculate the lift and drag coefficients of the kite, based on the current angles of attack.
+"""
+function cl_cd(s::KPS4)
+    rel_side_area = s.set.rel_side_area/100.0  # defined in percent
+    K = 1 - rel_side_area                      # correction factor for the drag
+    CL2, CD2 = calc_cl(s.alpha_2), DRAG_CORR * calc_cd(s.alpha_2)
+    CL3, CD3 = calc_cl(s.alpha_3), DRAG_CORR * calc_cd(s.alpha_3)
+    CL4, CD4 = calc_cl(s.alpha_4), DRAG_CORR * calc_cd(s.alpha_4)
+    return CL2, K*(CD2+rel_side_area*(CD3+CD4))
+end
+
 # ==================== end of getter functions ================================================
 
 function spring_forces(s::KPS4)
