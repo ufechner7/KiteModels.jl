@@ -12,7 +12,7 @@ set.rel_tol=0.00001
 dt = 0.05
 set.solver="DFBDF" # IDA or DFBDF
 STEPS = 450
-PLOT = true
+PLOT = false
 PRINT = false
 STATISTIC = false
 DEPOWER = 0.40:-0.01:0.21
@@ -50,7 +50,7 @@ AOA = zeros(length(DEPOWER))
 elev = set.elevation
 i = 1
 for depower in DEPOWER
-    global elev, i
+    global elev, i, kps4
     logger = Logger(set.segments + 5, STEPS)
     set.depower = 100*depower
     set.depower_gain = 10
@@ -64,8 +64,10 @@ for depower in DEPOWER
     CL[i] = cl
     CD[i] = cd
     AOA[i] = aoa
-    println("Depower: $depower, CL $(round(cl, digits=2)), CD: $(round(cd, digits=2)), aoa: $(round(aoa, digits=2)), CL/CD: $(round(cl/cd, digits=2))")
-    println("elevation: $(round((elev), digits=2))")
+    if PRINT
+        println("Depower: $depower, CL $(round(cl, digits=2)), CD: $(round(cd, digits=2)), aoa: $(round(aoa, digits=2)), CL/CD: $(round(cl/cd, digits=2))")
+        println("elevation: $(round((elev), digits=2))")
+    end
     if depower in [DEPOWER[begin+1], DEPOWER[end]] && PLOT
         p = plot(logger.time_vec, rad2deg.(logger.elevation_vec), fig="depower: $depower")
         display(p)
