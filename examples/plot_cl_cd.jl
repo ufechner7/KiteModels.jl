@@ -15,6 +15,7 @@ STEPS = 400
 PLOT = true
 PRINT = false
 STATISTIC = false
+DEPOWER = 0.22:0.01:0.34
 # end of user parameter section #
 
 kcu::KCU = KCU(set)
@@ -28,32 +29,29 @@ if PLOT
     using ControlPlots
 end
 
-logger = Logger(set.segments + 5, STEPS)
-
-function simulate(integrator, steps)
+function simulate(integrator, logger, steps)
     iter = 0
     for i in 1:steps
-        if PRINT
-            lift, drag = KiteModels.lift_drag(kps4)
-            @printf "%.2f: " round(integrator.t, digits=2)
-            println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
-        end
-
         KiteModels.next_step!(kps4, integrator; set_speed=0, dt)
         sys_state = KiteModels.SysState(kps4)
         log!(logger, sys_state)
         iter += kps4.iter
     end
-    KiteModels.lift_drag(kps4)
+    KiteModels.cl_cd(kps4)
 end
 
-integrator = KiteModels.init_sim!(kps4, stiffness_factor=0.5, prn=STATISTIC)
-lift, drag = simulate(integrator, STEPS)
-
-if PLOT 
-    p = plot(logger.time_vec, rad2deg.(logger.elevation_vec))
-    display(p)
+function sim_cl_cd(kps4::KPS4, logger, rel_depower; steps=STEPS)
+    integrator = KiteModels.init_sim!(kps4, stiffness_factor=0.5, prn=STATISTIC)
+    set_depower_steering(kps4.kcu, rel_depower, 0.0)
+    simulate(integrator, logger, steps)
 end
 
-
-println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
+for depower in DEPOWER
+    logger = Logger(set.segments + 5, STEPS)
+    cl, cd = sim_cl_cd(kps4, logger, depower)
+    println("Depower: $depower, CL, CD  [N]: $(round(cl, digits=2)), $(round(cd, digits=2))")
+    if depower in [DEPOWER[begin], DEPOWER[end]] && PLOT
+        p = plot(logger.time_vec, rad2deg.(logger.elevation_vec), fig="depower: $depower")
+        display(p)
+    end
+end
