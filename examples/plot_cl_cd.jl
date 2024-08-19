@@ -11,15 +11,12 @@ set.rel_tol=0.00001
 # the following values can be changed to match your interest
 dt = 0.05
 set.solver="DFBDF" # IDA or DFBDF
-STEPS = 400
+STEPS = 450
 PLOT = true
 PRINT = false
 STATISTIC = false
-DEPOWER = 0.22:0.01:0.34
+DEPOWER = 0.22:0.01:0.36
 # end of user parameter section #
-
-kcu::KCU = KCU(set)
-kps4::KPS4 = KPS4(kcu)
 
 if PLOT
     using Pkg
@@ -29,7 +26,7 @@ if PLOT
     using ControlPlots
 end
 
-function simulate(integrator, logger, steps)
+function simulate(kps4, integrator, logger, steps)
     iter = 0
     for i in 1:steps
         KiteModels.next_step!(kps4, integrator; set_speed=0, dt)
@@ -43,14 +40,25 @@ end
 function sim_cl_cd(kps4::KPS4, logger, rel_depower; steps=STEPS)
     integrator = KiteModels.init_sim!(kps4, stiffness_factor=0.5, prn=STATISTIC)
     set_depower_steering(kps4.kcu, rel_depower, 0.0)
-    simulate(integrator, logger, steps)
+    simulate(kps4, integrator, logger, steps)
 end
 
+elev = set.elevation
 for depower in DEPOWER
+    global elev
     logger = Logger(set.segments + 5, STEPS)
+    set.depower = 100*depower
+    set.depower_gain = 10
+    set.v_wind = 12
+    kcu = KCU(set)
+    kps4 = KPS4(kcu)
     cl, cd = sim_cl_cd(kps4, logger, depower)
-    println("Depower: $depower, CL, CD  [N]: $(round(cl, digits=2)), $(round(cd, digits=2))")
-    if depower in [DEPOWER[begin], DEPOWER[end]] && PLOT
+    elev = rad2deg(logger.elevation_vec[end])
+    set.elevation = elev
+
+    println("Depower: $depower, CL, CD: $(round(cl, digits=2)), $(round(cd, digits=2)), CL/CD: $(round(cl/cd, digits=2))")
+    println("elevation: $(round((elev), digits=2))")
+    if depower in [DEPOWER[begin+1], DEPOWER[end]] && PLOT
         p = plot(logger.time_vec, rad2deg.(logger.elevation_vec), fig="depower: $depower")
         display(p)
     end
