@@ -11,7 +11,7 @@ set.rel_tol=0.00001
 # the following values can be changed to match your interest
 dt = 0.05
 set.solver="DFBDF" # IDA or DFBDF
-STEPS = 600
+STEPS = 400
 PLOT = true
 PRINT = false
 STATISTIC = false
@@ -44,17 +44,16 @@ function simulate(integrator, steps)
         log!(logger, sys_state)
         iter += kps4.iter
     end
-    iter / steps
+    KiteModels.lift_drag(kps4)
 end
 
 integrator = KiteModels.init_sim!(kps4, stiffness_factor=0.5, prn=STATISTIC)
-av_steps = simulate(integrator, STEPS)
+lift, drag = simulate(integrator, STEPS)
 
 if PLOT 
     p = plot(logger.time_vec, rad2deg.(logger.elevation_vec))
     display(p)
 end
 
-lift, drag = KiteModels.lift_drag(kps4)
+
 println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
-println("Average number of callbacks per time step: $av_steps")
