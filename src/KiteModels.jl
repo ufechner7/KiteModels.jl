@@ -124,8 +124,6 @@ function __init__()
     end
 end
 
-steady_state_history_file = joinpath(get_data_path(), ".steady_state_history.bin")
-
 include("KPS4.jl") # include code, specific for the four point kite model
 include("KPS4_3L.jl") # include code, specific for the four point 3 line kite model
 include("KPS4_3L_MTK.jl") # include code, specific for the four point 3 line kite model
@@ -462,6 +460,7 @@ always leads to the same integrator.
 """
 function load_history()
     history = SteadyStateHistory()
+    steady_state_history_file = joinpath(get_data_path(), ".steady_state_history.bin")
     try
         if isfile(steady_state_history_file)
             append!(history, deserialize(steady_state_history_file))
@@ -481,6 +480,7 @@ The history is used to speed up the initialisation.
 In order to delete the integrator history: just delete the file `data/.steady_state_history.bin` .
 """
 function save_history(history::SteadyStateHistory)
+    steady_state_history_file = joinpath(get_data_path(), ".steady_state_history.bin")
     serialize(steady_state_history_file, history)
 end
 

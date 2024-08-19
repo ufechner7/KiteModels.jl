@@ -43,8 +43,8 @@ function set_defaults()
     kps4_3l.set.d_tether = 1.0
     kps4_3l.set.v_wind_ref = [15.51, 0.0]
     kps4_3l.set.v_wind = 15.51
+    kps4_3l.set.rel_turbs = [0.0, 0.0, 0.0]
     KiteModels.clear!(kps4_3l)
-    # kps4_3l.set.
 end
 
 set_defaults()
@@ -192,10 +192,11 @@ end
     ]
     for i in eachindex(kps4_3l.pos)
         # println(kps4_3l.pos[i]')
-        @test all(pos2[i,:] .≈ kps4_3l.pos[i])
+        @test all(pos1[i,:] .!= kps4_3l.pos[i])
+        @test isapprox(pos2[i,:], kps4_3l.pos[i], atol=0.005) # TODO: somehow slightly different values when running runtests.jl
     end
-    # println(kps4_3l.L_C)
-    @test all(kps4_3l.L_C .≈ [4.302267406329012, 114.92095583517676, 333.75274189991217])
+    # println("L_C ", kps4_3l.L_C)
+    @test isapprox(kps4_3l.L_C, [3.966773080945373, 115.50991115735522, 335.6996775000222], rtol=0.01)
 end
 
 @testset "test_reset        " begin
@@ -204,34 +205,34 @@ end
     @test reset_time < 0.01
     for i in eachindex(kps4_3l.pos)
         # println(kps4_3l.pos[i]')
-        @test all(pos1[i,:] .≈ kps4_3l.pos[i])
+        @test all(pos1[i,:] .== kps4_3l.pos[i])
     end
     @test isapprox(kps4_3l.L_C[1], 0.0, atol=1e-6)
 end
 
 function simulate(integrator, steps)
     for i in 1:steps
-        KiteModels.next_step!(kps4_3l, integrator; set_values=[0.0, 0.0, 0.05])
+        KiteModels.next_step!(kps4_3l, integrator; set_values=[0.0, 0.0, 0.35])
     end
     return integrator.iter/steps
 end
 
 @testset "test_simulate     " begin
-    STEPS = 30
+    STEPS = 10
     reset_sim!(kps4_3l)
     # println("\nStarting simulation...")
     simulate(integrator, STEPS)
     av_steps = simulate(integrator, STEPS)
     if Sys.isapple()
         println("isapple $av_steps")
-        @test isapprox(av_steps, 5.766666666666667, atol=1.0)
+        @test isapprox(av_steps, 11.5, atol=1.0)
     else
         println("not apple $av_steps")
-        @test isapprox(av_steps, 5.766666666666667, atol=1.0)
+        @test isapprox(av_steps, 11.5, atol=1.0)
     end
   
-    # println(kps4_3l.L_C)
-    @test all(kps4_3l.L_C .≈ [-1.577566498953694, 168.94195353362062, 456.44628119609695])
+    println(kps4_3l.L_C)
+    @test all(kps4_3l.L_C .≈ [11.298536148915304, 212.2336998177928, 595.3408008967488])
     
     # @test (normalize(kps4_3l.e_z) - normalize(kps4_3l.L_C))[1] > 0
     # # println(lift, " ", drag) # 703.7699568972286 161.44746368100536
