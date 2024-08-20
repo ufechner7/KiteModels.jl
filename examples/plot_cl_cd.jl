@@ -16,10 +16,10 @@ using KiteModels, KitePodModels, KiteUtils
 # 1.100000000000000000e+01, 8.994221252043600456e-01, 2.015113631579626696e-01
 # 1.200000000000000000e+01, 8.765915870833970169e-01, 1.873753922588730636e-01
 
-set = deepcopy(se("system_v9.yaml"))
+set = deepcopy(load_settings("system_v9.yaml"))
 
-alpha_cl=  [-180.0, -160.0, -90.0, -20.0, -10.0,  -5.0,  0.0, 2.0,     3.0,     4.0,     5.0,     6.0,     7.0,     8.0,     9.0,      10.0,   11.0,    12.0,   20.0, 40.0, 90.0, 160.0, 180.0]
-cl_list=   [   0.0,    0.5,   0.0,  0.08, 0.125,  0.15,  0.2, 0.33115, 0.33672, 0.31856, 0.32623, 0.38524, 0.58376, 0.78352, 0.85051,  0.8860, 0.89942, 0.87659, 1.0,  1.0,  0.0,  -0.5,   0.0]
+alpha_cl=  [-180.0, -160.0, -90.0, -20.0, -10.0,  -5.0,  0.0, 2.0,     3.0,     4.0,     5.0,     6.0,     7.0,     8.0,     9.0,      10.0,   11.0,    12.0,       20.0,    40.0, 90.0, 160.0, 180.0]
+cl_list=   [   0.0,    0.5,   0.0,  0.08, 0.125,  0.15,  0.2, 0.33115, 0.33672, 0.31856, 0.32623, 0.38524, 0.58376, 0.78352, 0.85051,  0.8860, 0.89942, 0.87659, 0.87659, 0.87659,  0.0,  -0.5,   0.0]
 alpha_cd=  [-180.0, -170.0, -140.0, -90.0, -20.0, 0.0, 20.0, 90.0, 140.0, 170.0, 180.0]
 cd_list=   [   0.5,    0.5,    0.5,   1.0,   0.2, 0.1,  0.2,  1.0,   0.5,   0.5,   0.5]
 
@@ -39,7 +39,7 @@ STEPS = 450
 PLOT = false
 PRINT = true
 STATISTIC = false
-DEPOWER = 0.40:-0.01:0.23
+DEPOWER = 0.50:-0.005:0.34
 # end of user parameter section #
 
 if PLOT
@@ -62,7 +62,7 @@ function simulate(kps4, integrator, logger, steps)
 end
 
 function sim_cl_cd(kps4::KPS4, logger, rel_depower; steps=STEPS)
-    integrator = KiteModels.init_sim!(kps4, stiffness_factor=0.5, prn=STATISTIC)
+    integrator = KiteModels.init_sim!(kps4, stiffness_factor=0.1, prn=STATISTIC)
     set_depower_steering(kps4.kcu, rel_depower, 0.0)
     simulate(kps4, integrator, logger, steps)
 end
@@ -79,7 +79,7 @@ for depower in DEPOWER
     logger = Logger(set.segments + 5, STEPS)
     set.depower = 100*depower
     set.depower_gain = 10
-    set.v_wind = 12
+    set.v_wind = 14
     kcu = KCU(set)
     kps4 = KPS4(kcu)
     cl, cd = sim_cl_cd(kps4, logger, depower)
@@ -104,10 +104,12 @@ cl = zeros(length(AOA))
 cd = zeros(length(AOA))
 for (i, alpha) in pairs(AOA)
     global cl, cd
-    cl[i] = KiteModels.calc_cl(alpha)
-    cd[i] = KiteModels.calc_cd(alpha)
+    cl[i] = kps4.calc_cl(alpha)
+    cd[i] = kps4.calc_cd(alpha)
 end
 
 display(plot(AOA, [CL, cl], xlabel="AOA [deg]", ylabel="CL", labels=["CL","cl"], fig="CL vs AOA"))
 display(plot(AOA, [CD, cd], xlabel="AOA [deg]", ylabel="CD", labels=["CD","cd"], fig="CD vs AOA"))
-nothing
+AOA=-180:0.05:180
+calc_cl1 = KiteModels.Spline1D(se().alpha_cl, se().cl_list)
+plot(AOA, calc_cl1.(AOA), fig="calc_cl1", xlabel="AOA [deg]", ylabel="CL")
