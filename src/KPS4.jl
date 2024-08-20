@@ -330,10 +330,15 @@ Updates the vector s.forces of the first parameter.
     s.alpha_3b = rad2deg(π/2 + asin2(normalize(va_xy3) ⋅ x))
     s.alpha_4 = alpha_4
     s.alpha_4b = rad2deg(π/2 + asin2(normalize(va_xy4) ⋅ x))
+    if s.set.version == 3
+        drag_corr = 1.0
+    else
+        drag_corr = DRAG_CORR
+    end
 
-    CL2, CD2 = s.calc_cl(alpha_2), DRAG_CORR * s.calc_cd(alpha_2)
-    CL3, CD3 = s.calc_cl(alpha_3), DRAG_CORR * s.calc_cd(alpha_3)
-    CL4, CD4 = s.calc_cl(alpha_4), DRAG_CORR * s.calc_cd(alpha_4)
+    CL2, CD2 = s.calc_cl(alpha_2), drag_corr * s.calc_cd(alpha_2)
+    CL3, CD3 = s.calc_cl(alpha_3), drag_corr * s.calc_cd(alpha_3)
+    CL4, CD4 = s.calc_cl(alpha_4), drag_corr * s.calc_cd(alpha_4)
     L2 = (-0.5 * rho * (norm(va_xz2))^2 * s.set.area * CL2) * normalize(va_2 × y)
     L3 = (-0.5 * rho * (norm(va_xy3))^2 * s.set.area * rel_side_area * CL3) * normalize(va_3 × z)
     L4 = (-0.5 * rho * (norm(va_xy4))^2 * s.set.area * rel_side_area * CL4) * normalize(z × va_4)
@@ -535,9 +540,14 @@ Calculate the lift and drag coefficients of the kite, based on the current angle
 function cl_cd(s::KPS4)
     rel_side_area = s.set.rel_side_area/100.0  # defined in percent
     K = 1 - rel_side_area                      # correction factor for the drag
-    CL2, CD2 = s.calc_cl(s.alpha_2), DRAG_CORR * s.calc_cd(s.alpha_2)
-    CL3, CD3 = s.calc_cl(s.alpha_3), DRAG_CORR * s.calc_cd(s.alpha_3)
-    CL4, CD4 = s.calc_cl(s.alpha_4), DRAG_CORR * s.calc_cd(s.alpha_4)
+    if s.set.version == 3
+        drag_corr = 1.0
+    else
+        drag_corr = DRAG_CORR
+    end
+    CL2, CD2 = s.calc_cl(s.alpha_2), drag_corr * s.calc_cd(s.alpha_2)
+    CL3, CD3 = s.calc_cl(s.alpha_3), drag_corr * s.calc_cd(s.alpha_3)
+    CL4, CD4 = s.calc_cl(s.alpha_4), drag_corr * s.calc_cd(s.alpha_4)
     if s.set.version == 3
         return CL2, CD2
     else
