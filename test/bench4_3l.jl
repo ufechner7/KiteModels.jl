@@ -154,8 +154,8 @@ bench_aero_forces(method=1)
 bench_loop(method=1)
 bench_residual(method=1)
 
+end
 for i in eachindex(msg)
     println(msg[i])
 end
 
-end
