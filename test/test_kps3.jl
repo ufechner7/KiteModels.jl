@@ -313,7 +313,7 @@ function run_benchmarks()
     println("\ncalc_wind_factor:")
     show(@benchmark calc_wind_factor(state.am, height) setup=(height=rand() * 200.0))
     println("\ncalc_cl:")
-    show(@benchmark calc_cl(α) setup=(α=(rand()-0.5) * 360.0))
+    show(@benchmark kps.calc_cl(α) setup=(α=(rand()-0.5) * 360.0))
     println("\ncalc_drag:")
     show(@benchmark KiteModels.calc_drag(state, v_segment, unit_vector, rho, v_app_perp, 
                             area) setup=(v_segment = KVec3(1.0, 2, 3);
