@@ -341,9 +341,14 @@ Updates the vector s.forces of the first parameter.
     D3 = (-0.5 * K * rho * norm(va_3) * s.set.area * rel_side_area * CD3) * va_3
     D4 = (-0.5 * K * rho * norm(va_4) * s.set.area * rel_side_area * CD4) * va_4
     s.lift_force .= L2
-    s.drag_force .= D2 + D3 + D4
-
-    s.forces[s.set.segments + 3] .+= (L2 + D2)
+    if s.set.version == 3
+        s.drag_force .= D2
+        s.forces[s.set.segments + 3] .+= (L2 + D2-D3-D4)
+    else
+        s.drag_force .= D2 + D3 + D4
+        s.forces[s.set.segments + 3] .+= (L2 + D2)
+    end
+    
     s.forces[s.set.segments + 4] .+= (L3 + D3)
     s.forces[s.set.segments + 5] .+= (L4 + D4)
 end
@@ -533,7 +538,11 @@ function cl_cd(s::KPS4)
     CL2, CD2 = s.calc_cl(s.alpha_2), DRAG_CORR * s.calc_cd(s.alpha_2)
     CL3, CD3 = s.calc_cl(s.alpha_3), DRAG_CORR * s.calc_cd(s.alpha_3)
     CL4, CD4 = s.calc_cl(s.alpha_4), DRAG_CORR * s.calc_cd(s.alpha_4)
-    return CL2, K*(CD2+rel_side_area*(CD3+CD4))
+    if s.set.version == 3
+        return CL2, CD2
+    else
+        return CL2, K*(CD2+CD3+CD4)
+    end
 end
 
 # ==================== end of getter functions ================================================
