@@ -76,7 +76,6 @@ t = @benchmark KiteModels.calc_particle_forces!(kps4, pos1, pos2, vel1, vel2, sp
                                         pos2 = KVec3(2.0, 3.0, 4.0); vel1 = KVec3(3.0, 4.0, 5.0); vel2 = KVec3(4.0, 5.0, 6.0); kps4.v_wind_tether.=KVec3(8.0, 0.1, 0.0); spring=kps4.springs[1];
                                         kps4.stiffness_factor = 0.5; segments=6.0; d_tether=se().d_tether/1000.0; rho=kps4.set.rho_0; i=rand(1:se().segments + KiteModels.KITE_PARTICLES + 1))
 @test t.memory == 0
-global msg
 push!(msg, ("Mean time calc_particle_forces!: $(round(mean(t.times), digits=1)) ns"))
 
 # benchmark inner_loop!
