@@ -93,9 +93,9 @@ $(TYPEDFIELDS)
     "Iterations, number of calls to the function residual!"
     iter:: Int64 = 0
     "Function for calculation the lift coefficent, using a spline based on the provided value pairs."
-    calc_cl = Spline1D(se().alpha_cl, se().cl_list)
+    calc_cl::Spline1D
     "Function for calculation the drag coefficent, using a spline based on the provided value pairs."
-    calc_cd = Spline1D(se().alpha_cd, se().cd_list)   
+    calc_cd::Spline1D
     "wind vector at the height of the kite" 
     v_wind::T =           zeros(S, 3)
     "wind vector at reference height" 
@@ -208,8 +208,6 @@ function clear!(s::KPS4)
     s.drag_force .= [0.0, 0, 0]
     s.lift_force .= [0.0, 0, 0]
     s.rho = s.set.rho_0
-    s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
-    s.calc_cd = Spline1D(s.set.alpha_cd, s.set.cd_list) 
     s.kcu.depower = s.set.depower/100.0
     s.kcu.set_depower = s.kcu.depower
     KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
@@ -221,9 +219,9 @@ function KPS4(kcu::KCU)
     elseif kcu.set.winch_model == "TorqueControlledMachine"
         wm = TorqueControlledMachine(kcu.set)
     end
-    s = KPS4{SimFloat, KVec3, kcu.set.segments+KITE_PARTICLES+1, kcu.set.segments+KITE_SPRINGS, SP}(set=kcu.set, kcu=kcu, wm=wm)
-    s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
-    s.calc_cd = Spline1D(s.set.alpha_cd, s.set.cd_list)       
+    s = KPS4{SimFloat, KVec3, kcu.set.segments+KITE_PARTICLES+1, kcu.set.segments+KITE_SPRINGS, SP}(set=kcu.set, 
+             kcu=kcu, wm=wm, calc_cl = Spline1D(kcu.set.alpha_cl, kcu.set.cl_list), 
+             calc_cd=Spline1D(kcu.set.alpha_cd, kcu.set.cd_list) )    
     clear!(s)
     return s
 end
@@ -303,7 +301,7 @@ Parameters:
 
 Updates the vector s.forces of the first parameter.
 """
-function calc_aero_forces!(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
+@inline function calc_aero_forces!(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
     rel_side_area = s.set.rel_side_area/100.0    # defined in percent
     K = 1 - rel_side_area                        # correction factor for the drag
     # pos_B, pos_C, pos_D: position of the kite particles B, C, and D
@@ -333,9 +331,9 @@ function calc_aero_forces!(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
     s.alpha_4 = alpha_4
     s.alpha_4b = rad2deg(π/2 + asin2(normalize(va_xy4) ⋅ x))
 
-    CL2, CD2 = calc_cl(alpha_2), DRAG_CORR * calc_cd(alpha_2)
-    CL3, CD3 = calc_cl(alpha_3), DRAG_CORR * calc_cd(alpha_3)
-    CL4, CD4 = calc_cl(alpha_4), DRAG_CORR * calc_cd(alpha_4)
+    CL2, CD2 = s.calc_cl(alpha_2), DRAG_CORR * s.calc_cd(alpha_2)
+    CL3, CD3 = s.calc_cl(alpha_3), DRAG_CORR * s.calc_cd(alpha_3)
+    CL4, CD4 = s.calc_cl(alpha_4), DRAG_CORR * s.calc_cd(alpha_4)
     L2 = (-0.5 * rho * (norm(va_xz2))^2 * s.set.area * CL2) * normalize(va_2 × y)
     L3 = (-0.5 * rho * (norm(va_xy3))^2 * s.set.area * rel_side_area * CL3) * normalize(va_3 × z)
     L4 = (-0.5 * rho * (norm(va_xy4))^2 * s.set.area * rel_side_area * CL4) * normalize(z × va_4)
@@ -365,8 +363,10 @@ Output:
         p2 = s.springs[i].p2  # Second point nr.
         height = 0.5 * (pos[p1][3] + pos[p2][3])
         rho = calc_rho(s.am, height)
-        @assert height > 0
-
+        @assert height > -100
+        if height < 6
+            height = 6
+        end
         s.v_wind_tether .= calc_wind_factor(s.am, height) * v_wind_gnd
         calc_particle_forces!(s, pos[p1], pos[p2], vel[p1], vel[p2], s.springs[i], segments, d_tether, rho, i)
     end
@@ -530,9 +530,9 @@ Calculate the lift and drag coefficients of the kite, based on the current angle
 function cl_cd(s::KPS4)
     rel_side_area = s.set.rel_side_area/100.0  # defined in percent
     K = 1 - rel_side_area                      # correction factor for the drag
-    CL2, CD2 = calc_cl(s.alpha_2), DRAG_CORR * calc_cd(s.alpha_2)
-    CL3, CD3 = calc_cl(s.alpha_3), DRAG_CORR * calc_cd(s.alpha_3)
-    CL4, CD4 = calc_cl(s.alpha_4), DRAG_CORR * calc_cd(s.alpha_4)
+    CL2, CD2 = s.calc_cl(s.alpha_2), DRAG_CORR * s.calc_cd(s.alpha_2)
+    CL3, CD3 = s.calc_cl(s.alpha_3), DRAG_CORR * s.calc_cd(s.alpha_3)
+    CL4, CD4 = s.calc_cl(s.alpha_4), DRAG_CORR * s.calc_cd(s.alpha_4)
     return CL2, K*(CD2+rel_side_area*(CD3+CD4))
 end
 
