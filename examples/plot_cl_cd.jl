@@ -18,11 +18,19 @@ set.rel_tol=0.00001
 dt = 0.05
 set.solver="DFBDF" # IDA or DFBDF
 STEPS = 600
-PLOT = false
+PLOT = true
 PRINT = true
 STATISTIC = false
-DEPOWER = 0.45:-0.01:0.35
+DEPOWER = 0.45:-0.01:0.39
 # end of user parameter section #
+
+function set_tether_diameter!(se, d; c_spring_4mm = 614600, damping_4mm = 473)
+    set.d_tether = d
+    set.c_spring = c_spring_4mm * (d/4.0)^2
+    set.damping = damping_4mm * (d/4.0)^2
+end
+
+set_tether_diameter!(set, 6.0)
 
 if PLOT
     using Pkg
