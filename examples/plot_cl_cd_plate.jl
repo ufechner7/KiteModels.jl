@@ -11,13 +11,17 @@ if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
 end
 using ControlPlots
 
-plot(set.alpha_cl, set.cl_list)
+function plot_cl_cd(alpha)
+    cl = zeros(length(alpha))
+    cd = zeros(length(alpha))
+    for (i, alpha) in pairs(ALPHA)
+        CL[i] = KiteModels.calc_cl(alpha)
+        CD[i] = KiteModels.calc_cd(alpha)
+    end
+    display(plot(ALPHA, [CL, CD]; xlabel=L"\mathrm{AoA}~\alpha", ylabel="CL, CD", labels=["CL", "CD"]))
+end
 
 ALPHA = -180:1:180
-CL = zeros(length(ALPHA))
-CD = zeros(length(ALPHA))
-for (i, alpha) in pairs(ALPHA)
-    CL[i] = KiteModels.calc_cl(alpha)
-    CD[i] = KiteModels.calc_cd(alpha)
-end
-display(plot(ALPHA, [CL, CD]; xlabel=L"\mathrm{AoA}~\alpha", ylabel="CL, CD", labels=["CL", "CD"]))
+plot_cl_cd(ALPHA)
+
+
