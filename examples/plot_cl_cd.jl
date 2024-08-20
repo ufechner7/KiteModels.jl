@@ -5,6 +5,12 @@ using KiteModels, KitePodModels, KiteUtils
 
 set = deepcopy(se())
 
+using Pkg
+if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
+    using TestEnv; TestEnv.activate()
+end
+using ControlPlots
+
 set.abs_tol=0.0006
 set.rel_tol=0.00001
 
@@ -51,6 +57,7 @@ elev = set.elevation
 i = 1
 for depower in DEPOWER
     global elev, i, kps4
+    local cl, cd, aoa
     logger = Logger(set.segments + 5, STEPS)
     set.depower = 100*depower
     set.depower_gain = 10
@@ -75,6 +82,14 @@ for depower in DEPOWER
     i+=1
 end
 
-display(plot(AOA, CL, xlabel="AOA [deg]", ylabel="CL", fig="CL vs AOA"))
-display(plot(AOA, CD, xlabel="AOA [deg]", ylabel="CD", fig="CD vs AOA"))
+cl = zeros(length(AOA))
+cd = zeros(length(AOA))
+for (i, alpha) in pairs(AOA)
+    global cl, cd
+    cl[i] = KiteModels.calc_cl(alpha)
+    cd[i] = KiteModels.calc_cd(alpha)
+end
+
+display(plot(AOA, [CL, cl], xlabel="AOA [deg]", ylabel="CL", labels=["CL","cl"], fig="CL vs AOA"))
+display(plot(AOA, [CD, cd], xlabel="AOA [deg]", ylabel="CD", labels=["CD","cd"], fig="CD vs AOA"))
 nothing
