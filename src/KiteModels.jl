@@ -96,8 +96,6 @@ const SVec3    = SVector{3, SimFloat}
 
 # the following two definitions speed up the function residual! from 940ns to 540ns
 # disadvantage: changing the cl and cd curves requires a restart of the program     
-const calc_cl = Spline1D(se().alpha_cl, se().cl_list)
-const calc_cd = Spline1D(se().alpha_cd, se().cd_list)
 const rad_cl = Spline1D(deg2rad.(se().alpha_cl), se().cl_list, k=3)
 const rad_cd = Spline1D(deg2rad.(se().alpha_cd), se().cd_list, k=3) 
 const rad_cl_mtk = CubicSpline(se().cl_list, deg2rad.(se().alpha_cl); extrapolate=true) 
@@ -141,8 +139,8 @@ function set_cl_cd!(s::AKM, alpha)
     if angle < -180.0
         angle += 360.0
     end
-    s.param_cl = calc_cl(angle)
-    s.param_cd = calc_cd(angle)
+    s.param_cl = s.calc_cl(angle)
+    s.param_cd = s.calc_cd(angle)
     nothing
 end
 
