@@ -21,7 +21,7 @@ STEPS = 450
 PLOT = false
 PRINT = true
 STATISTIC = false
-DEPOWER = 0.50:-0.005:0.34
+DEPOWER = 0.525:-0.0025:0.3675
 # end of user parameter section #
 
 if PLOT
