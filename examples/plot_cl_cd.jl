@@ -21,7 +21,7 @@ STEPS = 600
 PLOT = true
 PRINT = true
 STATISTIC = false
-DEPOWER = 0.45:-0.01:0.39
+DEPOWER = 0.45:-0.01:0.37
 # end of user parameter section #
 
 function set_tether_diameter!(se, d; c_spring_4mm = 614600, damping_4mm = 473)
@@ -30,7 +30,7 @@ function set_tether_diameter!(se, d; c_spring_4mm = 614600, damping_4mm = 473)
     set.damping = damping_4mm * (d/4.0)^2
 end
 
-set_tether_diameter!(set, 6.0)
+set_tether_diameter!(set, set.d_tether)
 
 if PLOT
     using Pkg
@@ -59,7 +59,7 @@ function simulate(kps4, integrator, logger, steps)
 end
 
 function sim_cl_cd(kps4::KPS4, logger, rel_depower; steps=STEPS)
-    integrator = KiteModels.init_sim!(kps4, stiffness_factor=0.1, prn=STATISTIC)
+    integrator = KiteModels.init_sim!(kps4, stiffness_factor=0.05, prn=STATISTIC)
     set_depower_steering(kps4.kcu, rel_depower, 0.0)
     simulate(kps4, integrator, logger, steps)
 end
@@ -75,13 +75,13 @@ for depower in DEPOWER
     local cl, cd, aoa
     logger = Logger(set.segments + 5, STEPS)
     set.depower = 100*depower
-    set.depower_gain = 10
-    set.v_wind = 14.5
+    set.depower_gain = 5
+    set.v_wind = 25
     kcu = KCU(set)
     kps4 = KPS4(kcu)
     cl, cd = sim_cl_cd(kps4, logger, depower)
     elev = rad2deg(logger.elevation_vec[end])
-    if elev > 30 && elev < 80
+    if elev > 50 && elev < 70
         set.elevation = elev
     end
     aoa = kps4.alpha_2
