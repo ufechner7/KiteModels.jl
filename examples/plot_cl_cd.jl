@@ -17,11 +17,11 @@ set.rel_tol=0.00001
 # the following values can be changed to match your interest
 dt = 0.05
 set.solver="DFBDF" # IDA or DFBDF
-STEPS = 450
+STEPS = 600
 PLOT = false
 PRINT = true
 STATISTIC = false
-DEPOWER = 0.525:-0.0025:0.385
+DEPOWER = 0.45:-0.01:0.35
 # end of user parameter section #
 
 if PLOT
@@ -34,17 +34,24 @@ end
 
 function simulate(kps4, integrator, logger, steps)
     iter = 0
+    cl = 0.0
+    cd = 0.0
     for i in 1:steps
         KiteModels.next_step!(kps4, integrator; set_speed=0, dt)
         sys_state = KiteModels.SysState(kps4)
         log!(logger, sys_state)
         iter += kps4.iter
+        if i > steps - 50 # last 2.5s
+            cl_, cd_ = KiteModels.cl_cd(kps4)
+            cl += cl_
+            cd += cd_
+        end
     end
-    KiteModels.cl_cd(kps4)
+    return cl/50, cd/50
 end
 
 function sim_cl_cd(kps4::KPS4, logger, rel_depower; steps=STEPS)
-    integrator = KiteModels.init_sim!(kps4, stiffness_factor=0.05, prn=STATISTIC)
+    integrator = KiteModels.init_sim!(kps4, stiffness_factor=0.1, prn=STATISTIC)
     set_depower_steering(kps4.kcu, rel_depower, 0.0)
     simulate(kps4, integrator, logger, steps)
 end
@@ -66,7 +73,9 @@ for depower in DEPOWER
     kps4 = KPS4(kcu)
     cl, cd = sim_cl_cd(kps4, logger, depower)
     elev = rad2deg(logger.elevation_vec[end])
-    set.elevation = elev
+    if elev > 30 && elev < 80
+        set.elevation = elev
+    end
     aoa = kps4.alpha_2
     CL[i] = cl
     CD[i] = cd
@@ -75,9 +84,11 @@ for depower in DEPOWER
         println("Depower: $depower, CL $(round(cl, digits=2)), CD: $(round(cd, digits=2)), aoa: $(round(aoa, digits=2)), CL/CD: $(round(cl/cd, digits=2))")
         println("elevation: $(round((elev), digits=2))")
     end
-    if depower in [DEPOWER[begin+1], DEPOWER[end]] && PLOT
+    # if depower in [DEPOWER[begin+1], DEPOWER[end]] && PLOT
+    if PLOT
         p = plot(logger.time_vec, rad2deg.(logger.elevation_vec), fig="depower: $depower")
         display(p)
+        sleep(0.2)
     end
     i+=1
 end
