@@ -10,9 +10,11 @@ if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
     using TestEnv; TestEnv.activate()
 end
 using ControlPlots
+plt.close("all")
 
 set.abs_tol=0.0006
 set.rel_tol=0.00001
+set.area = 15.0
 
 # the following values can be changed to match your interest
 dt = 0.05
@@ -61,7 +63,7 @@ end
 
 function sim_cl_cd(kps4::KPS4, logger, rel_depower; steps=STEPS)
     integrator = KiteModels.init_sim!(kps4, stiffness_factor=0.05, prn=STATISTIC)
-    set_depower_steering(kps4.kcu, rel_depower, 0.0)
+        set_depower_steering(kps4.kcu, rel_depower, 0.0)
     simulate(kps4, integrator, logger, steps)
 end
 
