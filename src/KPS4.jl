@@ -594,7 +594,7 @@ end
 Find an initial equilibrium, based on the inital parameters
 `l_tether`, elevation and `v_reel_out`.
 """
-function find_steady_state!(s::KPS4; prn=false, delta = 0.0, stiffness_factor=0.035)
+function find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0.035)
     s.stiffness_factor = stiffness_factor
     res = zeros(MVector{6*(s.set.segments+KITE_PARTICLES)+2, SimFloat})
     iter = 0
@@ -602,7 +602,7 @@ function find_steady_state!(s::KPS4; prn=false, delta = 0.0, stiffness_factor=0.
     # helper function for the steady state finder
     function test_initial_condition!(F, x::Vector)
         x1 = copy(x)
-        y0, yd0 = init(s, x1; delta=0.01)
+        y0, yd0 = init(s, x1; delta)
         residual!(res, yd0, y0, s, 0.0)
         for i in 1:s.set.segments+KITE_PARTICLES-1
             if i != s.set.segments+KITE_PARTICLES-1
