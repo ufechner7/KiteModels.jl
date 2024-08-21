@@ -3,7 +3,7 @@
 
 using KiteModels, LaTeXStrings
 
-set = deepcopy(se())
+set = deepcopy(load_settings("system_v9.yaml"))
 
 using Pkg
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
@@ -11,17 +11,22 @@ if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
 end
 using ControlPlots
 
+set.v_wind = 14 # 25
+kcu = KCU(set)
+kps4 = KPS4(kcu)
+
 function plot_cl_cd(alpha)
     cl = zeros(length(alpha))
     cd = zeros(length(alpha))
     for (i, alpha) in pairs(ALPHA)
-        CL[i] = KiteModels.calc_cl(alpha)
-        CD[i] = KiteModels.calc_cd(alpha)
+        cl[i] = kps4.calc_cl(alpha)
+        cd[i] = kps4.calc_cd(alpha)
     end
-    display(plot(ALPHA, [CL, CD]; xlabel=L"\mathrm{AoA}~\alpha", ylabel="CL, CD", labels=["CL", "CD"]))
+    display(plot(ALPHA, [cl, cd]; xlabel=L"\mathrm{AoA}~\alpha", ylabel="CL, CD", labels=["CL", "CD"], fig="CL_CD"))
+    display(plot(ALPHA, [cl./cd]; xlabel=L"\mathrm{AoA}~\alpha", ylabel="LoD", fig="LoD"))
 end
 
-ALPHA = -180:1:180
+ALPHA = 0:0.1:12
 plot_cl_cd(ALPHA)
 
 
