@@ -498,7 +498,7 @@ Parameters:
 Returns:
 An instance of a DAE integrator.
 """
-function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_state_history=nothing, mtk=false, 
+function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, delta=0.01, prn=false, steady_state_history=nothing, mtk=false, 
                    torque_control=false)
     clear!(s)
     s.stiffness_factor = stiffness_factor
@@ -531,7 +531,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
         end
     end
     if !found
-        y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor=stiffness_factor, prn=prn)
+        y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor, delta, prn)
         if !mtk
             y0  = Vector{SimFloat}(y0)
             yd0 = Vector{SimFloat}(yd0)
