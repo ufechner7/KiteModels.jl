@@ -21,7 +21,7 @@ STEPS = 600
 PLOT = true
 PRINT = true
 STATISTIC = false
-DEPOWER = 0.45:-0.01:0.37
+DEPOWER = 0.45:-0.005:0.345
 # end of user parameter section #
 
 function set_tether_diameter!(se, d; c_spring_4mm = 614600, damping_4mm = 473)
@@ -70,13 +70,14 @@ AOA = zeros(length(DEPOWER))
 
 elev = set.elevation
 i = 1
+set.v_wind = 14 # 25
 for depower in DEPOWER
     global elev, i, kps4
-    local cl, cd, aoa
+    local cl, cd, aoa, kcu
     logger = Logger(set.segments + 5, STEPS)
     set.depower = 100*depower
     set.depower_gain = 5
-    set.v_wind = 14 # 25
+
     kcu = KCU(set)
     kps4 = KPS4(kcu)
     try
@@ -91,6 +92,11 @@ for depower in DEPOWER
         break
     end
     elev = rad2deg(logger.elevation_vec[end])
+    if elev > 68
+        set.v_wind = 12
+    elseif elev > 64
+        set.v_wind = 13
+    end
     if elev > 50 && elev < 68
         set.elevation = elev
     end
