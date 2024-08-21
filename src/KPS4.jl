@@ -602,7 +602,7 @@ function find_steady_state!(s::KPS4; prn=false, delta = 0.0, stiffness_factor=0.
     # helper function for the steady state finder
     function test_initial_condition!(F, x::Vector)
         x1 = copy(x)
-        y0, yd0 = init(s, x1)
+        y0, yd0 = init(s, x1; delta=0.01)
         residual!(res, yd0, y0, s, 0.0)
         for i in 1:s.set.segments+KITE_PARTICLES-1
             if i != s.set.segments+KITE_PARTICLES-1
