@@ -14,12 +14,12 @@ plt.close("all")
 
 set.abs_tol=0.0006
 set.rel_tol=0.00001
-V_WIND = 13
+V_WIND = 14
 
 # the following values can be changed to match your interest
 dt = 0.05
 set.solver="DFBDF" # IDA or DFBDF
-STEPS = 800
+STEPS = 600
 PLOT = true
 PRINT = true
 STATISTIC = false
