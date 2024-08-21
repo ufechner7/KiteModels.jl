@@ -21,7 +21,8 @@ STEPS = 600
 PLOT = true
 PRINT = true
 STATISTIC = false
-DEPOWER = 0.45:-0.005:0.345
+DEPOWER = 0.45:-0.01:0.345
+# DEPOWER = 0.41:-0.005:0.37
 # end of user parameter section #
 
 function set_tether_diameter!(se, d; c_spring_4mm = 614600, damping_4mm = 473)
