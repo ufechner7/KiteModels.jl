@@ -1,0 +1,9 @@
+#!/bin/bash
+
+if [[ $(basename $(pwd)) == "bin" ]]; then
+    cd ..
+fi
+git pull
+cd ../pykitesim
+git pull
+cd -
