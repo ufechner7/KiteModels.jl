@@ -76,12 +76,22 @@ for depower in DEPOWER
     logger = Logger(set.segments + 5, STEPS)
     set.depower = 100*depower
     set.depower_gain = 5
-    set.v_wind = 25
+    set.v_wind = 14 # 25
     kcu = KCU(set)
     kps4 = KPS4(kcu)
-    cl, cd = sim_cl_cd(kps4, logger, depower)
+    try
+        cl, cd = sim_cl_cd(kps4, logger, depower)
+    catch e
+        println("Error: $e")
+        if PLOT
+            p = plot(logger.time_vec, rad2deg.(logger.elevation_vec), fig="depower: $depower")
+            display(p)
+            sleep(0.2)
+        end
+        break
+    end
     elev = rad2deg(logger.elevation_vec[end])
-    if elev > 50 && elev < 70
+    if elev > 50 && elev < 68
         set.elevation = elev
     end
     aoa = kps4.alpha_2
