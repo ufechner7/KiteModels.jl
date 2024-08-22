@@ -65,6 +65,7 @@ end
 CL = zeros(length(DEPOWER)-2)
 CD = zeros(length(DEPOWER)-2)
 AOA = zeros(length(DEPOWER)-2)
+DEP = zeros(length(DEPOWER)-2)
 
 elev = set.elevation
 i = 1
@@ -75,6 +76,7 @@ for depower in DEPOWER
     depower == 0.41 && continue
     depower == 0.405 && continue
     logger = Logger(set.segments + 5, STEPS)
+    DEP[i] = depower
     set.depower = 100*depower
     set.depower_gain = 5
     if i == 2
@@ -130,3 +132,4 @@ display(plot(AOA, [CD, cd], xlabel="AOA [deg]", ylabel="CD", labels=["CD","cd"],
 # AOA= 0:0.05:20
 # calc_cd1 = KiteModels.Spline1D(se().alpha_cd, se().cd_list)
 # plot(AOA, calc_cd1.(AOA), fig="calc_cd1", xlabel="AOA [deg]", ylabel="CD")
+display(plot(DEP, AOA, xlabel="Depower", ylabel="AOA [deg]", fig="AOA vs Depower"))
