@@ -14,7 +14,7 @@ plt.close("all")
 
 set.abs_tol=0.00006
 set.rel_tol=0.000001
-V_WIND = 14
+V_WIND = 14.5
 
 # the following values can be changed to match your interest
 dt = 0.05
@@ -23,9 +23,13 @@ STEPS = 500
 PLOT = true
 PRINT = true
 STATISTIC = false
-DEPOWER = 0.45:-0.005:0.37
-# DEPOWER = 0.41:-0.005:0.37
+DEPOWER = 0.47:-0.005:0.365
 # end of user parameter section #
+
+bridle_length = KiteModels.bridle_length(set)
+println("bridle_length: $bridle_length")
+bridle_area = (set.d_line/2000) * bridle_length
+println("bridle_area: $bridle_area")
 
 function set_tether_diameter!(se, d; c_spring_4mm = 614600, damping_4mm = 473)
     set.d_tether = d
@@ -62,10 +66,10 @@ function simulate(kps4, integrator, logger, steps)
 end
 
 
-CL = zeros(length(DEPOWER)-2)
-CD = zeros(length(DEPOWER)-2)
-AOA = zeros(length(DEPOWER)-2)
-DEP = zeros(length(DEPOWER)-2)
+CL = zeros(length(DEPOWER))
+CD = zeros(length(DEPOWER))
+AOA = zeros(length(DEPOWER))
+DEP = zeros(length(DEPOWER))
 
 elev = set.elevation
 i = 1
@@ -73,8 +77,8 @@ set.v_wind = V_WIND # 25
 for depower in DEPOWER
     global elev, i, kps4
     local cl, cd, aoa, kcu
-    depower == 0.41 && continue
-    depower == 0.405 && continue
+    # depower == 0.41 && continue
+    # depower == 0.405 && continue
     logger = Logger(set.segments + 5, STEPS)
     DEP[i] = depower
     set.depower = 100*depower
@@ -87,6 +91,18 @@ for depower in DEPOWER
     kps4 = KPS4(kcu)
     integrator = KiteModels.init_sim!(kps4; delta=0.03, stiffness_factor=0.05, prn=STATISTIC)
     if ! isnothing(integrator)
+        try
+            cl, cd = simulate(kps4, integrator, logger, STEPS)
+        catch e
+            println("Error: $e")
+            if PLOT
+                p = plot(logger.time_vec, rad2deg.(logger.elevation_vec), xlabel="time [s]", ylabel="elevation [°]", 
+                         fig="depower: $depower")
+                display(p)
+                sleep(0.2)
+            end        
+            break
+        end
         set_depower_steering(kps4.kcu, depower, 0.0)
         cl, cd = simulate(kps4, integrator, logger, STEPS)
     else
@@ -98,7 +114,7 @@ for depower in DEPOWER
     elseif elev > 64
         set.v_wind = V_WIND - 1
     end
-    if elev > 50 && elev < 68
+    if elev > 50 && elev < 75
         set.elevation = elev
     end
     aoa = kps4.alpha_2
