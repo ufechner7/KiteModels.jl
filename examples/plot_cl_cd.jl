@@ -104,8 +104,8 @@ for depower in DEPOWER
     CD[i] = cd
     AOA[i] = aoa
     if PRINT
-        println("Depower: $depower, CL $(round(cl, digits=2)), CD: $(round(cd, digits=2)), aoa: $(round(aoa, digits=2)), CL/CD: $(round(cl/cd, digits=2))")
-        println("elevation: $(round((elev), digits=2))")
+        print("Depower: $depower, CL $(round(cl, digits=3)), CD: $(round(cd, digits=3)), aoa: $(round(aoa, digits=2)), CL/CD: $(round(cl/cd, digits=2))")
+        println(", elevation: $(round((elev), digits=2))")
     end
     # if depower in [DEPOWER[begin+1], DEPOWER[end]] && PLOT
     if PLOT
