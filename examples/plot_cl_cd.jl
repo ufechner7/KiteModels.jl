@@ -72,7 +72,7 @@ set.v_wind = V_WIND # 25
 for depower in DEPOWER
     global elev, i, kps4
     local cl, cd, aoa, kcu
-    depower == 0.4 && continue
+    depower == 0.41 && continue
     logger = Logger(set.segments + 5, STEPS)
     set.depower = 100*depower
     set.depower_gain = 5
