@@ -354,21 +354,36 @@ function init_sim!(s::KPS4_3L; t_end=1.0, stiffness_factor=0.035, prn=false, mtk
     s.stiffness_factor = stiffness_factor
     s.mtk = mtk
     s.torque_control = torque_control
+    dt = 1/s.set.sample_freq
+    tspan   = (0.0, dt) 
+    abstol  = s.set.abs_tol # max error in m/s and m
     
     if s.mtk
         pos = init_pos(s)
         simple_sys, _ = steady_state_model!(s, pos; torque_control=s.torque_control)
-        prob = SteadyStateProblem(simple_sys)
+        println("making steady state prob")
+        @time prob = SteadyStateProblem(ODEProblem(simple_sys, nothing, tspan))
+        println("solving steady state prob")
+        @time sol = solve(prob, DynamicSS(KenCarp4(autodiff=false)), abstol=0.01)
+        # @time sol = solve(prob, DynamicSS(Rodas5(autodiff=false)))
+        # println(sol)
+        pos0 = zeros(3,s.num_A)
+        for i in 1:s.num_A
+            println(i)
+            println("pos ", sol[simple_sys.pos_xz[2,i]])
+            pos0[:,i] .= [sol[simple_sys.pos_xz[1,i]], pos[i][2], sol[simple_sys.pos_xz[2,i]]]
+        end
+        println("pos ", pos0)
     else
-        y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor=stiffness_factor, prn=prn)
-        if !mtk
-            y0  = Vector{SimFloat}(y0)
-            yd0 = Vector{SimFloat}(yd0)
-        end
+        # y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor=stiffness_factor, prn=prn)
+        # if !mtk
+        #     y0  = Vector{SimFloat}(y0)
+        #     yd0 = Vector{SimFloat}(yd0)
+        # end
 
-        if isa(steady_state_history, SteadyStateHistory)
-            pushfirst!(steady_state_history, (deepcopy(s), deepcopy(y0), deepcopy(yd0)))
-        end
+        # if isa(steady_state_history, SteadyStateHistory)
+        #     pushfirst!(steady_state_history, (deepcopy(s), deepcopy(y0), deepcopy(yd0)))
+        # end
     end
     
     if isa(s, KPS4_3L) && s.mtk
@@ -383,10 +398,6 @@ function init_sim!(s::KPS4_3L; t_end=1.0, stiffness_factor=0.035, prn=false, mtk
         println("Error! Invalid solver in settings.yaml: $(s.set.solver)")
         return nothing
     end
-
-    dt = 1/s.set.sample_freq
-    tspan   = (0.0, dt) 
-    abstol  = s.set.abs_tol # max error in m/s and m
 
     if isa(s, KPS4_3L) && s.mtk
         simple_sys, _ = model!(s, y0; torque_control=s.torque_control)

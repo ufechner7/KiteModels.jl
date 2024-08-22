@@ -51,13 +51,13 @@ import KiteUtils.SysState
 # import Sundials.step!
 import OrdinaryDiffEq.init
 import OrdinaryDiffEq.step!
-using ModelingToolkit, SymbolicIndexingInterface
+using ModelingToolkit, SymbolicIndexingInterface, SteadyStateDiffEq
 using ModelingToolkit: t_nounits as t, D_nounits as D
 
 export KPS3, KPS4, KPS4_3L, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                     # constants and types
 export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                            # helper functions
-export clear!, find_steady_state!, residual!, model!                                          # low level workers
-export init_sim!, reset_sim!, next_step!, init_pos_vel, update_pos!                           # high level workers
+export clear!, find_steady_state!, residual!, model!, steady_state_model!                     # low level workers
+export init_sim!, reset_sim!, next_step!, init_pos_vel, init_pos, update_pos!                           # high level workers
 export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, calc_orient_quat, load_history  # getters
 export winch_force, lift_drag, lift_over_drag, unstretched_length, tether_length, v_wind_kite # getters
 export save_history # setter / saver
@@ -714,7 +714,7 @@ end
         # they belong to your package or not (on Julia 1.8 and higher)
         integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
         integrator = KiteModels.init_sim!(kps4_; stiffness_factor=0.25, prn=false)     
-        integrator = KiteModels.init_sim!(kps4_3l_; stiffness_factor=0.5, prn=false)   
+        # integrator = KiteModels.init_sim!(kps4_3l_; stiffness_factor=0.5, prn=false)   
         nothing
     end
 end

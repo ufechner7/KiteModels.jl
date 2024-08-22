@@ -416,24 +416,26 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
     return simple_sys, sys
 end
 
-
 function steady_state_model!(s::KPS4_3L, pos_; torque_control=false)
-    pos2_ = zeros(3, s.num_A)
-    [pos2_[:,i] .= pos_[i] for i in 1:s.num_A]
+    pos_xz_ = zeros(2, s.num_A)
+    pos_y_ = zeros(s.num_A)
+    [pos_xz_[:,i] .= [pos_[i][1], pos_[i][3]] for i in 1:s.num_A]
+    [pos_y_[i] = pos_[i][2] for i in 1:s.num_A]
     @parameters begin
         set_values[1:3] = s.set_values
         v_wind_gnd[1:3] = s.v_wind_gnd
         v_wind[1:3] = s.v_wind
         stiffness_factor = s.stiffness_factor
-        vel[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
-        acc[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
-        steering_vel[1:2]   = zeros(2)
-        steering_acc[1:2]   = zeros(2)
+        pos_y[1:s.num_A] = pos_y_
     end
     @variables begin
-        pos(t)[1:3, 1:s.num_A] = pos2_ # left right middle
+        pos_xz(t)[1:2, 1:s.num_A] = pos_xz_ # left right middle
+        vel(t)[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
+        acc(t)[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
         tether_length(t)[1:3]  = s.tether_lengths
-        steering_pos(t)[1:2]   = s.steering_pos
+        steering_pos(t)   = s.steering_pos[1]
+        steering_vel(t)   = 0.0
+        steering_acc(t)   = 0.0
         tether_speed(t)[1:3]   = zeros(3) # left right middle
         segment_length(t)[1:3] = zeros(3) # left right middle
         mass_tether_particle(t)[1:3]      # left right middle
@@ -447,39 +449,56 @@ function steady_state_model!(s::KPS4_3L, pos_; torque_control=false)
         rho_kite(t) = 0.0
     end
     # Collect the arrays into variables
-    pos = collect(pos)
+    pos_xz = collect(pos_xz)
     vel = collect(vel)
     acc = collect(acc)
+
+    pos = Array{Union{Float64, Symbolics.Num}}(undef, 3, s.num_A)
+
+    [pos[:,i] .= [pos_xz[1,i], pos_y[i], pos_xz[2,i]] for i in 1:s.num_A]
+    println(pos[:,1])
 
     eqs1 = []
     mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
 
-    [eqs1 = vcat(eqs1, D.(pos[:, i]) .~ 0.0) for i in 1:3]
-    [eqs1 = vcat(eqs1, D.(pos[:, i]) .~ vel[:,i]) for i in 4:s.num_E-3]
+    [eqs1 = vcat(eqs1, D.(pos[1, i]) ~ 0.0) for i in 1:3]
+    [eqs1 = vcat(eqs1, D.(pos[3, i]) ~ 0.0) for i in 1:3]
+    [eqs1 = vcat(eqs1, D.(pos[1, i]) ~ vel[1,i]) for i in 4:s.num_E-3]
+    [eqs1 = vcat(eqs1, D.(pos[3, i]) ~ vel[3,i]) for i in 4:s.num_E-3]
     eqs1 = [eqs1; D.(steering_pos)   .~ steering_vel]
-    [eqs1 = vcat(eqs1, D.(pos[:, i]) .~ vel[:,i]) for i in s.num_E:s.num_A]
+    [eqs1 = vcat(eqs1, D.(pos[1, i]) ~ vel[1,i]) for i in s.num_E:s.num_A]
+    [eqs1 = vcat(eqs1, D.(pos[3, i]) ~ vel[3,i]) for i in s.num_E:s.num_A]
+    [eqs1 = vcat(eqs1, D.(vel[:, i]) .~ 0.0) for i in 1:3]
+    [eqs1 = vcat(eqs1, D.(vel[:, i]) .~ acc[:,i]) for i in 4:s.num_E-3]
+    eqs1 = [eqs1; D.(steering_vel)   .~ steering_acc]
+    [eqs1 = vcat(eqs1, D.(vel[:, i]) .~ acc[:,i]) for i in s.num_E:s.num_A]
 
     eqs1 = vcat(eqs1, D.(tether_length) .~ tether_speed)
+    eqs1 = vcat(eqs1, D.(tether_speed) .~ 0.0)
 
     # Compute the masses and forces
     force_eqs = SizedArray{Tuple{3, s.num_A}, Symbolics.Equation}(undef)
     force_eqs[:, :] .= (force[:, :] .~ 0)
 
+    vel[:, s.num_E-2] ~ vel[:, s.num_C] + e_z * steering_vel
+    println("eq ", pos[1, s.num_E-2]   ~ pos[1, s.num_C] + e_z[1] * steering_pos)
     eqs2 = [
-        pos[:, s.num_E-2] ~ pos[:, s.num_C] + e_z * steering_pos[1]
-        pos[:, s.num_E-1] ~ pos[:, s.num_D] + e_z * steering_pos[2]
-        vel[:, s.num_E-2] ~ vel[:, s.num_C] + e_z * steering_vel[1]
-        vel[:, s.num_E-1] ~ vel[:, s.num_D] + e_z * steering_vel[2]
-        acc[:, s.num_E-2] ~ acc[:, s.num_C] + e_z * steering_acc[1]
-        acc[:, s.num_E-1] ~ acc[:, s.num_D] + e_z * steering_acc[2]
+        pos[1, s.num_E-2]   ~ pos[1, s.num_C] + e_z[1] * steering_pos
+        pos[3, s.num_E-2]   ~ pos[3, s.num_C] + e_z[3] * steering_pos
+        pos[1, s.num_E-1]   ~ pos[1, s.num_D] + e_z[1] * steering_pos
+        pos[3, s.num_E-1]   ~ pos[3, s.num_D] + e_z[3] * steering_pos
+        vel[:, s.num_E-2]   ~ vel[:, s.num_C] + e_z * steering_vel
+        vel[:, s.num_E-1]   ~ vel[:, s.num_D] + e_z * steering_vel
+        acc[:, s.num_E-2]   ~ acc[:, s.num_C] + e_z * steering_acc
+        acc[:, s.num_E-1]   ~ acc[:, s.num_D] + e_z * steering_acc
         segment_length       ~ tether_length  ./ s.set.segments
         mass_tether_particle ~ mass_per_meter .* segment_length
         damping              ~ s.set.damping  ./ segment_length
         c_spring             ~ s.set.c_spring ./ segment_length
-        P_c ~ 0.5 * (pos[:, s.num_C] + pos[:, s.num_D])
-        e_y ~ (pos[:, s.num_C] - pos[:, s.num_D]) / norm(pos[:, s.num_C] - pos[:, s.num_D])
-        e_z ~ (pos[:, s.num_E] - P_c) / norm(pos[:, s.num_E] - P_c)
-        e_x ~ cross(e_y, e_z)
+        P_c                 ~ 0.5 * (pos[:, s.num_C] + pos[:, s.num_D])
+        e_y                 ~ (pos[:, s.num_C] - pos[:, s.num_D]) / norm(pos[:, s.num_C] - pos[:, s.num_D])
+        e_z                 ~ (pos[:, s.num_E] - P_c) / norm(pos[:, s.num_E] - P_c)
+        e_x                 ~ cross(e_y, e_z)
         rho_kite ~ calc_rho(s.am, pos[3,s.num_A])
     ]
 
@@ -504,9 +523,9 @@ function steady_state_model!(s::KPS4_3L, pos_; torque_control=false)
         force_eqs[:,i]   .= force[:, i] .~ tether_rhs .- f_xy
         force_eqs[:,i+3] .= force[:, i+3] .~ kite_rhs .+ f_xy
         eqs2              = vcat(eqs2, vcat(force_eqs[:, i]))
-        eqs2              = vcat(eqs2, steering_acc[i-s.num_E+3] ~ (force[:,i] ./ mass_tether_particle[(i-1) % 3 + 1]) ⋅ 
-                                                                    e_z - (acc[:, i+3] ⋅ e_z))
     end
+    eqs2              = vcat(eqs2, steering_acc ~ (force[:,s.num_E-2] ./ mass_tether_particle[1]) ⋅ 
+                                                                e_z - (acc[:, s.num_C] ⋅ e_z))
     for i in s.num_E:s.num_A
         eqs2 = vcat(eqs2, vcat(force_eqs[:,i]))
         eqs2 = vcat(eqs2, acc[:, i] .~ [0.0; 0.0; -G_EARTH] .+ (force[:, i] ./ s.masses[i]))
