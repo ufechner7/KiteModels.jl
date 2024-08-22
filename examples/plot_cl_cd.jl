@@ -115,7 +115,11 @@ for depower in DEPOWER
         set.v_wind = V_WIND - 1
     end
     if elev > 50 && elev < 75
-        set.elevation = elev
+        if elev > 70
+            set.elevation = elev - 2
+        else
+            set.elevation = elev
+        end 
     end
     aoa = kps4.alpha_2
     CL[i] = cl
