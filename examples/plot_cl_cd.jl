@@ -23,7 +23,7 @@ STEPS = 500
 PLOT = true
 PRINT = true
 STATISTIC = false
-DEPOWER = 0.45:-0.01:0.355
+DEPOWER = 0.45:-0.005:0.37
 # DEPOWER = 0.41:-0.005:0.37
 # end of user parameter section #
 
@@ -62,9 +62,9 @@ function simulate(kps4, integrator, logger, steps)
 end
 
 
-CL = zeros(length(DEPOWER)-1)
-CD = zeros(length(DEPOWER)-1)
-AOA = zeros(length(DEPOWER)-1)
+CL = zeros(length(DEPOWER)-2)
+CD = zeros(length(DEPOWER)-2)
+AOA = zeros(length(DEPOWER)-2)
 
 elev = set.elevation
 i = 1
@@ -73,6 +73,7 @@ for depower in DEPOWER
     global elev, i, kps4
     local cl, cd, aoa, kcu
     depower == 0.41 && continue
+    depower == 0.405 && continue
     logger = Logger(set.segments + 5, STEPS)
     set.depower = 100*depower
     set.depower_gain = 5
