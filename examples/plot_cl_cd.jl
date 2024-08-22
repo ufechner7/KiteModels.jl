@@ -61,11 +61,6 @@ function simulate(kps4, integrator, logger, steps)
     return cl/50, cd/50
 end
 
-function sim_cl_cd(kps4::KPS4, logger, rel_depower; steps=STEPS)
-    integrator = KiteModels.init_sim!(kps4; delta=0.03, stiffness_factor=0.05, prn=STATISTIC)
-        set_depower_steering(kps4.kcu, rel_depower, 0.0)
-    simulate(kps4, integrator, logger, steps)
-end
 
 CL = zeros(length(DEPOWER))
 CD = zeros(length(DEPOWER))
@@ -86,16 +81,11 @@ for depower in DEPOWER
 
     kcu = KCU(set)
     kps4 = KPS4(kcu)
-    try
-        cl, cd = sim_cl_cd(kps4, logger, depower)
-    catch e
-        println("Error: $e")
-        if PLOT
-            p = plot(logger.time_vec, rad2deg.(logger.elevation_vec), xlabel="time [s]", ylabel="elevation [°]", 
-                     fig="depower: $depower")
-            display(p)
-            sleep(0.2)
-        end
+    integrator = KiteModels.init_sim!(kps4; delta=0.03, stiffness_factor=0.05, prn=STATISTIC)
+    if ! isnothing(integrator)
+        set_depower_steering(kps4.kcu, depower, 0.0)
+        cl, cd = simulate(kps4, integrator, logger, STEPS)
+    else
         break
     end
     elev = rad2deg(logger.elevation_vec[end])
