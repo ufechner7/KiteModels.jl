@@ -23,7 +23,7 @@ STEPS = 500
 PLOT = true
 PRINT = true
 STATISTIC = false
-DEPOWER = 0.47:-0.005:0.365
+DEPOWER = 0.47:-0.005:0.360
 # end of user parameter section #
 
 bridle_length = KiteModels.bridle_length(set)
