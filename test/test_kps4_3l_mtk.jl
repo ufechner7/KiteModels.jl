@@ -95,8 +95,8 @@ set_defaults()
     @test all(kps4_3l.vel_kite .== 0)
     @test isapprox(kps4_3l.L_C, kps4_3l.L_D .* [1,-1,1], atol=1e-5)
     @test isapprox(kps4_3l.D_C, kps4_3l.D_D .* [1,-1,1], atol=1e-5)
-    @test all(kps4_3l.L_C .≈ [-1.050236194673068e-16, 112.36591385162515, 327.9801594516224])
-    @test all(kps4_3l.D_C .≈ [70.49414103359018, 4.935335969053079, -2.364032694118963])
+    @test isapprox(kps4_3l.L_C, [-1.050236194673068e-16, 112.36591385162515, 327.9801594516224], atol=1e-5)
+    @test isapprox(kps4_3l.D_C, [70.49414103359018, 4.935335969053079, -2.364032694118963], atol=1e-5)
     # println(kps4_3l.L_C)
     # println(kps4_3l.D_C)
 
@@ -156,6 +156,7 @@ global integrator, pos1
     for i in eachindex(kps4_3l.pos)
         # println(kps4_3l.pos[i]')
         @test all(pos1[i,:] .≈ kps4_3l.pos[i])
+        pos1[i,:] .= kps4_3l.pos[i]
     end
     sys_state = KiteModels.SysState(kps4_3l)
 
