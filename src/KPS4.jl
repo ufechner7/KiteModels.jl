@@ -270,8 +270,9 @@ The result is stored in the array s.forces.
     v_app_perp = s.v_apparent - s.v_apparent ⋅ unit_vector * unit_vector
     half_drag_force = (-0.25 * rho * s.set.cd_tether * norm(v_app_perp) * area) * v_app_perp 
     if i == segments
+        v_app_perp_kcu = v_app_kcu - v_app_kcu ⋅ unit_vector * unit_vector
         kcu_area = π * (s.set.kcu_diameter/2)^2
-        kcu_drag_force = (-0.25 * rho * s.set.cd_kcu * norm(v_app_perp) * kcu_area) * v_app_perp
+        kcu_drag_force = (-0.25 * rho * s.set.cd_kcu * norm(v_app_perp_kcu) * kcu_area) * v_app_perp_kcu
         @inbounds s.forces[spring.p2] .+= kcu_drag_force
     end
 
