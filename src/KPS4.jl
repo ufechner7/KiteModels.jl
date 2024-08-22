@@ -264,7 +264,11 @@ The result is stored in the array s.forces.
     if s.set.version == 1
         area = norm1 * d_tether
     else
-        area = norm1 * s.set.d_line * 0.001
+        if i > segments
+            area = norm1 * s.set.d_line * 0.001 * 6 # 6.0 = A_real/A_simulated
+        else
+            area = norm1 * d_tether
+        end
     end
 
     v_app_perp = s.v_apparent - s.v_apparent ⋅ unit_vector * unit_vector
