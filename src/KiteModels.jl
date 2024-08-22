@@ -535,7 +535,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, delta=0.01, prn=fa
         try
             y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor, delta, prn)
         catch
-            println("ERROR: Failure to find initial steady state in find_steady_state! function!\n"+
+            println("ERROR: Failure to find initial steady state in find_steady_state! function!\n"*
                     "Try to increase the delta parameter or to decrease the inital_stiffness of the init_sim! function.")
             return nothing
         end
@@ -704,7 +704,9 @@ end
     # list = [OtherType("hello"), OtherType("world!")]
     set_data_path()
 
-    kps4_::KPS4 = KPS4(KCU(se("system.yaml")))
+    set = se("system.yaml")
+    set.kcu_diameter = 0
+    kps4_::KPS4 = KPS4(KCU(set))
     kps3_::KPS3 = KPS3(KCU(se("system.yaml")))
     kps4_3l_::KPS4_3L = KPS4_3L(KCU(se(SYS_3L)))
     @assert ! isnothing(kps4_.wm)
@@ -712,7 +714,7 @@ end
         # all calls in this block will be precompiled, regardless of whether
         # they belong to your package or not (on Julia 1.8 and higher)
         integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
-        integrator = KiteModels.init_sim!(kps4_; stiffness_factor=0.25, prn=false)     
+        integrator = KiteModels.init_sim!(kps4_; delta=0.03, stiffness_factor=0.05, prn=false)     
         integrator = KiteModels.init_sim!(kps4_3l_; stiffness_factor=0.5, prn=false)   
         nothing
     end
