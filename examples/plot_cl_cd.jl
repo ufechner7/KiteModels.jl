@@ -1,7 +1,7 @@
 # plot the lift and drag coefficients as function of angle of attack
 
 using Printf
-using KiteModels, KitePodModels, KiteUtils
+using KiteModels, KitePodModels, KiteUtils, LinearAlgebra
 
 set = deepcopy(load_settings("system_v9.yaml"))
 
@@ -109,11 +109,11 @@ for depower in DEPOWER
         break
     end
     elev = rad2deg(logger.elevation_vec[end])
-    if elev > 68
-        set.v_wind = V_WIND - 2
-    elseif elev > 64
-        set.v_wind = V_WIND - 1
-    end
+    # if elev > 68
+    #     set.v_wind = V_WIND - 2
+    # elseif elev > 64
+    #     set.v_wind = V_WIND - 1
+    # end
     if elev > 50 && elev < 75
         if elev > 70
             set.elevation = elev - 2
@@ -122,12 +122,13 @@ for depower in DEPOWER
         end 
     end
     aoa = kps4.alpha_2
+    v_app = norm(kps4.v_apparent)
     CL[i] = cl
     CD[i] = cd
     AOA[i] = aoa
     if PRINT
         print("Depower: $depower, CL $(round(cl, digits=3)), CD: $(round(cd, digits=3)), aoa: $(round(aoa, digits=2)), CL/CD: $(round(cl/cd, digits=2))")
-        println(", elevation: $(round((elev), digits=2))")
+        println(", elevation: $(round((elev), digits=2)), v_app: $(round(v_app, digits=2))")
     end
     # if depower in [DEPOWER[begin+1], DEPOWER[end]] && PLOT
     if PLOT
