@@ -373,7 +373,7 @@ Output:
         p2 = s.springs[i].p2  # Second point nr.
         height = 0.5 * (pos[p1][3] + pos[p2][3])
         rho = calc_rho(s.am, height)
-        @assert height > -100
+        @assert height > 0
         if height < 6
             height = 6
         end
@@ -589,7 +589,7 @@ function spring_forces(s::KPS4)
 end
 
 """
-    find_steady_state!(s::KPS4; prn=false, delta = 0.0, stiffness_factor=0.035)
+    find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0.035)
 
 Find an initial equilibrium, based on the inital parameters
 `l_tether`, elevation and `v_reel_out`.

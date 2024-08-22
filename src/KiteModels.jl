@@ -484,7 +484,7 @@ end
 
 
 """
-    init_sim!(s; t_end=1.0, stiffness_factor=0.035, prn=false)
+    init_sim!(s; t_end=1.0, stiffness_factor=0.035, delta=0.01, prn=false)
 
 Initialises the integrator of the model.
 
@@ -492,6 +492,7 @@ Parameters:
 - s:     an instance of an abstract kite model
 - t_end: end time of the simulation; normally not needed
 - stiffness_factor: factor applied to the tether stiffness during initialisation
+- delta: initial stretch of the tether during the steady state calculation
 - prn: if set to true, print the detailed solver results
 - steady_state_history: an instance of SteadyStateHistory containing old pairs of AKM objects and integrators
 
@@ -531,7 +532,13 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, delta=0.01, prn=fa
         end
     end
     if !found
-        y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor, delta, prn)
+        try
+            y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor, delta, prn)
+        catch
+            println("ERROR: Failure to find initial steady state in find_steady_state! function!\n"+
+                    "Try to increase the delta parameter or to decrease the inital_stiffness of the init_sim! function.")
+            return nothing
+        end
         if !mtk
             y0  = Vector{SimFloat}(y0)
             yd0 = Vector{SimFloat}(yd0)
