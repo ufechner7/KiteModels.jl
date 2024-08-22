@@ -534,10 +534,14 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, delta=0.01, prn=fa
     if !found
         try
             y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor, delta, prn)
-        catch
-            println("ERROR: Failure to find initial steady state in find_steady_state! function!\n"*
-                    "Try to increase the delta parameter or to decrease the inital_stiffness of the init_sim! function.")
-            return nothing
+        catch e
+            if e isa AssertionError
+                println("ERROR: Failure to find initial steady state in find_steady_state! function!\n"*
+                        "Try to increase the delta parameter or to decrease the inital_stiffness of the init_sim! function.")
+                return nothing
+            else
+                rethrow(e)
+            end
         end
         if !mtk
             y0  = Vector{SimFloat}(y0)
