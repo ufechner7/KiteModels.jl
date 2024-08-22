@@ -12,18 +12,18 @@ end
 using ControlPlots
 plt.close("all")
 
-set.abs_tol=0.0006
-set.rel_tol=0.00001
+set.abs_tol=0.00006
+set.rel_tol=0.000001
 V_WIND = 14
 
 # the following values can be changed to match your interest
 dt = 0.05
 set.solver="DFBDF" # IDA or DFBDF
-STEPS = 600
+STEPS = 500
 PLOT = true
 PRINT = true
 STATISTIC = false
-DEPOWER = 0.45:-0.01:0.345
+DEPOWER = 0.45:-0.01:0.355
 # DEPOWER = 0.41:-0.005:0.37
 # end of user parameter section #
 
@@ -62,9 +62,9 @@ function simulate(kps4, integrator, logger, steps)
 end
 
 
-CL = zeros(length(DEPOWER))
-CD = zeros(length(DEPOWER))
-AOA = zeros(length(DEPOWER))
+CL = zeros(length(DEPOWER)-1)
+CD = zeros(length(DEPOWER)-1)
+AOA = zeros(length(DEPOWER)-1)
 
 elev = set.elevation
 i = 1
@@ -72,6 +72,7 @@ set.v_wind = V_WIND # 25
 for depower in DEPOWER
     global elev, i, kps4
     local cl, cd, aoa, kcu
+    depower == 0.4 && continue
     logger = Logger(set.segments + 5, STEPS)
     set.depower = 100*depower
     set.depower_gain = 5
