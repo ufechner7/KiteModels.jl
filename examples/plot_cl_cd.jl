@@ -77,8 +77,6 @@ set.v_wind = V_WIND # 25
 for depower in DEPOWER
     global elev, i, kps4
     local cl, cd, aoa, kcu
-    # depower == 0.41 && continue
-    # depower == 0.405 && continue
     logger = Logger(set.segments + 5, STEPS)
     DEP[i] = depower
     set.depower = 100*depower
@@ -109,11 +107,6 @@ for depower in DEPOWER
         break
     end
     elev = rad2deg(logger.elevation_vec[end])
-    # if elev > 68
-    #     set.v_wind = V_WIND - 2
-    # elseif elev > 64
-    #     set.v_wind = V_WIND - 1
-    # end
     if elev > 50 && elev < 75
         if elev > 70
             set.elevation = elev - 2
