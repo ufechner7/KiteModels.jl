@@ -23,7 +23,7 @@ STEPS = 500
 PLOT = true
 PRINT = true
 STATISTIC = false
-DEPOWER = 0.47:-0.005:0.360
+DEPOWER = 0.47:-0.005:0.355
 # end of user parameter section #
 
 bridle_length = KiteModels.bridle_length(set)
@@ -77,6 +77,9 @@ set.v_wind = V_WIND # 25
 for depower in DEPOWER
     global elev, i, kps4
     local cl, cd, aoa, kcu
+    if depower < 0.356
+        depower = 0.356
+    end
     logger = Logger(set.segments + 5, STEPS)
     DEP[i] = depower
     set.depower = 100*depower
