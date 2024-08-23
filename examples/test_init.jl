@@ -43,8 +43,6 @@ elev = set.elevation
 i = 1
 set.v_wind = V_WIND # 25
 logger = Logger(set.segments + 5, STEPS)
-# set.depower = 100*depower
-# set.depower_gain = 5
 
 kcu = KCU(set)
 kps4 = KPS4(kcu)
