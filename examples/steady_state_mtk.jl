@@ -1,6 +1,4 @@
-using KiteModels, OrdinaryDiffEq, LinearAlgebra, Timers
-using Base: summarysize
-tic()
+using KiteModels, OrdinaryDiffEq, LinearAlgebra, Timers, SteadyStateDiffEq
 
 using Pkg
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
@@ -21,62 +19,19 @@ logger = Logger(3*set.segments + 6, steps)
 steering = [5,5,-30.0]
 
 println("Running models")
-if ! @isdefined mtk_kite; mtk_kite = KPS4_3L(KCU(set)); end
-mtk_integrator = KiteModels.init_sim!(mtk_kite; stiffness_factor=0.1, prn=false, mtk=true, torque_control=true)
-
-println("compiling")
-total_new_time = 0.0
-for i in 1:5
-    global total_new_time += @elapsed next_step!(mtk_kite, mtk_integrator; set_values=steering)
+mtk_kite::KPS4_3L = KPS4_3L(KCU(set))
+pos = init_pos(mtk_kite)
+simple_sys, _ = steady_state_model!(mtk_kite, pos; torque_control=false)
+println("making steady state prob")
+@time prob = SteadyStateProblem(ODEProblem(simple_sys, nothing, tspan))
+println("solving steady state prob")
+@time sol = solve(prob, DynamicSS(KenCarp4(autodiff=false)), abstol=0.1)
+# @time sol = solve(prob, DynamicSS(Rodas5(autodiff=false)))
+# println(sol)
+pos0 = zeros(3, mtk_kite.num_A)
+for i in 1:mtk_kite.num_A
+    println(i)
+    println("pos ", sol[simple_sys.pos_xz[2,i]])
+    pos0[:,i] .= [sol[simple_sys.pos_xz[1,i]], pos[i][2], sol[simple_sys.pos_xz[2,i]]]
 end
-sys_state = KiteModels.SysState(mtk_kite)
-if sys_state.heading > pi
-    sys_state.heading -= 2*pi
-end
-log!(logger, sys_state)
-
-println("stepping")
-total_old_time = 0.0
-total_new_time = 0.0
-toc()
-for i in 1:steps
-    global total_new_time, sys_state, steering
-    if i == 1
-        steering = [5,5,-26.0] # left right middle
-    end
-    if i == 20
-        steering = [0, 10, -33]
-    end
-    if i == 50
-        steering = [0, 0.0, -20]
-    end
-    if i == 70
-        steering = [0, 0, -25]
-    end
-
-    if sys_state.heading > pi
-        sys_state.heading -= 2*pi
-    end
-    sys_state.var_01 =  mtk_kite.steering_pos[1]
-    sys_state.var_02 =  mtk_kite.steering_pos[2]
-    sys_state.var_03 =  mtk_kite.reel_out_speeds[1]
-    sys_state.var_04 =  mtk_kite.reel_out_speeds[2]
-
-    total_new_time += @elapsed next_step!(mtk_kite, mtk_integrator; set_values=steering)
-
-    KiteModels.update_sys_state!(sys_state, mtk_kite)
-    if sys_state.heading > pi
-        sys_state.heading -= 2*pi
-    end
-    log!(logger, sys_state)
-end
-
-new_time = (dt*steps) / total_new_time
-println("times realtime MTK model: ", new_time)
-println("avg steptime MTK model:   ", total_new_time/steps)
-
-plotx(logger.time_vec, [logger.var_01_vec,  logger.var_02_vec], [logger.var_03_vec,  logger.var_04_vec], 
-      rad2deg.(logger.heading_vec); 
-      ylabels=["Steering", "Reelout speed", "Heading [deg]"], 
-      labels=[["Steering Pos 1", "Steering Pos 2"], ["v_ro 1", "v_ro 2"], "Heading"], 
-      fig="Steering and Heading MTK model")
+println("pos ", pos0)

@@ -417,9 +417,16 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
 end
 
 function steady_state_model!(s::KPS4_3L, pos_; torque_control=false)
-    pos_xz_ = zeros(2, s.num_A)
+    pos_xz_ = zeros(2, div(s.num_A, 3) * 2)
     pos_y_ = zeros(s.num_A)
-    [pos_xz_[:,i] .= [pos_[i][1], pos_[i][3]] for i in 1:s.num_A]
+    # [pos_xz_[:,i] .= [pos_[i][1], pos_[i][3]] for i in 1:s.num_A if i%3 == 1 || i%3 == 0]
+    j = 1
+    for i in 1:s.num_A
+        if i%3 == 1 || i%3 == 0
+            pos_xz_[:,j] .= [pos_[i][1], pos_[i][3]]
+            j += 1
+        end
+    end
     [pos_y_[i] = pos_[i][2] for i in 1:s.num_A]
     @parameters begin
         set_values[1:3] = s.set_values
@@ -429,7 +436,7 @@ function steady_state_model!(s::KPS4_3L, pos_; torque_control=false)
         pos_y[1:s.num_A] = pos_y_
     end
     @variables begin
-        pos_xz(t)[1:2, 1:s.num_A] = pos_xz_ # left right middle
+        pos_xz(t)[1:2, 1:div(s.num_A, 3) * 2] = pos_xz_ # [x_left, z_left], [x_middle, z_middle]
         vel(t)[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
         acc(t)[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
         tether_length(t)[1:3]  = s.tether_lengths
@@ -455,23 +462,36 @@ function steady_state_model!(s::KPS4_3L, pos_; torque_control=false)
 
     pos = Array{Union{Float64, Symbolics.Num}}(undef, 3, s.num_A)
 
-    [pos[:,i] .= [pos_xz[1,i], pos_y[i], pos_xz[2,i]] for i in 1:s.num_A]
-    println(pos[:,1])
+    # [pos[:,i] .= [pos_xz[1,i], pos_y[i], pos_xz[2,i]] for i in 1:s.num_A]
+    j = 1
+    for i in 1:s.num_A
+        if i%3 == 1
+            pos[:,i] .= [pos_xz[1,j], pos_y[i], pos_xz[2,j]] # left tether
+        elseif i%3 == 2
+            pos[:,i] .= [pos_xz[1,j], -pos_y[i], pos_xz[2,j]] # right tether == -left tether
+            j += 1
+        elseif i%3 == 0
+            pos[:,i] .= [pos_xz[1,j], pos_y[i], pos_xz[2,j]] # middle tether
+            j += 1
+        end
+        println(pos[:,i])
+    end
 
     eqs1 = []
     mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
 
-    [eqs1 = vcat(eqs1, D.(pos[1, i]) ~ 0.0) for i in 1:3]
-    [eqs1 = vcat(eqs1, D.(pos[3, i]) ~ 0.0) for i in 1:3]
-    [eqs1 = vcat(eqs1, D.(pos[1, i]) ~ vel[1,i]) for i in 4:s.num_E-3]
-    [eqs1 = vcat(eqs1, D.(pos[3, i]) ~ vel[3,i]) for i in 4:s.num_E-3]
+    [eqs1 = vcat(eqs1, D.(pos[1, i]) ~ 0.0) for i in 1:3 if i%3 == 1 || i%3 == 0]
+    println(eqs1)
+    [eqs1 = vcat(eqs1, D.(pos[3, i]) ~ 0.0) for i in 1:3 if i%3 == 1 || i%3 == 0]
+    [eqs1 = vcat(eqs1, D.(pos[1, i]) ~ vel[1,i]) for i in 4:s.num_E-3 if i%3 == 1 || i%3 == 0]
+    [eqs1 = vcat(eqs1, D.(pos[3, i]) ~ vel[3,i]) for i in 4:s.num_E-3 if i%3 == 1 || i%3 == 0]
     eqs1 = [eqs1; D.(steering_pos)   .~ steering_vel]
-    [eqs1 = vcat(eqs1, D.(pos[1, i]) ~ vel[1,i]) for i in s.num_E:s.num_A]
-    [eqs1 = vcat(eqs1, D.(pos[3, i]) ~ vel[3,i]) for i in s.num_E:s.num_A]
-    [eqs1 = vcat(eqs1, D.(vel[:, i]) .~ 0.0) for i in 1:3]
-    [eqs1 = vcat(eqs1, D.(vel[:, i]) .~ acc[:,i]) for i in 4:s.num_E-3]
+    [eqs1 = vcat(eqs1, D.(pos[1, i]) ~ vel[1,i]) for i in s.num_E:s.num_A if i%3 == 1 || i%3 == 0]
+    [eqs1 = vcat(eqs1, D.(pos[3, i]) ~ vel[3,i]) for i in s.num_E:s.num_A if i%3 == 1 || i%3 == 0]
+    [eqs1 = vcat(eqs1, D.(vel[:, i]) .~ 0.0) for i in 1:3 if i%3 == 1 || i%3 == 0]
+    [eqs1 = vcat(eqs1, D.(vel[:, i]) .~ acc[:,i]) for i in 4:s.num_E-3 if i%3 == 1 || i%3 == 0]
     eqs1 = [eqs1; D.(steering_vel)   .~ steering_acc]
-    [eqs1 = vcat(eqs1, D.(vel[:, i]) .~ acc[:,i]) for i in s.num_E:s.num_A]
+    [eqs1 = vcat(eqs1, D.(vel[:, i]) .~ acc[:,i]) for i in s.num_E:s.num_A if i%3 == 1 || i%3 == 0]
 
     eqs1 = vcat(eqs1, D.(tether_length) .~ tether_speed)
     eqs1 = vcat(eqs1, D.(tether_speed) .~ 0.0)
@@ -481,7 +501,6 @@ function steady_state_model!(s::KPS4_3L, pos_; torque_control=false)
     force_eqs[:, :] .= (force[:, :] .~ 0)
 
     vel[:, s.num_E-2] ~ vel[:, s.num_C] + e_z * steering_vel
-    println("eq ", pos[1, s.num_E-2]   ~ pos[1, s.num_C] + e_z[1] * steering_pos)
     eqs2 = [
         pos[1, s.num_E-2]   ~ pos[1, s.num_C] + e_z[1] * steering_pos
         pos[3, s.num_E-2]   ~ pos[3, s.num_C] + e_z[3] * steering_pos
