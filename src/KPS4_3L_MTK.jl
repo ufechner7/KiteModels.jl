@@ -1,12 +1,12 @@
 # Implementation of the three-line model using ModellingToolkit.jl
 
 function calc_acc_speed(tether_speed::SimFloat, norm_::SimFloat, set_speed::SimFloat)
-    calc_acceleration(AsyncMachine(se()), tether_speed, norm_; set_speed, set_torque=nothing, use_brake=false)
+    calc_acceleration(AsyncMachine(se("system_3l.yaml")), tether_speed, norm_; set_speed, set_torque=nothing, use_brake=false)
 end
 @register_symbolic calc_acc_speed(tether_speed, norm_, set_speed)
 
 function calc_acc_torque(tether_speed::SimFloat, norm_::SimFloat, set_torque::SimFloat)
-    calc_acceleration(TorqueControlledMachine(se()), tether_speed, norm_; set_speed=nothing, set_torque, use_brake=false)
+    calc_acceleration(TorqueControlledMachine(se("system_3l.yaml")), tether_speed, norm_; set_speed=nothing, set_torque, use_brake=false)
 end
 @register_symbolic calc_acc_torque(tether_speed, norm_, set_torque)
 
@@ -22,7 +22,7 @@ Parameters:
 
 Updates the vector s.forces of the first parameter.
 """
-function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, rho)
+function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, rho, v_wind)
     n = s.set.aero_surfaces
     @variables begin
         δ_left(t)
@@ -102,7 +102,7 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
             α < π/2 ?
                 v_kite[:, i] ~ ((v_cx - v_dx) / (y_lc - y_ld) * (y_l[i] - y_ld) + v_dx) + v_cy + v_cz :
                 v_kite[:, i] ~ ((v_cx - v_dx) / (y_lc - y_ld) * (y_l[i] - y_ld) + v_dx) + v_dy + v_dz
-            v_a[:,i]         ~ s.v_wind .- v_kite[:,i]
+            v_a[:,i]         ~ v_wind .- v_kite[:,i]
             e_drift[:, i]    ~ (e_r[:, i] × e_x)
             v_a_xr[:, i]     ~ v_a[:, i] .- (v_a[:, i] ⋅ e_drift[:, i]) .* e_drift[:, i]
         ]
@@ -164,13 +164,13 @@ The result is stored in the array s.forces.
 """
 function calc_particle_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos1, pos2, vel1, vel2, length, c_spring, 
     damping, rho, i, l_0, k, c, segment, rel_vel, av_vel, norm1, unit_vector, k1, k2, c1, spring_vel,
-            spring_force, v_apparent, v_wind_tether, area, v_app_perp, half_drag_force)
+            spring_force, v_apparent, v_wind_tether, area, v_app_perp, half_drag_force, stiffness_factor)
     d_tether = s.set.d_tether/1000.0
     eqs2 = [
         eqs2
         i <= s.set.segments*3 ? l_0 ~ length[(i-1) % 3 + 1] : l_0 ~ s.springs[i].length # Unstressed length
-        i <= s.set.segments*3 ? k   ~ c_spring[(i-1) % 3 + 1] * s.stiffness_factor :
-                                k   ~ s.springs[i].c_spring * s.stiffness_factor        # Spring constant
+        i <= s.set.segments*3 ? k   ~ c_spring[(i-1) % 3 + 1] * stiffness_factor :
+                                k   ~ s.springs[i].c_spring * stiffness_factor        # Spring constant
         i <= s.set.segments*3 ? c   ~ damping[(i-1) % 3 + 1] : c ~ s.springs[i].damping # Damping coefficient    
         segment     .~ pos1 - pos2
         rel_vel     .~ vel1 - vel2
@@ -235,7 +235,7 @@ Output:length
 - s.forces
 - s.v_wind_tether
 """
-@inline function inner_loop_mtk!(s::KPS4_3L, eqs2, force_eqs, t, force, pos, vel, length, c_spring, damping, v_wind_gnd)
+@inline function inner_loop_mtk!(s::KPS4_3L, eqs2, force_eqs, t, force, pos, vel, length, c_spring, damping, v_wind_gnd, stiffness_factor)
     @variables begin
         height(t)[eachindex(s.springs)]
         rho(t)[eachindex(s.springs)]
@@ -275,7 +275,7 @@ Output:length
                           vel[:, p2], length, c_spring, damping, rho[i], i, l_0[i], k[i], c[i], segment[:, i], 
                           rel_vel[:, i], av_vel[:, i], norm1[i], unit_vector[:, i], k1[i], k2[i], c1[i], spring_vel[i],
                           spring_force[:, i], v_apparent[:,i], v_wind_tether[:, i], area[i], v_app_perp[:, i], 
-                          half_drag_force[:, i])
+                          half_drag_force[:, i], stiffness_factor)
     end
 
     return eqs2, force_eqs
@@ -291,6 +291,10 @@ function update_pos!(s, integrator)
     [s.winch_forces[i] .= (winch_forces[:,i]) for i in 1:3]
     s.tether_lengths   .= s.get_tether_lengths(integrator)
     s.reel_out_speeds  .= s.get_tether_speeds(integrator)
+    s.L_C               = s.get_L_C(integrator)
+    s.L_D               = s.get_L_D(integrator)
+    s.D_C               = s.get_D_C(integrator)
+    s.D_D               = s.get_D_D(integrator)
     calc_kite_ref_frame!(s, s.pos[s.num_E], s.pos[s.num_C], s.pos[s.num_D])
 
     @assert all(abs.(s.steering_pos) .<= s.set.tip_length)
@@ -303,6 +307,8 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
     @parameters begin
         set_values[1:3] = s.set_values
         v_wind_gnd[1:3] = s.v_wind_gnd
+        v_wind[1:3] = s.v_wind
+        stiffness_factor = s.stiffness_factor
     end
     @variables begin
         pos(t)[1:3, 1:s.num_A] = pos2_ # left right middle
@@ -372,9 +378,9 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
         rho_kite ~ calc_rho(s.am, pos[3,s.num_A])
     ]
 
-    eqs2, force_eqs = calc_aero_forces_mtk!(s, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, rho_kite)
+    eqs2, force_eqs = calc_aero_forces_mtk!(s, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, rho_kite, v_wind)
     eqs2, force_eqs = inner_loop_mtk!(s, eqs2, force_eqs, t, force, pos, vel, segment_length, c_spring, damping, 
-                                      v_wind_gnd)
+                                      v_wind_gnd, stiffness_factor)
     
     for i in 1:3
         eqs2 = vcat(eqs2, vcat(force_eqs[:, i]))

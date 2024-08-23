@@ -122,8 +122,6 @@ function __init__()
     end
 end
 
-steady_state_history_file = joinpath(get_data_path(), ".steady_state_history.bin")
-
 include("KPS4.jl") # include code, specific for the four point kite model
 include("KPS4_3L.jl") # include code, specific for the four point 3 line kite model
 include("KPS4_3L_MTK.jl") # include code, specific for the four point 3 line kite model
@@ -460,6 +458,7 @@ always leads to the same integrator.
 """
 function load_history()
     history = SteadyStateHistory()
+    steady_state_history_file = joinpath(get_data_path(), ".steady_state_history.bin")
     try
         if isfile(steady_state_history_file)
             append!(history, deserialize(steady_state_history_file))
@@ -479,6 +478,7 @@ The history is used to speed up the initialisation.
 In order to delete the integrator history: just delete the file `data/.steady_state_history.bin` .
 """
 function save_history(history::SteadyStateHistory)
+    steady_state_history_file = joinpath(get_data_path(), ".steady_state_history.bin")
     serialize(steady_state_history_file, history)
 end
 
@@ -576,11 +576,17 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, delta=0.01, prn=fa
         integrator = OrdinaryDiffEq.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
         s.set_values_idx = parameter_index(integrator.f, :set_values)
         s.v_wind_gnd_idx = parameter_index(integrator.f, :v_wind_gnd)
+        s.v_wind_idx = parameter_index(integrator.f, :v_wind)
+        s.stiffness_factor_idx = parameter_index(integrator.f, :stiffness_factor)
         s.get_pos = getu(integrator.sol, simple_sys.pos[:,:])
         s.get_steering_pos = getu(integrator.sol, simple_sys.steering_pos)
         s.get_line_acc = getu(integrator.sol, simple_sys.acc[:,s.num_E-2])
         s.get_kite_vel = getu(integrator.sol, simple_sys.vel[:,s.num_A])
         s.get_winch_forces = getu(integrator.sol, simple_sys.force[:,1:3])
+        s.get_L_C = getu(integrator.sol, simple_sys.L_C)
+        s.get_L_D = getu(integrator.sol, simple_sys.L_D)
+        s.get_D_C = getu(integrator.sol, simple_sys.D_C)
+        s.get_D_D = getu(integrator.sol, simple_sys.D_D)
         s.get_tether_lengths = getu(integrator.sol, simple_sys.tether_length)
         s.get_tether_speeds = getu(integrator.sol, simple_sys.tether_speed)
         update_pos!(s, integrator)

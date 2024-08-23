@@ -156,6 +156,8 @@ $(TYPEDFIELDS)
 
     set_values_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
     v_wind_gnd_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
+    stiffness_factor_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
+    v_wind_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
     prob::Union{OrdinaryDiffEq.ODEProblem, Nothing} = nothing
     get_pos::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_steering_pos::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
@@ -164,6 +166,10 @@ $(TYPEDFIELDS)
     get_winch_forces::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_tether_lengths::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_tether_speeds::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
+    get_L_C::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
+    get_L_D::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
+    get_D_C::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
+    get_D_D::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
 
     half_drag_force::SVector{P, T} = zeros(SVector{P, T})
 
@@ -315,7 +321,7 @@ function SysState(s::KPS4_3L, zoom=1.0)
     steering = (s.δ_right - s.δ_left) / ((s.set.middle_length + s.set.tip_length)/2) * 100
     KiteUtils.SysState{P}(s.t_0, t_sim, 0, 0, orient, elevation, azimuth, s.tether_lengths[3], s.reel_out_speeds[3], forces[3], depower, steering, 
                           heading, course, v_app_norm, s.vel_kite, X, Y, Z, 
-                          s.tether_lengths[1], s.tether_lengths[2], s.reel_out_speeds[1], s.reel_out_speeds[2], 
+                          0, 0, 0, 0, 
                           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 end
 
@@ -337,8 +343,10 @@ function next_step!(s::KPS4_3L, integrator; set_values=zeros(KVec3), v_wind_gnd=
     set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
     s.set_values .= set_values
     if s.mtk
-        integrator.ps[s.set_values_idx] .= set_values
+        integrator.ps[s.set_values_idx] .= s.set_values
         integrator.ps[s.v_wind_gnd_idx] .= s.v_wind_gnd
+        integrator.ps[s.v_wind_idx] .= s.v_wind
+        integrator.ps[s.stiffness_factor_idx] = s.stiffness_factor
     end
     s.t_0 = integrator.t
     if s.mtk
