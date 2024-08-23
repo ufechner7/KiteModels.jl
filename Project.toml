@@ -59,8 +59,7 @@ BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 ControlPlots = "23c2ee80-7a9e-4350-b264-8e670f12517c"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 PackageCompiler = "9b87118b-4619-50d2-8e1e-99f35a4d4d9d"
-StatProfilerHTML = "a8a75453-ed82-57c9-9e16-4cd1196ecbf5"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "BenchmarkTools", "PackageCompiler", "Documenter", "StatProfilerHTML", "ControlPlots"]
+test = ["Test", "BenchmarkTools", "PackageCompiler", "Documenter", "ControlPlots"]

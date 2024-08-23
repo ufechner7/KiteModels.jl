@@ -1,13 +1,18 @@
 # Changelog
 
-### Unreleased
+### ### KiteModels v0.6.5 - 2024-08-12
 #### Changed
 - bump KiteUtils to 0.7.7
 - add new examples to menu
 - major change to the function that finds the initial equilibrium; the function `init_sim!` has the new
   parameter `delta` which should be in the range of 0.01 to 0.03.
 - better error message if `init_sim!`, but no exception any more. I just returns `nothing`.
+- remove dependency StatProfilerHTML
+#### Added
 - add KCU drag, based on kcu_diameter and cd_kcu
+- add function bridle_length (not exported)
+#### Fixed
+- correct tether drag based on l_bridle; if the kite has more than 7 bridle lines l_bridle must be larger than bridle_length(se)
 
 ### KiteModels v0.6.4 - 2024-08-12
 #### Added
