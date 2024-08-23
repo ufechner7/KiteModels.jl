@@ -11,6 +11,10 @@
 #### Added
 - add KCU drag, based on kcu_diameter and cd_kcu
 - add function bridle_length (not exported)
+- unit tests for the KPS3_3L model, based on ModelingToolkit
+- script `examples/plot_cl_cd.jl`
+- script `examples/plot_cl_cd_plate.jl`
+- script `torque_controlled_mtk.jl`
 #### Fixed
 - correct tether drag based on l_bridle; if the kite has more than 7 bridle lines l_bridle must be larger than bridle_length(se)
 
