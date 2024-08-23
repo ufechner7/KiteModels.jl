@@ -104,6 +104,8 @@ $(TYPEDFIELDS)
     v_wind_tether::T =    zeros(S, 3)
     "apparent wind vector at the kite"
     v_apparent::T =       zeros(S, 3)
+    "bridle_factor = set.l_bridle/bridle_length(set)"
+    bridle_factor::S = 1.0
     "drag force of kite and bridle; output of calc_aero_forces!"
     drag_force::T =       zeros(S, 3)
     "lift force of the kite; output of calc_aero_forces!"
@@ -208,6 +210,7 @@ function clear!(s::KPS4)
     s.drag_force .= [0.0, 0, 0]
     s.lift_force .= [0.0, 0, 0]
     s.rho = s.set.rho_0
+    s.bridle_factor = s.set.l_bridle / bridle_length(s.set) 
     s.kcu.depower = s.set.depower/100.0
     s.kcu.set_depower = s.kcu.depower
     KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
@@ -265,7 +268,7 @@ The result is stored in the array s.forces.
         area = norm1 * d_tether
     else
         if i > segments
-            area = norm1 * s.set.d_line * 0.001 * 6 # 6.0 = A_real/A_simulated
+            area = norm1 * s.set.d_line * 0.001 * s.bridle_factor # 6.0 = A_real/A_simulated
         else
             area = norm1 * d_tether
         end
