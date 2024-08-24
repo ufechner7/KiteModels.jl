@@ -19,7 +19,7 @@ V_WIND = 14.5
 # the following values can be changed to match your interest
 dt = 0.05
 set.solver="DFBDF" # IDA or DFBDF
-STEPS = 500
+STEPS = 1
 PLOT = true
 PRINT = true
 STATISTIC = false
@@ -35,4 +35,7 @@ kcu = KCU(set)
 kps4 = KPS4(kcu)
 integrator = KiteModels.init_sim!(kps4; delta=0.03, stiffness_factor=0.1, prn=STATISTIC)
 lift, drag = lift_drag(kps4)
-println("Lift: $lift, Drag: $drag, Iterations: $(kps4.iter)")
+sys_state = KiteModels.SysState(kps4)
+log!(logger, sys_state)
+elev = rad2deg(logger.elevation_vec[end])
+println("Lift: $lift, Drag: $drag, elev: $elev, Iterations: $(kps4.iter)")
