@@ -1,4 +1,4 @@
-using KiteModels, OrdinaryDiffEq, LinearAlgebra, Timers
+using KiteModels, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK, LinearAlgebra, Timers
 using Base: summarysize
 tic()
 

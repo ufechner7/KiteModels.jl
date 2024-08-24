@@ -1,6 +1,6 @@
 module Environment
 
-using KiteModels, StaticArrays, LinearAlgebra, OrdinaryDiffEq, Parameters
+using KiteModels, StaticArrays, LinearAlgebra, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK, Parameters
 export reset, step, render
 
 const StateVec = MVector{11, Float32}
