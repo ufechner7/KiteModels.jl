@@ -58,7 +58,7 @@ function simulate(integrator, steps, plot=false)
     iter / steps
 end
 
-integrator = KiteModels.init_sim!(kps3, stiffness_factor=0.04, prn=STATISTIC)
+integrator = KiteModels.init_sim!(kps3, delta=0, stiffness_factor=0.04, prn=STATISTIC)
 kps3.sync_speed = 0.0
 
 if PLOT

@@ -51,7 +51,7 @@ function simulate(s, integrator, steps, plot=false; fig="")
     iter / steps
 end
 
-integrator = KiteModels.init_sim!(kps3, stiffness_factor=0.04, prn=STATISTIC)
+integrator = KiteModels.init_sim!(kps3, delta=0, stiffness_factor=0.04, prn=STATISTIC)
 av_steps = simulate(kps3, integrator, STEPS, true; fig="kps3")
 
 lift, drag = KiteModels.lift_drag(kps3)
