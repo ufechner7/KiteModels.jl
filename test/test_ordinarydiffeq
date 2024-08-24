@@ -5,5 +5,5 @@ rm -rf /tmp/test
 mkdir /tmp/test
 cd /tmp/test
 export JULIA_DEPOT_PATH=/tmp/testdepot 
-julia --project="." -e "using Pkg; Pkg.add(\"OrdinaryDiffEq\"); using OrdinaryDiffEq;"
+julia --project="." -e "using Pkg; pkg\"add OrdinaryDiffEq@v6.87\"; using OrdinaryDiffEq;"
 cd ..
