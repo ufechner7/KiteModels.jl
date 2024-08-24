@@ -64,7 +64,7 @@ function simulate(integrator, steps, plot=false)
     return iter/steps
 end
 
-integrator = KiteModels.init_sim!(kps4_3l, stiffness_factor=0.3, prn=STATISTIC)
+integrator = KiteModels.init_sim!(kps4_3l)
 kps4_3l.set_speeds = [0.0, 0.0, 0.0]
 
 if PLOT
