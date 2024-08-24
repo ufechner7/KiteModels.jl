@@ -416,145 +416,144 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
     return simple_sys, sys
 end
 
-function steady_state_model!(s::KPS4_3L, pos_; torque_control=false)
-    pos_xz_ = zeros(2, div(s.num_A, 3) * 2)
-    pos_y_ = zeros(s.num_A)
-    # [pos_xz_[:,i] .= [pos_[i][1], pos_[i][3]] for i in 1:s.num_A if i%3 == 1 || i%3 == 0]
-    j = 1
-    for i in 1:s.num_A
-        if i%3 == 1 || i%3 == 0
-            pos_xz_[:,j] .= [pos_[i][1], pos_[i][3]]
-            j += 1
-        end
-    end
-    [pos_y_[i] = pos_[i][2] for i in 1:s.num_A]
-    @parameters begin
-        set_values[1:3] = s.set_values
-        v_wind_gnd[1:3] = s.v_wind_gnd
-        v_wind[1:3] = s.v_wind
-        stiffness_factor = s.stiffness_factor
-        pos_y[1:s.num_A] = pos_y_
-    end
-    @variables begin
-        pos_xz(t)[1:2, 1:div(s.num_A, 3) * 2] = pos_xz_ # [x_left, z_left], [x_middle, z_middle]
-        vel(t)[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
-        acc(t)[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
-        tether_length(t)[1:3]  = s.tether_lengths
-        steering_pos(t)   = s.steering_pos[1]
-        steering_vel(t)   = 0.0
-        steering_acc(t)   = 0.0
-        tether_speed(t)[1:3]   = zeros(3) # left right middle
-        segment_length(t)[1:3] = zeros(3) # left right middle
-        mass_tether_particle(t)[1:3]      # left right middle
-        damping(t)[1:3] = s.set.damping ./ s.tether_lengths ./ s.set.segments   # left right middle
-        c_spring(t)[1:3] = s.set.c_spring ./ s.tether_lengths ./ s.set.segments # left right middle
-        P_c(t)[1:3] = 0.5 .* (s.pos[s.num_C] + s.pos[s.num_D])
-        e_x(t)[1:3]
-        e_y(t)[1:3]
-        e_z(t)[1:3]
-        force(t)[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
-        rho_kite(t) = 0.0
-    end
-    # Collect the arrays into variables
-    pos_xz = collect(pos_xz)
-    vel = collect(vel)
-    acc = collect(acc)
+# function steady_state_model!(s::KPS4_3L, pos_)
+#     pos_xz_ = zeros(2, div(s.num_A, 3) * 2)
+#     pos_y_ = zeros(s.num_A)
+#     # [pos_xz_[:,i] .= [pos_[i][1], pos_[i][3]] for i in 1:s.num_A if i%3 == 1 || i%3 == 0]
+#     j = 1
+#     for i in 1:s.num_A
+#         if i%3 == 1 || i%3 == 0
+#             pos_xz_[:,j] .= [pos_[i][1], pos_[i][3]]
+#             println(pos_xz_[:,j])
+#             j += 1
+#         end
+#     end
+#     [pos_y_[i] = pos_[i][2] for i in 1:s.num_A]
+#     @parameters begin
+#         set_values[1:3] = s.set_values
+#         v_wind_gnd[1:3] = s.v_wind_gnd
+#         v_wind[1:3] = s.v_wind
+#         stiffness_factor = s.stiffness_factor
+#         pos_y[1:s.num_A] = pos_y_
+#     end
+#     @variables begin
+#         pos_xz(t)[1:2, 1:div(s.num_A, 3) * 2] = pos_xz_ # [x_left, z_left], [x_middle, z_middle]
+#         vel(t)[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
+#         acc(t)[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
+#         tether_length(t)[1:3]  = s.tether_lengths
+#         steering_pos(t)   = s.steering_pos[1]
+#         steering_vel(t)   = 0.0
+#         steering_acc(t)   = 0.0
+#         tether_speed(t)[1:3]   = zeros(3) # left right middle
+#         segment_length(t)[1:3] = zeros(3) # left right middle
+#         mass_tether_particle(t)[1:3]      # left right middle
+#         damping(t)[1:3] = s.set.damping ./ s.tether_lengths ./ s.set.segments   # left right middle
+#         c_spring(t)[1:3] = s.set.c_spring ./ s.tether_lengths ./ s.set.segments # left right middle
+#         P_c(t)[1:3] = 0.5 .* (s.pos[s.num_C] + s.pos[s.num_D])
+#         e_x(t)[1:3]
+#         e_y(t)[1:3]
+#         e_z(t)[1:3]
+#         force(t)[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
+#         rho_kite(t) = 0.0
+#     end
+#     # Collect the arrays into variables
+#     pos_xz = collect(pos_xz)
+#     vel = collect(vel)
+#     acc = collect(acc)
 
-    pos = Array{Union{Float64, Symbolics.Num}}(undef, 3, s.num_A)
+#     pos = Array{Union{Float64, Symbolics.Num}}(undef, 3, s.num_A)
 
-    # [pos[:,i] .= [pos_xz[1,i], pos_y[i], pos_xz[2,i]] for i in 1:s.num_A]
-    j = 1
-    for i in 1:s.num_A
-        if i%3 == 1
-            pos[:,i] .= [pos_xz[1,j], pos_y[i], pos_xz[2,j]] # left tether
-        elseif i%3 == 2
-            pos[:,i] .= [pos_xz[1,j], -pos_y[i], pos_xz[2,j]] # right tether == -left tether
-            j += 1
-        elseif i%3 == 0
-            pos[:,i] .= [pos_xz[1,j], pos_y[i], pos_xz[2,j]] # middle tether
-            j += 1
-        end
-        println(pos[:,i])
-    end
+#     # [pos[:,i] .= [pos_xz[1,i], pos_y[i], pos_xz[2,i]] for i in 1:s.num_A]
+#     j = 1
+#     for i in 1:s.num_A
+#         if i%3 == 1
+#             pos[:,i] .= [pos_xz[1,j], pos_y[i], pos_xz[2,j]] # left tether
+#         elseif i%3 == 2
+#             pos[:,i] .= [pos_xz[1,j], pos_y[i], pos_xz[2,j]] # right tether == -left tether
+#             j += 1
+#             println(pos[:,i])
+#         elseif i%3 == 0
+#             pos[:,i] .= [pos_xz[1,j], pos_y[i], pos_xz[2,j]] # middle tether
+#             j += 1
+#             println(pos[:,i])
+#         end
+#     end
 
-    eqs1 = []
-    mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
+#     eqs1 = []
+#     mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
 
-    [eqs1 = vcat(eqs1, D.(pos[1, i]) ~ 0.0) for i in 1:3 if i%3 == 1 || i%3 == 0]
-    println(eqs1)
-    [eqs1 = vcat(eqs1, D.(pos[3, i]) ~ 0.0) for i in 1:3 if i%3 == 1 || i%3 == 0]
-    [eqs1 = vcat(eqs1, D.(pos[1, i]) ~ vel[1,i]) for i in 4:s.num_E-3 if i%3 == 1 || i%3 == 0]
-    [eqs1 = vcat(eqs1, D.(pos[3, i]) ~ vel[3,i]) for i in 4:s.num_E-3 if i%3 == 1 || i%3 == 0]
-    eqs1 = [eqs1; D.(steering_pos)   .~ steering_vel]
-    [eqs1 = vcat(eqs1, D.(pos[1, i]) ~ vel[1,i]) for i in s.num_E:s.num_A if i%3 == 1 || i%3 == 0]
-    [eqs1 = vcat(eqs1, D.(pos[3, i]) ~ vel[3,i]) for i in s.num_E:s.num_A if i%3 == 1 || i%3 == 0]
-    [eqs1 = vcat(eqs1, D.(vel[:, i]) .~ 0.0) for i in 1:3 if i%3 == 1 || i%3 == 0]
-    [eqs1 = vcat(eqs1, D.(vel[:, i]) .~ acc[:,i]) for i in 4:s.num_E-3 if i%3 == 1 || i%3 == 0]
-    eqs1 = [eqs1; D.(steering_vel)   .~ steering_acc]
-    [eqs1 = vcat(eqs1, D.(vel[:, i]) .~ acc[:,i]) for i in s.num_E:s.num_A if i%3 == 1 || i%3 == 0]
+#     [eqs1 = vcat(eqs1, D.(pos[1, i]) ~ 0.0) for i in 1:3 if i%3 == 1 || i%3 == 0]
+#     [eqs1 = vcat(eqs1, D.(pos[3, i]) ~ 0.0) for i in 1:3 if i%3 == 1 || i%3 == 0]
+#     [eqs1 = vcat(eqs1, D.(pos[1, i]) ~ vel[1,i]) for i in 4:s.num_E-3 if i%3 == 1 || i%3 == 0]
+#     [eqs1 = vcat(eqs1, D.(pos[3, i]) ~ vel[3,i]) for i in 4:s.num_E-3 if i%3 == 1 || i%3 == 0]
+#     eqs1 = [eqs1; D.(steering_pos)   .~ steering_vel]
+#     [eqs1 = vcat(eqs1, D.(pos[1, i]) ~ vel[1,i]) for i in s.num_E:s.num_A if i%3 == 1 || i%3 == 0]
+#     [eqs1 = vcat(eqs1, D.(pos[3, i]) ~ vel[3,i]) for i in s.num_E:s.num_A if i%3 == 1 || i%3 == 0]
+#     [eqs1 = vcat(eqs1, D.(vel[:, i]) .~ 0.0) for i in 1:3]
+#     [eqs1 = vcat(eqs1, D.(vel[:, i]) .~ acc[:,i]) for i in 4:s.num_E-3]
+#     eqs1 = [eqs1; D.(steering_vel)   .~ steering_acc]
+#     [eqs1 = vcat(eqs1, D.(vel[:, i]) .~ acc[:,i]) for i in s.num_E:s.num_A]
 
-    eqs1 = vcat(eqs1, D.(tether_length) .~ tether_speed)
-    eqs1 = vcat(eqs1, D.(tether_speed) .~ 0.0)
+#     eqs1 = vcat(eqs1, D.(tether_length) .~ tether_speed)
+#     eqs1 = vcat(eqs1, D.(tether_speed) .~ 0.0)
 
-    # Compute the masses and forces
-    force_eqs = SizedArray{Tuple{3, s.num_A}, Symbolics.Equation}(undef)
-    force_eqs[:, :] .= (force[:, :] .~ 0)
+#     # Compute the masses and forces
+#     force_eqs = SizedArray{Tuple{3, s.num_A}, Symbolics.Equation}(undef)
+#     force_eqs[:, :] .= (force[:, :] .~ 0)
 
-    vel[:, s.num_E-2] ~ vel[:, s.num_C] + e_z * steering_vel
-    eqs2 = [
-        pos[1, s.num_E-2]   ~ pos[1, s.num_C] + e_z[1] * steering_pos
-        pos[3, s.num_E-2]   ~ pos[3, s.num_C] + e_z[3] * steering_pos
-        pos[1, s.num_E-1]   ~ pos[1, s.num_D] + e_z[1] * steering_pos
-        pos[3, s.num_E-1]   ~ pos[3, s.num_D] + e_z[3] * steering_pos
-        vel[:, s.num_E-2]   ~ vel[:, s.num_C] + e_z * steering_vel
-        vel[:, s.num_E-1]   ~ vel[:, s.num_D] + e_z * steering_vel
-        acc[:, s.num_E-2]   ~ acc[:, s.num_C] + e_z * steering_acc
-        acc[:, s.num_E-1]   ~ acc[:, s.num_D] + e_z * steering_acc
-        segment_length       ~ tether_length  ./ s.set.segments
-        mass_tether_particle ~ mass_per_meter .* segment_length
-        damping              ~ s.set.damping  ./ segment_length
-        c_spring             ~ s.set.c_spring ./ segment_length
-        P_c                 ~ 0.5 * (pos[:, s.num_C] + pos[:, s.num_D])
-        e_y                 ~ (pos[:, s.num_C] - pos[:, s.num_D]) / norm(pos[:, s.num_C] - pos[:, s.num_D])
-        e_z                 ~ (pos[:, s.num_E] - P_c) / norm(pos[:, s.num_E] - P_c)
-        e_x                 ~ cross(e_y, e_z)
-        rho_kite ~ calc_rho(s.am, pos[3,s.num_A])
-    ]
+#     vel[:, s.num_E-2] ~ vel[:, s.num_C] + e_z * steering_vel
+#     eqs2 = [
+#         pos[1, s.num_E-2]   ~ pos[1, s.num_C] + e_z[1] * steering_pos
+#         pos[3, s.num_E-2]   ~ pos[3, s.num_C] + e_z[3] * steering_pos
+#         vel[:, s.num_E-2]   ~ vel[:, s.num_C] + e_z * steering_vel
+#         vel[:, s.num_E-1]   ~ vel[:, s.num_D] + e_z * steering_vel
+#         acc[:, s.num_E-2]   ~ acc[:, s.num_C] + e_z * steering_acc
+#         acc[:, s.num_E-1]   ~ acc[:, s.num_D] + e_z * steering_acc
+#         segment_length       ~ tether_length  ./ s.set.segments
+#         mass_tether_particle ~ mass_per_meter .* segment_length
+#         damping              ~ s.set.damping  ./ segment_length
+#         c_spring             ~ s.set.c_spring ./ segment_length
+#         P_c                 ~ 0.5 * (pos[:, s.num_C] + pos[:, s.num_D])
+#         e_y                 ~ (pos[:, s.num_C] - pos[:, s.num_D]) / norm(pos[:, s.num_C] - pos[:, s.num_D])
+#         e_z                 ~ (pos[:, s.num_E] - P_c) / norm(pos[:, s.num_E] - P_c)
+#         e_x                 ~ cross(e_y, e_z)
+#         rho_kite ~ calc_rho(s.am, pos[3,s.num_A])
+#     ]
 
-    eqs2, force_eqs = calc_aero_forces_mtk!(s, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, rho_kite, v_wind)
-    eqs2, force_eqs = inner_loop_mtk!(s, eqs2, force_eqs, t, force, pos, vel, segment_length, c_spring, damping, 
-                                      v_wind_gnd, stiffness_factor)
+#     eqs2, force_eqs = calc_aero_forces_mtk!(s, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, rho_kite, v_wind)
+#     eqs2, force_eqs = inner_loop_mtk!(s, eqs2, force_eqs, t, force, pos, vel, segment_length, c_spring, damping, 
+#                                       v_wind_gnd, stiffness_factor)
     
-    for i in 1:3
-        eqs2 = vcat(eqs2, vcat(force_eqs[:, i]))
-        eqs2 = vcat(eqs2, acc[:, i] .~ 0)
-    end
-    for i in 4:s.num_E-3
-        eqs2 = vcat(eqs2, vcat(force_eqs[:,i]))
-        eqs2 = vcat(eqs2, acc[:, i] .~ [0.0; 0.0; -G_EARTH] .+ (force[:,i] ./ mass_tether_particle[(i-1)%3+1]))
-    end
-    for i in s.num_E-2:s.num_E-1
-        flap_resistance   = [50.0 * ((vel[:,i]-vel[:, s.num_C]) ⋅ e_z) * e_z[j] for j in 1:3]
-        [force_eqs[j,i]   = force[j,i] ~ force_eqs[j,i].rhs + [0.0; 0.0; -G_EARTH][j] + flap_resistance[j] for j in 1:3]
-        tether_rhs        = [force_eqs[j, i].rhs for j in 1:3]
-        kite_rhs          = [force_eqs[j, i+3].rhs for j in 1:3]
-        f_xy              = (tether_rhs ⋅ e_z) .* e_z
-        force_eqs[:,i]   .= force[:, i] .~ tether_rhs .- f_xy
-        force_eqs[:,i+3] .= force[:, i+3] .~ kite_rhs .+ f_xy
-        eqs2              = vcat(eqs2, vcat(force_eqs[:, i]))
-    end
-    eqs2              = vcat(eqs2, steering_acc ~ (force[:,s.num_E-2] ./ mass_tether_particle[1]) ⋅ 
-                                                                e_z - (acc[:, s.num_C] ⋅ e_z))
-    for i in s.num_E:s.num_A
-        eqs2 = vcat(eqs2, vcat(force_eqs[:,i]))
-        eqs2 = vcat(eqs2, acc[:, i] .~ [0.0; 0.0; -G_EARTH] .+ (force[:, i] ./ s.masses[i]))
-    end
+#     for i in 1:3
+#         eqs2 = vcat(eqs2, vcat(force_eqs[:, i]))
+#         eqs2 = vcat(eqs2, acc[:, i] .~ 0)
+#     end
+#     for i in 4:s.num_E-3
+#         eqs2 = vcat(eqs2, vcat(force_eqs[:,i]))
+#         eqs2 = vcat(eqs2, acc[:, i] .~ [0.0; 0.0; -G_EARTH] .+ (force[:,i] ./ mass_tether_particle[(i-1)%3+1]))
+#     end
+#     for i in s.num_E-2:s.num_E-1
+#         flap_resistance   = [50.0 * ((vel[:,i]-vel[:, s.num_C]) ⋅ e_z) * e_z[j] for j in 1:3]
+#         [force_eqs[j,i]   = force[j,i] ~ force_eqs[j,i].rhs + [0.0; 0.0; -G_EARTH][j] + flap_resistance[j] for j in 1:3]
+#         tether_rhs        = [force_eqs[j, i].rhs for j in 1:3]
+#         kite_rhs          = [force_eqs[j, i+3].rhs for j in 1:3]
+#         f_xy              = (tether_rhs ⋅ e_z) .* e_z
+#         force_eqs[:,i]   .= force[:, i] .~ tether_rhs .- f_xy
+#         force_eqs[:,i+3] .= force[:, i+3] .~ kite_rhs .+ f_xy
+#         eqs2              = vcat(eqs2, vcat(force_eqs[:, i]))
+#     end
+#     eqs2              = vcat(eqs2, steering_acc ~ (force[:,s.num_E-2] ./ mass_tether_particle[1]) ⋅ 
+#                                                                 e_z - (acc[:, s.num_C] ⋅ e_z))
+#     for i in s.num_E:s.num_A
+#         eqs2 = vcat(eqs2, vcat(force_eqs[:,i]))
+#         eqs2 = vcat(eqs2, acc[:, i] .~ [0.0; 0.0; -G_EARTH] .+ (force[:, i] ./ s.masses[i]))
+#     end
 
-    eqs = vcat(eqs1, eqs2)
+#     eqs = vcat(eqs1, eqs2)
 
-    println("making mtk model")
-    @time @named sys = ODESystem(Symbolics.scalarize.(reduce(vcat, Symbolics.scalarize.(eqs))), t)
-    println("making simple sys")
-    @time simple_sys = structural_simplify(sys)
-    return simple_sys, sys
-end
+#     println("making mtk model")
+#     @time @named sys = ODESystem(Symbolics.scalarize.(reduce(vcat, Symbolics.scalarize.(eqs))), t)
+#     println("making simple sys")
+#     @time simple_sys = structural_simplify(sys)
+#     return simple_sys, sys
+# end
