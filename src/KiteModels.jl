@@ -34,8 +34,8 @@ Scientific background: http://arxiv.org/abs/1406.6218 =#
 module KiteModels
 
 using PrecompileTools: @setup_workload, @compile_workload 
-using Dierckx, StaticArrays, Rotations, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, OrdinaryDiffEq, 
-      Serialization, DataInterpolations
+using Dierckx, StaticArrays, Rotations, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, OrdinaryDiffEqCore, 
+      OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK, Serialization, DataInterpolations
 import Sundials
 using Reexport, Pkg
 @reexport using KitePodModels
@@ -49,8 +49,8 @@ import KiteUtils.calc_course
 import KiteUtils.SysState
 # import Sundials.init
 # import Sundials.step!
-import OrdinaryDiffEq.init
-import OrdinaryDiffEq.step!
+import OrdinaryDiffEqCore.init
+import OrdinaryDiffEqCore.step!
 using ModelingToolkit, SymbolicIndexingInterface
 using ModelingToolkit: t_nounits as t, D_nounits as D
 
@@ -573,7 +573,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, delta=0.01, prn=fa
     if isa(s, KPS4_3L) && s.mtk
         simple_sys, _ = model!(s, y0; torque_control=torque_control)
         s.prob = ODEProblem(simple_sys, nothing, tspan)
-        integrator = OrdinaryDiffEq.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
+        integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
         s.set_values_idx = parameter_index(integrator.f, :set_values)
         s.v_wind_gnd_idx = parameter_index(integrator.f, :v_wind_gnd)
         s.v_wind_idx = parameter_index(integrator.f, :v_wind)
@@ -595,7 +595,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, delta=0.01, prn=fa
         differential_vars = ones(Bool, length(y0))
         prob    = DAEProblem{true}(residual!, yd0, y0, tspan, s; differential_vars)
     end
-    integrator = OrdinaryDiffEq.init(prob, solver; abstol=abstol, reltol=s.set.rel_tol, save_everystep=false)
+    integrator = OrdinaryDiffEqCore.init(prob, solver; abstol=abstol, reltol=s.set.rel_tol, save_everystep=false)
     return integrator
 end
 
@@ -632,7 +632,7 @@ function next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing,
     if s.set.solver == "IDA"
         Sundials.step!(integrator, dt, true)
     else
-        OrdinaryDiffEq.step!(integrator, dt, true)
+        OrdinaryDiffEqCore.step!(integrator, dt, true)
     end
     if s.stiffness_factor < 1.0
         s.stiffness_factor+=0.01

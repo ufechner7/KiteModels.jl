@@ -158,7 +158,7 @@ $(TYPEDFIELDS)
     v_wind_gnd_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
     stiffness_factor_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
     v_wind_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
-    prob::Union{OrdinaryDiffEq.ODEProblem, Nothing} = nothing
+    prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
     get_pos::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_steering_pos::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_line_acc::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
@@ -330,7 +330,7 @@ function reset_sim!(s::KPS4_3L; stiffness_factor=0.035)
         clear!(s)
         s.stiffness_factor = stiffness_factor  
         dt = 1/s.set.sample_freq
-        integrator = OrdinaryDiffEq.init(s.prob, KenCarp4(autodiff=false); dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
+        integrator = OrdinaryDiffEqCore.init(s.prob, KenCarp4(autodiff=false); dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
         update_pos!(s, integrator)
         return integrator
     end
@@ -350,12 +350,12 @@ function next_step!(s::KPS4_3L, integrator; set_values=zeros(KVec3), v_wind_gnd=
     end
     s.t_0 = integrator.t
     if s.mtk
-        OrdinaryDiffEq.step!(integrator, dt, true)
+        OrdinaryDiffEqCore.step!(integrator, dt, true)
         update_pos!(s, integrator)
     elseif s.set.solver == "IDA"
         Sundials.step!(integrator, dt, true)
     else
-        OrdinaryDiffEq.step!(integrator, dt, true)
+        OrdinaryDiffEqCore.step!(integrator, dt, true)
     end
     if s.stiffness_factor < 1.0
         s.stiffness_factor+=0.01

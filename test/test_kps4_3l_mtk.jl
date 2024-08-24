@@ -1,4 +1,5 @@
-using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils, ModelingToolkit, SymbolicIndexingInterface, OrdinaryDiffEq
+using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils, ModelingToolkit, SymbolicIndexingInterface, 
+      OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK
 using KiteModels, KitePodModels
 
 if ! @isdefined kcu_3l
@@ -69,7 +70,7 @@ set_defaults()
     @test length(unknowns(simple_sys)) == length(equations(simple_sys))
     @test length(equations(simple_sys)) == 142
     kps4_3l_mtk.prob = ODEProblem(simple_sys, nothing, tspan)
-    integrator = OrdinaryDiffEq.init(kps4_3l_mtk.prob, KenCarp4(autodiff=false); dt, abstol=kps4_3l_mtk.set.abs_tol, reltol=kps4_3l_mtk.set.rel_tol, save_on=false)
+    integrator = OrdinaryDiffEqCore.init(kps4_3l_mtk.prob, KenCarp4(autodiff=false); dt, abstol=kps4_3l_mtk.set.abs_tol, reltol=kps4_3l_mtk.set.rel_tol, save_on=false)
     @test length(integrator.u) == 142
     kps4_3l_mtk.set_values_idx = parameter_index(integrator.f, :set_values)
     kps4_3l_mtk.v_wind_gnd_idx = parameter_index(integrator.f, :v_wind_gnd)
@@ -113,7 +114,7 @@ set_defaults()
     integrator.ps[kps4_3l_mtk.stiffness_factor_idx] = kps4_3l_mtk.stiffness_factor
     @test all(integrator.ps[kps4_3l_mtk.set_values_idx] .== kps4_3l_mtk.set_values)
     kps4_3l_mtk.t_0 = integrator.t
-    OrdinaryDiffEq.step!(integrator, dt, true)
+    OrdinaryDiffEqCore.step!(integrator, dt, true)
     @test all(kps4_3l_mtk.pos[4:kps4_3l_mtk.num_A] .== pos1[4:kps4_3l_mtk.num_A])
     update_pos!(kps4_3l_mtk, integrator)
     @test all(kps4_3l_mtk.pos[4:kps4_3l_mtk.num_A] .!= pos1[4:kps4_3l_mtk.num_A])
