@@ -5,5 +5,4 @@ rm -rf /tmp/test
 mkdir /tmp/test
 cd /tmp/test
 export JULIA_DEPOT_PATH=/tmp/testdepot 
-julia --project="." -e "using Pkg; Pkg.add(\"LinearSolve\"); using LinearSolve"
-cd ..
+julia --project="." -e "using Pkg; Pkg.add(\"ModelingToolkit\"); using ModelingToolkit; Pkg.status()"
