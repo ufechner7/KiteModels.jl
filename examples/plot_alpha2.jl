@@ -9,7 +9,7 @@ using ControlPlots
 
 if false include("../src/KPS4.jl") end
 
-set = deepcopy(se())
+set = deepcopy(load_settings("system.yaml"))
 
 # the following values can be changed to match your interest
 dt = 0.05

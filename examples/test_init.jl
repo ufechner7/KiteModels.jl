@@ -3,7 +3,7 @@
 using Printf
 using KiteModels, KitePodModels, KiteUtils, LinearAlgebra
 
-set = deepcopy(load_settings("system_v9.yaml"))
+set = deepcopy(load_settings("system.yaml"))
 
 using Pkg
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
@@ -31,8 +31,8 @@ i = 1
 set.v_wind = V_WIND # 25
 logger = Logger(set.segments + 5, STEPS)
 
-kcu = KCU(set)
-kps4 = KPS4(kcu)
+kcu::KCU = KCU(set)
+kps4::KPS4 = KPS4(kcu)
 integrator = KiteModels.init_sim!(kps4; delta=0.03, stiffness_factor=0.1, prn=STATISTIC)
 lift, drag = lift_drag(kps4)
 sys_state = KiteModels.SysState(kps4)

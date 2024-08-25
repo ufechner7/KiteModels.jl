@@ -8,8 +8,7 @@ if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
 end
 using ControlPlots
 
-update_settings()
-set = se("system_3l.yaml")
+set = deepcopy(load_settings("system_3l.yaml"))
 set.abs_tol = 0.006
 set.rel_tol = 0.01
 steps = 110
