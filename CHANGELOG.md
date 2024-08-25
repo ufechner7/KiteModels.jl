@@ -5,6 +5,9 @@
 - replaced OrdinaryDiffEq with the three packages OrdinaryDiffEqCore, OrdinaryDiffEqBDF
   and OrdinaryDiffEqSDIRK. This should help to reduce the pre-compilation time.
 - set the parameter delta in the examples
+- always specify the `system.yaml` file to use in the examples, always use `load_settings` instead of `se`. 
+This ensures that the settings are always freshly loaded from the file when the script is launched, so any changes 
+to the settings become immediately effective.
 
 ### KiteModels v0.6.5 - 2024-08-12
 #### Changed
