@@ -1,6 +1,12 @@
 # Changelog
 
-### ### KiteModels v0.6.5 - 2024-08-12
+### Unreleased
+#### Changed
+- replaced OrdinaryDiffEq with the three packages OrdinaryDiffEqCore, OrdinaryDiffEqBDF
+  and OrdinaryDiffEqSDIRK. This should help to reduce the pre-compilation time.
+- set the parameter delta in the examples
+
+### KiteModels v0.6.5 - 2024-08-12
 #### Changed
 - bump KiteUtils to 0.7.7
 - add new examples to menu
