@@ -66,6 +66,10 @@ $(TYPEDFIELDS)
 @with_kw mutable struct KPS4_3L{S, T, P, Q, SP} <: AbstractKiteModel
     "Reference to the settings struct"
     set::Settings
+    "Reference to the settings hash"
+    set_hash::UInt64        = 0
+    "Reference to the last settings hash"
+    last_set_hash::UInt64   = 0
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
     "Function for calculation the lift coefficent, using a spline based on the provided value pairs."
@@ -156,9 +160,20 @@ $(TYPEDFIELDS)
     "Point number of D"
     num_D::Int64 =           0
     "Point number of A"
+    num_A::Int64 =           0
+    "Angle of right tip"
+    α_l::SimFloat =     0.0
+    "Angle of left tip"
+    α_r::SimFloat =     0.0
 
-    "mtk variables"
-    mtk::Bool = false
+    L_C::T = zeros(S, 3)
+    L_D::T = zeros(S, 3)
+    D_C::T = zeros(S, 3)
+    D_D::T = zeros(S, 3)
+    δ_left::S = 0.0
+    δ_right::S = 0.0
+
+    steady_sol::Union{SciMLBase.NonlinearSolution, Nothing} = nothing
 
     set_values_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
     v_wind_gnd_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
@@ -178,36 +193,6 @@ $(TYPEDFIELDS)
     get_D_D::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
 
     half_drag_force::SVector{P, T} = zeros(SVector{P, T})
-
-    "residual variables"
-    num_A::Int64 =           0
-    L_C::T = zeros(S, 3)
-    L_D::T = zeros(S, 3)
-    D_C::T = zeros(S, 3)
-    D_D::T = zeros(S, 3)
-    F_steering_c::T = zeros(S, 3)
-    F_steering_d::T = zeros(S, 3)
-    dL_dα::T = zeros(S, 3)
-    dD_dα::T = zeros(S, 3)
-    v_cx::T = zeros(S, 3)
-    v_dx::T = zeros(S, 3)
-    v_dy::T = zeros(S, 3)
-    v_dz::T = zeros(S, 3)
-    v_cy::T = zeros(S, 3)
-    v_cz::T = zeros(S, 3)
-    v_kite::T = zeros(S, 3)
-    v_a::T = zeros(S, 3)
-    e_drift::T = zeros(S, 3)
-    v_a_xr::T = zeros(S, 3)
-    E_c::T = zeros(S, 3)
-    F::T = zeros(S, 3)
-    y_lc::S = 0.0
-    y_ld::S = 0.0
-    δ_left::S = 0.0
-    δ_right::S = 0.0
-    α_l::S = 0.0
-    α_r::S = 0.0
-    distance_c_e::S = 0
 end
 
 """
@@ -351,50 +336,44 @@ An instance of a DAE integrator.
 function init_sim!(s::KPS4_3L; t_end=1.0, stiffness_factor=1.0, prn=false, 
                    torque_control=true)
     clear!(s)
+    change = s.stiffness_factor != stiffness_factor || s.torque_control != torque_control
     s.stiffness_factor = stiffness_factor
     s.torque_control = torque_control
     dt = 1/s.set.sample_freq
     tspan   = (0.0, dt) 
     
-    pos = init_pos(s)
-    simple_sys, _ = model!(s, pos; torque_control=s.torque_control)
-    println("making steady state prob")
-    s.prob = ODEProblem(simple_sys, nothing, tspan)
-    @time steady_prob = SteadyStateProblem(s.prob)
-    println("solving steady state prob")
-    @time steady_sol = solve(steady_prob, DynamicSS(KenCarp4(autodiff=false); tspan=tspan), abstol=s.set.abs_tol, reltol=s.set.rel_tol)
-    
+    s.set_hash = struct_hash(s.set)
+    if isnothing(s.prob) || change || s.last_set_hash != s.set_hash
+        s.last_set_hash = deepcopy(s.set_hash)
+        pos = init_pos(s)
+        simple_sys, _ = model!(s, pos; torque_control=s.torque_control)
+        println("making steady state prob")
+        s.prob = ODEProblem(simple_sys, nothing, tspan)
+        @time steady_prob = SteadyStateProblem(s.prob)
+        println("solving steady state prob")
+        @time s.steady_sol = solve(steady_prob, DynamicSS(KenCarp4(autodiff=false); tspan=tspan), abstol=s.set.abs_tol, reltol=s.set.rel_tol)
+        s.prob = remake(s.prob; u0=s.steady_sol.u)
+    end
+    # KenCarp4 is best
     solver = KenCarp4(autodiff=false) # TRBDF2, Rodas4P, Rodas5P, Kvaerno5, KenCarp4, radau, QNDF
-
-    s.prob = remake(s.prob; u0=steady_sol.u)
     integrator = OrdinaryDiffEq.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
-    s.set_values_idx = parameter_index(integrator.f, :set_values)
-    s.v_wind_gnd_idx = parameter_index(integrator.f, :v_wind_gnd)
-    s.v_wind_idx = parameter_index(integrator.f, :v_wind)
-    s.stiffness_factor_idx = parameter_index(integrator.f, :stiffness_factor)
-    s.get_pos = getu(integrator.sol, simple_sys.pos[:,:])
-    s.get_steering_pos = getu(integrator.sol, simple_sys.steering_pos)
-    s.get_line_acc = getu(integrator.sol, simple_sys.acc[:,s.num_E-2])
-    s.get_kite_vel = getu(integrator.sol, simple_sys.vel[:,s.num_A])
-    s.get_winch_forces = getu(integrator.sol, simple_sys.force[:,1:3])
-    s.get_L_C = getu(integrator.sol, simple_sys.L_C)
-    s.get_L_D = getu(integrator.sol, simple_sys.L_D)
-    s.get_D_C = getu(integrator.sol, simple_sys.D_C)
-    s.get_D_D = getu(integrator.sol, simple_sys.D_D)
-    s.get_tether_lengths = getu(integrator.sol, simple_sys.tether_length)
-    s.get_tether_speeds = getu(integrator.sol, simple_sys.tether_speed)
-    update_pos!(s, integrator)
-    return integrator
-end
-
-# remove this in favor of using init_sim!
-function reset_sim!(s::KPS4_3L; stiffness_factor=0.035)
-    clear!(s)
-    s.stiffness_factor = stiffness_factor  
-    dt = 1/s.set.sample_freq
-    # 1. KenCarp4
-    # TRBDF2, Rodas4P, Rodas5P, Kvaerno5, KenCarp4, radau, QNDF
-    integrator = OrdinaryDiffEq.init(s.prob, KenCarp4(autodiff=false); dt=dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
+    if isnothing(s.set_values_idx)
+        s.set_values_idx = parameter_index(integrator.f, :set_values)
+        s.v_wind_gnd_idx = parameter_index(integrator.f, :v_wind_gnd)
+        s.v_wind_idx = parameter_index(integrator.f, :v_wind)
+        s.stiffness_factor_idx = parameter_index(integrator.f, :stiffness_factor)
+        s.get_pos = getu(integrator.sol, simple_sys.pos[:,:])
+        s.get_steering_pos = getu(integrator.sol, simple_sys.steering_pos)
+        s.get_line_acc = getu(integrator.sol, simple_sys.acc[:,s.num_E-2])
+        s.get_kite_vel = getu(integrator.sol, simple_sys.vel[:,s.num_A])
+        s.get_winch_forces = getu(integrator.sol, simple_sys.force[:,1:3])
+        s.get_L_C = getu(integrator.sol, simple_sys.L_C)
+        s.get_L_D = getu(integrator.sol, simple_sys.L_D)
+        s.get_D_C = getu(integrator.sol, simple_sys.D_C)
+        s.get_D_D = getu(integrator.sol, simple_sys.D_D)
+        s.get_tether_lengths = getu(integrator.sol, simple_sys.tether_length)
+        s.get_tether_speeds = getu(integrator.sol, simple_sys.tether_speed)
+    end
     update_pos!(s, integrator)
     return integrator
 end
@@ -524,3 +503,12 @@ function spring_forces(s::KPS4_3L)
     forces
 end
 
+function struct_hash(st)
+    fields = fieldnames(typeof(st))
+    h = zero(UInt)
+    for field in fields
+        field_value = getfield(st, field)
+        h = hash(field_value, h)
+    end
+    return h
+end

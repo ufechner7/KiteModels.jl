@@ -10,8 +10,8 @@ using ControlPlots
 
 update_settings()
 set = se("system_3l.yaml")
-set.abs_tol = 0.006
-set.rel_tol = 0.01
+set.abs_tol = 0.0006
+set.rel_tol = 0.001
 steps = 50
 dt = 1/set.sample_freq
 tspan   = (0.0, dt)
@@ -21,7 +21,8 @@ logger = Logger(3*set.segments + 6, steps)
 steering = [5,5,-30.0]
 
 println("Running models")
-mtk_kite::KPS4_3L = KPS4_3L(KCU(set))
+
+if !@isdefined mtk_kite; mtk_kite = KPS4_3L(KCU(set)); end
 mtk_integrator = KiteModels.init_sim!(mtk_kite; stiffness_factor=1.0, prn=false, torque_control=true)
 
 println("compiling")
@@ -47,11 +48,11 @@ for i in 1:steps
     if i == 20
         steering = [0,10,-33]
     end
-    if i == 50
-        steering = [0,0.0,-20]
+    if i == 40
+        steering = [0,0,-20]
     end
-    if i == 70
-        steering = [0,0, -25]
+    if i == 60
+        steering = [0,0,-30]
     end
 
     if sys_state.heading > pi
