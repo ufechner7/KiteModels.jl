@@ -75,6 +75,6 @@ println("Average number of callbacks per time step: $(round(av_steps, digits=2))
 # winch_force [N]: 594.89
 # Average number of callbacks per time step: 40.07
 # KPS4
-# lift, drag  [N]: 733.27, 141.07
-# winch_force [N]: 596.26
-# Average number of callbacks per time step: 112
+# lift, drag  [N]: 734.04, 140.91
+# winch_force [N]: 597.31
+# Average number of callbacks per time step: 101.77
