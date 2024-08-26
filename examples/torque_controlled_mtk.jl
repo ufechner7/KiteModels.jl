@@ -12,6 +12,8 @@ update_settings()
 set = se("system_3l.yaml")
 set.abs_tol = 0.0006
 set.rel_tol = 0.001
+set.l_tether = 10.1
+set.elevation = 71
 steps = 50
 dt = 1/set.sample_freq
 tspan   = (0.0, dt)
@@ -20,10 +22,9 @@ logger = Logger(3*set.segments + 6, steps)
 
 steering = [5,5,-30.0]
 
-println("Running models")
-
 if !@isdefined mtk_kite; mtk_kite = KPS4_3L(KCU(set)); end
-mtk_integrator = KiteModels.init_sim!(mtk_kite; stiffness_factor=1.0, prn=false, torque_control=true)
+println("init sim")
+@time mtk_integrator = KiteModels.init_sim!(mtk_kite; stiffness_factor=1.0, prn=false, torque_control=true)
 
 println("compiling")
 total_new_time = 0.0

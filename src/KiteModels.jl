@@ -128,7 +128,6 @@ steady_state_history_file = joinpath(get_data_path(), ".steady_state_history.bin
 
 include("KPS4.jl") # include code, specific for the four point kite model
 include("KPS4_3L.jl") # include code, specific for the four point 3 line kite model
-include("KPS4_3L_MTK.jl") # include code, specific for the four point 3 line kite model
 include("KPS3.jl") # include code, specific for the one point kite model
 include("init.jl") # functions to calculate the inital state vector, the inital masses and initial springs
 
