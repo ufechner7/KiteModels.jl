@@ -10,10 +10,10 @@ using ControlPlots
 
 update_settings()
 set = se("system_3l.yaml")
-set.abs_tol = 0.0006
-set.rel_tol = 0.001
-set.l_tether = 10.1
-set.elevation = 71
+set.abs_tol = 0.006
+set.rel_tol = 0.01
+set.l_tether = 50.0
+# set.elevation = 71
 steps = 50
 dt = 1/set.sample_freq
 tspan   = (0.0, dt)

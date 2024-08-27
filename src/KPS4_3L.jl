@@ -346,23 +346,9 @@ function init_sim!(s::KPS4_3L; t_end=1.0, stiffness_factor=1.0, prn=false,
     dt = 1/s.set.sample_freq
     tspan   = (0.0, dt) 
 
-    # if isnothing(s.prob)
-    #     pos = init_pos(s)
-    #     simple_sys, _ = model!(s, pos; torque_control=s.torque_control)
-    #     println("making steady state prob")
-    #     s.prob = ODEProblem(simple_sys, nothing, tspan)
-    # end
-
     new_inital_conditions = (s.last_init_elevation != s.set.elevation || s.last_init_tether_length != s.set.l_tether)
     s.set_hash = struct_hash(s.set)
-    if !isnothing(s.prob) && !change_control_mode && new_inital_conditions
-        if prn; println("re-steady"); end
-        pos = init_pos(s)
-        s.prob = ODEProblem(s.simple_sys, [s.simple_sys.pos => pos, s.simple_sys.tether_length => s.tether_lengths], tspan)
-        steady_prob = SteadyStateProblem(s.prob)
-        s.steady_sol = solve(steady_prob, DynamicSS(KenCarp4(autodiff=false); tspan=tspan), abstol=s.set.abs_tol, reltol=s.set.rel_tol)
-        s.prob = remake(s.prob; u0=s.steady_sol.u)
-    elseif isnothing(s.prob) || change_control_mode || s.last_set_hash != s.set_hash
+    if isnothing(s.prob) || change_control_mode || s.last_set_hash != s.set_hash
         if prn; println("init-first"); end
         pos = init_pos(s)
         model!(s, pos; torque_control=s.torque_control)
@@ -370,11 +356,17 @@ function init_sim!(s::KPS4_3L; t_end=1.0, stiffness_factor=1.0, prn=false,
         steady_prob = SteadyStateProblem(s.prob)
         s.steady_sol = solve(steady_prob, DynamicSS(KenCarp4(autodiff=false); tspan=tspan), abstol=s.set.abs_tol, reltol=s.set.rel_tol)
         s.prob = remake(s.prob; u0=s.steady_sol.u)
+    elseif !isnothing(s.prob) && !change_control_mode && new_inital_conditions
+        if prn; println("re-steady"); end
+        pos = init_pos(s)
+        s.prob = ODEProblem(s.simple_sys, [s.simple_sys.pos => pos, s.simple_sys.tether_length => s.tether_lengths], tspan)
+        steady_prob = SteadyStateProblem(s.prob)
+        s.steady_sol = solve(steady_prob, DynamicSS(KenCarp4(autodiff=false); tspan=tspan), abstol=s.set.abs_tol, reltol=s.set.rel_tol)
+        s.prob = remake(s.prob; u0=s.steady_sol.u)
     end
     s.last_init_elevation = deepcopy(s.set.elevation)
     s.last_init_tether_length = deepcopy(s.set.l_tether)    
     s.last_set_hash = deepcopy(s.set_hash)
-    # KenCarp4 is best
     solver = KenCarp4(autodiff=false) # TRBDF2, Rodas4P, Rodas5P, Kvaerno5, KenCarp4, radau, QNDF
     integrator = OrdinaryDiffEq.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
     if isnothing(s.set_values_idx)
@@ -789,7 +781,6 @@ function update_pos!(s, integrator)
     s.D_C               = s.get_D_C(integrator)
     s.D_D               = s.get_D_D(integrator)
     calc_kite_ref_frame!(s, s.pos[s.num_E], s.pos[s.num_C], s.pos[s.num_D])
-
     @assert all(abs.(s.steering_pos) .<= s.set.tip_length)
     nothing
 end
@@ -902,6 +893,7 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
 
     @named sys = ODESystem(Symbolics.scalarize.(reduce(vcat, Symbolics.scalarize.(eqs))), t)
     s.simple_sys = structural_simplify(sys)
+    nothing
 end
 
 
