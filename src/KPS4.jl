@@ -58,9 +58,6 @@ end
 const SP = Spring{Int16, SimFloat}
 const KITE_PARTICLES = 4
 const KITE_SPRINGS = 9
-const KITE_ANGLE = 3.83 # angle between the kite and the last tether segment due to the mass of the control pod
-const PRE_STRESS  = 0.9998   # Multiplier for the initial spring lengths.
-const KS = deg2rad(16.565 * 1.064 * 0.875 * 1.033 * 0.9757 * 1.083)  # max steering
 const DRAG_CORR = 0.93       # correction of the drag for the 4-point model
 function zero(::Type{SP})
     SP(0,0,0,0,0)
@@ -108,6 +105,8 @@ $(TYPEDFIELDS)
     bridle_factor::S = 1.0
     "drag force of kite and bridle; output of calc_aero_forces!"
     drag_force::T =       zeros(S, 3)
+    "max_steering angle in radian"
+    ks::S =               0.0
     "lift force of the kite; output of calc_aero_forces!"
     lift_force::T =       zeros(S, 3)    
     "spring force of the current tether segment, output of calc_particle_forces!"
@@ -210,7 +209,8 @@ function clear!(s::KPS4)
     s.drag_force .= [0.0, 0, 0]
     s.lift_force .= [0.0, 0, 0]
     s.rho = s.set.rho_0
-    s.bridle_factor = s.set.l_bridle / bridle_length(s.set) 
+    s.bridle_factor = s.set.l_bridle / bridle_length(s.set)
+    s.ks = deg2rad(s.set.max_steering) 
     s.kcu.depower = s.set.depower/100.0
     s.kcu.set_depower = s.kcu.depower
     KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
@@ -335,10 +335,9 @@ Updates the vector s.forces of the first parameter.
     va_xz2 = va_2 - (va_2 ⋅ y) * y
     va_xy3 = va_3 - (va_3 ⋅ z) * z
     va_xy4 = va_4 - (va_4 ⋅ z) * z
-
     alpha_2 = rad2deg(π - acos2(normalize(va_xz2) ⋅ x) - alpha_depower)     + s.set.alpha_zero
-    alpha_3 = rad2deg(π - acos2(normalize(va_xy3) ⋅ x) - rel_steering * KS) + s.set.alpha_ztip
-    alpha_4 = rad2deg(π - acos2(normalize(va_xy4) ⋅ x) + rel_steering * KS) + s.set.alpha_ztip
+    alpha_3 = rad2deg(π - acos2(normalize(va_xy3) ⋅ x) - rel_steering * s.ks) + s.set.alpha_ztip
+    alpha_4 = rad2deg(π - acos2(normalize(va_xy4) ⋅ x) + rel_steering * s.ks) + s.set.alpha_ztip
     s.alpha_2 = alpha_2
     s.alpha_2b = rad2deg(π/2 + asin2(normalize(va_xz2) ⋅ x))
     s.alpha_3 = alpha_3

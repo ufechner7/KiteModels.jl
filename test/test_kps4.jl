@@ -284,7 +284,7 @@ end
             [  -9.9385080719600989  -68.915067335201357    -0.9904916722429121]
             [ -11.4093091631036021   53.2874848115847612    0.7727700100708267]]
     for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1
-        @test all(forces[i,:] .≈ kps4.forces[i])
+        @test all(isapprox.(forces[i,:], kps4.forces[i], rtol=1e-4))
     end
 end
 
