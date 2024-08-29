@@ -64,7 +64,7 @@ if [[ $update == true ]]; then
     if test -f "Manifest.toml"; then
         mv Manifest.toml Manifest.toml.bak
     fi
-    julia --startup-file=no --pkgimages=no --project -e "using Pkg; Pkg.add(\"PyCall\"); Pkg.build(\"PyCall\")"
+    julia --startup-file=no --pkgimages=no --project -e "using TestEnv; TestEnv.activate(); using Pkg; Pkg.add(\"PyCall\"); Pkg.build(\"PyCall\")"
     if [[ $PYTHON == "" ]]; then
         julia --startup-file=no --pkgimages=no --project -e "using TestEnv; TestEnv.activate(); using Pkg; Pkg.add(\"Conda\"); using Conda; Conda.add(\"matplotlib\"); using ControlPlots"
     fi
