@@ -64,6 +64,10 @@ if [[ $update == true ]]; then
     if test -f "Manifest.toml"; then
         mv Manifest.toml Manifest.toml.bak
     fi
+    fi
+    julia --startup-file=no --pkgimages=no --project -e "using Pkg; Pkg.instantiate(); Pkg.add(\"PyCall\"); Pkg.build(\"PyCall\")"
+    julia --startup-file=no --pkgimages=no --project -e "using ControlPlots"
+    julia --startup-file=no --pkgimages=no --project -e "using Pkg; Pkg.update()"
     julia --startup-file=no  --pkgimages=no --project -e "include(\"./test/update_packages.jl\");"
 else
     if [[ $julia_major == "1.9" ]]; then
