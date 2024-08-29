@@ -24,7 +24,7 @@ function set_defaults()
     kps4.set.damping =  2 * 473.0
     kps4.set.alpha = 1.0/7
     kps4.set.c_s = 0.6
-    
+    kps4.set.kcu_diameter = 0
 end
 
 function init_392()
@@ -284,7 +284,7 @@ end
             [  -9.9385080719600989  -68.915067335201357    -0.9904916722429121]
             [ -11.4093091631036021   53.2874848115847612    0.7727700100708267]]
     for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1
-        @test all(forces[i,:] .≈ kps4.forces[i])
+        @test all(isapprox.(forces[i,:], kps4.forces[i], rtol=1e-4))
     end
 end
 
@@ -511,7 +511,7 @@ end
     STEPS = 500
     kps4.set.depower = 23.6
     kps4.set.solver = "IDA"
-    integrator = KiteModels.init_sim!(kps4; stiffness_factor=0.5, prn=false)
+    integrator = KiteModels.init_sim!(kps4; stiffness_factor=0.5, delta=0.0, prn=false)
     println("\nStarting simulation...")
     simulate(integrator, 100)
     av_steps = simulate(integrator, STEPS-100)

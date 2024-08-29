@@ -5,6 +5,4 @@ rm -rf /tmp/test
 mkdir /tmp/test
 cd /tmp/test
 export JULIA_DEPOT_PATH=/tmp/testdepot 
-git clone https://github.com/ufechner7/KiteModels.jl.git
-cd KiteModels.jl/bin
-./create_sys_image --update
+julia --project="." -e "using Pkg; Pkg.add(\"ModelingToolkit\"); using ModelingToolkit; Pkg.status()"

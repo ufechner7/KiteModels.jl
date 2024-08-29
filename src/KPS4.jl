@@ -58,9 +58,6 @@ end
 const SP = Spring{Int16, SimFloat}
 const KITE_PARTICLES = 4
 const KITE_SPRINGS = 9
-const KITE_ANGLE = 3.83 # angle between the kite and the last tether segment due to the mass of the control pod
-const PRE_STRESS  = 0.9998   # Multiplier for the initial spring lengths.
-const KS = deg2rad(16.565 * 1.064 * 0.875 * 1.033 * 0.9757 * 1.083)  # max steering
 const DRAG_CORR = 0.93       # correction of the drag for the 4-point model
 function zero(::Type{SP})
     SP(0,0,0,0,0)
@@ -93,9 +90,9 @@ $(TYPEDFIELDS)
     "Iterations, number of calls to the function residual!"
     iter:: Int64 = 0
     "Function for calculation the lift coefficent, using a spline based on the provided value pairs."
-    calc_cl = Spline1D(se().alpha_cl, se().cl_list)
+    calc_cl::Spline1D
     "Function for calculation the drag coefficent, using a spline based on the provided value pairs."
-    calc_cd = Spline1D(se().alpha_cd, se().cd_list)   
+    calc_cd::Spline1D
     "wind vector at the height of the kite" 
     v_wind::T =           zeros(S, 3)
     "wind vector at reference height" 
@@ -104,8 +101,12 @@ $(TYPEDFIELDS)
     v_wind_tether::T =    zeros(S, 3)
     "apparent wind vector at the kite"
     v_apparent::T =       zeros(S, 3)
+    "bridle_factor = set.l_bridle/bridle_length(set)"
+    bridle_factor::S = 1.0
     "drag force of kite and bridle; output of calc_aero_forces!"
     drag_force::T =       zeros(S, 3)
+    "max_steering angle in radian"
+    ks::S =               0.0
     "lift force of the kite; output of calc_aero_forces!"
     lift_force::T =       zeros(S, 3)    
     "spring force of the current tether segment, output of calc_particle_forces!"
@@ -208,8 +209,8 @@ function clear!(s::KPS4)
     s.drag_force .= [0.0, 0, 0]
     s.lift_force .= [0.0, 0, 0]
     s.rho = s.set.rho_0
-    s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
-    s.calc_cd = Spline1D(s.set.alpha_cd, s.set.cd_list) 
+    s.bridle_factor = s.set.l_bridle / bridle_length(s.set)
+    s.ks = deg2rad(s.set.max_steering) 
     s.kcu.depower = s.set.depower/100.0
     s.kcu.set_depower = s.kcu.depower
     KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
@@ -221,9 +222,9 @@ function KPS4(kcu::KCU)
     elseif kcu.set.winch_model == "TorqueControlledMachine"
         wm = TorqueControlledMachine(kcu.set)
     end
-    s = KPS4{SimFloat, KVec3, kcu.set.segments+KITE_PARTICLES+1, kcu.set.segments+KITE_SPRINGS, SP}(set=kcu.set, kcu=kcu, wm=wm)
-    s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
-    s.calc_cd = Spline1D(s.set.alpha_cd, s.set.cd_list)       
+    s = KPS4{SimFloat, KVec3, kcu.set.segments+KITE_PARTICLES+1, kcu.set.segments+KITE_SPRINGS, SP}(set=kcu.set, 
+             kcu=kcu, wm=wm, calc_cl = Spline1D(kcu.set.alpha_cl, kcu.set.cl_list), 
+             calc_cd=Spline1D(kcu.set.alpha_cd, kcu.set.cd_list) )    
     clear!(s)
     return s
 end
@@ -262,13 +263,25 @@ The result is stored in the array s.forces.
     end
 
     s.v_apparent .= s.v_wind_tether - av_vel
+    v_app_kcu = s.v_wind_tether - vel2
     if s.set.version == 1
         area = norm1 * d_tether
     else
-        area = norm1 * s.set.d_line * 0.001
+        if i > segments
+            area = norm1 * s.set.d_line * 0.001 * s.bridle_factor # 6.0 = A_real/A_simulated
+        else
+            area = norm1 * d_tether
+        end
     end
+
     v_app_perp = s.v_apparent - s.v_apparent ⋅ unit_vector * unit_vector
     half_drag_force = (-0.25 * rho * s.set.cd_tether * norm(v_app_perp) * area) * v_app_perp 
+    if i == segments
+        v_app_perp_kcu = v_app_kcu - v_app_kcu ⋅ unit_vector * unit_vector
+        kcu_area = π * (s.set.kcu_diameter/2)^2
+        kcu_drag_force = (-0.25 * rho * s.set.cd_kcu * norm(v_app_perp_kcu) * kcu_area) * v_app_perp_kcu
+        @inbounds s.forces[spring.p2] .+= kcu_drag_force
+    end
 
     @inbounds s.forces[spring.p1] .+= half_drag_force + s.spring_force
     @inbounds s.forces[spring.p2] .+= half_drag_force - s.spring_force
@@ -303,7 +316,7 @@ Parameters:
 
 Updates the vector s.forces of the first parameter.
 """
-function calc_aero_forces!(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
+@inline function calc_aero_forces!(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
     rel_side_area = s.set.rel_side_area/100.0    # defined in percent
     K = 1 - rel_side_area                        # correction factor for the drag
     # pos_B, pos_C, pos_D: position of the kite particles B, C, and D
@@ -322,20 +335,24 @@ function calc_aero_forces!(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
     va_xz2 = va_2 - (va_2 ⋅ y) * y
     va_xy3 = va_3 - (va_3 ⋅ z) * z
     va_xy4 = va_4 - (va_4 ⋅ z) * z
-
     alpha_2 = rad2deg(π - acos2(normalize(va_xz2) ⋅ x) - alpha_depower)     + s.set.alpha_zero
-    alpha_3 = rad2deg(π - acos2(normalize(va_xy3) ⋅ x) - rel_steering * KS) + s.set.alpha_ztip
-    alpha_4 = rad2deg(π - acos2(normalize(va_xy4) ⋅ x) + rel_steering * KS) + s.set.alpha_ztip
+    alpha_3 = rad2deg(π - acos2(normalize(va_xy3) ⋅ x) - rel_steering * s.ks) + s.set.alpha_ztip
+    alpha_4 = rad2deg(π - acos2(normalize(va_xy4) ⋅ x) + rel_steering * s.ks) + s.set.alpha_ztip
     s.alpha_2 = alpha_2
     s.alpha_2b = rad2deg(π/2 + asin2(normalize(va_xz2) ⋅ x))
     s.alpha_3 = alpha_3
     s.alpha_3b = rad2deg(π/2 + asin2(normalize(va_xy3) ⋅ x))
     s.alpha_4 = alpha_4
     s.alpha_4b = rad2deg(π/2 + asin2(normalize(va_xy4) ⋅ x))
+    if s.set.version == 3
+        drag_corr = 1.0
+    else
+        drag_corr = DRAG_CORR
+    end
 
-    CL2, CD2 = calc_cl(alpha_2), DRAG_CORR * calc_cd(alpha_2)
-    CL3, CD3 = calc_cl(alpha_3), DRAG_CORR * calc_cd(alpha_3)
-    CL4, CD4 = calc_cl(alpha_4), DRAG_CORR * calc_cd(alpha_4)
+    CL2, CD2 = s.calc_cl(alpha_2), drag_corr * s.calc_cd(alpha_2)
+    CL3, CD3 = s.calc_cl(alpha_3), drag_corr * s.calc_cd(alpha_3)
+    CL4, CD4 = s.calc_cl(alpha_4), drag_corr * s.calc_cd(alpha_4)
     L2 = (-0.5 * rho * (norm(va_xz2))^2 * s.set.area * CL2) * normalize(va_2 × y)
     L3 = (-0.5 * rho * (norm(va_xy3))^2 * s.set.area * rel_side_area * CL3) * normalize(va_3 × z)
     L4 = (-0.5 * rho * (norm(va_xy4))^2 * s.set.area * rel_side_area * CL4) * normalize(z × va_4)
@@ -343,9 +360,14 @@ function calc_aero_forces!(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
     D3 = (-0.5 * K * rho * norm(va_3) * s.set.area * rel_side_area * CD3) * va_3
     D4 = (-0.5 * K * rho * norm(va_4) * s.set.area * rel_side_area * CD4) * va_4
     s.lift_force .= L2
-    s.drag_force .= D2 + D3 + D4
-
-    s.forces[s.set.segments + 3] .+= (L2 + D2)
+    if s.set.version == 3
+        s.drag_force .= D2
+        s.forces[s.set.segments + 3] .+= (L2 + D2-D3-D4)
+    else
+        s.drag_force .= D2 + D3 + D4
+        s.forces[s.set.segments + 3] .+= (L2 + D2)
+    end
+    
     s.forces[s.set.segments + 4] .+= (L3 + D3)
     s.forces[s.set.segments + 5] .+= (L4 + D4)
 end
@@ -366,7 +388,9 @@ Output:
         height = 0.5 * (pos[p1][3] + pos[p2][3])
         rho = calc_rho(s.am, height)
         @assert height > 0
-
+        if height < 6
+            height = 6
+        end
         s.v_wind_tether .= calc_wind_factor(s.am, height) * v_wind_gnd
         calc_particle_forces!(s, pos[p1], pos[p2], vel[p1], vel[p2], s.springs[i], segments, d_tether, rho, i)
     end
@@ -522,6 +546,29 @@ Return the absolute value of the force at the winch as calculated during the las
 """
 function winch_force(s::KPS4) norm(s.last_force) end
 
+"""
+    cl_cd(s::KPS4)
+
+Calculate the lift and drag coefficients of the kite, based on the current angles of attack.
+"""
+function cl_cd(s::KPS4)
+    rel_side_area = s.set.rel_side_area/100.0  # defined in percent
+    K = 1 - rel_side_area                      # correction factor for the drag
+    if s.set.version == 3
+        drag_corr = 1.0
+    else
+        drag_corr = DRAG_CORR
+    end
+    CL2, CD2 = s.calc_cl(s.alpha_2), drag_corr * s.calc_cd(s.alpha_2)
+    CL3, CD3 = s.calc_cl(s.alpha_3), drag_corr * s.calc_cd(s.alpha_3)
+    CL4, CD4 = s.calc_cl(s.alpha_4), drag_corr * s.calc_cd(s.alpha_4)
+    if s.set.version == 3
+        return CL2, CD2
+    else
+        return CL2, K*(CD2+CD3+CD4)
+    end
+end
+
 # ==================== end of getter functions ================================================
 
 function spring_forces(s::KPS4)
@@ -556,12 +603,12 @@ function spring_forces(s::KPS4)
 end
 
 """
-    find_steady_state!(s::KPS4; prn=false, delta = 0.0, stiffness_factor=0.035)
+    find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0.035)
 
 Find an initial equilibrium, based on the inital parameters
 `l_tether`, elevation and `v_reel_out`.
 """
-function find_steady_state!(s::KPS4; prn=false, delta = 0.0, stiffness_factor=0.035)
+function find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0.035)
     s.stiffness_factor = stiffness_factor
     res = zeros(MVector{6*(s.set.segments+KITE_PARTICLES)+2, SimFloat})
     iter = 0
@@ -569,7 +616,7 @@ function find_steady_state!(s::KPS4; prn=false, delta = 0.0, stiffness_factor=0.
     # helper function for the steady state finder
     function test_initial_condition!(F, x::Vector)
         x1 = copy(x)
-        y0, yd0 = init(s, x1)
+        y0, yd0 = init(s, x1; delta)
         residual!(res, yd0, y0, s, 0.0)
         for i in 1:s.set.segments+KITE_PARTICLES-1
             if i != s.set.segments+KITE_PARTICLES-1
@@ -593,7 +640,7 @@ function find_steady_state!(s::KPS4; prn=false, delta = 0.0, stiffness_factor=0.
     end
     if prn println("\nStarted function test_nlsolve...") end
     X00 = zeros(SimFloat, 2*(s.set.segments+KITE_PARTICLES-1)+2)
-    results = nlsolve(test_initial_condition!, X00, autoscale=true, xtol=2e-7, ftol=2e-7, iterations=s.set.max_iter)
+    results = nlsolve(test_initial_condition!, X00, autoscale=true, xtol=4e-7, ftol=4e-7, iterations=s.set.max_iter)
     if prn println("\nresult: $results") end
     init(s, results.zero)
 end

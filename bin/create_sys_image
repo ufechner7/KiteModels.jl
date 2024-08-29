@@ -1,4 +1,4 @@
-#!/bin/bash -eu
+#!/bin/bash
 update=false
 if [[ $# -gt 0 ]]; then
     if [[ $1 != "--update" ]]; then
@@ -16,6 +16,43 @@ if [[ $(basename $(pwd)) == "bin" ]]; then
     cd ..
 fi
 
+if ! command -v juliaup &> /dev/null; then
+    echo "Please install the Julia installer 'juliaup'!"
+    echo "See: https://github.com/JuliaLang/juliaup"
+    exit 1
+fi
+
+juliaup add 1.10
+juliaup default 1.10
+
+PYTHON_PATH=$(which python3)
+if [ -x "$PYTHON_PATH" ]; then
+    echo "Python is found at $PYTHON_PATH"
+    if $PYTHON_PATH -c "import matplotlib" &> /dev/null; then
+        echo "Matplotlib found. Using existing installation."
+        export PYTHON=$PYTHON_PATH
+    else
+        echo "Matplotlib is not found."
+        read -p "Do you want to install matplotlib with Conda? (y/n): " choice
+        case "$choice" in 
+          y|Y ) 
+            export PYTHON=""
+            ;;
+          n|N ) 
+            echo "Exiting without installing matplotlib."
+            exit 1
+            ;;
+          * ) 
+            echo "Invalid choice. Exiting."
+            exit 1
+            ;;
+        esac
+    fi
+else
+    echo "Python is not found."
+    exit 1
+fi
+
 julia_version=$(julia --version | awk '{print($3)}')
 julia_major=${julia_version:0:3}
 if [[ $julia_major == "1.1" ]]; then
@@ -29,14 +66,18 @@ fi
 if test -f "kps-image-${julia_major}-${branch}.so"; then
     mv bin/kps-image-${julia_major}-${branch}.so kps-image-${julia_major}-${branch}.so.bak
 fi
-julia -e "using Pkg; Pkg.add(\"TestEnv\")"
+julia --startup-file=no -e "using Pkg; Pkg.add(\"TestEnv\")"
 
 if [[ $update == true ]]; then
     echo "Updating packages..."
     if test -f "Manifest.toml"; then
         mv Manifest.toml Manifest.toml.bak
     fi
-    julia  --pkgimages=no --project -e "include(\"./test/update_packages.jl\");"
+    julia --startup-file=no --pkgimages=no --project -e "using TestEnv; TestEnv.activate(); using Pkg; Pkg.add(\"PyCall\"); Pkg.build(\"PyCall\")"
+    if [[ $PYTHON == "" ]]; then
+        julia --startup-file=no --pkgimages=no --project -e "using TestEnv; TestEnv.activate(); using Pkg; Pkg.add(\"Conda\"); using Conda; Conda.add(\"matplotlib\"); using ControlPlots"
+    fi
+    julia --startup-file=no --pkgimages=no --project -e "using Pkg; Pkg.update()"
 else
     if [[ $julia_major == "1.9" ]]; then
         cp Manifest-1.9.toml.default Manifest.toml
@@ -46,7 +87,7 @@ else
         echo "Using Manifest-1.10.toml.default ..."
     fi
 fi
-julia --pkgimages=no --project -e "include(\"./test/create_sys_image.jl\");"
+julia --startup-file=no --pkgimages=no --project -e "include(\"./test/create_sys_image.jl\");"
 if [[ $branch != "" ]]; then
     SOFILE="bin/kps-image-${julia_major}-${branch}.so"
 else
@@ -56,17 +97,17 @@ if test -f $SOFILE; then
     mv $SOFILE $SOFILE.bak
 fi
 mv kps-image_tmp.so $SOFILE
-julia  --project -e "using Pkg; Pkg.precompile(); Pkg.resolve()"
+julia --startup-file=no  --project -e "using Pkg; Pkg.precompile(); Pkg.resolve()"
 if [ -d src ]; then
     cd src
     touch *.jl # make sure all modules get recompiled in the next step
     cd ..
 fi
 echo "Precompiling package KiteModels..."
-julia --project -J $SOFILE -e "using KiteModels, KitePodModels, KiteUtils"
+julia --startup-file=no --project -J $SOFILE -e "using KiteModels, KitePodModels, KiteUtils"
 echo "Precompiling package ControlPlots..."
 if [[ $branch != "" ]]; then
-    julia --project -J $SOFILE -e "using TestEnv; TestEnv.activate(); using ControlPlots"
+    julia --startup-file=no --project -J $SOFILE -e "using TestEnv; TestEnv.activate(); using ControlPlots"
 else
-    julia --project -J $SOFILE -e "using ControlPlots"
+    julia --startup-file=no --project -J $SOFILE -e "using ControlPlots"
 fi

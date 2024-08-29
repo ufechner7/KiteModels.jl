@@ -125,18 +125,12 @@ $(TYPEDFIELDS)
     t_0::S =               0.0
     "reel out speed of the winch"
     reel_out_speeds::T =        zeros(S, 3)
-    # "reel out speed at the last time step"
-    # last_reel_out_speeds::T =   zeros(S, 3)
     "unstretched tether length"
     tether_lengths::T =          zeros(S, 3)
     "lengths of the connections of the steering tethers to the kite"
     steering_pos::MVector{2, S} =      zeros(S, 2)
     "air density at the height of the kite"
     rho::S =               0.0
-    # "actual relative depower setting,  must be between    0 .. 1.0"
-    # depower::S =           0.0
-    # "actual relative steering setting, must be between -1.0 .. 1.0"
-    # steering::S =          0.0
     "multiplier for the stiffniss of tether and bridle"
     stiffness_factor::S =  1.0
     "initial masses of the point masses"
@@ -184,7 +178,7 @@ $(TYPEDFIELDS)
     v_wind_gnd_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
     stiffness_factor_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
     v_wind_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
-    prob::Union{OrdinaryDiffEq.ODEProblem, Nothing} = nothing
+    prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
     get_pos::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_steering_pos::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_line_acc::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
@@ -236,7 +230,6 @@ function clear!(s::KPS4_3L)
     s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
     s.calc_cd = Spline1D(s.set.alpha_cd, s.set.cd_list) 
 end
-
 
 function KPS4_3L(kcu::KCU)
     set = kcu.set
@@ -399,8 +392,14 @@ function next_step!(s::KPS4_3L, integrator; set_values=zeros(KVec3), v_wind_gnd=
     integrator.ps[s.v_wind_idx] .= s.v_wind
     integrator.ps[s.stiffness_factor_idx] = s.stiffness_factor
     s.t_0 = integrator.t
-    OrdinaryDiffEq.step!(integrator, dt, true)
-    update_pos!(s, integrator)
+    if s.mtk
+        OrdinaryDiffEqCore.step!(integrator, dt, true)
+        update_pos!(s, integrator)
+    elseif s.set.solver == "IDA"
+        Sundials.step!(integrator, dt, true)
+    else
+        OrdinaryDiffEqCore.step!(integrator, dt, true)
+    end
     if s.stiffness_factor < 1.0
         s.stiffness_factor+=0.01
         if s.stiffness_factor > 1.0

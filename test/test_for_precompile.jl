@@ -100,7 +100,7 @@ let
     simulate(integrator, 100, true)
 end
 let 
-    using KiteModels, OrdinaryDiffEq, LinearAlgebra
+    using KiteModels, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK, LinearAlgebra
     using Base: summarysize
 
     update_settings()

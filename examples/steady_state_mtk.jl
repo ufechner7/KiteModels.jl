@@ -1,4 +1,6 @@
-using KiteModels, OrdinaryDiffEq, LinearAlgebra, Timers, SteadyStateDiffEq, SymbolicIndexingInterface
+using KiteModels, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK, LinearAlgebra, Timers
+using Base: summarysize
+tic()
 
 using Pkg
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
@@ -6,11 +8,10 @@ if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
 end
 using ControlPlots
 
-update_settings()
-set = se("system_3l.yaml")
-set.abs_tol = 0.0006
-set.rel_tol = 0.001
-steps = 50
+set = deepcopy(load_settings("system_3l.yaml"))
+set.abs_tol = 0.006
+set.rel_tol = 0.01
+steps = 110
 dt = 1/set.sample_freq
 tspan   = (0.0, dt)
 
