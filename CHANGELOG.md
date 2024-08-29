@@ -2,8 +2,31 @@
 
 ### Unreleased
 #### Changed
+- install `matplotlib` if it is not already installed after user confirmation in a Julia specific environment
+- replaced OrdinaryDiffEq with the three packages OrdinaryDiffEqCore, OrdinaryDiffEqBDF
+  and OrdinaryDiffEqSDIRK. This should help to reduce the pre-compilation time.
+- set the parameter delta in the examples
+- always specify the `system.yaml` file to use in the examples, always use `load_settings` instead of `se`. 
+This ensures that the settings are always freshly loaded from the file when the script is launched, so any changes 
+to the settings become immediately effective.
+
+### KiteModels v0.6.5 - 2024-08-12
+#### Changed
 - bump KiteUtils to 0.7.7
 - add new examples to menu
+- major change to the function that finds the initial equilibrium; the function `init_sim!` has the new
+  parameter `delta` which should be in the range of 0.01 to 0.03.
+- better error message if `init_sim!`, but no exception any more. I just returns `nothing`.
+- remove dependency StatProfilerHTML
+#### Added
+- add KCU drag, based on kcu_diameter and cd_kcu
+- add function bridle_length (not exported)
+- unit tests for the KPS3_3L model, based on ModelingToolkit
+- script `examples/plot_cl_cd.jl`
+- script `examples/plot_cl_cd_plate.jl`
+- script `torque_controlled_mtk.jl`
+#### Fixed
+- correct tether drag based on l_bridle; if the kite has more than 7 bridle lines l_bridle must be larger than bridle_length(se)
 
 ### KiteModels v0.6.4 - 2024-08-12
 #### Added

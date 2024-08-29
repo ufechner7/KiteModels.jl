@@ -1,12 +1,12 @@
 # Implementation of the three-line model using ModellingToolkit.jl
 
 function calc_acc_speed(tether_speed::SimFloat, norm_::SimFloat, set_speed::SimFloat)
-    calc_acceleration(AsyncMachine(se()), tether_speed, norm_; set_speed, set_torque=nothing, use_brake=false)
+    calc_acceleration(AsyncMachine(se("system_3l.yaml")), tether_speed, norm_; set_speed, set_torque=nothing, use_brake=false)
 end
 @register_symbolic calc_acc_speed(tether_speed, norm_, set_speed)
 
 function calc_acc_torque(tether_speed::SimFloat, norm_::SimFloat, set_torque::SimFloat)
-    calc_acceleration(TorqueControlledMachine(se()), tether_speed, norm_; set_speed=nothing, set_torque, use_brake=false)
+    calc_acceleration(TorqueControlledMachine(se("system_3l.yaml")), tether_speed, norm_; set_speed=nothing, set_torque, use_brake=false)
 end
 @register_symbolic calc_acc_torque(tether_speed, norm_, set_torque)
 

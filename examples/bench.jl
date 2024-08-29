@@ -3,7 +3,7 @@ using KiteModels, KitePodModels, KiteUtils
 
 if false include("../src/KPS4.jl") end
 
-set = deepcopy(se())
+set = deepcopy(load_settings("system.yaml"))
 
 # the following values can be changed to match your interest
 dt = 0.05
@@ -32,7 +32,7 @@ function simulate(integrator, steps)
     iter / steps
 end
 
-integrator = KiteModels.init_sim!(kps4, stiffness_factor=0.5, prn=STATISTIC)
+integrator = KiteModels.init_sim!(kps4; delta=0, stiffness_factor=0.5, prn=STATISTIC)
 
 println("\nStarting simulation...")
 simulate(integrator, 100)

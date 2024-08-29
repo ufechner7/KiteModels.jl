@@ -1,7 +1,7 @@
 using Printf
 using KiteModels, KitePodModels, KiteUtils
 
-set = deepcopy(se())
+set = deepcopy(load_settings("system.yaml"))
 
 set.abs_tol=0.0006
 set.rel_tol=0.00001
@@ -59,7 +59,7 @@ function simulate(integrator, steps, plot=false)
     iter / steps
 end
 
-integrator = KiteModels.init_sim!(kps3, stiffness_factor=0.04, prn=STATISTIC)
+integrator = KiteModels.init_sim!(kps3; delta=0, stiffness_factor=0.04, prn=STATISTIC)
 
 if PLOT
     av_steps = simulate(integrator, STEPS, true)

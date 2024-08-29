@@ -1,7 +1,7 @@
 using Printf
 using KiteModels, KitePodModels, KiteUtils
 
-set = deepcopy(se())
+set = deepcopy(load_settings("system.yaml"))
 
 # the following values can be changed to match your interest
 dt = 0.05
@@ -51,7 +51,7 @@ function simulate(s, integrator, steps, plot=false; fig="")
     iter / steps
 end
 
-integrator = KiteModels.init_sim!(kps3, stiffness_factor=0.04, prn=STATISTIC)
+integrator = KiteModels.init_sim!(kps3, delta=0, stiffness_factor=1, prn=STATISTIC)
 av_steps = simulate(kps3, integrator, STEPS, true; fig="kps3")
 
 lift, drag = KiteModels.lift_drag(kps3)
@@ -61,7 +61,7 @@ println("winch_force [N]: $(round(winch_force(kps3), digits=2))")
 println("Average number of callbacks per time step: $(round(av_steps, digits=2))")
 
 kps4.set.alpha_zero = ALPHA_ZERO
-integrator = KiteModels.init_sim!(kps4, stiffness_factor=0.5, prn=STATISTIC)
+integrator = KiteModels.init_sim!(kps4; delta=0, stiffness_factor=1, prn=STATISTIC)
 av_steps = simulate(kps4, integrator, STEPS, true; fig="kps4")
 
 lift, drag = KiteModels.lift_drag(kps4)
@@ -75,6 +75,6 @@ println("Average number of callbacks per time step: $(round(av_steps, digits=2))
 # winch_force [N]: 594.89
 # Average number of callbacks per time step: 40.07
 # KPS4
-# lift, drag  [N]: 733.27, 141.07
-# winch_force [N]: 596.26
-# Average number of callbacks per time step: 112
+# lift, drag  [N]: 734.04, 140.91
+# winch_force [N]: 597.31
+# Average number of callbacks per time step: 101.77

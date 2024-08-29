@@ -1,7 +1,7 @@
 using Printf
 using KiteModels, KitePodModels, KiteUtils
 
-set = deepcopy(se("system_3l.yaml"))
+set = deepcopy(load_settings("system_3l.yaml"))
 
 # the following values can be changed to match your interest
 dt = 0.05

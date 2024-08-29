@@ -57,9 +57,9 @@ $(TYPEDFIELDS)
     "Iterations, number of calls to the function residual!"
     iter:: Int64 = 0
     "Function for calculation the lift coefficent, using a spline based on the provided value pairs."
-    calc_cl = Spline1D(se().alpha_cl, se().cl_list)
+    calc_cl::Spline1D
     "Function for calculation the drag coefficent, using a spline based on the provided value pairs."
-    calc_cd = Spline1D(se().alpha_cd, se().cd_list)   
+    calc_cd::Spline1D
     "wind vector at the height of the kite" 
     v_wind::T =           zeros(S, 3)
     "wind vector at reference height" 
@@ -185,8 +185,6 @@ function clear!(s::KPS3)
     end
     s.c_spring = s.set.c_spring / s.segment_length
     s.damping  = s.set.damping / s.segment_length
-    s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
-    s.calc_cd = Spline1D(s.set.alpha_cd, s.set.cd_list) 
     s.kcu.depower = s.set.depower/100.0
     s.kcu.set_depower = s.kcu.depower
     KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
@@ -194,7 +192,8 @@ end
 
 function KPS3(kcu::KCU)
     set = kcu.set
-    s = KPS3{SimFloat, KVec3, kcu.set.segments+1}(set=set, kcu=kcu)
+    s = KPS3{SimFloat, KVec3, kcu.set.segments+1}(set=set, kcu=kcu, calc_cl= Spline1D(set.alpha_cl, set.cl_list),
+                                                  calc_cd = Spline1D(set.alpha_cd, set.cd_list))
     if s.set.winch_model == "AsyncMachine"
         s.wm = AsyncMachine(s.set)
     elseif s.set.winch_model == "TorqueControlledMachine"
@@ -527,8 +526,8 @@ Find an initial equilibrium, based on the inital parameters
 function find_steady_state!(s::KPS3; prn=false, delta = 0.0, stiffness_factor=0.035)
     zero = zeros(SimFloat, 2*s.set.segments)
     s.stiffness_factor=stiffness_factor
-    zero = find_steady_state_inner(s, zero, prn, delta=delta)
+    zero = find_steady_state_inner(s, zero, prn; delta)
     s.stiffness_factor=1.0
-    zero = find_steady_state_inner(s, zero, prn, delta=delta)
+    zero = find_steady_state_inner(s, zero, prn; delta)
     init(s, zero; delta=delta)
 end

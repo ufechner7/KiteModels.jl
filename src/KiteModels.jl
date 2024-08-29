@@ -34,8 +34,8 @@ Scientific background: http://arxiv.org/abs/1406.6218 =#
 module KiteModels
 
 using PrecompileTools: @setup_workload, @compile_workload 
-using Dierckx, StaticArrays, Rotations, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, OrdinaryDiffEq, 
-      Serialization, DataInterpolations
+using Dierckx, StaticArrays, Rotations, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, OrdinaryDiffEqCore, 
+      OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK, Serialization, DataInterpolations
 import Sundials
 using Reexport, Pkg
 @reexport using KitePodModels
@@ -49,8 +49,8 @@ import KiteUtils.calc_course
 import KiteUtils.SysState
 # import Sundials.init
 # import Sundials.step!
-import OrdinaryDiffEq.init
-import OrdinaryDiffEq.step!
+import OrdinaryDiffEqCore.init
+import OrdinaryDiffEqCore.step!
 using ModelingToolkit, SymbolicIndexingInterface
 using ModelingToolkit: t_nounits as t, D_nounits as D
 
@@ -59,7 +59,7 @@ export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!              
 export clear!, find_steady_state!, residual!, model!                                          # low level workers
 export init_sim!, reset_sim!, next_step!, init_pos_vel, update_pos!                           # high level workers
 export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, calc_orient_quat, load_history  # getters
-export winch_force, lift_drag, lift_over_drag, unstretched_length, tether_length, v_wind_kite # getters
+export winch_force, lift_drag, cl_cd, lift_over_drag, unstretched_length, tether_length, v_wind_kite # getters
 export save_history # setter / saver
 export kite_ref_frame, orient_euler, spring_forces
 import LinearAlgebra: norm
@@ -96,8 +96,6 @@ const SVec3    = SVector{3, SimFloat}
 
 # the following two definitions speed up the function residual! from 940ns to 540ns
 # disadvantage: changing the cl and cd curves requires a restart of the program     
-const calc_cl = Spline1D(se().alpha_cl, se().cl_list)
-const calc_cd = Spline1D(se().alpha_cd, se().cd_list)
 const rad_cl = Spline1D(deg2rad.(se().alpha_cl), se().cl_list, k=3)
 const rad_cd = Spline1D(deg2rad.(se().alpha_cd), se().cd_list, k=3) 
 const rad_cl_mtk = CubicSpline(se().cl_list, deg2rad.(se().alpha_cl); extrapolate=true) 
@@ -124,8 +122,6 @@ function __init__()
     end
 end
 
-steady_state_history_file = joinpath(get_data_path(), ".steady_state_history.bin")
-
 include("KPS4.jl") # include code, specific for the four point kite model
 include("KPS4_3L.jl") # include code, specific for the four point 3 line kite model
 include("KPS4_3L_MTK.jl") # include code, specific for the four point 3 line kite model
@@ -141,8 +137,8 @@ function set_cl_cd!(s::AKM, alpha)
     if angle < -180.0
         angle += 360.0
     end
-    s.param_cl = calc_cl(angle)
-    s.param_cd = calc_cd(angle)
+    s.param_cl = s.calc_cl(angle)
+    s.param_cd = s.calc_cd(angle)
     nothing
 end
 
@@ -462,6 +458,7 @@ always leads to the same integrator.
 """
 function load_history()
     history = SteadyStateHistory()
+    steady_state_history_file = joinpath(get_data_path(), ".steady_state_history.bin")
     try
         if isfile(steady_state_history_file)
             append!(history, deserialize(steady_state_history_file))
@@ -481,12 +478,13 @@ The history is used to speed up the initialisation.
 In order to delete the integrator history: just delete the file `data/.steady_state_history.bin` .
 """
 function save_history(history::SteadyStateHistory)
+    steady_state_history_file = joinpath(get_data_path(), ".steady_state_history.bin")
     serialize(steady_state_history_file, history)
 end
 
 
 """
-    init_sim!(s; t_end=1.0, stiffness_factor=0.035, prn=false)
+    init_sim!(s; t_end=1.0, stiffness_factor=0.035, delta=0.01, prn=false)
 
 Initialises the integrator of the model.
 
@@ -494,13 +492,14 @@ Parameters:
 - s:     an instance of an abstract kite model
 - t_end: end time of the simulation; normally not needed
 - stiffness_factor: factor applied to the tether stiffness during initialisation
+- delta: initial stretch of the tether during the steady state calculation
 - prn: if set to true, print the detailed solver results
 - steady_state_history: an instance of SteadyStateHistory containing old pairs of AKM objects and integrators
 
 Returns:
 An instance of a DAE integrator.
 """
-function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_state_history=nothing, mtk=false, 
+function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, delta=0.01, prn=false, steady_state_history=nothing, mtk=false, 
                    torque_control=false)
     clear!(s)
     s.stiffness_factor = stiffness_factor
@@ -533,7 +532,17 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
         end
     end
     if !found
-        y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor=stiffness_factor, prn=prn)
+        try
+            y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor, delta, prn)
+        catch e
+            if e isa AssertionError
+                println("ERROR: Failure to find initial steady state in find_steady_state! function!\n"*
+                        "Try to increase the delta parameter or to decrease the inital_stiffness of the init_sim! function.")
+                return nothing
+            else
+                rethrow(e)
+            end
+        end
         if !mtk
             y0  = Vector{SimFloat}(y0)
             yd0 = Vector{SimFloat}(yd0)
@@ -564,7 +573,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
     if isa(s, KPS4_3L) && s.mtk
         simple_sys, _ = model!(s, y0; torque_control=torque_control)
         s.prob = ODEProblem(simple_sys, nothing, tspan)
-        integrator = OrdinaryDiffEq.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
+        integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
         s.set_values_idx = parameter_index(integrator.f, :set_values)
         s.v_wind_gnd_idx = parameter_index(integrator.f, :v_wind_gnd)
         s.v_wind_idx = parameter_index(integrator.f, :v_wind)
@@ -586,7 +595,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false, steady_
         differential_vars = ones(Bool, length(y0))
         prob    = DAEProblem{true}(residual!, yd0, y0, tspan, s; differential_vars)
     end
-    integrator = OrdinaryDiffEq.init(prob, solver; abstol=abstol, reltol=s.set.rel_tol, save_everystep=false)
+    integrator = OrdinaryDiffEqCore.init(prob, solver; abstol=abstol, reltol=s.set.rel_tol, save_everystep=false)
     return integrator
 end
 
@@ -623,7 +632,7 @@ function next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing,
     if s.set.solver == "IDA"
         Sundials.step!(integrator, dt, true)
     else
-        OrdinaryDiffEq.step!(integrator, dt, true)
+        OrdinaryDiffEqCore.step!(integrator, dt, true)
     end
     if s.stiffness_factor < 1.0
         s.stiffness_factor+=0.01
@@ -670,6 +679,23 @@ function copy_files(relpath, files)
     files
 end
 
+function create_bridle(se)
+    # create the bridle
+    bridle = KiteUtils.get_particles(se.height_k, se.h_bridle, se.width, se.m_k)
+    return bridle
+end
+function bridle_length(se)
+    # calculate the bridle length
+    bridle = create_bridle(se)[2:end]
+    len = norm(bridle[1] - bridle[2])
+    len += norm(bridle[1] - bridle[4])
+    len += norm(bridle[1] - bridle[5])
+    len += norm(bridle[3] - bridle[2])
+    len += norm(bridle[3] - bridle[4])
+    len += norm(bridle[3] - bridle[5])
+end
+
+
 """
     copy_bin()
 
@@ -705,7 +731,9 @@ end
     # list = [OtherType("hello"), OtherType("world!")]
     set_data_path()
 
-    kps4_::KPS4 = KPS4(KCU(se("system.yaml")))
+    set = se("system.yaml")
+    set.kcu_diameter = 0
+    kps4_::KPS4 = KPS4(KCU(set))
     kps3_::KPS3 = KPS3(KCU(se("system.yaml")))
     kps4_3l_::KPS4_3L = KPS4_3L(KCU(se(SYS_3L)))
     @assert ! isnothing(kps4_.wm)
@@ -713,7 +741,7 @@ end
         # all calls in this block will be precompiled, regardless of whether
         # they belong to your package or not (on Julia 1.8 and higher)
         integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
-        integrator = KiteModels.init_sim!(kps4_; stiffness_factor=0.25, prn=false)     
+        integrator = KiteModels.init_sim!(kps4_; delta=0.03, stiffness_factor=0.05, prn=false)     
         integrator = KiteModels.init_sim!(kps4_3l_; stiffness_factor=0.5, prn=false)   
         nothing
     end
