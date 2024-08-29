@@ -64,10 +64,10 @@ if [[ $update == true ]]; then
     if test -f "Manifest.toml"; then
         mv Manifest.toml Manifest.toml.bak
     fi
-    julia --startup-file=no --pkgimages=no --project -e "using Pkg; Pkg.instantiate(); Pkg.add(\"PyCall\"); Pkg.build(\"PyCall\")" || true
-    julia --startup-file=no --pkgimages=no --project -e "using TestEnv; TestEnv.activate(); Pkg.add(\"Conda\"); using Conda; Conda.add(\"matplotlib\"); using ControlPlots" || true
-    julia --startup-file=no --pkgimages=no --project -e "using Pkg; Pkg.update()" || true
-    julia --startup-file=no --pkgimages=no --project -e "include(\"./test/update_packages.jl\");"
+    julia --startup-file=no --pkgimages=no --project -e "using Pkg; Pkg.add(\"PyCall\"); Pkg.build(\"PyCall\")"
+    julia --startup-file=no --pkgimages=no --project -e "using TestEnv; TestEnv.activate(); using Pkg; Pkg.add(\"Conda\"); using Conda; Conda.add(\"matplotlib\"); using ControlPlots"
+    julia --startup-file=no --pkgimages=no --project -e "using Pkg; Pkg.update()"
+
 else
     if [[ $julia_major == "1.9" ]]; then
         cp Manifest-1.9.toml.default Manifest.toml
