@@ -16,6 +16,15 @@ if [[ $(basename $(pwd)) == "bin" ]]; then
     cd ..
 fi
 
+if ! command -v juliaup &> /dev/null; then
+    echo "Please install the Julia installer 'juliaup'!"
+    echo "See: https://github.com/JuliaLang/juliaup"
+    exit 1
+fi
+
+juliaup add 1.10
+juliaup default 1.10
+
 PYTHON_PATH=$(which python3)
 if [ -x "$PYTHON_PATH" ]; then
     echo "Python is found at $PYTHON_PATH"
