@@ -5,5 +5,6 @@ rm -rf /tmp/test
 mkdir /tmp/test
 cd /tmp/test
 export JULIA_DEPOT_PATH=/tmp/testdepot 
-julia --project="." -e "using Pkg; pkg\"add KiteModels\"; using KiteModels"
-cd ..
+git clone https://github.com/ufechner7/KiteModels.jl.git
+cd KiteModels.jl/bin
+./create_sys_image --update
