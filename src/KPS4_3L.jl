@@ -347,17 +347,17 @@ function init_sim!(s::KPS4_3L; t_end=1.0, stiffness_factor=1.0, prn=false,
     tspan   = (0.0, dt) 
 
     new_inital_conditions = (s.last_init_elevation != s.set.elevation || s.last_init_tether_length != s.set.l_tether)
-    s.set_hash = struct_hash(s.set)
+    s.set_hash = settings_hash(s.set)
     if isnothing(s.prob) || change_control_mode || s.last_set_hash != s.set_hash
-        if prn; println("init-first"); end
+        if prn; println("making new model and finding steady state"); end
         pos = init_pos(s)
         model!(s, pos; torque_control=s.torque_control)
         s.prob = ODEProblem(s.simple_sys, nothing, tspan)
         steady_prob = SteadyStateProblem(s.prob)
         s.steady_sol = solve(steady_prob, DynamicSS(KenCarp4(autodiff=false); tspan=tspan), abstol=s.set.abs_tol, reltol=s.set.rel_tol)
         s.prob = remake(s.prob; u0=s.steady_sol.u)
-    elseif !isnothing(s.prob) && !change_control_mode && new_inital_conditions
-        if prn; println("re-steady"); end
+    elseif new_inital_conditions
+        if prn; println("finding new steady state"); end
         pos = init_pos(s)
         s.prob = ODEProblem(s.simple_sys, [s.simple_sys.pos => pos, s.simple_sys.tether_length => s.tether_lengths], tspan)
         steady_prob = SteadyStateProblem(s.prob)
@@ -899,8 +899,9 @@ end
 
 # ====================== helper functions ====================================
 
-function struct_hash(st)
+function settings_hash(st)
     fields = fieldnames(typeof(st))
+    fields = filter(x -> x != :l_tether && x != :elevation, fields)
     h = zero(UInt)
     for field in fields
         field_value = getfield(st, field)
