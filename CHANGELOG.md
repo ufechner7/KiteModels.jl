@@ -2,6 +2,7 @@
 
 ### Unreleased
 #### Changed
+- install `matplotlib` if it is not already installed after user confirmation in a Julia specific environment
 - replaced OrdinaryDiffEq with the three packages OrdinaryDiffEqCore, OrdinaryDiffEqBDF
   and OrdinaryDiffEqSDIRK. This should help to reduce the pre-compilation time.
 - set the parameter delta in the examples
