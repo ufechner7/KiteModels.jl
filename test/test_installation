@@ -7,4 +7,4 @@ cd /tmp/test
 export JULIA_DEPOT_PATH=/tmp/testdepot 
 git clone https://github.com/ufechner7/KiteModels.jl.git
 cd KiteModels.jl/bin
-./create_sys_image_ --update
+./create_sys_image --update
