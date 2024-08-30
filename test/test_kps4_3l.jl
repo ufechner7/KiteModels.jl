@@ -123,6 +123,8 @@ global integrator
     for i in eachindex(pos1)
         @test all(pos5[i] .== pos4[i])
     end
+
+    # TODO: add tests for torque controlled
 end
 
 @testset "test_step         " begin

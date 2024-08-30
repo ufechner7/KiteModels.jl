@@ -120,8 +120,6 @@ $(TYPEDFIELDS)
     rho::S =               0.0
     "multiplier for the stiffniss of tether and bridle"
     stiffness_factor::S =  1.0
-    "initial masses of the point masses"
-    initial_masses::MVector{P, S} = ones(P)
     "current masses, depending on the total tether length"
     masses::MVector{P, S}         = zeros(P)
     "vector of the springs, defined as struct"
@@ -130,6 +128,7 @@ $(TYPEDFIELDS)
     forces::SVector{P, T} = zeros(SVector{P, T})
     "synchronous speed or torque of the motor/ generator"
     set_values::KVec3  = zeros(KVec3)
+    "whether or not to use torque control instead of speed control"
     torque_control::Bool = false
     "x vector of kite reference frame"
     e_x::T =                 zeros(S, 3)
@@ -137,7 +136,6 @@ $(TYPEDFIELDS)
     e_y::T =                 zeros(S, 3)
     "z vector of kite reference frame"
     e_z::T =                 zeros(S, 3)
-    e_r::T =                 zeros(S, 3)
     "Point number of E"
     num_E::Int64 =           0
     "Point number of C"
@@ -150,13 +148,17 @@ $(TYPEDFIELDS)
     α_l::SimFloat =     0.0
     "Angle of left tip"
     α_r::SimFloat =     0.0
-
+    "Lift of point C"
     L_C::T = zeros(S, 3)
+    "Lift of point D"
     L_D::T = zeros(S, 3)
+    "Drag of point C"
     D_C::T = zeros(S, 3)
+    "Drag of point D"
     D_D::T = zeros(S, 3)
-
+    "Solution of the steady state problem"
     steady_sol::Union{SciMLBase.NonlinearSolution, Nothing} = nothing
+    "Simplified system of the mtk model"
     simple_sys::Union{ModelingToolkit.ODESystem, Nothing} = nothing
 
     set_values_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
