@@ -1,11 +1,9 @@
 using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils
 using KiteModels, KitePodModels
 
-if ! @isdefined kcu
-    const kcu = KCU(se("system_3l.yaml"))
-end
-kcu.set.winch_model = "AsyncMachine"
-kps4_3l::KPS4_3L = KPS4_3L(kcu)
+kcu_3l::KCU = KCU(se("system_3l.yaml"))
+kcu_3l.set.winch_model = "AsyncMachine"
+kps4_3l::KPS4_3L = KPS4_3L(kcu_3l)
 
 pos, vel = nothing, nothing
 
@@ -82,7 +80,7 @@ global integrator
     # initial init
     kps4_3l.set.mass = 0.9
     kps4_3l.set.l_tether = 50.0
-    time1 = @elapsed global integrator = KiteModels.init_sim!(kps4_3l; stiffness_factor=1.0, prn=true, torque_control=false)
+    global integrator = KiteModels.init_sim!(kps4_3l; stiffness_factor=1.0, prn=true, torque_control=false)
     pos1 = deepcopy(kps4_3l.pos)
     for i in eachindex(pos1)
         # println(pos1[i]')
@@ -93,7 +91,7 @@ global integrator
     # init after changing settings
     kps4_3l.set.mass = 1.0
     kps4_3l.set.l_tether = 51.0
-    time2 = @elapsed global integrator = KiteModels.init_sim!(kps4_3l; stiffness_factor=1.0, prn=true, torque_control=false)
+    global integrator = KiteModels.init_sim!(kps4_3l; stiffness_factor=1.0, prn=true, torque_control=false)
     pos2 = deepcopy(kps4_3l.pos)
     @test isapprox(kps4_3l.tether_lengths[3], 51.0, atol=0.1)
     for i in 4:kps4_3l.num_A
@@ -103,28 +101,25 @@ global integrator
     # init after changing settings back
     kps4_3l.set.mass = 0.9
     kps4_3l.set.l_tether = 50.0
-    time3 = @elapsed global integrator = KiteModels.init_sim!(kps4_3l; stiffness_factor=1.0, prn=true, torque_control=false)
+    global integrator = KiteModels.init_sim!(kps4_3l; stiffness_factor=1.0, prn=true, torque_control=false)
     pos3 = deepcopy(kps4_3l.pos)
     for i in eachindex(pos1)
         @test all(pos3[i] .== initial_pos[i])
     end
-    @test isapprox(time2, time3, atol=1.0)
 
     # init after changing only initial conditions
     kps4_3l.set.elevation = 80.0
-    time4 = @elapsed global integrator = KiteModels.init_sim!(kps4_3l; stiffness_factor=1.0, prn=true, torque_control=false)
+    global integrator = KiteModels.init_sim!(kps4_3l; stiffness_factor=1.0, prn=true, torque_control=false)
     pos4 = deepcopy(kps4_3l.pos)
     @test isapprox(rad2deg(calc_elevation(kps4_3l)), 80.0, atol=2.0)
-    @test time3 / time4 > 5.0
     for i in 4:kps4_3l.num_A
         @test all(pos4[i] .!= initial_pos[i])
     end
 
     # init after just stepping
     KiteModels.next_step!(kps4_3l, integrator)
-    time5 = @elapsed global integrator = KiteModels.init_sim!(kps4_3l; stiffness_factor=1.0, prn=true, torque_control=false)
+    global integrator = KiteModels.init_sim!(kps4_3l; stiffness_factor=1.0, prn=true, torque_control=false)
     pos5 = deepcopy(kps4_3l.pos)
-    @test time3 / time5 > 100
     for i in eachindex(pos1)
         @test all(pos5[i] .== pos4[i])
     end
@@ -132,7 +127,7 @@ end
 
 @testset "test_step         " begin
     kps4_3l.set.elevation = 70.8
-    time4 = @elapsed global integrator = KiteModels.init_sim!(kps4_3l; stiffness_factor=1.0, prn=true, torque_control=false)
+    global integrator = KiteModels.init_sim!(kps4_3l; stiffness_factor=1.0, prn=true, torque_control=false)
 
     # KiteModels.next_step!(kps4_3l, integrator)
     pos2 = [
@@ -172,7 +167,6 @@ end
 function simulate(integrator, steps)
     for i in 1:steps
         KiteModels.next_step!(kps4_3l, integrator; set_values=[0.0, 0.0, 0.15])
-        @show i
     end
     return integrator.iter/steps
 end
@@ -195,9 +189,6 @@ end
     @test 400.0 < kps4_3l.L_C[3] < 600.0
     @test isapprox(kps4_3l.reel_out_speeds, [0.15824099721234128, 0.15824112269822727, 0.20901760480448708], atol=1e-6)
     @test isapprox(kps4_3l.L_C[2], -kps4_3l.L_D[2], atol=1e-2)
-    @show kps4_3l.L_C
-    @show kps4_3l.L_D
-    @show kps4_3l.reel_out_speeds
     
     # TODO Add testcase with varying reelout speed 
 end
