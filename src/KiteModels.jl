@@ -498,63 +498,25 @@ Parameters:
 Returns:
 An instance of a DAE integrator.
 """
-function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, delta=0.01, prn=false, steady_state_history=nothing, mtk=false, 
-                   torque_control=false)
+function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, delta=0.01, prn=false)
     clear!(s)
     s.stiffness_factor = stiffness_factor
-    if isa(s, KPS4_3L)
-        s.mtk = mtk
-        s.torque_control = torque_control
-    end
     
-    found = false
-    if isa(steady_state_history, SteadyStateHistory)
-        while length(steady_state_history) > 1000 # around 1MB, 1ms max per for loop
-            pop!(steady_state_history)
-        end
-        if prn println("Found $(length(steady_state_history)) old steady states.") end
-        try
-            for akm_steady_state_pair in steady_state_history
-                if fields_equal(akm_steady_state_pair[1], s)
-                    if prn println("Found similar steady state, ") end
-                    for field in fieldnames(typeof(s))
-                        setfield!(s, field, getfield(akm_steady_state_pair[1], field))
-                    end
-                    y0 = akm_steady_state_pair[2]
-                    yd0 = akm_steady_state_pair[3]
-                    found = true
-                    break;
-                end
-            end
-        catch
-            println("Problem with loading steady state from history file. Try deleting data/.steady_state_history.bin");
+    try
+        y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor, delta, prn)
+    catch e
+        if e isa AssertionError
+            println("ERROR: Failure to find initial steady state in find_steady_state! function!\n"*
+                    "Try to increase the delta parameter or to decrease the inital_stiffness of the init_sim! function.")
+            return nothing
+        else
+            rethrow(e)
         end
     end
-    if !found
-        try
-            y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor, delta, prn)
-        catch e
-            if e isa AssertionError
-                println("ERROR: Failure to find initial steady state in find_steady_state! function!\n"*
-                        "Try to increase the delta parameter or to decrease the inital_stiffness of the init_sim! function.")
-                return nothing
-            else
-                rethrow(e)
-            end
-        end
-        if !mtk
-            y0  = Vector{SimFloat}(y0)
-            yd0 = Vector{SimFloat}(yd0)
-        end
-
-        if isa(steady_state_history, SteadyStateHistory)
-            pushfirst!(steady_state_history, (deepcopy(s), deepcopy(y0), deepcopy(yd0)))
-        end
-    end
+    y0  = Vector{SimFloat}(y0)
+    yd0 = Vector{SimFloat}(yd0)
     
-    if isa(s, KPS4_3L) && s.mtk
-        solver = KenCarp4(autodiff=false) # TRBDF2, Rodas4P, Rodas5P, Kvaerno5, KenCarp4, radau, QNDF
-    elseif s.set.solver=="IDA"
+    if s.set.solver=="IDA"
         solver  = Sundials.IDA(linear_solver=Symbol(s.set.linear_solver), max_order = s.set.max_order)
     elseif s.set.solver=="DImplicitEuler"
         solver  = DImplicitEuler(autodiff=false)
@@ -569,31 +531,8 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, delta=0.01, prn=fa
     tspan   = (0.0, dt) 
     abstol  = s.set.abs_tol # max error in m/s and m
 
-    if isa(s, KPS4_3L) && s.mtk
-        simple_sys, _ = model!(s, y0; torque_control=torque_control)
-        s.prob = ODEProblem(simple_sys, nothing, tspan)
-        integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
-        s.set_values_idx = parameter_index(integrator.f, :set_values)
-        s.v_wind_gnd_idx = parameter_index(integrator.f, :v_wind_gnd)
-        s.v_wind_idx = parameter_index(integrator.f, :v_wind)
-        s.stiffness_factor_idx = parameter_index(integrator.f, :stiffness_factor)
-        s.get_pos = getu(integrator.sol, simple_sys.pos[:,:])
-        s.get_steering_pos = getu(integrator.sol, simple_sys.steering_pos)
-        s.get_line_acc = getu(integrator.sol, simple_sys.acc[:,s.num_E-2])
-        s.get_kite_vel = getu(integrator.sol, simple_sys.vel[:,s.num_A])
-        s.get_winch_forces = getu(integrator.sol, simple_sys.force[:,1:3])
-        s.get_L_C = getu(integrator.sol, simple_sys.L_C)
-        s.get_L_D = getu(integrator.sol, simple_sys.L_D)
-        s.get_D_C = getu(integrator.sol, simple_sys.D_C)
-        s.get_D_D = getu(integrator.sol, simple_sys.D_D)
-        s.get_tether_lengths = getu(integrator.sol, simple_sys.tether_length)
-        s.get_tether_speeds = getu(integrator.sol, simple_sys.tether_speed)
-        update_pos!(s, integrator)
-        return integrator
-    else
-        differential_vars = ones(Bool, length(y0))
-        prob    = DAEProblem{true}(residual!, yd0, y0, tspan, s; differential_vars)
-    end
+    differential_vars = ones(Bool, length(y0))
+    prob    = DAEProblem{true}(residual!, yd0, y0, tspan, s; differential_vars)
     integrator = OrdinaryDiffEqCore.init(prob, solver; abstol=abstol, reltol=s.set.rel_tol, save_everystep=false)
     return integrator
 end
