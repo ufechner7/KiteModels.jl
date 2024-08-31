@@ -117,11 +117,7 @@ let
 
     println("Running models")
     if ! @isdefined mtk_kite; mtk_kite = KPS4_3L(KCU(set)); end
-    if ! @isdefined mtk_integrator
-        mtk_integrator = KiteModels.init_sim!(mtk_kite; stiffness_factor=0.1, prn=false, mtk=true, torque_control=true)
-    else 
-        mtk_integrator = KiteModels.reset_sim!(mtk_kite; stiffness_factor=1.0)
-    end
+    mtk_integrator = KiteModels.init_sim!(mtk_kite; prn=false, torque_control=true)
 
     println("compiling")
     total_new_time = 0.0

@@ -46,7 +46,6 @@ const SPRINGS_INPUT_3L = [1.      4.  -1. # s1: E, A
 
 const KITE_SPRINGS_3L = 6
 const KITE_PARTICLES_3L = 4
-const KITE_ANGLE_3L = 0.0
 
 """
     mutable struct KPS4_3L{S, T, P, Q, SP} <: AbstractKiteModel
@@ -177,8 +176,6 @@ $(TYPEDFIELDS)
     get_L_D::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_D_C::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_D_D::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
-
-    # half_drag_force::SVector{P, T} = zeros(SVector{P, T})
 end
 
 """
@@ -229,9 +226,9 @@ end
 function KPS4_3L(kcu::KCU)
     set = kcu.set
     if set.winch_model == "TorqueControlledMachine"
-        s = KPS4_3L{SimFloat, KVec3, set.segments*3+2+KITE_PARTICLES, set.segments*3+KITE_SPRINGS_3L, SP}(set=kcu.set, motors=[TorqueControlledMachine(set) for _ in 1:3])
+        s = KPS4_3L{SimFloat, KVec3, set.segments*3+2+KITE_PARTICLES_3L, set.segments*3+KITE_SPRINGS_3L, SP}(set=kcu.set, motors=[TorqueControlledMachine(set) for _ in 1:3])
     else
-        s = KPS4_3L{SimFloat, KVec3, set.segments*3+2+KITE_PARTICLES, set.segments*3+KITE_SPRINGS_3L, SP}(set=kcu.set, motors=[AsyncMachine(set) for _ in 1:3])
+        s = KPS4_3L{SimFloat, KVec3, set.segments*3+2+KITE_PARTICLES_3L, set.segments*3+KITE_SPRINGS_3L, SP}(set=kcu.set, motors=[AsyncMachine(set) for _ in 1:3])
     end
     s.num_E = s.set.segments*3+3
     s.num_C = s.set.segments*3+3+1
