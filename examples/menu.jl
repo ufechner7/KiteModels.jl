@@ -9,6 +9,7 @@ options = ["bench = include(\"bench.jl\")",
            "reel_out_4p_torque_control = include(\"reel_out_4p_torque_control.jl\")",
            "simulate_simple = include(\"simulate_simple.jl\")",
            "simulate_steering = include(\"simulate_steering.jl\")",
+           "torque_controlled_mtk = include(\"torque_controlled_mtk.jl\")",
            "quit"]
 
 function menu()
