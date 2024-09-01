@@ -428,23 +428,6 @@ function calc_pre_tension(s::AKM)
     return res + 1.0
 end
 
-"""
-    fields_equal(a::AKM, b::AKM)
-
-Helper function for the [`init_sim!()`](@ref) function. It compares the fields of two instances of the AbstractKiteModel.
-"""
-function fields_equal(a::AKM, b::AKM)
-    if typeof(a) != typeof(b)
-        return false
-    end
-    for field in fieldnames(typeof(a.set))
-        if getfield(a.set, field) != getfield(b.set, field)
-            return false
-        end
-    end
-    return true
-end
-
 
 const SteadyStateHistory = Vector{Tuple{AbstractKiteModel, Vector{SimFloat}, Vector{SimFloat}}}
 """

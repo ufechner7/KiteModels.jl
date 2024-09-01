@@ -63,7 +63,6 @@ calc_drag
 calc_set_cl_cd!
 calc_aero_forces!
 calc_particle_forces!
-fields_equal
 inner_loop!
 loop!
 save_history
