@@ -9,6 +9,7 @@
 - always specify the `system.yaml` file to use in the examples, always use `load_settings` instead of `se`. 
 This ensures that the settings are always freshly loaded from the file when the script is launched, so any changes 
 to the settings become immediately effective.
+- the KPS4_3L model was replaced by the pure ModelingToolkit (MTK) based version. This allows not only a much faster simulation, but the results are also much more accurate.
 
 ### KiteModels v0.6.5 - 2024-08-12
 #### Changed
