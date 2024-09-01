@@ -9,9 +9,8 @@ end
 using ControlPlots
 
 set = deepcopy(load_settings("system_3l.yaml"))
-set.abs_tol = 0.006
-set.rel_tol = 0.01
-steps = 110
+# set.elevation = 71
+steps = 50
 dt = 1/set.sample_freq
 tspan   = (0.0, dt)
 
@@ -19,13 +18,13 @@ logger = Logger(3*set.segments + 6, steps)
 
 steering = [5,5,-30.0]
 
-println("Running models")
-if ! @isdefined mtk_kite; mtk_kite = KPS4_3L(KCU(set)); end
-if ! @isdefined mtk_integrator
-    mtk_integrator = KiteModels.init_sim!(mtk_kite; stiffness_factor=0.1, prn=false, mtk=true, torque_control=true)
-else 
-    mtk_integrator = KiteModels.reset_sim!(mtk_kite; stiffness_factor=0.1)
-end
+if !@isdefined mtk_kite; mtk_kite = KPS4_3L(KCU(set)); end
+mtk_kite.set.abs_tol = 0.0006
+mtk_kite.set.rel_tol = 0.001
+mtk_kite.set.l_tether = 50.1
+println("init sim")
+@time mtk_integrator = KiteModels.init_sim!(mtk_kite; prn=true, torque_control=true)
+println("acc ", norm(mtk_integrator[mtk_kite.simple_sys.acc]))
 
 println("compiling")
 total_new_time = 0.0
@@ -50,11 +49,11 @@ for i in 1:steps
     if i == 20
         steering = [0,10,-33]
     end
-    if i == 50
-        steering = [0,0.0,-20]
+    if i == 40
+        steering = [0,0,-20]
     end
-    if i == 70
-        steering = [0,0, -25]
+    if i == 60
+        steering = [0,0,-30]
     end
 
     if sys_state.heading > pi

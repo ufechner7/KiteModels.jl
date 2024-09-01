@@ -237,7 +237,9 @@ function init_pos_vel(s::KPS4_3L, X=zeros(5*s.set.segments+3))
 end
 
 function init_pos(s::KPS4_3L, X=zeros(5*s.set.segments+3); delta=0.0)
-    pos, _, _ = init_pos_vel_acc(s, X; delta=0.0)
+    pos_, _, _ = init_pos_vel_acc(s, X; delta=0.0)
+    pos = zeros(3, s.num_A)
+    [pos[:,i] .= pos_[i] for i in 1:s.num_A]
     return pos
 end
 
