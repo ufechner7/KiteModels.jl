@@ -353,9 +353,9 @@ function init_sim!(s::KPS4_3L; t_end=1.0, stiffness_factor=1.0, prn=false,
     else
         if prn; println("initializing with last model and last steady state"); end
     end
-    s.last_init_elevation = deepcopy(s.set.elevation)
-    s.last_init_tether_length = deepcopy(s.set.l_tether)    
-    s.last_set_hash = deepcopy(s.set_hash)
+    s.last_init_elevation = s.set.elevation
+    s.last_init_tether_length = s.set.l_tether    
+    s.last_set_hash = s.set_hash
     integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
     if isnothing(s.set_values_idx)
         s.set_values_idx = parameter_index(integrator.f, :set_values)
