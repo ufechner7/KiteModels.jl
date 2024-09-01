@@ -40,4 +40,12 @@ using Pkg
     @test ! ("TestEnv" ∈ keys(Pkg.project().dependencies))
     @test ! ("Revise" ∈ keys(Pkg.project().dependencies))
     @test ! ("Plots" ∈ keys(Pkg.project().dependencies))
+    # ensure that BenchmarkTools is not in the main environment
+    oldprpath = Pkg.project().path
+    if ! Pkg.project().ispackage
+        Pkg.activate(".")
+    end
+    hasbm = ("BenchmarkTools" ∈ keys(Pkg.project().dependencies))
+    Pkg.activate(oldprpath)
+    @test ! hasbm
 end
