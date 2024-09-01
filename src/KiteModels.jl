@@ -47,8 +47,6 @@ import KiteUtils.calc_azimuth
 import KiteUtils.calc_heading
 import KiteUtils.calc_course
 import KiteUtils.SysState
-# import Sundials.init
-# import Sundials.step!
 import OrdinaryDiffEqCore.init
 import OrdinaryDiffEqCore.step!
 using ModelingToolkit, SymbolicIndexingInterface, SteadyStateDiffEq
