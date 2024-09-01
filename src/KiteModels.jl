@@ -55,10 +55,9 @@ using ModelingToolkit: t_nounits as t, D_nounits as D
 export KPS3, KPS4, KPS4_3L, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                     # constants and types
 export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                            # helper functions
 export clear!, find_steady_state!, residual!, model!, steady_state_model!                     # low level workers
-export init_sim!, reset_sim!, next_step!, init_pos_vel, init_pos, update_pos!                           # high level workers
-export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, calc_orient_quat, load_history  # getters
-export winch_force, lift_drag, cl_cd, lift_over_drag, unstretched_length, tether_length, v_wind_kite # getters
-export save_history # setter / saver
+export init_sim!, reset_sim!, next_step!, init_pos_vel, init_pos, update_pos!                            # high level workers
+export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, calc_orient_quat  # getters
+export winch_force, lift_drag, cl_cd, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
 export kite_ref_frame, orient_euler, spring_forces
 import LinearAlgebra: norm
 
@@ -425,41 +424,6 @@ function calc_pre_tension(s::AKM)
     if isnan(res) res = 0.0 end
     return res + 1.0
 end
-
-
-const SteadyStateHistory = Vector{Tuple{AbstractKiteModel, Vector{SimFloat}, Vector{SimFloat}}}
-"""
-    load_history()
-
-Load the saved pairs of abstract kite models and corresponding integrators. It is assumed that a certain set of settings
-always leads to the same integrator.
-"""
-function load_history()
-    history = SteadyStateHistory()
-    steady_state_history_file = joinpath(get_data_path(), ".steady_state_history.bin")
-    try
-        if isfile(steady_state_history_file)
-            append!(history, deserialize(steady_state_history_file))
-        end
-    catch
-        println("Unable to load steady state history file. Try deleting data/.steady_state_history.bin.")
-    end
-    return history
-end
-
-"""
-    save_history(history::SteadyStateHistory)
-
-Save the staty state history to the file `data/.steady_state_history.bin`. 
-The history is used to speed up the initialisation.
-
-In order to delete the integrator history: just delete the file `data/.steady_state_history.bin` .
-"""
-function save_history(history::SteadyStateHistory)
-    steady_state_history_file = joinpath(get_data_path(), ".steady_state_history.bin")
-    serialize(steady_state_history_file, history)
-end
-
 
 """
     init_sim!(s; t_end=1.0, stiffness_factor=0.035, delta=0.01, prn=false)
