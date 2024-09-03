@@ -493,7 +493,8 @@ Parameters:
 - set_speed:         set value of reel out speed in m/s or nothing
 - set_torque:   set value of the torque in Nm or nothing
 - `v_wind_gnd`: wind speed at reference height in m/s
-- wind_dir:     wind direction in radians
+- `upwind_dir`: upwind direction in radians, the direction the wind is coming from. Zero is at north; 
+                clockwise positive. Default: -pi/2, wind from west.
 - dt:           time step in seconds
 
 Either a value for `set_speed` or for `set_torque` required.
@@ -501,8 +502,9 @@ Either a value for `set_speed` or for `set_torque` required.
 Returns:
 The end time of the time step in seconds.
 """
-function next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, v_wind_gnd=s.set.v_wind, wind_dir=0.0, 
+function next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2, 
                     dt=1/s.set.sample_freq)
+    wind_dir = -upwind_dir - pi/2
     KitePodModels.on_timer(s.kcu)
     KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
     s.sync_speed = set_speed

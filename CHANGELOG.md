@@ -1,7 +1,8 @@
 # Changelog
 
-### Unreleased
+### KiteModels v0.6.6 - 2024-09-03
 #### Changed
+- the method `next_step!` uses now upwind_dir as parameter and not long wind_dir
 - install `matplotlib` if it is not already installed after user confirmation in a Julia specific environment
 - replaced OrdinaryDiffEq with the three packages OrdinaryDiffEqCore, OrdinaryDiffEqBDF
   and OrdinaryDiffEqSDIRK. This should help to reduce the pre-compilation time.
