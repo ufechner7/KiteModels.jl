@@ -1,0 +1,10 @@
+#!/bin/bash -eu
+rm -rf /tmp/testdepot
+mkdir /tmp/testdepot
+rm -rf /tmp/test
+mkdir /tmp/test
+cd /tmp/test
+export JULIA_DEPOT_PATH=/tmp/testdepot 
+git clone https://github.com/ufechner7/KiteModels.jl.git
+cd KiteModels.jl
+julia --project -e 'using Pkg; Pkg.instantiate()'
