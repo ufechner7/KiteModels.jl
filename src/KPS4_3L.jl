@@ -76,9 +76,9 @@ $(TYPEDFIELDS)
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
     "Function for calculation the lift coefficent, using a spline based on the provided value pairs."
-    calc_cl = Spline1D(se().alpha_cl, se().cl_list)
+    cl_spline = Spline1D(deg2rad.(se().alpha_cl), se().cl_list)
     "Function for calculation the drag coefficent, using a spline based on the provided value pairs."
-    calc_cd = Spline1D(se().alpha_cd, se().cd_list)
+    cd_spline = Spline1D(deg2rad.(se().alpha_cd), se().cd_list)
     "Reference to the motor models as implemented in the package WinchModels. index 1: middle motor, index 2: left motor, index 3: right motor"
     motors::SVector{3, AbstractWinchModel}
     "Iterations, number of calls to the function residual!"
@@ -219,8 +219,8 @@ function clear!(s::KPS4_3L)
     s.rho = s.set.rho_0
     init_masses!(s)
     init_springs!(s)
-    s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
-    s.calc_cd = Spline1D(s.set.alpha_cd, s.set.cd_list) 
+    s.cl_spline = Spline1D(deg2rad.(se().alpha_cl), se().cl_list)
+    s.cd_spline = Spline1D(deg2rad.(se().alpha_cd), se().cd_list) 
 end
 
 function KPS4_3L(kcu::KCU)
@@ -485,6 +485,16 @@ function calc_acc_torque(tether_speed::SimFloat, norm_::SimFloat, set_torque::Si
 end
 @register_symbolic calc_acc_torque(tether_speed, norm_, set_torque)
 
+function calc_cl(spline::Spline1D, α)
+    return spline(α)
+end
+@register_symbolic calc_cl(spline::Spline1D, α)
+function calc_cd(spline::Spline1D, α)
+    return spline(α)
+end
+@register_symbolic calc_cd(spline::Spline1D, α)
+
+
 """
     calc_aero_forces!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, rho)
 
@@ -593,9 +603,9 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
                 d[i]    ~ (steering_pos[2] - steering_pos[1]) / (s.α_r - s.α_l) * (α - s.α_l) + (steering_pos[1])
             aoa[i]      ~ -asin((v_a_xr[:, i] / norm(v_a_xr[:, i])) ⋅ e_r[:, i]) + 
                            asin(clamp(d[i] / kite_length[i], -1.0, 1.0))
-            dL_dα[:, i] ~ 0.5 * rho * (norm(v_a_xr[:, i]))^2 * s.set.radius * kite_length[i] * rad_cl_mtk(aoa[i]) * 
+            dL_dα[:, i] ~ 0.5 * rho * (norm(v_a_xr[:, i]))^2 * s.set.radius * kite_length[i] * calc_cl(s.cl_spline, aoa[i]) * 
                                 ((v_a_xr[:, i] × e_drift[:, i]) / norm(v_a_xr[:, i] × e_drift[:, i]))
-            dD_dα[:, i] ~ 0.5 * rho * norm(v_a_xr[:, i]) * s.set.radius * kite_length[i] * rad_cd_mtk(aoa[i]) * 
+            dD_dα[:, i] ~ 0.5 * rho * norm(v_a_xr[:, i]) * s.set.radius * kite_length[i] * calc_cd(s.cd_spline, aoa[i]) * 
                                 v_a_xr[:,i] # the sideways drag cannot be calculated with the C_d formula
         ]
         if i <= n
