@@ -80,7 +80,7 @@ $(TYPEDFIELDS)
     "Function for calculation the drag coefficent, using a spline based on the provided value pairs."
     cd_spline = Spline1D(deg2rad.(se().alpha_cd), se().cd_list)
     "Reference to the motor models as implemented in the package WinchModels. index 1: middle motor, index 2: left motor, index 3: right motor"
-    motors::SVector{3, AbstractWinchModel}
+    motors::SizedArray{Tuple{3}, AbstractWinchModel}
     "Iterations, number of calls to the function residual!"
     iter:: Int64 = 0
     "wind vector at the height of the kite" 
@@ -328,6 +328,12 @@ function init_sim!(s::KPS4_3L; t_end=1.0, stiffness_factor=1.0, prn=false,
     change_control_mode = s.torque_control != torque_control
     s.stiffness_factor = stiffness_factor
     s.torque_control = torque_control
+    if s.torque_control
+        [s.motors[i] = TorqueControlledMachine(s.set) for i in 1:3]
+    else
+        [s.motors[i] = AsyncMachine(s.set) for i in 1:3]
+    end
+
     dt = 1/s.set.sample_freq
     tspan   = (0.0, dt) 
     solver = KenCarp4(autodiff=false) # TRBDF2, Rodas4P, Rodas5P, Kvaerno5, KenCarp4, radau, QNDF
@@ -475,15 +481,15 @@ function winch_force(s::KPS4_3L) norm.(s.winch_forces) end
 
 
 # issue: still uses settings getter function
-function calc_acc_speed(tether_speed::SimFloat, norm_::SimFloat, set_speed::SimFloat)
-    calc_acceleration(AsyncMachine(se("system_3l.yaml")), tether_speed, norm_; set_speed, set_torque=nothing, use_brake=false)
+function calc_acc_speed(motor::AsyncMachine, tether_speed, norm_, set_speed)
+    calc_acceleration(motor, tether_speed, norm_; set_speed, set_torque=nothing, use_brake=false)
 end
-@register_symbolic calc_acc_speed(tether_speed, norm_, set_speed)
+@register_symbolic calc_acc_speed(motor::AsyncMachine, tether_speed, norm_, set_speed)
 
-function calc_acc_torque(tether_speed::SimFloat, norm_::SimFloat, set_torque::SimFloat)
-    calc_acceleration(TorqueControlledMachine(se("system_3l.yaml")), tether_speed, norm_; set_speed=nothing, set_torque, use_brake=false)
+function calc_acc_torque(motor::TorqueControlledMachine, tether_speed, norm_, set_torque)
+    calc_acceleration(motor, tether_speed, norm_; set_speed=nothing, set_torque, use_brake=false)
 end
-@register_symbolic calc_acc_torque(tether_speed, norm_, set_torque)
+@register_symbolic calc_acc_torque(motor::TorqueControlledMachine, tether_speed, norm_, set_torque)
 
 function calc_cl(spline::Spline1D, α)
     return spline(α)
@@ -827,10 +833,10 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
 
     eqs1 = vcat(eqs1, D.(tether_length) .~ tether_speed)
     if torque_control
-        eqs1 = vcat(eqs1, D.(tether_speed) .~ [calc_acc_torque(tether_speed[i], norm(force[:, (i-1) % 3 + 1]),
+        eqs1 = vcat(eqs1, D.(tether_speed) .~ [calc_acc_torque(s.motors[i], tether_speed[i], norm(force[:, (i-1) % 3 + 1]),
                                                                set_values[i]) for i in 1:3])
     else
-        eqs1 = vcat(eqs1, D.(tether_speed) .~ [calc_acc_speed(tether_speed[i], norm(force[:,(i-1) % 3 + 1]), 
+        eqs1 = vcat(eqs1, D.(tether_speed) .~ [calc_acc_speed(s.motors[i], tether_speed[i], norm(force[:,(i-1) % 3 + 1]), 
                                                                set_values[i]) for i in 1:3])
     end
 
