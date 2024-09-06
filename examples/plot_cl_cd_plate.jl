@@ -1,7 +1,7 @@
 # plot the lift and drag coefficients as function of angle of attack
 # of any of the plates of the kite
 
-using KiteModels, LaTeXStrings
+using KiteModels
 
 set = deepcopy(load_settings("system_v9.yaml"))
 
@@ -9,7 +9,7 @@ using Pkg
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
     using TestEnv; TestEnv.activate()
 end
-using ControlPlots
+using ControlPlots, LaTeXStrings
 
 set.v_wind = 14 # 25
 kcu = KCU(set)
