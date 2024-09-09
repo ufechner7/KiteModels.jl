@@ -1,11 +1,11 @@
 using Distributed
-using PyPlot, Printf, YAML
+using Printf
 using Xfoil
 
 const procs = addprocs()
 
 @everywhere begin
-    using Printf, YAML
+    using Printf
     using Xfoil
 
     function normalize!(x, y)

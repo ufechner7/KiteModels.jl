@@ -1,6 +1,7 @@
 system:
     log_file: "data/log_8700W_8ms" # filename without extension  [replay only]
                                    #   use / as path delimiter, even on Windows 
+    foil_file: "naca2412.dat"         # filename for the foil shape
     time_lapse:   1.0              # relative replay speed
     sim_time:   100.0              # simulation time             [sim only]
     segments:       6              # number of tether segments
