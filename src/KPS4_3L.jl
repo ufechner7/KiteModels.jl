@@ -75,10 +75,12 @@ $(TYPEDFIELDS)
     last_set_hash::UInt64   = 0
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
-    "Function for calculation the lift coefficent, using a spline based on the provided value pairs."
-    cl_spline = Spline1D(deg2rad.(se().alpha_cl), se().cl_list)
-    "Function for calculation the drag coefficent, using a spline based on the provided value pairs."
-    cd_spline = Spline1D(deg2rad.(se().alpha_cd), se().cd_list)
+    "Function for calculating the lift coefficent, using a spline based on the provided value pairs."
+    cl_spline::Spline2D
+    "Function for calculating the drag coefficent, using a spline based on the provided value pairs."
+    cd_spline::Spline2D
+    "Function for calculating the trailing edge force coefficient, using a spline based on the provided value pairs."
+    c_te_spline::Spline2D
     "Reference to the motor models as implemented in the package WinchModels. index 1: middle motor, index 2: left motor, index 3: right motor"
     motors::SizedArray{Tuple{3}, AbstractWinchModel}
     "Iterations, number of calls to the function residual!"
@@ -114,7 +116,7 @@ $(TYPEDFIELDS)
     "unstretched tether length"
     tether_lengths::T =          zeros(S, 3)
     "lengths of the connections of the steering tethers to the kite"
-    steering_pos::MVector{2, S} =      zeros(S, 2)
+    flap_angle::MVector{2, S} =      zeros(S, 2)
     "air density at the height of the kite"
     rho::S =               0.0
     "multiplier for the stiffniss of tether and bridle"
@@ -143,10 +145,14 @@ $(TYPEDFIELDS)
     num_D::Int64 =           0
     "Point number of A"
     num_A::Int64 =           0
-    "Angle of right tip"
-    α_l::SimFloat =     0.0
     "Angle of left tip"
+    α_l::SimFloat =     0.0
+    "Angle of right tip"
     α_r::SimFloat =     0.0
+    "Angle of point C"
+    α_C::SimFloat =     0.0
+    "Kite length at point C"
+    kite_length_C::SimFloat =     0.0
     "Lift of point C"
     L_C::T = zeros(S, 3)
     "Lift of point D"
@@ -166,7 +172,7 @@ $(TYPEDFIELDS)
     v_wind_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
     prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
     get_pos::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
-    get_steering_pos::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
+    get_flap_angle::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_line_acc::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_kite_vel::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_winch_forces::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
@@ -201,13 +207,15 @@ function clear!(s::KPS4_3L)
     s.e_y .= 0.0
     s.e_z .= 0.0
     s.set_values .= 0.0
-    s.steering_pos .= 0.0
+    s.flap_angle .= 0.0
     s.vel_kite .= 0.0
     [s.winch_forces[i] .= 0.0 for i in 1:3]
     s.tether_lengths .= [s.set.l_tether for _ in 1:3]
     s.α_l = π/2 - s.set.min_steering_line_distance/(2*s.set.radius)
     s.α_r = π/2 + s.set.min_steering_line_distance/(2*s.set.radius)
     s.segment_lengths .= s.tether_lengths ./ s.set.segments
+    s.num_flap_C = s.set.segments*3+3-2
+    s.num_flap_D = s.set.segments*3+3-1
     s.num_E = s.set.segments*3+3
     s.num_C = s.set.segments*3+3+1
     s.num_D = s.set.segments*3+3+2
@@ -219,21 +227,48 @@ function clear!(s::KPS4_3L)
     s.rho = s.set.rho_0
     init_masses!(s)
     init_springs!(s)
-    s.cl_spline = Spline1D(deg2rad.(se().alpha_cl), se().cl_list)
-    s.cd_spline = Spline1D(deg2rad.(se().alpha_cd), se().cd_list) 
+
+    results = read_csv("results.csv")
+    alphas = results["alpha"]
+    flap_angles = results["flap_angle"]
+    cl_values = results["cl"]
+    cd_values = results["cd"]
+    c_te_values = results["c_te"]
+    smoothing_param = 0.0
+    order = 2
+    found = false
+    while !found
+        try
+            s.cl_spline = Spline2D(alphas, flap_angles, cl_values; kx = order, ky = order, s = smoothing_param)
+            s.cd_spline = Spline2D(alphas, flap_angles, cd_values; kx = order, ky = order, s = smoothing_param)
+            s.c_te_spline = Spline2D(alphas, flap_angles, c_te_values; kx = order, ky = order, s = smoothing_param)
+            @show smoothing_param
+            found = true
+        catch e
+            if isa(e, ErrorException)
+                smoothing_param += 0.1
+                @show smoothing_param
+            else
+                rethrow(e)
+            end
+        end
+    end
 end
 
 function KPS4_3L(kcu::KCU)
+    open("naca2412.dat", "r") do f
+        lines = readlines(f)
+        if !endswith(chomp(lines[1]), "polars created")
+            include("CreatePolars.jl")
+            create_polars()
+        end
+    end
     set = kcu.set
     if set.winch_model == "TorqueControlledMachine"
         s = KPS4_3L{SimFloat, KVec3, set.segments*3+2+KITE_PARTICLES_3L, set.segments*3+KITE_SPRINGS_3L, SP}(set=kcu.set, motors=[TorqueControlledMachine(set) for _ in 1:3])
     else
         s = KPS4_3L{SimFloat, KVec3, set.segments*3+2+KITE_PARTICLES_3L, set.segments*3+KITE_SPRINGS_3L, SP}(set=kcu.set, motors=[AsyncMachine(set) for _ in 1:3])
     end
-    s.num_E = s.set.segments*3+3
-    s.num_C = s.set.segments*3+3+1
-    s.num_D = s.set.segments*3+3+2
-    s.num_A = s.set.segments*3+3+3     
     clear!(s)
     return s
 end
@@ -272,8 +307,8 @@ function update_sys_state!(ss::SysState, s::KPS4_3L, zoom=1.0)
     ss.v_app = norm(s.v_apparent)
     ss.l_tether = s.tether_lengths[3]
     ss.v_reelout = s.reel_out_speeds[3]
-    ss.depower = 100 - ((s.steering_pos[1] + s.steering_pos[2])/2) / ((s.set.middle_length + s.set.tip_length)/2) * 100
-    ss.steering = (s.steering_pos[2] - s.steering_pos[1]) / ((s.set.middle_length + s.set.tip_length)/2) * 100
+    ss.depower = 100 - ((s.flap_angle[1] + s.flap_angle[2])/2) / ((s.set.middle_length + s.set.tip_length)/2) * 100
+    ss.steering = (s.flap_angle[2] - s.flap_angle[1]) / ((s.set.middle_length + s.set.tip_length)/2) * 100
     ss.vel_kite .= s.vel_kite
     nothing
 end
@@ -298,8 +333,8 @@ function SysState(s::KPS4_3L, zoom=1.0)
     course = calc_course(s)
     v_app_norm = norm(s.v_apparent)
     t_sim = 0
-    depower = 100 - ((s.steering_pos[1] + s.steering_pos[2])/2) / ((s.set.middle_length + s.set.tip_length)/2) * 100
-    steering = (s.steering_pos[1] - s.steering_pos[2]) / ((s.set.middle_length + s.set.tip_length)/2) * 100
+    depower = 100 - ((s.flap_angle[1] + s.flap_angle[2])/2) / ((s.set.middle_length + s.set.tip_length)/2) * 100
+    steering = (s.flap_angle[1] - s.flap_angle[2]) / ((s.set.middle_length + s.set.tip_length)/2) * 100
     KiteUtils.SysState{P}(s.t_0, t_sim, 0, 0, orient, elevation, azimuth, s.tether_lengths[3], s.reel_out_speeds[3], forces[3], depower, steering, 
                           heading, course, v_app_norm, s.vel_kite, X, Y, Z, 
                           0, 0, 0, 0, 
@@ -369,8 +404,8 @@ function init_sim!(s::KPS4_3L; t_end=1.0, stiffness_factor=1.0, prn=false,
         s.v_wind_idx = parameter_index(integrator.f, :v_wind)
         s.stiffness_factor_idx = parameter_index(integrator.f, :stiffness_factor)
         s.get_pos = getu(integrator.sol, s.simple_sys.pos[:,:])
-        s.get_steering_pos = getu(integrator.sol, s.simple_sys.steering_pos)
-        s.get_line_acc = getu(integrator.sol, s.simple_sys.acc[:,s.num_E-2])
+        s.get_flap_angle = getu(integrator.sol, s.simple_sys.flap_angle)
+        s.get_line_acc = getu(integrator.sol, s.simple_sys.acc[:,s.num_flap_C])
         s.get_kite_vel = getu(integrator.sol, s.simple_sys.vel[:,s.num_A])
         s.get_winch_forces = getu(integrator.sol, s.simple_sys.force[:,1:3])
         s.get_L_C = getu(integrator.sol, s.simple_sys.L_C)
@@ -480,7 +515,6 @@ function winch_force(s::KPS4_3L) norm.(s.winch_forces) end
 # Implementation of the three-line model using ModellingToolkit.jl
 
 
-# issue: still uses settings getter function
 function calc_acc_speed(motor::AsyncMachine, tether_speed, norm_, set_speed)
     calc_acceleration(motor, tether_speed, norm_; set_speed, set_torque=nothing, use_brake=false)
 end
@@ -491,14 +525,10 @@ function calc_acc_torque(motor::TorqueControlledMachine, tether_speed, norm_, se
 end
 @register_symbolic calc_acc_torque(motor::TorqueControlledMachine, tether_speed, norm_, set_torque)
 
-function calc_cl(spline::Spline1D, α)
-    return spline(α)
+function sym_spline(spline::Spline2D, aoa, flap_angle)
+    return spline(aoa, flap_angle)
 end
-@register_symbolic calc_cl(spline::Spline1D, α)
-function calc_cd(spline::Spline1D, α)
-    return spline(α)
-end
-@register_symbolic calc_cd(spline::Spline1D, α)
+@register_symbolic sym_spline(spline::Spline2D, aoa, flap_angle)
 
 
 """
@@ -513,10 +543,9 @@ Parameters:
 
 Updates the vector s.forces of the first parameter.
 """
-function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, rho, v_wind, steering_pos)
+function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, rho, v_wind, flap_angle)
     n = s.set.aero_surfaces
     @variables begin
-        E_c(t)[1:3]
         v_cx(t)[1:3]
         v_dx(t)[1:3]
         v_dy(t)[1:3]
@@ -529,8 +558,6 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
 
     eqs2 = [
         eqs2
-        # in the aero calculations, E_c is the center of the circle shape on which the kite lies
-        E_c     ~ pos[:, s.num_E] + e_z * (-s.set.bridle_center_distance + s.set.radius)
         v_cx    ~ (vel[:, s.num_C] ⋅ e_x) * e_x
         v_dx    ~ (vel[:, s.num_D] ⋅ e_x) * e_x
         v_dy    ~ (vel[:, s.num_D] ⋅ e_y) * e_y
@@ -553,19 +580,19 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
         aoa(t)[1:n*2]
         dL_dα(t)[1:3, 1:2n]
         dD_dα(t)[1:3, 1:2n]
+        seg_flap_angle(t)[1:2n] # flap angle relative to -e_x, e_z
         L_C(t)[1:3]
         L_D(t)[1:3]
         D_C(t)[1:3]
         D_D(t)[1:3]
         F_steering_c(t)[1:3]
         F_steering_d(t)[1:3]
-        d(t)[1:2n]
     end
     l_c_eq = SizedArray{Tuple{3}, Symbolics.Equation}(collect(L_C .~ 0))
     l_d_eq = SizedArray{Tuple{3}, Symbolics.Equation}(collect(L_D .~ 0))
     d_c_eq = SizedArray{Tuple{3}, Symbolics.Equation}(collect(D_C .~ 0))
     d_d_eq = SizedArray{Tuple{3}, Symbolics.Equation}(collect(D_D .~ 0))
-    kite_length = zeros(MVector{2n, SimFloat})
+    kite_length = zero(SimFloat)
     α           = zero(SimFloat)
     α_0         = zero(SimFloat)
     α_middle    = zero(SimFloat)
@@ -594,26 +621,35 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
             v_a_xr[:, i]     ~ v_a[:, i] .- (v_a[:, i] ⋅ e_drift[:, i]) .* e_drift[:, i]
         ]
         if α < π/2
-            kite_length[i] = (s.set.tip_length + (s.set.middle_length-s.set.tip_length) * α 
+            kite_length = (s.set.tip_length + (s.set.middle_length-s.set.tip_length) * α 
                               * s.set.radius/(0.5*s.set.width))
         else
-            kite_length[i] = (s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (π-α) 
+            kite_length = (s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (π-α) 
                               * s.set.radius/(0.5*s.set.width))
         end
         eqs2 = [
             eqs2
             α < s.α_l ?
-                d[i]    ~ steering_pos[1] :
+                seg_flap_angle[i]    ~ asin((sin(flap_angle[1]) * s.kite_length_C/4) / (kite_length/4))  :
             α > s.α_r ?
-                d[i]    ~ steering_pos[2] :
-                d[i]    ~ (steering_pos[2] - steering_pos[1]) / (s.α_r - s.α_l) * (α - s.α_l) + (steering_pos[1])
-            aoa[i]      ~ -asin((v_a_xr[:, i] / norm(v_a_xr[:, i])) ⋅ e_r[:, i]) + 
-                           asin(clamp(d[i] / kite_length[i], -1.0, 1.0))
-            dL_dα[:, i] ~ 0.5 * rho * (norm(v_a_xr[:, i]))^2 * s.set.radius * kite_length[i] * calc_cl(s.cl_spline, aoa[i]) * 
+                seg_flap_angle[i]    ~ asin((sin(flap_angle[2]) * s.kite_length_C/4) / (kite_length/4)) :
+                seg_flap_angle[i]    ~ asin(
+                    ((flap_angle[2] - flap_angle[1]) / (s.α_r - s.α_l) * (α - s.α_l) + (flap_angle[1]))
+                    * s.kite_length_C/4 / (kite_length/4)
+                )
+            aoa[i]      ~ -asin((v_a_xr[:, i] / norm(v_a_xr[:, i])) ⋅ e_r[:, i]) + s.set.alpha_zero
+            dL_dα[:, i] ~ 0.5 * rho * (norm(v_a_xr[:, i]))^2 * s.set.radius * kite_length * sym_spline(s.cl_spline, aoa[i], seg_flap_angle[i]) * 
                                 ((v_a_xr[:, i] × e_drift[:, i]) / norm(v_a_xr[:, i] × e_drift[:, i]))
-            dD_dα[:, i] ~ 0.5 * rho * norm(v_a_xr[:, i]) * s.set.radius * kite_length[i] * calc_cd(s.cd_spline, aoa[i]) * 
-                                v_a_xr[:,i] # the sideways drag cannot be calculated with the C_d formula
+            dD_dα[:, i] ~ 0.5 * rho * norm(v_a_xr[:, i]) * s.set.radius * kite_length * sym_spline(s.cd_spline, aoa[i], seg_flap_angle[i]) * 
+                                v_a_xr[:,i]
+            dF_te_dα[:, i] ~ ifelse(
+                seg_flap_angle[i] > aoa[i],
+                -rho * norm(v_kite[:, i])^2 * flap_height * radius * α * (flap_height/2) / (kite_length/4),
+                rho * norm(v)^2 * flap_height * radius * α * (flap_height/2) / (kite_length/4)
+            )
         ]
+
+        # TODO: correct for extra torque in wingtips (add to c substract from d)
         if i <= n
             [l_c_eq[j] = (L_C[j] ~ l_c_eq[j].rhs + dL_dα[j, i] * dα) for j in 1:3]
             [d_c_eq[j] = (D_C[j] ~ d_c_eq[j].rhs + dD_dα[j, i] * dα) for j in 1:3]
@@ -632,11 +668,21 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
         F_steering_c ~ ((0.2 * (L_C ⋅ -e_z)) * -e_z)
         F_steering_d ~ ((0.2 * (L_D ⋅ -e_z)) * -e_z)
     ]
+
+    # TODO: check if flap torque is right
+    # longtitudinal force
+    # F_inside_flap = P * A
+    # F_inside_flap = rho * norm(v)^2 * flap_height * width
+    # F_inside_flap = rho * norm(v)^2 * flap_height * radius * α
+    # F_trailing_edge = -F_inside_flap * (flap_height/2) / (kite_length/4) if flap_angle > 0 clockwise force
+    # F_trailing_edge = F_inside_flap * (flap_height/2) / (kite_length/4) if flap_angle < 0 clockwise force
+    # dF_te_dα = rho * norm(v)^2 * flap_height * radius
+    # flap_height = height_middle * kite_length / middle_length
     
     force_eqs[:,s.num_C]   .= (force[:,s.num_C]   .~ (L_C + D_C) - F_steering_c) 
     force_eqs[:,s.num_D]   .= (force[:,s.num_D]   .~ (L_D + D_D) - F_steering_d)
-    force_eqs[:,s.num_E-2] .= (force[:,s.num_E-2] .~ F_steering_c)
-    force_eqs[:,s.num_E-1] .= (force[:,s.num_E-1] .~ F_steering_d)
+    # force_eqs[:,s.num_flap_C] .= (force[:,s.num_flap_C] .~ F_steering_c)
+    # force_eqs[:,s.num_flap_D] .= (force[:,s.num_flap_D] .~ F_steering_d)
     return eqs2, force_eqs
 end
 
@@ -670,7 +716,7 @@ function calc_particle_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos1, pos
         spring_vel  .~ rel_vel ⋅ unit_vector
     ]
 
-    if i >= s.num_E-2  # kite springs
+    if i >= s.num_flap_C  # kite springs
         for j in 1:3
             eqs2 = [
                 eqs2
@@ -770,9 +816,9 @@ end
 
 function update_pos!(s, integrator)
     pos = s.get_pos(integrator)
-    s.steering_pos     .= s.get_steering_pos(integrator)
+    s.flap_angle     .= s.get_flap_angle(integrator)
     [s.pos[i]          .= pos[:,i] for i in 1:s.num_A]
-    s.veld[s.num_E-2]  .= s.get_line_acc(integrator)
+    s.veld[s.num_flap_C]  .= s.get_line_acc(integrator)
     s.vel_kite         .= s.get_kite_vel(integrator)
     winch_forces        = s.get_winch_forces(integrator)
     [s.winch_forces[i] .= (winch_forces[:,i]) for i in 1:3]
@@ -783,7 +829,7 @@ function update_pos!(s, integrator)
     s.D_C               = s.get_D_C(integrator)
     s.D_D               = s.get_D_D(integrator)
     calc_kite_ref_frame!(s, s.pos[s.num_E], s.pos[s.num_C], s.pos[s.num_D])
-    @assert all(abs.(s.steering_pos) .<= s.set.tip_length)
+    @assert all(abs.(s.flap_angle) .<= s.set.tip_length)
     nothing
 end
 
@@ -799,15 +845,16 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
         vel(t)[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
         acc(t)[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
         tether_length(t)[1:3]  = s.tether_lengths
-        steering_pos(t)[1:2]   = s.steering_pos
-        steering_vel(t)[1:2]   = zeros(2)
-        steering_acc(t)[1:2]   = zeros(2)
+        flap_angle(t)[1:2, 1:2]   = s.flap_angle # left and right, e_x and e_r
+        flap_vel(t)[1:2]   = zeros(2) # angular vel
+        flap_acc(t)[1:2]   = zeros(2) # angular acc
         tether_speed(t)[1:3]   = zeros(3) # left right middle
         segment_length(t)[1:3] = zeros(3) # left right middle
         mass_tether_particle(t)[1:3]      # left right middle
         damping(t)[1:3] = s.set.damping ./ s.tether_lengths ./ s.set.segments   # left right middle
         c_spring(t)[1:3] = s.set.c_spring ./ s.tether_lengths ./ s.set.segments # left right middle
         P_c(t)[1:3] = 0.5 .* (s.pos[s.num_C] + s.pos[s.num_D])
+        E_c(t)[1:3]
         e_x(t)[1:3]
         e_y(t)[1:3]
         e_z(t)[1:3]
@@ -824,11 +871,11 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
 
     [eqs1 = vcat(eqs1, D.(pos[:, i]) .~ 0.0) for i in 1:3]
     [eqs1 = vcat(eqs1, D.(pos[:, i]) .~ vel[:,i]) for i in 4:s.num_E-3]
-    eqs1 = [eqs1; D.(steering_pos)   .~ steering_vel]
+    eqs1 = [eqs1; D.(flap_angle)   .~ flap_vel]
     [eqs1 = vcat(eqs1, D.(pos[:, i]) .~ vel[:,i]) for i in s.num_E:s.num_A]
     [eqs1 = vcat(eqs1, D.(vel[:, i]) .~ 0.0) for i in 1:3]
     [eqs1 = vcat(eqs1, D.(vel[:, i]) .~ acc[:,i]) for i in 4:s.num_E-3]
-    eqs1 = [eqs1; D.(steering_vel)   .~ steering_acc]
+    eqs1 = [eqs1; D.(flap_vel)   .~ flap_acc]
     [eqs1 = vcat(eqs1, D.(vel[:, i]) .~ acc[:,i]) for i in s.num_E:s.num_A]
 
     eqs1 = vcat(eqs1, D.(tether_length) .~ tether_speed)
@@ -845,24 +892,28 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
     force_eqs[:, :] .= (force[:, :] .~ 0)
 
     eqs2 = [
-        pos[:, s.num_E-2] ~ pos[:, s.num_C] + e_z * steering_pos[1]
-        pos[:, s.num_E-1] ~ pos[:, s.num_D] + e_z * steering_pos[2]
-        vel[:, s.num_E-2] ~ vel[:, s.num_C] + e_z * steering_vel[1]
-        vel[:, s.num_E-1] ~ vel[:, s.num_D] + e_z * steering_vel[2]
-        acc[:, s.num_E-2] ~ acc[:, s.num_C] + e_z * steering_acc[1]
-        acc[:, s.num_E-1] ~ acc[:, s.num_D] + e_z * steering_acc[2]
-        segment_length       ~ tether_length  ./ s.set.segments
-        mass_tether_particle ~ mass_per_meter .* segment_length
-        damping              ~ s.set.damping  ./ segment_length
-        c_spring             ~ s.set.c_spring ./ segment_length
-        P_c ~ 0.5 * (pos[:, s.num_C] + pos[:, s.num_D])
-        e_y ~ (pos[:, s.num_C] - pos[:, s.num_D]) / norm(pos[:, s.num_C] - pos[:, s.num_D])
-        e_z ~ (pos[:, s.num_E] - P_c) / norm(pos[:, s.num_E] - P_c)
-        e_x ~ cross(e_y, e_z)
+        pos[:, s.num_flap_C]    ~ pos[:, s.num_C] - e_x * flap_length * cos(flap_angle[1]) + e_r_c * flap_length * sin(flap_angle[1])
+        pos[:, s.num_flap_D]    ~ pos[:, s.num_D] - e_x * flap_length * cos(flap_angle[2]) + e_r_d * flap_length * sin(flap_angle[2])
+        vel[:, s.num_flap_C]    ~ vel[:, s.num_C] - e_x * flap_length * cos(flap_vel[1]) + e_r_c * flap_length * sin(flap_vel[1])
+        vel[:, s.num_flap_D]    ~ vel[:, s.num_D] - e_x * flap_length * cos(flap_vel[2]) + e_r_d * flap_length * sin(flap_vel[2])
+        acc[:, s.num_flap_C]    ~ acc[:, s.num_C] - e_x * flap_length * cos(flap_acc[1]) + e_r_c * flap_length * sin(flap_acc[1])
+        acc[:, s.num_flap_D]    ~ acc[:, s.num_D] - e_x * flap_length * cos(flap_acc[2]) + e_r_d * flap_length * sin(flap_acc[2])
+        segment_length          ~ tether_length  ./ s.set.segments
+        mass_tether_particle    ~ mass_per_meter .* segment_length
+        damping                 ~ s.set.damping  ./ segment_length
+        c_spring                ~ s.set.c_spring ./ segment_length
+        P_c     ~ 0.5 * (pos[:, s.num_C] + pos[:, s.num_D])
+        e_y     ~ (pos[:, s.num_C] - pos[:, s.num_D]) / norm(pos[:, s.num_C] - pos[:, s.num_D])
+        e_z     ~ (pos[:, s.num_E] - P_c) / norm(pos[:, s.num_E] - P_c)
+        e_r_c   ~ (E_c - pos[:, s.num_C]) / norm(E_c - pos[:, s.num_C])
+        e_r_d   ~ (E_c - pos[:, s.num_D]) / norm(E_c - pos[:, s.num_D])
+        e_x     ~ cross(e_y, e_z)
+        # E_c is the center of the circle shape of the front view of the kite
+        E_c     ~ pos[:, s.num_E] + e_z * (-s.set.bridle_center_distance + s.set.radius) 
         rho_kite ~ calc_rho(s.am, pos[3,s.num_A])
     ]
 
-    eqs2, force_eqs = calc_aero_forces_mtk!(s, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, rho_kite, v_wind, steering_pos)
+    eqs2, force_eqs = calc_aero_forces_mtk!(s, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, rho_kite, v_wind, flap_angle)
     eqs2, force_eqs = inner_loop_mtk!(s, eqs2, force_eqs, t, force, pos, vel, segment_length, c_spring, damping, 
                                       v_wind_gnd, stiffness_factor)
     
@@ -874,17 +925,33 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
         eqs2 = vcat(eqs2, vcat(force_eqs[:,i]))
         eqs2 = vcat(eqs2, acc[:, i] .~ [0.0; 0.0; -G_EARTH] .+ (force[:,i] ./ mass_tether_particle[(i-1)%3+1]))
     end
-    for i in s.num_E-2:s.num_E-1
-        flap_resistance   = [50.0 * ((vel[:,i]-vel[:, s.num_C]) ⋅ e_z) * e_z[j] for j in 1:3]
-        [force_eqs[j,i]   = force[j,i] ~ force_eqs[j,i].rhs + [0.0; 0.0; -G_EARTH][j] + flap_resistance[j] for j in 1:3]
-        tether_rhs        = [force_eqs[j, i].rhs for j in 1:3]
-        kite_rhs          = [force_eqs[j, i+3].rhs for j in 1:3]
-        f_xy              = (tether_rhs ⋅ e_z) .* e_z
-        force_eqs[:,i]   .= force[:, i] .~ tether_rhs .- f_xy
-        force_eqs[:,i+3] .= force[:, i+3] .~ kite_rhs .+ f_xy
-        eqs2              = vcat(eqs2, vcat(force_eqs[:, i]))
-        eqs2              = vcat(eqs2, steering_acc[i-s.num_E+3] ~ (force[:,i] ./ mass_tether_particle[(i-1) % 3 + 1]) ⋅ 
-                                                                    e_z - (acc[:, i+3] ⋅ e_z))
+    for i in s.num_flap_C:s.num_flap_D
+        # flap_resistance   = [50.0 * ((vel[:,i]-vel[:, s.num_C]) ⋅ e_z) * e_z[j] for j in 1:3]
+        # [force_eqs[j,i]   = force[j,i] ~ force_eqs[j,i].rhs + [0.0; 0.0; -G_EARTH][j] + flap_resistance[j] for j in 1:3]
+        # tether_rhs        = [force_eqs[j, i].rhs for j in 1:3]
+        # kite_rhs          = [force_eqs[j, i+3].rhs for j in 1:3]
+        # f_xy              = (tether_rhs ⋅ e_z) .* e_z
+        # force_eqs[:,i]   .= force[:, i] .~ tether_rhs .- f_xy
+        # force_eqs[:,i+3] .= force[:, i+3] .~ kite_rhs .+ f_xy
+        # eqs2              = vcat(eqs2, vcat(force_eqs[:, i]))
+        # eqs2              = vcat(eqs2, flap_acc[i-s.num_E+3] ~ (force[:,i] ./ mass_tether_particle[(i-1) % 3 + 1]) ⋅ 
+        #                                                             e_z - (acc[:, i+3] ⋅ e_z))
+
+        # torque = I * flap_acc
+        # flap_acc = torque / (1/3 * (kite_mass/8) * kite_length_at_c^2)
+        # torque = force[:, i] * kite_length_at_c
+        # flap_acc = force[:, i] * kite_length_at_c / (1/3 * (kite_mass/8) * kite_length_at_c^2)
+
+
+        # remove tether drag+spring forces not causing torque and add them to c and d
+
+        # add tether force to flap trailing edge force (te force = inside pressure force + c_te force)
+        
+        eqs2 = [
+            eqs2
+            # convert combined flap forces to torque and calculate rotational acc
+            flap_acc[i-s.num_flap_C+1] ~ force[:, i] * s.kite_length_C / (1/3 * (s.set.mass/8) * kite_length_C^2)
+        ]
     end
     for i in s.num_E:s.num_A
         eqs2 = vcat(eqs2, vcat(force_eqs[:,i]))
@@ -910,4 +977,34 @@ function settings_hash(st)
         h = hash(field_value, h)
     end
     return h
+end
+
+function read_csv(filename="polars.csv")
+    if !endswith(filename, ".csv")
+        filename *= ".csv"
+    end
+    if contains(filename, r"[<>:\"/\\|?*]")
+        error("Invalid filename: $filename")
+    end
+    filename = joinpath(get_data_path(), filename)
+    data = Dict{String, Vector{Float64}}()
+    try
+        open(filename, "r") do f
+            header = split(chomp(readline(f)), ",")
+            for col in header
+                data[col] = Float64[]
+            end
+            for line in eachline(f)
+                values = split(chomp(line), ",")
+                for (i, col) in enumerate(header)
+                    push!(data[col], parse(Float64, values[i]))
+                end
+            end
+        end
+    catch e
+        println("Could not open csv file.")
+        println(e)
+        return nothing
+    end
+    return data
 end

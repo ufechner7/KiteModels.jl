@@ -30,39 +30,28 @@ function init_springs!(s::KPS4)
     s.springs
 end
 
-# "get the azimuth of the steering tethers"
-# function get_tether_azimuth(width, radius, tip_length, middle_length)
-#     α_0 = pi/2 - width/2/radius
-#     α_c = α_0 + width*(-2*tip_length + sqrt(2*middle_length^2 + 2*tip_length^2))/(4*(middle_length - tip_length)) / radius
-#     distance_c = cos(α_c)*radius
-#     α_tether = atan(distance_c/l_tether)
-#     return α_tether
-# end
-
 # implemented
-function get_particles(width, radius, middle_length, tip_length, bridle_center_distance, pos_kite = [ 75., 0., 129.90381057], 
-    vec_c=[-15., 0., -25.98076211], v_app=[10.4855, 0, -3.08324])
+function get_particles(s::KPS4_3L; pos_kite = [ 75., 0., 129.90381057], vec_c=[-15., 0., -25.98076211], v_app=[10.4855, 0, -3.08324])
     # inclination angle of the kite; beta = atan(-pos_kite[2], pos_kite[1]) ???
     beta = pi/2.0
+    width = s.set.width
 
     e_z = normalize(vec_c) # vec_c is the direction of the last two particles
     e_y = normalize(cross(v_app, e_z))
     e_x = normalize(cross(e_y, e_z))
 
-    α_0 = pi/2 - width/2/radius
-    α_c = α_0 + width*(-2*tip_length + sqrt(2*middle_length^2 + 2*tip_length^2))/(4*(middle_length - tip_length)) / radius
-    α_d = π - α_c
+    α_0 = pi/2 - s.set.width/2/s.set.radius
+    s.α_C = α_0 + s.set.width*(-2*s.set.tip_length + sqrt(2*s.set.middle_length^2 + 2*s.set.tip_length^2)) /
+        (4*(s.set.middle_length - s.set.tip_length)) / s.set.radius
 
     E = pos_kite
-    E_c = pos_kite + e_z * (-bridle_center_distance + radius) # E at center of circle on which the kite shape lies
-    C = E_c + e_y*cos(α_c)*radius - e_z*sin(α_c)*radius
-    D = E_c + e_y*cos(α_d)*radius - e_z*sin(α_d)*radius
+    E_c = pos_kite + e_z * (-s.set.bridle_center_distance + s.set.radius) # E at center of circle on which the kite shape lies
+    C = E_c + e_y*cos(α_C)*s.set.radius - e_z*sin(α_C)*s.set.radius
+    D = E_c + e_y*cos(α_D)*s.set.radius - e_z*sin(α_D)*s.set.radius
 
-    length(α) = α < π/2 ?
-        (tip_length + (middle_length-tip_length)*α*radius/(0.5*width)) :
-        (tip_length + (middle_length-tip_length)*(π-α)*radius/(0.5*width))
+    s.kite_length_C = (s.set.tip_length + (s.set.middle_length-s.set.tip_length)*s.α_C*s.set.radius/(0.5*s.set.width))
     P_c = (C+D)./2
-    A = P_c - e_x*(length(α_c)*(3/4 - 1/4))
+    A = P_c - e_x*(s.kite_length_C*(3/4 - 1/4))
 
     [E, C, D, A] # important to have the order E = 1, C = 2, D = 3, A = 4
 end
@@ -71,7 +60,7 @@ end
 function init_springs!(s::KPS4_3L)
     l_0 = s.set.l_tether / s.set.segments
     
-    particles = get_particles(s.set.width, s.set.radius, s.set.middle_length, s.set.tip_length, s.set.bridle_center_distance)
+    particles = get_particles(s)
     
     # build the tether segments of the three tethers
     k = s.set.e_tether * (s.set.d_tether/2000.0)^2 * pi  / l_0  # Spring stiffness for this spring [N/m]
@@ -122,9 +111,9 @@ function init_masses!(s::KPS4_3L)
     end
     [s.masses[i] += 0.5 * l_0 * mass_per_meter for i in s.num_E-2:s.num_E]
     s.masses[s.num_E] += 0.5 * s.set.l_bridle * mass_per_meter
-    s.masses[s.num_A] += s.set.mass/2
-    s.masses[s.num_C] += s.set.mass/4
-    s.masses[s.num_D] += s.set.mass/4
+    s.masses[s.num_A] += s.set.mass/4
+    s.masses[s.num_C] += s.set.mass*3/8
+    s.masses[s.num_D] += s.set.mass*3/8
     return s.masses 
 end
 
@@ -186,7 +175,7 @@ function init_pos_vel_acc(s::KPS4_3L, X=zeros(5*s.set.segments+3); delta = 0.0)
 
     # kite points
     vec_c = pos[s.num_E-3] - pos[s.num_E]
-    particles = get_particles(s.set.width, s.set.radius, s.set.middle_length, s.set.tip_length, s.set.bridle_center_distance, pos[s.num_E], vec_c, s.v_apparent)
+    particles = get_particles(s, pos_kite = pos[s.num_E], vec_c = vec_c, v_app = s.v_apparent)
     pos[s.num_A] .= particles[4] + [X[s.set.segments*2+1], 0, X[s.set.segments*2+2]]
     pos[s.num_C] .= particles[2] + X[s.set.segments*2+3 : s.set.segments*2+5]
     pos[s.num_D] .= [pos[s.num_C][1], -pos[s.num_C][2], pos[s.num_C][3]]
