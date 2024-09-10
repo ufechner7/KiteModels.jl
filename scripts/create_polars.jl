@@ -1,11 +1,10 @@
 using Distributed
-using Printf
 using Xfoil
+using KiteUtils
 
 const procs = addprocs()
 
 @everywhere begin
-    using Printf
     using Xfoil
 
     function normalize!(x, y)
@@ -176,7 +175,7 @@ function create_polars(foil_file="naca2412.dat", polar_file="polars.csv")
 
     println("Alpha\t\tFlap Angle\tCl\t\tCd\t\tc_te")
     for (alpha, flap_angle, cl, cd, c_te) in polars
-        @printf("%8f\t%8f\t%8f\t%8f\t%8f\n", alpha, flap_angle, real(cl), real(cd), real(c_te))
+        println("$alpha\t$flap_angle\t$(real(cl))\t$(real(cd))\t$(real(c_te))")
     end
 
     csv_content = "alpha,flap_angle,cl,cd,c_te\n"
@@ -205,3 +204,5 @@ function create_polars(foil_file="naca2412.dat", polar_file="polars.csv")
         end
     end
 end
+
+create_polars()

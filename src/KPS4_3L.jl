@@ -235,12 +235,12 @@ function clear!(s::KPS4_3L)
     init_masses!(s)
     init_springs!(s)
 
-    results = read_csv(joinpath(get_data_path(), s.polar_file))
-    alphas = results["alpha"]
-    flap_angles = results["flap_angle"]
-    cl_values = results["cl"]
-    cd_values = results["cd"]
-    c_te_values = results["c_te"]
+    polars = read_csv(s.polar_file)
+    alphas = polars["alpha"]
+    flap_angles = polars["flap_angle"]
+    cl_values = polars["cl"]
+    cd_values = polars["cd"]
+    c_te_values = polars["c_te"]
     smoothing_param = 0.0
     order = 2
     found = false
@@ -262,6 +262,7 @@ function clear!(s::KPS4_3L)
     end
 end
 
+# include(joinpath(@__DIR__, "CreatePolars.jl"))
 function KPS4_3L(kcu::KCU)
     set = kcu.set
     if set.winch_model == "TorqueControlledMachine"
@@ -272,8 +273,7 @@ function KPS4_3L(kcu::KCU)
     open(joinpath(get_data_path(), s.foil_file), "r") do f
         lines = readlines(f)
         if !endswith(chomp(lines[1]), "polars created")
-            include(joinpath(@__DIR__, "CreatePolars.jl"))
-            create_polars(s.foil_file, s.polar_file)
+            error("No polars created for $(s.foil_file). Run scripts/create_polars.jl to create a polars file.")
         end
     end
     clear!(s)
@@ -737,8 +737,7 @@ function calc_particle_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos1, pos
         for j in 1:3
             eqs2 = [
                 eqs2
-                spring_force[j] ~ ifelse(D(solid_pos) ~ solid_vel,
-        D(solid_vel) ~ solid_acc]
+                spring_force[j] ~ ifelse(
                     (norm1 - l_0) > 0.0,
                     (k  * (l_0 - norm1) - c1 * spring_vel) * unit_vector[j],
                     (k1 * (l_0 - norm1) -  c * spring_vel) * unit_vector[j]
@@ -996,9 +995,6 @@ end
 function read_csv(filename="polars.csv")
     if !endswith(filename, ".csv")
         filename *= ".csv"
-    end
-    if contains(filename, r"[<>:\"/\\|?*]")
-        error("Invalid filename: $filename")
     end
     filename = joinpath(get_data_path(), filename)
     data = Dict{String, Vector{Float64}}()
