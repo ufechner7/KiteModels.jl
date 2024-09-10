@@ -30,37 +30,39 @@ function init_springs!(s::KPS4)
     s.springs
 end
 
-# implemented
-function get_particles(s::KPS4_3L; pos_kite = [ 75., 0., 129.90381057], vec_c=[-15., 0., -25.98076211], v_app=[10.4855, 0, -3.08324])
-    # inclination angle of the kite; beta = atan(-pos_kite[2], pos_kite[1]) ???
-    beta = pi/2.0
-    width = s.set.width
+# # implemented
+# function get_particles(s::KPS4_3L; pos_kite = [ 75., 0., 129.90381057], vec_c=[-15., 0., -25.98076211], v_app=[10.4855, 0, -3.08324])
+#     # inclination angle of the kite; beta = atan(-pos_kite[2], pos_kite[1]) ???
+#     beta = pi/2.0
+#     width = s.set.width
 
-    e_z = normalize(vec_c) # vec_c is the direction of the last two particles
-    e_y = normalize(cross(v_app, e_z))
-    e_x = normalize(cross(e_y, e_z))
+#     e_z = normalize(vec_c) # vec_c is the direction of the last two particles
+#     e_y = normalize(cross(v_app, e_z))
+#     e_x = normalize(cross(e_y, e_z))
 
-    α_0 = pi/2 - s.set.width/2/s.set.radius
-    s.α_C = α_0 + s.set.width*(-2*s.set.tip_length + sqrt(2*s.set.middle_length^2 + 2*s.set.tip_length^2)) /
-        (4*(s.set.middle_length - s.set.tip_length)) / s.set.radius
+#     α_0 = pi/2 - s.set.width/2/s.set.radius
+#     s.α_C = α_0 + s.set.width*(-2*s.set.tip_length + sqrt(2*s.set.middle_length^2 + 2*s.set.tip_length^2)) /
+#         (4*(s.set.middle_length - s.set.tip_length)) / s.set.radius
 
-    E = pos_kite
-    E_c = pos_kite + e_z * (-s.set.bridle_center_distance + s.set.radius) # E at center of circle on which the kite shape lies
-    C = E_c + e_y*cos(α_C)*s.set.radius - e_z*sin(α_C)*s.set.radius
-    D = E_c + e_y*cos(α_D)*s.set.radius - e_z*sin(α_D)*s.set.radius
+#     E = pos_kite
+#     E_c = pos_kite + e_z * (-s.set.bridle_center_distance + s.set.radius) # E at center of circle on which the kite shape lies
+#     C = E_c + e_y*cos(α_C)*s.set.radius - e_z*sin(α_C)*s.set.radius
+#     D = E_c + e_y*cos(α_D)*s.set.radius - e_z*sin(α_D)*s.set.radius
 
-    s.kite_length_C = (s.set.tip_length + (s.set.middle_length-s.set.tip_length)*s.α_C*s.set.radius/(0.5*s.set.width))
-    P_c = (C+D)./2
-    A = P_c - e_x*(s.kite_length_C*(3/4 - 1/4))
+#     s.kite_length_C = (s.set.tip_length + (s.set.middle_length-s.set.tip_length)*s.α_C*s.set.radius/(0.5*s.set.width))
+#     P_c = (C+D)./2
+#     A = P_c - e_x*(s.kite_length_C*(3/4 - 1/4))
 
-    [E, C, D, A] # important to have the order E = 1, C = 2, D = 3, A = 4
-end
+#     [E, C, D, A] # important to have the order E = 1, C = 2, D = 3, A = 4
+# end
 
 # implemented - looks good
 function init_springs!(s::KPS4_3L)
     l_0 = s.set.l_tether / s.set.segments
     
-    particles = get_particles(s)
+    E, C, D, A, _, _ = KiteUtils.get_particles_3l(s.set.width, s.set.radius, 
+        s.set.middle_length, s.set.tip_length, s.set.bridle_center_distance)
+    particles = [E, C, D, A]
     
     # build the tether segments of the three tethers
     k = s.set.e_tether * (s.set.d_tether/2000.0)^2 * pi  / l_0  # Spring stiffness for this spring [N/m]
@@ -74,8 +76,8 @@ function init_springs!(s::KPS4_3L)
         p0, p1 = SPRINGS_INPUT_3L[i, 1], SPRINGS_INPUT_3L[i, 2] # bridle points
         l_0 = norm(particles[Int(p1)] - particles[Int(p0)]) * PRE_STRESS
         k = s.set.e_tether * (s.set.d_line/2000.0)^2 * pi / l_0
-        p0 += s.num_E-1 # correct the index for the start and end particles of the bridle
-        p1 += s.num_E-1
+        p0 += s.num_flap_D # correct the index for the start and end particles of the bridle
+        p1 += s.num_flap_D
         c = s.set.damping/ l_0
         s.springs[i+s.set.segments*3] = SP(Int(p0), Int(p1), l_0, k, c)
     end
@@ -109,7 +111,7 @@ function init_masses!(s::KPS4_3L)
     for i in 4:s.set.segments*3
         s.masses[i]   += l_0 * mass_per_meter
     end
-    [s.masses[i] += 0.5 * l_0 * mass_per_meter for i in s.num_E-2:s.num_E]
+    [s.masses[i] += 0.5 * l_0 * mass_per_meter for i in s.num_flap_C:s.num_E]
     s.masses[s.num_E] += 0.5 * s.set.l_bridle * mass_per_meter
     s.masses[s.num_A] += s.set.mass/4
     s.masses[s.num_C] += s.set.mass*3/8
@@ -174,10 +176,12 @@ function init_pos_vel_acc(s::KPS4_3L, X=zeros(5*s.set.segments+3); delta = 0.0)
     end
 
     # kite points
-    vec_c = pos[s.num_E-3] - pos[s.num_E]
-    particles = get_particles(s, pos_kite = pos[s.num_E], vec_c = vec_c, v_app = s.v_apparent)
-    pos[s.num_A] .= particles[4] + [X[s.set.segments*2+1], 0, X[s.set.segments*2+2]]
-    pos[s.num_C] .= particles[2] + X[s.set.segments*2+3 : s.set.segments*2+5]
+    vec_c = pos[s.num_flap_C-1] - pos[s.num_E]
+    _, C, _, A, s.α_C, s.kite_length_C = KiteUtils.get_particles_3l(s.set.width, s.set.radius, 
+                            s.set.middle_length, s.set.tip_length, s.set.bridle_center_distance, pos[s.num_E], vec_c, s.v_apparent)
+
+    pos[s.num_A] .= A + [X[s.set.segments*2+1], 0, X[s.set.segments*2+2]]
+    pos[s.num_C] .= C + X[s.set.segments*2+3 : s.set.segments*2+5]
     pos[s.num_D] .= [pos[s.num_C][1], -pos[s.num_C][2], pos[s.num_C][3]]
     
     # build tether connection points
@@ -186,12 +190,12 @@ function init_pos_vel_acc(s::KPS4_3L, X=zeros(5*s.set.segments+3); delta = 0.0)
     # distance_c_l = s.set.tip_length/2 # distance between c and left steering line
     s.tether_lengths[1] = norm(pos[s.num_C] + e_z .* (X[s.set.segments*2+6] + distance_c_l)) # find the right steering tether length
     s.tether_lengths[2] = s.tether_lengths[1]
-    pos[s.num_E-2] .= pos[s.num_C] + e_z .* (distance_c_l)
-    pos[s.num_E-1] .= pos[s.num_E-2] .* [1.0, -1.0, 1.0]
+    pos[s.num_flap_C] .= pos[s.num_C] + e_z .* (distance_c_l)
+    pos[s.num_flap_D] .= pos[s.num_flap_C] .* [1.0, -1.0, 1.0]
 
     # build left and right tether points
     for (i, j) in enumerate(range(4, step=3, length=s.set.segments-1))
-        pos[j] .= pos[s.num_E-2] ./ s.set.segments .* i .+
+        pos[j] .= pos[s.num_flap_C] ./ s.set.segments .* i .+
             [X[2*s.set.segments+6+i],
             X[3*s.set.segments+5+i],
             X[4*s.set.segments+4+i]]
@@ -241,19 +245,19 @@ function init_inner(s::KPS4_3L, X=zeros(5*s.set.segments+3);delta=0.0)
     pos_, vel_, acc_ = init_pos_vel_acc(s, X; delta=delta)
     # remove last left and right tether point and replace them by the length from C and D
     pos = vcat(
-        pos_[4:s.num_E-3], 
+        pos_[4:s.num_flap_C-1], 
         pos_[s.num_E:end],
     )
     len = vcat( # connection length
-        norm(pos_[s.num_C]-pos_[s.num_E-2]), # left line connection distance
-        norm(pos_[s.num_D]-pos_[s.num_E-1]), # right line connection distance
+        norm(pos_[s.num_C]-pos_[s.num_flap_C]), # left line connection distance
+        norm(pos_[s.num_D]-pos_[s.num_flap_D]), # right line connection distance
     )
     vel = vcat(
-        vel_[4:s.num_E-3], 
+        vel_[4:s.num_flap_C-1], 
         vel_[s.num_E:end],
     )
     acc = vcat(
-        acc_[4:s.num_E-3],
+        acc_[4:s.num_flap_C-1],
         acc_[s.num_E:end],
     )
     vcat(pos, vel, len, [0,0]), vcat(vel, acc, [0,0], [0,0])

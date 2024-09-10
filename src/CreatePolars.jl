@@ -55,10 +55,11 @@ const procs = addprocs()
             y[i] = y_ref - x_rel * sin(-flap_angle) + y_rel * cos(-flap_angle)
         end
     
+        # TODO: check if this makes sense
         for i in 1:(length(x)-1)
             dx = x[i+1] - x[i]
             cp_avg = (cp[i] + cp[i+1]) / 2
-            c_te += dx * cp_avg * (x[i] - x_ref) / (1 - x_ref) # counter-clockwise flap force at trailing edge
+            c_te -= dx * cp_avg * (x[i] - x_ref) / (1 - x_ref) # clockwise flap force at trailing edge
         end
     
         return c_te
@@ -95,22 +96,46 @@ const procs = addprocs()
     end
 end
 
-function create_polars(; csv_filename="polars.csv", dat_filename="naca2412.dat")
+function get_rel_flap_height(x, y)
+    lower_flap = 0.0
+    upper_flap = 0.0
+    min_lower_distance = Inf
+    min_upper_distance = Inf
+    for (xi, yi) in zip(x, y)
+        if real(yi) < 0
+            lower_distance = abs(xi - 0.75)
+            if lower_distance < min_lower_distance
+                min_lower_distance = lower_distance
+                lower_flap = yi
+            end
+        else
+            upper_distance = abs(xi - 0.75)
+            if upper_distance < min_upper_distance
+                min_upper_distance = upper_distance
+                upper_flap = yi
+            end
+        end
+    end
+    flap_height = upper_flap - lower_flap
+    return flap_height
+end
+
+function create_polars(foil_file="naca2412.dat", polar_file="polars.csv")
     println("Creating polars")
-    if !endswith(csv_filename, ".csv")
-        csv_filename *= ".csv"
+    if !endswith(polar_file, ".csv")
+        polar_file *= ".csv"
     end
-    if !endswith(dat_filename, ".dat")
-        dat_filename *= ".dat"
+    if !endswith(foil_file, ".dat")
+        foil_file *= ".dat"
     end
-    if contains(csv_filename, r"[<>:\"/\\|?*]")
-        error("Invalid filename: $csv_filename")
+    if contains(polar_file, r"[<>:\"/\\|?*]")
+        error("Invalid filename: $polar_file")
     end
-    if contains(dat_filename, r"[<>:\"/\\|?*]")
-        error("Invalid filename: $dat_filename")
+    if contains(foil_file, r"[<>:\"/\\|?*]")
+        error("Invalid filename: $foil_file")
     end
-    csv_filename = joinpath(get_data_path(), csv_filename)
-    dat_filename = joinpath(get_data_path(), dat_filename)
+    polar_file = joinpath(get_data_path(), polar_file)
+    foil_file = joinpath(get_data_path(), foil_file)
 
     lower = -90
     upper = 90
@@ -120,7 +145,7 @@ function create_polars(; csv_filename="polars.csv", dat_filename="naca2412.dat")
     re = 18e6  # Reynolds number
 
     # Read airfoil coordinates from a file.
-    x, y = open(dat_filename, "r") do f
+    x, y = open(foil_file, "r") do f
         x = Float64[]
         y = Float64[]
         for line in eachline(f)
@@ -133,8 +158,10 @@ function create_polars(; csv_filename="polars.csv", dat_filename="naca2412.dat")
         end
         x, y
     end
-
     normalize!(x, y)
+    Xfoil.set_coordinates_cs(x, y)
+    x, y = Xfoil.pane_cs(npan=140)
+    println("Relative flap height: ", get_rel_flap_height(x, y))
 
     polars = nothing
     try
@@ -149,7 +176,7 @@ function create_polars(; csv_filename="polars.csv", dat_filename="naca2412.dat")
 
     println("Alpha\t\tFlap Angle\tCl\t\tCd\t\tc_te")
     for (alpha, flap_angle, cl, cd, c_te) in polars
-        @printf("%8f\t%8f\t%8f\t%8f\t%8f\n", alpha, flap_angle, cl, cd, c_te)
+        @printf("%8f\t%8f\t%8f\t%8f\t%8f\n", alpha, flap_angle, real(cl), real(cd), real(c_te))
     end
 
     csv_content = "alpha,flap_angle,cl,cd,c_te\n"
@@ -162,16 +189,14 @@ function create_polars(; csv_filename="polars.csv", dat_filename="naca2412.dat")
             real(c_te), "\n"
         )
     end
-    open(csv_filename, "w") do f
+    open(polar_file, "w") do f
         write(f, csv_content)
     end
-    open(dat_filename, "r+") do f
+    open(foil_file, "r+") do f
         lines = readlines(f)
         if any(isletter, chomp(lines[1]))
-            println("writing")
             lines[1] *= " - polars created"
         else
-            println("writing")
             pushfirst!(lines, "polars created")
         end
         seek(f, 0)

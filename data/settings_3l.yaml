@@ -1,7 +1,6 @@
 system:
     log_file: "data/log_8700W_8ms" # filename without extension  [replay only]
                                    #   use / as path delimiter, even on Windows 
-    foil_file: "naca2412.dat"         # filename for the foil shape
     time_lapse:   1.0              # relative replay speed
     sim_time:   100.0              # simulation time             [sim only]
     segments:       6              # number of tether segments
@@ -38,6 +37,8 @@ depower:
 
 kite:
     model: "data/kite.obj" # 3D model of the kite
+    foil_file: "naca2412.dat"  # filename for the foil shape
+    polar_file: "polars.csv"   # filename for the polars
     physical_model: "KPS4_3L" # name of the kite model to use (KPS3 or KPS4)
     version: 2             # version of the model to use
     mass:  0.9             # kite mass [kg]
@@ -64,6 +65,7 @@ kps4_3l:
     min_steering_line_distance: 1.0
     width:         4.1     # width of the kite                          [m]
     aero_surfaces: 5      # number of aerodynamic surfaces in 3 line model
+    flap_height: 0.05     # height at the start of the flap             [m]
 
 kcu:
     kcu_mass: 8.4                # mass of the kite control unit   [kg]
