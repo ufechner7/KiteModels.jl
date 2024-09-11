@@ -105,6 +105,8 @@ $(TYPEDFIELDS)
     bridle_factor::S = 1.0
     "drag force of kite and bridle; output of calc_aero_forces!"
     drag_force::T =       zeros(S, 3)
+    "side_force acting on the kite"
+    side_force::T =       zeros(S, 3)
     "max_steering angle in radian"
     ks::S =               0.0
     "lift force of the kite; output of calc_aero_forces!"
@@ -208,6 +210,7 @@ function clear!(s::KPS4)
     end
     s.drag_force .= [0.0, 0, 0]
     s.lift_force .= [0.0, 0, 0]
+    s.side_force .= [0.0, 0, 0]
     s.rho = s.set.rho_0
     s.bridle_factor = s.set.l_bridle / bridle_length(s.set)
     s.ks = deg2rad(s.set.max_steering) 
@@ -370,6 +373,7 @@ Updates the vector s.forces of the first parameter.
     
     s.forces[s.set.segments + 4] .+= (L3 + D3)
     s.forces[s.set.segments + 5] .+= (L4 + D4)
+    s.side_force .= (L3 + L4)
 end
 
 """
