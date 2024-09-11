@@ -12,7 +12,7 @@ set.v_steering = 0.2*4
 # the following values can be changed to match your interest
 dt = 0.05
 set.solver="DFBDF" # IDA or DFBDF
-STEPS = 300
+STEPS = 100
 PLOT = true
 FRONT_VIEW = false
 ZOOM = true
@@ -31,8 +31,9 @@ if PLOT
     using ControlPlots
 end
 
-function simulate(integrator, steps, plot=false)
+function simulate(integrator, steps, steering; plot=false)
     iter = 0
+    set_depower_steering(kps4.kcu, kps4.depower, 0)
     for i in 1:steps
         if PRINT
             lift, drag = KiteModels.lift_drag(kps4)
@@ -50,28 +51,24 @@ function simulate(integrator, steps, plot=false)
             end
         end
     end
-    println("side_force: $(kps4.side_force)")
-    set_depower_steering(kps4.kcu, kps4.depower, 0.0)
-    for i in 1:8
+    # println("side_force: $(kps4.side_force)")
+    set_depower_steering(kps4.kcu, kps4.depower, steering)
+    for i in 1:3
         KiteModels.next_step!(kps4, integrator; set_speed=0, dt)
         iter += kps4.iter
     end
-    println("side_force: $(kps4.side_force)")
-    iter / steps
+    kps4.side_force[2]
 end
-
-integrator = KiteModels.init_sim!(kps4;  delta=0.0, stiffness_factor=1, prn=STATISTIC)
-
-if PLOT
-    av_steps = simulate(integrator, STEPS, true)
-else
-    println("\nStarting simulation...")
-    simulate(integrator, 100)
-    runtime = @elapsed av_steps = simulate(integrator, STEPS-100)
-    println("\nTotal simulation time: $(round(runtime, digits=3)) s")
-    speed = (STEPS-100) / runtime * dt
-    println("Simulation speed: $(round(speed, digits=2)) times realtime.")
+STEERING = -0.3:0.01:0.3
+SIDE_FORCE = zeros(length(STEERING))
+for (i, steering) in pairs(STEERING)
+    local side_force, integrator
+    integrator = KiteModels.init_sim!(kps4;  delta=0.0, stiffness_factor=1, prn=STATISTIC)
+    side_force = simulate(integrator, STEPS, steering, plot=false)
+    SIDE_FORCE[i] = side_force
+    println("steering: $steering, side_force: $side_force")
 end
-lift, drag = KiteModels.lift_drag(kps4)
-println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
-println("Average number of callbacks per time step: $av_steps")
+plot(STEERING, SIDE_FORCE; xlabel="rel_steering [-]", ylabel="side force [N]", fig="Side force vs steering")
+
+
+
