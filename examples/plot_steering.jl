@@ -5,13 +5,14 @@ set = deepcopy(load_settings("system_v9.yaml"))
 
 set.abs_tol=0.000006
 set.rel_tol=0.0000001
+set.elevation = 69.4
 set.v_steering = 0.2*4
 # set.steering_gain = 10.0
 
 # the following values can be changed to match your interest
 dt = 0.05
 set.solver="DFBDF" # IDA or DFBDF
-STEPS = 400
+STEPS = 300
 PLOT = true
 FRONT_VIEW = false
 ZOOM = true
