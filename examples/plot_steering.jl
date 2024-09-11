@@ -1,15 +1,17 @@
 using Printf
 using KiteModels, KitePodModels, KiteUtils
 
-set = deepcopy(load_settings("system.yaml"))
+set = deepcopy(load_settings("system_v9.yaml"))
 
-set.abs_tol=0.0006
-set.rel_tol=0.00001
+set.abs_tol=0.000006
+set.rel_tol=0.0000001
+set.v_steering = 0.2*4
+# set.steering_gain = 10.0
 
 # the following values can be changed to match your interest
 dt = 0.05
 set.solver="DFBDF" # IDA or DFBDF
-STEPS = 300
+STEPS = 400
 PLOT = true
 FRONT_VIEW = false
 ZOOM = true
@@ -47,6 +49,13 @@ function simulate(integrator, steps, plot=false)
             end
         end
     end
+    println("side_force: $(kps4.side_force)")
+    set_depower_steering(kps4.kcu, kps4.depower, 0.0)
+    for i in 1:8
+        KiteModels.next_step!(kps4, integrator; set_speed=0, dt)
+        iter += kps4.iter
+    end
+    println("side_force: $(kps4.side_force)")
     iter / steps
 end
 
