@@ -6,7 +6,7 @@ set = deepcopy(load_settings("system_v9.yaml"))
 set.abs_tol=0.000006
 set.rel_tol=0.0000001
 set.elevation = 69.4
-set.v_steering = 0.2*4
+set.v_steering = 0.2*6
 # set.steering_gain = 10.0
 
 # the following values can be changed to match your interest
@@ -59,7 +59,7 @@ function simulate(integrator, steps, steering; plot=false)
     end
     kps4.side_force[2]
 end
-STEERING = -0.3:0.01:0.3
+STEERING = -0.5:0.01:0.5
 SIDE_FORCE = zeros(length(STEERING))
 for (i, steering) in pairs(STEERING)
     local side_force, integrator
