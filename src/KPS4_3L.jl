@@ -126,6 +126,10 @@ $(TYPEDFIELDS)
     masses::MVector{P, S}         = zeros(P)
     "vector of the springs, defined as struct"
     springs::MVector{Q, SP}       = zeros(SP, Q)
+    "unit spring coefficient"
+    c_spring::S = zero(S)
+    "unit damping coefficient"
+    damping::S = zero(S)
     "vector of the forces, acting on the particles"
     forces::SVector{P, T} = zeros(SVector{P, T})
     "synchronous speed or torque of the motor/ generator"
@@ -233,12 +237,14 @@ function clear!(s::KPS4_3L)
         s.veld[i] .= 0.0
     end
     s.rho = s.set.rho_0
+    s.c_spring = s.set.e_tether * (s.set.d_tether/2000.0)^2 * pi
+    s.damping = (s.set.damping / s.set.c_spring) * s.c_spring
     init_masses!(s)
     init_springs!(s)
 
     polars = read_csv(s.polar_file)
-    alphas = polars["alpha"]
-    flap_angles = polars["flap_angle"]
+    alphas = deg2rad.(polars["alpha"])
+    flap_angles = deg2rad.(polars["flap_angle"])
     cl_values = polars["cl"]
     cd_values = polars["cd"]
     c_te_values = polars["c_te"]
@@ -453,7 +459,7 @@ function calc_pre_tension(s::KPS4_3L)
         avg_force += forces[i]
     end
     avg_force /= s.num_A
-    res = avg_force/s.set.c_spring
+    res = avg_force/s.c_spring
     if res < 0.0 res = 0.0 end
     if isnan(res) res = 0.0 end
     return res + 1.0
@@ -868,8 +874,8 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
         tether_speed(t)[1:3]   = zeros(3) # left right middle
         segment_length(t)[1:3] = zeros(3) # left right middle
         mass_tether_particle(t)[1:3]      # left right middle
-        damping(t)[1:3] = s.set.damping ./ s.tether_lengths ./ s.set.segments   # left right middle
-        c_spring(t)[1:3] = s.set.c_spring ./ s.tether_lengths ./ s.set.segments # left right middle
+        damping(t)[1:3] = s.damping ./ (s.tether_lengths ./ s.set.segments)   # left right middle
+        c_spring(t)[1:3] = s.c_spring ./ (s.tether_lengths ./ s.set.segments) # left right middle
         P_c(t)[1:3] = 0.5 .* (s.pos[s.num_C] + s.pos[s.num_D])
         E_C(t)[1:3]
         e_x(t)[1:3]
@@ -922,8 +928,8 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
         acc[:, s.num_flap_D]    ~ acc[:, s.num_D] - e_x * flap_length * cos(flap_acc[2]) + e_r_D * flap_length * sin(flap_acc[2])
         segment_length          ~ tether_length  ./ s.set.segments
         mass_tether_particle    ~ mass_per_meter .* segment_length
-        damping                 ~ s.set.damping  ./ segment_length
-        c_spring                ~ s.set.c_spring ./ segment_length
+        damping                 ~ s.damping  ./ segment_length
+        c_spring                ~ s.c_spring ./ segment_length
         P_c     ~ 0.5 * (pos[:, s.num_C] + pos[:, s.num_D])
         e_y     ~ (pos[:, s.num_C] - pos[:, s.num_D]) / norm(pos[:, s.num_C] - pos[:, s.num_D])
         e_z     ~ (pos[:, s.num_E] - P_c) / norm(pos[:, s.num_E] - P_c)
@@ -965,8 +971,8 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
         eqs2
         vcat(force_eqs[:, s.num_flap_C])
         vcat(force_eqs[:, s.num_flap_D])
-        flap_acc[1] ~ force[:, s.num_flap_C] ⋅ e_te_C * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - s.set.damping * flap_vel[1]
-        flap_acc[2] ~ force[:, s.num_flap_D] ⋅ e_te_D * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - s.set.damping * flap_vel[2]
+        flap_acc[1] ~ force[:, s.num_flap_C] ⋅ e_te_C * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - s.damping * 10 * flap_vel[1]
+        flap_acc[2] ~ force[:, s.num_flap_D] ⋅ e_te_D * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - s.damping * 10 * flap_vel[2]
     ]
 
     for i in s.num_E:s.num_A
