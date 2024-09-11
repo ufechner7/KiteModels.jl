@@ -23,14 +23,14 @@ function read_csv(filename)
     return data
 end
 
-polars = read_csv(joinpath(get_data_dir(), "polars.csv"))
+polars = read_csv(joinpath(get_data_path(), "polars.csv"))
 alphas = polars["alpha"]
 flap_angles = polars["flap_angle"]
 cl_values = polars["cl"]
 cd_values = polars["cd"]
 c_te_values = polars["c_te"]
 
-global smoothing_param = 1.0  # Adjust this value as needed
+global smoothing_param = 0.0  # Adjust this value as needed
 order = 2
 
 global found = false
@@ -63,13 +63,14 @@ for flap_angle in flap_angles_to_plot
     interpolated_cl_values = [cl_interp(alpha, flap_angle) for alpha in interpolated_alphas]
 
     # Plot cl_interp vs cl_values for the current flap_angle
-    plot(interpolated_alphas, interpolated_cl_values, "-", label="Interpolated Cl (Flap Angle = $flap_angle)")
-    plot(filtered_alphas, filtered_cl_values, "o", label="Actual Cl (Flap Angle = $flap_angle)")
+    p = plotx(collect(interpolated_alphas), interpolated_cl_values, fig="Interpolated Cl (Flap Angle = $flap_angle)")
+    p = plotx(filtered_alphas, filtered_cl_values, fig="Actual Cl (Flap Angle = $flap_angle)")
+    display(p)
 end
 
-xlabel("Alpha")
-ylabel("Cl Values")
-title("Interpolated Cl vs Actual Cl for Different Flap Angles")
-legend()
-grid(true)
-show()
+# xlabel("Alpha")
+# ylabel("Cl Values")
+# title("Interpolated Cl vs Actual Cl for Different Flap Angles")
+# legend()
+# grid(true)
+# show()

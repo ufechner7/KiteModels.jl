@@ -177,7 +177,7 @@ function init_pos_vel_acc(s::KPS4_3L, X=zeros(5*s.set.segments+3); delta = 0.0)
 
     # kite points
     vec_c = pos[s.num_flap_C-1] - pos[s.num_E]
-    _, C, _, A, s.α_C, s.kite_length_C = KiteUtils.get_particles_3l(s.set.width, s.set.radius, 
+    E, C, D, A, s.α_C, s.kite_length_C = KiteUtils.get_particles_3l(s.set.width, s.set.radius, 
                             s.set.middle_length, s.set.tip_length, s.set.bridle_center_distance, pos[s.num_E], vec_c, s.v_apparent)
 
     pos[s.num_A] .= A + [X[s.set.segments*2+1], 0, X[s.set.segments*2+2]]
@@ -185,12 +185,15 @@ function init_pos_vel_acc(s::KPS4_3L, X=zeros(5*s.set.segments+3); delta = 0.0)
     pos[s.num_D] .= [pos[s.num_C][1], -pos[s.num_C][2], pos[s.num_C][3]]
     
     # build tether connection points
-    e_z = normalize(vec_c)
-    distance_c_l = 0.0 # distance between c and left steering line
+    calc_kite_ref_frame!(s, E, C, D)
+    E_C = pos[s.num_E] + s.e_z * (-s.set.bridle_center_distance + s.set.radius) 
+    e_r_C = (E_C - pos[s.num_C]) / norm(E_C - pos[s.num_C])
+    flap_length = s.kite_length_C/4
+    angle_flap_c = 0.0 # distance between c and left steering line
     # distance_c_l = s.set.tip_length/2 # distance between c and left steering line
-    s.tether_lengths[1] = norm(pos[s.num_C] + e_z .* (X[s.set.segments*2+6] + distance_c_l)) # find the right steering tether length
+    s.tether_lengths[1] = norm(pos[s.num_C] + s.e_z .* X[s.set.segments*2+6]) # find the right steering tether length
     s.tether_lengths[2] = s.tether_lengths[1]
-    pos[s.num_flap_C] .= pos[s.num_C] + e_z .* (distance_c_l)
+    pos[s.num_flap_C] .= pos[s.num_C] - s.e_x * flap_length * cos(angle_flap_c) + e_r_C * flap_length * sin(angle_flap_c)
     pos[s.num_flap_D] .= pos[s.num_flap_C] .* [1.0, -1.0, 1.0]
 
     # build left and right tether points
