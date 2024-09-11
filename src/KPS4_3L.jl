@@ -382,7 +382,7 @@ function init_sim!(s::KPS4_3L; t_end=1.0, stiffness_factor=1.0, prn=false,
         [s.motors[i] = AsyncMachine(s.set) for i in 1:3]
     end
 
-    dt = 1/s.set.sample_freq
+    dt = 1/s.set.sample_freq*2
     tspan   = (0.0, dt) 
     solver = KenCarp4(autodiff=false) # TRBDF2, Rodas4P, Rodas5P, Kvaerno5, KenCarp4, radau, QNDF
 
@@ -971,8 +971,8 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
         eqs2
         vcat(force_eqs[:, s.num_flap_C])
         vcat(force_eqs[:, s.num_flap_D])
-        flap_acc[1] ~ force[:, s.num_flap_C] ⋅ e_te_C * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - s.damping * 10 * flap_vel[1]
-        flap_acc[2] ~ force[:, s.num_flap_D] ⋅ e_te_D * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - s.damping * 10 * flap_vel[2]
+        flap_acc[1] ~ force[:, s.num_flap_C] ⋅ e_te_C * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - 200 * flap_vel[1]
+        flap_acc[2] ~ force[:, s.num_flap_D] ⋅ e_te_D * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - 200 * flap_vel[2]
     ]
 
     for i in s.num_E:s.num_A

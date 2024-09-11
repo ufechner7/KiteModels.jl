@@ -10,19 +10,18 @@ using ControlPlots
 
 set = deepcopy(load_settings("system_3l.yaml"))
 # set.elevation = 71
-dt = 0.05
+dt = 0.001
 total_time = 1.0
 
 steps = Int(round(total_time / dt))
 logger = Logger(3*set.segments + 6, steps)
-steering = [20,10,-100]
 
 if !@isdefined s; s = KPS4_3L(KCU(set)); end
 s.set = update_settings()
 s.set.abs_tol = 0.006
 s.set.rel_tol = 0.01
 s.set.l_tether = 50.1
-# s.set.damping = 946.0*2
+s.set.damping *= 1
 println("init sim")
 integrator = KiteModels.init_sim!(s; prn=true, torque_control=true, stiffness_factor=1.0)
 println("acc ", norm(integrator[s.simple_sys.acc]))
@@ -41,7 +40,7 @@ for i in 1:steps
     # println("acc ", norm(integrator[s.simple_sys.acc]))
     global total_step_time, sys_state, steering
     if time < 0.5
-        steering = [20,10,-100.0] # left right middle
+        steering = [20,10,-200.0] # left right middle
     elseif time < 1.0
         steering = [20,10,-100]
     end
@@ -60,8 +59,8 @@ for i in 1:steps
     sys_state.var_03 =  s.reel_out_speeds[1]
     sys_state.var_04 =  s.reel_out_speeds[2]
     sys_state.var_05 =  s.reel_out_speeds[3]
-    sys_state.var_06 =  norm(integrator[s.simple_sys.force[:, 8]])
-    sys_state.var_07 =  norm(integrator[s.simple_sys.force[:, 9]])
+    sys_state.var_06 =  norm((integrator[s.simple_sys.acc[:, 6]] ⋅ normalize(s.pos[6])) * normalize(s.pos[6]))
+    sys_state.var_07 =  norm(integrator[s.simple_sys.acc[:, 9]] .- (integrator[s.simple_sys.acc[:, 6]] ⋅ normalize(s.pos[6])) * normalize(s.pos[6]))
 
     step_time = @elapsed next_step!(s, integrator; set_values=steering, dt=dt)
     if time > 0.5
@@ -73,11 +72,7 @@ for i in 1:steps
         sys_state.heading -= 2*pi
     end
     log!(logger, sys_state)
-    @show s.L_C + s.L_D
-    @show integrator[s.simple_sys.aoa[end]]
-    @show integrator[s.simple_sys.flap_angle[end]]
-    @show integrator[s.simple_sys.L_seg[:, end]]
-    plot2d(s.pos, time; zoom=false, front=false, xlim=(0, 100), ylim=(0, 100))
+    # plot2d(s.pos, time; zoom=false, front=false, xlim=(0, 100), ylim=(0, 100))
 end
 
 times_reltime = (total_time - 0.5) / total_step_time
@@ -86,7 +81,7 @@ println("times realtime MTK model: ", times_reltime)
 
 p=plotx(logger.time_vec, [logger.var_01_vec,  logger.var_02_vec], [logger.var_03_vec,  logger.var_04_vec, logger.var_05_vec], 
         rad2deg.(logger.heading_vec), [logger.var_06_vec, logger.var_07_vec]; 
-        ylabels=["Steering", "Reelout speed", "Heading [deg]"], 
-        labels=[["Steering Pos C", "Steering Pos D"], ["v_ro left", "v_ro right", "v_ro middle"], "Heading", ["right tether", "middle tether"]], 
+        ylabels=["Steering", "Reelout speed", "Heading [deg]", "Acc"], 
+        labels=[["Steering Pos C", "Steering Pos D"], ["v_ro left", "v_ro right", "v_ro middle"], "Heading", ["middle tether", "perp middle tether"]], 
         fig="Steering and Heading MTK model")
 display(p)
