@@ -103,6 +103,8 @@ $(TYPEDFIELDS)
     v_apparent::T =       zeros(S, 3)
     "bridle_factor = set.l_bridle/bridle_length(set)"
     bridle_factor::S = 1.0
+    "side lift coefficient, the difference of the left and right lift coeficients"
+    side_cl::S = 0.0
     "drag force of kite and bridle; output of calc_aero_forces!"
     drag_force::T =       zeros(S, 3)
     "side_force acting on the kite"
@@ -356,6 +358,7 @@ Updates the vector s.forces of the first parameter.
     CL2, CD2 = s.calc_cl(alpha_2), drag_corr * s.calc_cd(alpha_2)
     CL3, CD3 = s.calc_cl(alpha_3), drag_corr * s.calc_cd(alpha_3)
     CL4, CD4 = s.calc_cl(alpha_4), drag_corr * s.calc_cd(alpha_4)
+    s.side_cl = CL4 - CL3
     L2 = (-0.5 * rho * (norm(va_xz2))^2 * s.set.area * CL2) * normalize(va_2 × y)
     L3 = (-0.5 * rho * (norm(va_xy3))^2 * s.set.area * rel_side_area * CL3) * normalize(va_3 × z)
     L4 = (-0.5 * rho * (norm(va_xy4))^2 * s.set.area * rel_side_area * CL4) * normalize(z × va_4)
