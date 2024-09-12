@@ -11,7 +11,7 @@ system:
 
 initial:
     l_tether: 50.0        # initial tether length       [m]
-    elevation: 70.8        # initial elevation angle   [deg]
+    elevation: 60.8        # initial elevation angle   [deg]
     v_reel_out: 0.0        # initial reel out speed    [m/s]
     depower:   25.0        # initial depower settings    [%]
 
@@ -84,9 +84,9 @@ bridle:
     rel_damping: 6.0          # relative damping of the kite spring (relative to main tether)
 
 tether:
-    d_tether:  1           # tether diameter                 [mm]
+    d_tether:  2           # tether diameter                 [mm]
     cd_tether: 0.958       # drag coefficient of the tether
-    damping: 473.0         # unit damping coefficient        [Ns]
+    damping: 950.0         # unit damping coefficient        [Ns]
     c_spring: 614600.0     # unit spring constant coefficient [N]
     rho_tether:  724.0     # density of Dyneema           [kg/m³]
     e_tether: 55000000000.0 # axial tensile modulus of Dyneema (M.B. Ruppert) [Pa]

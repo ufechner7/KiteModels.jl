@@ -529,7 +529,7 @@ function winch_force(s::KPS4_3L) norm.(s.winch_forces) end
 
 
 function calc_acc_speed(motor::AsyncMachine, tether_speed, norm_, set_speed)
-    calc_acceleration(motor, tether_speed, norm_; set_speed, set_torque=nothing, use_brake=false)
+    calc_acceleration(motor, tether_speed, norm_; set_speed, set_torque=nothing, use_brake=true)
 end
 @register_symbolic calc_acc_speed(motor::AsyncMachine, tether_speed, norm_, set_speed)
 
@@ -719,7 +719,7 @@ and distribute it equally on the two particles, that are attached to the segment
 The result is stored in the array s.forces. 
 """
 function calc_particle_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos1, pos2, vel1, vel2, length, c_spring, 
-    damping, rho, i, l_0, k, c, segment, rel_vel, av_vel, norm1, unit_vector, k1, k2, c1, spring_vel,
+    damping, rho, i, l_0, k, c, segment, rel_vel, av_vel, norm1, unit_vector, k1, k2, c1, c2, spring_vel, perp_vel,
             spring_force, v_apparent, v_wind_tether, area, v_app_perp, half_drag_force, stiffness_factor)
     d_tether = s.set.d_tether/1000.0
     eqs2 = [
@@ -736,7 +736,9 @@ function calc_particle_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos1, pos
         k1           ~ 0.25 * k # compression stiffness kite segments
         k2           ~ 0.1 * k  # compression stiffness tether segments
         c1           ~ 6.0 * c  # damping kite segments
-        spring_vel  .~ rel_vel ⋅ unit_vector
+        c2           ~ 0.05 * c  # damping perpendicular
+        spring_vel   ~ rel_vel ⋅ unit_vector
+        perp_vel    .~ rel_vel .- spring_vel * unit_vector
     ]
 
     if i >= s.num_flap_C  # kite springs
@@ -756,8 +758,8 @@ function calc_particle_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos1, pos
                 eqs2
                 spring_force[j] ~ ifelse(
                     (norm1 - l_0) > 0.0,
-                    (k  * (l_0 - norm1) - c * spring_vel) * unit_vector[j],
-                    (k2 * (l_0 - norm1) - c * spring_vel) * unit_vector[j]
+                    (k  * (l_0 - norm1) - c * spring_vel) * unit_vector[j] - c2 * perp_vel[j],
+                    (k2 * (l_0 - norm1) - c * spring_vel) * unit_vector[j] - c2 * perp_vel[j]
                     )
             ]
         end
@@ -766,7 +768,7 @@ function calc_particle_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos1, pos
         eqs2
         v_apparent       ~ v_wind_tether - av_vel
         area             ~ norm1 * d_tether
-        v_app_perp       ~ v_apparent - v_apparent ⋅ unit_vector * unit_vector
+        v_app_perp       ~ v_apparent - (v_apparent ⋅ unit_vector) * unit_vector
         half_drag_force .~ (0.25 * rho * s.set.cd_tether * norm(v_app_perp) * area) .* v_app_perp
     ]
 
@@ -800,7 +802,7 @@ Output:length
         l_0(t)[eachindex(s.springs)]
         k(t)[eachindex(s.springs)]
         c(t)[eachindex(s.springs)]
-        segment(t)[1:3,eachindex(s.springs)]
+        segment(t)[1:3, eachindex(s.springs)]
         rel_vel(t)[1:3, eachindex(s.springs)]
         av_vel(t)[1:3, eachindex(s.springs)] 
         norm1(t)[eachindex(s.springs)]
@@ -808,7 +810,9 @@ Output:length
         k1(t)[eachindex(s.springs)]
         k2(t)[eachindex(s.springs)]
         c1(t)[eachindex(s.springs)]
+        c2(t)[eachindex(s.springs)]
         spring_vel(t)[eachindex(s.springs)]
+        perp_vel(t)[1:3, eachindex(s.springs)]
         spring_force(t)[1:3, eachindex(s.springs)]
         v_apparent(t)[1:3, eachindex(s.springs)]
         area(t)[eachindex(s.springs)]
@@ -829,8 +833,8 @@ Output:length
         # TODO: @assert height > 0
         eqs2, force_eqs = calc_particle_forces_mtk!(s, eqs2, force_eqs, force, pos[:, p1], pos[:, p2], vel[:, p1], 
                           vel[:, p2], length, c_spring, damping, rho[i], i, l_0[i], k[i], c[i], segment[:, i], 
-                          rel_vel[:, i], av_vel[:, i], norm1[i], unit_vector[:, i], k1[i], k2[i], c1[i], spring_vel[i],
-                          spring_force[:, i], v_apparent[:,i], v_wind_tether[:, i], area[i], v_app_perp[:, i], 
+                          rel_vel[:, i], av_vel[:, i], norm1[i], unit_vector[:, i], k1[i], k2[i], c1[i], c2[i], spring_vel[i],
+                          perp_vel[:, i], spring_force[:, i], v_apparent[:,i], v_wind_tether[:, i], area[i], v_app_perp[:, i], 
                           half_drag_force[:, i], stiffness_factor)
     end
 

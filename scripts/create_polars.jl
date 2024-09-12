@@ -1,107 +1,145 @@
-using Distributed
+using Distributed, Timers
 using Xfoil
+using Pkg
+if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
+    using TestEnv; TestEnv.activate()
+end
+# using ControlPlots
 using KiteUtils
-
+tic()
 const procs = addprocs()
 
-@everywhere begin
-    using Xfoil
-
-    function normalize!(x, y)
-        x_min = minimum(real.(x))
-        x_max = maximum(real.(x))
-        for i in eachindex(x)
-            x[i] = (x[i] - x_min) / (x_max - x_min)
-            y[i] = (y[i] - x_min) / (x_max - x_min)
-        end
+function normalize!(x, y)
+    x_min = minimum(x)
+    x_max = maximum(x)
+    for i in eachindex(x)
+        x[i] = (x[i] - x_min) / (x_max - x_min)
+        y[i] = (y[i] - x_min) / (x_max - x_min)
     end
+end
 
-    function turn_flap!(angle, x, y)
+@everywhere begin
+    using Xfoil, Statistics
+
+    function turn_flap!(angle, x, y, lower_turn, upper_turn)
         theta = deg2rad(angle)
         x_turn = 0.75
-        y_turn = 0.0
+        turn_distance = upper_turn - lower_turn
+        smooth_idx = []
+        rm_idx = []
 
-        # TODO: turn down around top point. then make top more smooth. opposite for downward side.
-
+        sign = theta > 0 ? 1 : -1
+        y_turn = theta > 0 ? upper_turn : lower_turn
         for i in eachindex(x)
-            if real(x[i]) > x_turn
+            if x_turn - turn_distance < x[i] < x_turn + turn_distance && sign * y[i] > 0
+                append!(smooth_idx, i)
+            elseif sign * y[i] < 0 && x_turn > x[i] > x_turn - turn_distance
+                append!(rm_idx, i)
+            end
+            if x[i] > x_turn
                 x_rel = x[i] - x_turn
                 y_rel = y[i] - y_turn
                 x[i] = x_turn + x_rel * cos(theta) + y_rel * sin(theta)
                 y[i] = y_turn - x_rel * sin(theta) + y_rel * cos(theta)
+                if theta > 0 && x[i] < x_turn - turn_distance/2 && y[i] > lower_turn
+                    append!(rm_idx, i)
+                elseif theta < 0 && x[i] < x_turn - turn_distance/2 && y[i] < upper_turn
+                    append!(rm_idx, i)
+                end
             end
         end
-        normalize!(x, y)
+
+        #TODO: lower and upper is slightly off because of smoothing
+        lower_i, upper_i = minimum(smooth_idx), maximum(smooth_idx)
+        for i in smooth_idx
+            window = min(i - lower_i + 1, upper_i - i + 1)
+            x[i] = mean(x[i-window:i+window])
+        end
+        deleteat!(x, rm_idx)
+        deleteat!(y, rm_idx)
+        nothing
     end
 
-    function calculate_constants(flap_angle_, x_, y_, cp)
-        flap_angle = deg2rad(flap_angle_)
+    function calculate_constants(d_flap_angle_, x_, y_, cp, lower, upper)
+        d_flap_angle = deg2rad(d_flap_angle_)
         x = deepcopy(x_)
         y = deepcopy(y_)
         c_te = 0.0
-        x_ref, y_ref = 0.75, 0.0
-    
-        is = findall(xi -> real(xi) >= 0.75, x)
-        x = x[is]
-        y = y[is]
-        cp = cp[is]
-    
+        if d_flap_angle > 0
+            x_ref, y_ref = 0.75, upper
+        else
+            x_ref, y_ref = 0.75, lower
+        end
+        
         # straighten out the flap in order to find the trailing edge torque constant
         for i in eachindex(x)
             x_rel = x[i] - x_ref
             y_rel = y[i] - y_ref
-            x[i] = x_ref + x_rel * cos(-flap_angle) + y_rel * sin(-flap_angle)
-            y[i] = y_ref - x_rel * sin(-flap_angle) + y_rel * cos(-flap_angle)
+            x[i] = x_ref + x_rel * cos(-d_flap_angle) + y_rel * sin(-d_flap_angle)
+            y[i] = y_ref - x_rel * sin(-d_flap_angle) + y_rel * cos(-d_flap_angle)
         end
-    
-        # TODO: check if this makes sense
+        
+        x2 = []
+        y2 = []
         for i in 1:(length(x)-1)
-            dx = x[i+1] - x[i]
-            cp_avg = (cp[i] + cp[i+1]) / 2
-            c_te -= dx * cp_avg * (x[i] - x_ref) / (1 - x_ref) # clockwise flap force at trailing edge
+            if x[i] > x_ref && lower < y[i] < upper
+                push!(x2, x[i])
+                push!(y2, y[i])
+                dx = x[i+1] - x[i]
+                cp_avg = (cp[i] + cp[i+1]) / 2
+                c_te -= dx * cp_avg * (x[i] - x_ref) / (1 - x_ref) # clockwise flap force at trailing edge
+            end
         end
-    
         return c_te
     end
 
-    function run_solve_alpha(alphas, d_flap_angle, re, x_, y_)
+    function solve_alpha(alphas, d_flap_angle, re, x_, y_, lower, upper, kite_speed, speed_of_sound)
         polars = []
         x = deepcopy(x_)
         y = deepcopy(y_)
-        turn_flap!(d_flap_angle, x, y)
-        Xfoil.set_coordinates_cs(x, y)
-        x, y = Xfoil.pane_cs(npan=140)
+        turn_flap!(d_flap_angle, x, y, lower, upper)
+        Xfoil.set_coordinates(x, y)
+        x, y = Xfoil.pane(npan=140)
         times_not_converged = 0
         @show d_flap_angle
+        reinit = true
         for alpha in alphas
             converged = false
             cl = 0.0
             cd = 0.0
             # Solve for the given angle of attack
-            cl, cd, _, _, converged = Xfoil.solve_alpha_cs(alpha, re; iter=50, reinit=true, mach=0.05)
+            cl, cd, _, _, converged = Xfoil.solve_alpha(alpha, re; iter=50, reinit=reinit, mach=kite_speed/speed_of_sound, ncrit=6)
+            reinit = false
             times_not_converged += !converged
-            if times_not_converged > 6
+            if times_not_converged > 20
                 break
             end
             if converged
                 times_not_converged = 0
-                _, cp = Xfoil.cpdump_cs()
-                c_te = calculate_constants(alpha, x, y, cp)
-                flap_angle = alpha + d_flap_angle
-                push!(polars, (alpha, flap_angle, cl, cd, c_te))
+                _, cp = Xfoil.cpdump()
+                c_te = calculate_constants(d_flap_angle, x, y, cp, lower, upper)
+                push!(polars, (alpha, d_flap_angle, cl, cd, c_te))
             end
         end
         return polars
     end
+
+    function run_solve_alpha(alphas, d_flap_angle, re, x_, y_, lower, upper, kite_speed, speed_of_sound)
+        neg_alphas = sort(alphas[findall(alphas .< 0.0)], rev = true)
+        pos_alphas = sort(alphas[findall(alphas .>= 0.0)])
+        polars = solve_alpha(neg_alphas, d_flap_angle, re, x_, y_, lower, upper, kite_speed, speed_of_sound)
+        polars = append!(polars, solve_alpha(pos_alphas, d_flap_angle, re, x_, y_, lower, upper, kite_speed, speed_of_sound))
+        return polars
+    end
 end
 
-function get_rel_flap_height(x, y)
+function get_lower_upper(x, y)
     lower_flap = 0.0
     upper_flap = 0.0
     min_lower_distance = Inf
     min_upper_distance = Inf
     for (xi, yi) in zip(x, y)
-        if real(yi) < 0
+        if yi < 0
             lower_distance = abs(xi - 0.75)
             if lower_distance < min_lower_distance
                 min_lower_distance = lower_distance
@@ -115,8 +153,7 @@ function get_rel_flap_height(x, y)
             end
         end
     end
-    flap_height = upper_flap - lower_flap
-    return flap_height
+    return lower_flap, upper_flap
 end
 
 function create_polars(foil_file="naca2412.dat", polar_file="polars.csv")
@@ -127,21 +164,16 @@ function create_polars(foil_file="naca2412.dat", polar_file="polars.csv")
     if !endswith(foil_file, ".dat")
         foil_file *= ".dat"
     end
-    if contains(polar_file, r"[<>:\"/\\|?*]")
-        error("Invalid filename: $polar_file")
-    end
-    if contains(foil_file, r"[<>:\"/\\|?*]")
-        error("Invalid filename: $foil_file")
-    end
     polar_file = joinpath(get_data_path(), polar_file)
     foil_file = joinpath(get_data_path(), foil_file)
 
-    lower = -90
-    upper = 90
-    step = 1
-    alphas = sort(lower:step:upper, by=abs)
-    d_flap_angles = sort(lower:step:upper, by=abs)
-    re = 18e6  # Reynolds number
+    alphas = -180:0.5:180
+    d_flap_angles = -90:0.5:90
+
+    kite_speed = 20
+    speed_of_sound = 343
+    reynolds_number = kite_speed * (se("system_3l.yaml").middle_length + se("system_3l.yaml").tip_length)/2 / 1.460e-5
+    println("Reynolds number for flying speed of $kite_speed is $reynolds_number")
 
     # Read airfoil coordinates from a file.
     x, y = open(foil_file, "r") do f
@@ -158,15 +190,14 @@ function create_polars(foil_file="naca2412.dat", polar_file="polars.csv")
         x, y
     end
     normalize!(x, y)
-    Xfoil.set_coordinates_cs(x, y)
-    x, y = Xfoil.pane_cs(npan=140)
-    println("Relative flap height: ", get_rel_flap_height(x, y))
+    Xfoil.set_coordinates(x, y)
+    x, y = Xfoil.pane(npan=140)
+    lower, upper = get_lower_upper(x, y)
 
     polars = nothing
     try
-        # Distribute the computation of run_solve_alpha across multiple cores
         polars = @distributed (append!) for d_flap_angle in d_flap_angles
-            run_solve_alpha(alphas, d_flap_angle, re, x, y)
+            return run_solve_alpha(alphas, d_flap_angle, reynolds_number, x, y, lower, upper, kite_speed, speed_of_sound)
         end
     finally
         println("removing processes")
@@ -174,18 +205,18 @@ function create_polars(foil_file="naca2412.dat", polar_file="polars.csv")
     end
 
     println("Alpha\t\tFlap Angle\tCl\t\tCd\t\tc_te")
-    for (alpha, flap_angle, cl, cd, c_te) in polars
-        println("$alpha\t$flap_angle\t$(real(cl))\t$(real(cd))\t$(real(c_te))")
+    for (alpha, d_flap_angle, cl, cd, c_te) in polars
+        println("$alpha\t$d_flap_angle\t$(cl)\t$(cd)\t$(c_te)")
     end
 
-    csv_content = "alpha,flap_angle,cl,cd,c_te\n"
-    for (alpha, flap_angle, cl, cd, c_te) in polars
+    csv_content = "alpha,d_flap_angle,cl,cd,c_te\n"
+    for (alpha, d_flap_angle, cl, cd, c_te) in polars
         csv_content *= string(
             alpha, ",", 
-            flap_angle, ",", 
-            real(cl), ",", 
-            real(cd), ",", 
-            real(c_te), "\n"
+            d_flap_angle, ",", 
+            cl, ",", 
+            cd, ",", 
+            c_te, "\n"
         )
     end
     open(polar_file, "w") do f
@@ -206,3 +237,4 @@ function create_polars(foil_file="naca2412.dat", polar_file="polars.csv")
 end
 
 create_polars()
+toc()
