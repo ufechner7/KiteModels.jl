@@ -1,3 +1,4 @@
+# plot the side lift coefficient vs rel_steering
 using Printf
 using KiteModels, KitePodModels, KiteUtils
 
