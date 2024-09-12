@@ -41,29 +41,30 @@ function simulate(integrator, steps, steering; plot=false)
             @printf "%.2f: " round(integrator.t, digits=2)
             println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
         end
+        reltime = i*dt-dt
+        if reltime >= 10.0 && reltime < 10.05
+            set_depower_steering(kps4.kcu, kps4.depower, steering)
+        end
+
 
         KiteModels.next_step!(kps4, integrator; set_speed=0, dt)
         iter += kps4.iter
         
         if plot
-            reltime = i*dt-dt
             if mod(i, 5) == 1
                 plot2d(kps4.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=set.segments)                       
             end
         end
     end
-    set_depower_steering(kps4.kcu, kps4.depower, steering)
-    for i in 1:3
-        KiteModels.next_step!(kps4, integrator; set_speed=0, dt)
-        iter += kps4.iter
-    end
-    kps4.side_cl
 end
-STEERING = -0.5:0.1:0.5
+
+STEERING = 0.1:0.1:0.1
 SIDE_CL = zeros(length(STEERING))
 
-integrator = KiteModels.init_sim!(kps4;  delta=0.0, stiffness_factor=1, prn=STATISTIC)
-simulate(integrator, STEPS, 0; plot=true)
+for steering in STEERING
+    integrator = KiteModels.init_sim!(kps4;  delta=0.0, stiffness_factor=1, prn=STATISTIC)
+    simulate(integrator, STEPS, steering; plot=true)
+end
 
 # plot(STEERING, SIDE_CL; xlabel="rel_steering [-]", ylabel="side lift coefficient [-]", fig="Side lift coefficient vs steering")
 
