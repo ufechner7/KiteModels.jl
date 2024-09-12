@@ -13,7 +13,7 @@ set.v_steering = 0.2*6
 # the following values can be changed to match your interest
 dt = 0.05
 set.solver="DFBDF" # IDA or DFBDF
-STEPS = 600
+STEPS = 2400
 PLOT = true
 FRONT_VIEW = false
 ZOOM = true
@@ -44,6 +44,19 @@ function simulate(integrator, steps, steering; plot=false)
         reltime = i*dt-dt
         if reltime >= 10.0 && reltime < 10.05
             set_depower_steering(kps4.kcu, kps4.depower, steering)
+        end
+        if reltime > 10.05
+            az = calc_azimuth(kps4)
+            heading = calc_heading(kps4)
+            if heading > pi
+                heading -= 2*pi
+            end
+
+            if rad2deg(heading) < -5 
+                set_depower_steering(kps4.kcu, kps4.depower, -steering)
+            elseif rad2deg(heading) > 5
+                set_depower_steering(kps4.kcu, kps4.depower, steering)
+            end
         end
 
 
