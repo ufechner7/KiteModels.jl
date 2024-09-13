@@ -13,7 +13,7 @@ set.elevation = 69.4
 # the following values can be changed to match your interest
 set.sample_freq = 50
 set.solver="DFBDF" # IDA or DFBDF
-STEPS = 3000
+STEPS = 3100
 PLOT = true
 FRONT_VIEW = false
 ZOOM = true
