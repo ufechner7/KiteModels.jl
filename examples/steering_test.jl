@@ -13,7 +13,7 @@ set.elevation = 69.4
 # the following values can be changed to match your interest
 set.sample_freq = 50
 set.solver="DFBDF" # IDA or DFBDF
-STEPS = 2400
+STEPS = 3000
 PLOT = true
 FRONT_VIEW = false
 ZOOM = true
@@ -56,6 +56,9 @@ function simulate(integrator, steps, steering; plot=false)
                 set_depower_steering(kps4.kcu, kps4.depower, -steering)
             elseif rad2deg(heading) > 5
                 set_depower_steering(kps4.kcu, kps4.depower, steering)
+                if rad2deg(last_heading) <= 5
+                    steering +=0.1
+                end
             end
         end
 
@@ -80,7 +83,7 @@ TURN_RATE = zeros(STEPS)
 HEADING = zeros(STEPS)
 REL_TIME = zeros(STEPS)
 
-for steering in 2*SET_STEERING
+for steering in 1*SET_STEERING
     integrator = KiteModels.init_sim!(kps4;  delta=0.0, stiffness_factor=1, prn=STATISTIC)
     simulate(integrator, STEPS, steering; plot=true)
 end
