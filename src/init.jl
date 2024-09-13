@@ -193,14 +193,19 @@ function init_pos_vel_acc(s::KPS4_3L; delta = 0.0)
     # distance_c_l = s.set.tip_length/2 # distance between c and left steering line
     pos[s.num_flap_C] .= pos[s.num_C] - s.e_x * flap_length * cos(angle_flap_c) + e_r_C * flap_length * sin(angle_flap_c)
     pos[s.num_flap_D] .= pos[s.num_flap_C] .* [1.0, -1.0, 1.0]
-    s.tether_lengths[1] = norm(pos[s.num_flap_C])
-    s.tether_lengths[2] = s.tether_lengths[1]
-
+    
+    s.tether_lengths[1] = 0.0
     # build left and right tether points
     for (i, j) in enumerate(range(4, step=3, length=s.set.segments-1))
-        pos[j] .= pos[s.num_flap_C] ./ s.set.segments .* i
+        len = (s.set.segments-1)/2
+        middle_distance = (len - abs(i-len))/len
+        @show middle_distance
+        pos[j] .= pos[s.num_flap_C] ./ s.set.segments .* i .+ [(middle_distance)*s.kite_length_C*20, 0.0, 0.0]
+        s.tether_lengths[1] += norm(pos[j] - pos[j-3])
         pos[j+1] .= [pos[j][1], -pos[j][2], pos[j][3]]
     end
+    s.tether_lengths[2] = s.tether_lengths[1]
+    s.tether_lengths[3] = norm(pos[s.num_E])
 
     # set vel and acc
     for i in 1:s.num_A

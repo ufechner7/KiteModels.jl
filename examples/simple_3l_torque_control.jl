@@ -11,7 +11,7 @@ using ControlPlots
 set = deepcopy(load_settings("system_3l.yaml"))
 # set.elevation = 71
 dt = 0.05
-total_time = 5.0
+total_time = 10.0
 
 steps = Int(round(total_time / dt))
 logger = Logger(3*set.segments + 6, steps)
@@ -20,7 +20,7 @@ if !@isdefined s; s = KPS4_3L(KCU(set)); end
 s.set = update_settings()
 s.set.abs_tol = 0.0006
 s.set.rel_tol = 0.001
-s.set.l_tether = 50.1
+s.set.l_tether = 50.0
 s.set.damping = 900
 println("init sim")
 integrator = KiteModels.init_sim!(s; prn=true, torque_control=false, stiffness_factor=1.0)
@@ -39,19 +39,17 @@ for i in 1:steps
     @show time
     # println("acc ", norm(integrator[s.simple_sys.acc]))
     global total_step_time, sys_state, steering
-    if time < 5
-        steering = [0.0,0.0,-0.6] # left right middle
-    elseif time < 10
-        steering = [0,0.0,-0.0]
-    elseif time < 4.0
-        steering = [0,0.0,-0.6]
+    steering = [0.0,0.0,0.0] # left right middle
+    # if time < 5
+    #     steering = [0.0,0.0,0.0] # left right middle
+    # elseif time < 10
+    #     steering = [0,0.0,-0.0]
+    # elseif time < 4.0
+    #     steering = [0,0.0,-0.6]
+    # end
+    if time > 10.0
+        s.damping_coeff = 0.0
     end
-    # if i == 40
-    #     steering = [0,0,-20]
-    # end
-    # if i == 60
-    #     steering = [0,0,-30]
-    # end
 
     if sys_state.heading > pi
         sys_state.heading -= 2*pi

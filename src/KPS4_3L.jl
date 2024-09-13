@@ -396,7 +396,7 @@ function init_sim!(s::KPS4_3L; t_end=1.0, stiffness_factor=1.0, prn=false,
     dt = 1/s.set.sample_freq*2
     tspan   = (0.0, dt) 
     solver = KenCarp4(autodiff=false) # TRBDF2, Rodas4P, Rodas5P, Kvaerno5, KenCarp4, radau, QNDF
-    @show s.damping_coeff = 100
+    @show s.damping_coeff = 200
 
     new_inital_conditions = (s.last_init_elevation != s.set.elevation || s.last_init_tether_length != s.set.l_tether)
     s.set_hash = settings_hash(s.set)
@@ -406,18 +406,11 @@ function init_sim!(s::KPS4_3L; t_end=1.0, stiffness_factor=1.0, prn=false,
         pos = init_pos(s)
         model!(s, pos; torque_control=s.torque_control)
         s.prob = ODEProblem(s.simple_sys, nothing, tspan)
-
-        # steady_prob = SteadyStateProblem(s.prob)
-        # s.steady_sol = solve(steady_prob, DynamicSS(solver; tspan=tspan), abstol=steady_tol, reltol=steady_tol, dt=dt)
-        # s.prob = remake(s.prob; u0=s.steady_sol.u)
-    elseif new_inital_conditions && !isnothing(s.set_values_idx)
+    elseif new_inital_conditions && !isnothing(s.set_values_idx) || true # REMOVE FLAG
         if prn; println("initializing with last model and new steady state"); end
         pos = init_pos(s)
         s.prob = ODEProblem(s.simple_sys, [s.simple_sys.pos => pos, s.simple_sys.tether_length => s.tether_lengths], 
                 tspan, [s.simple_sys.damping_coeff => s.damping_coeff])
-        # steady_prob = SteadyStateProblem(s.prob)
-        # @time s.steady_sol = solve(steady_prob, DynamicSS(solver; tspan=tspan), abstol=steady_tol, reltol=steady_tol, dt=dt)
-        # s.prob = remake(s.prob; u0=s.steady_sol.u)
     else
         if prn; println("initializing with last model and last steady state"); end
     end
@@ -461,7 +454,7 @@ function next_step!(s::KPS4_3L, integrator; set_values=zeros(KVec3), v_wind_gnd=
     OrdinaryDiffEqCore.step!(integrator, dt, true)
     update_pos!(s, integrator)
     s.stiffness_factor = s.stiffness_factor < 1.0 ? s.stiffness_factor + dt/5 : 1.0
-    s.damping_coeff = s.damping_coeff > 0.1 ? s.damping_coeff - 60*dt : 0.0
+    s.damping_coeff = s.damping_coeff > 0.1 ? s.damping_coeff - dt*s.damping_coeff : 0.0
     integrator.t
 end
 
@@ -995,8 +988,12 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
         eqs2
         vcat(force_eqs[:, s.num_flap_C])
         vcat(force_eqs[:, s.num_flap_D])
-        flap_acc[1] ~ force[:, s.num_flap_C] ⋅ e_te_C * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - (1600 + damping_coeff) * flap_vel[1]
-        flap_acc[2] ~ force[:, s.num_flap_D] ⋅ e_te_D * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - (1600 + damping_coeff) * flap_vel[2]
+        flap_acc[1] ~ force[:, s.num_flap_C] ⋅ e_te_C * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - (10 ) * flap_vel[1]
+        flap_acc[2] ~ force[:, s.num_flap_D] ⋅ e_te_D * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - (10 ) * flap_vel[2]
+        # flap_acc[1] ~ ifelse(damping_coeff > 0.1, 0.0,
+        #         force[:, s.num_flap_C] ⋅ e_te_C * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - (10 ) * flap_vel[1])
+        # flap_acc[2] ~ ifelse(damping_coeff > 0.1, 0.0,
+        #         force[:, s.num_flap_D] ⋅ e_te_D * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - (10 ) * flap_vel[2])
     ]
 
     for i in s.num_E:s.num_A

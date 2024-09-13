@@ -11,7 +11,7 @@ system:
 
 initial:
     l_tether: 50.0        # initial tether length       [m]
-    elevation: 75.0        # initial elevation angle   [deg]
+    elevation: 85.0        # initial elevation angle   [deg]
     v_reel_out: 0.0        # initial reel out speed    [m/s]
     depower:   25.0        # initial depower settings    [%]
 
