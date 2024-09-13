@@ -13,7 +13,7 @@ set.elevation = 69.4
 # the following values can be changed to match your interest
 set.sample_freq = 50
 set.solver="DFBDF" # IDA or DFBDF
-STEPS = 3100
+STEPS = 2000 # was 3100
 PLOT = true
 FRONT_VIEW = true
 ZOOM = true
@@ -88,7 +88,7 @@ SET_STEERING = 0.1:0.1:0.1
 
 for steering in 1*SET_STEERING
     integrator = KiteModels.init_sim!(kps4;  delta=0.0, stiffness_factor=1, prn=STATISTIC)
-    simulate(integrator, STEPS, steering; plot=false)
+    simulate(integrator, STEPS, steering; plot=true)
 end
 
 function plot_steering_vs_turn_rate()
