@@ -403,14 +403,14 @@ function init_sim!(s::KPS4_3L; t_end=1.0, stiffness_factor=1.0, prn=false,
         model!(s, pos; torque_control=s.torque_control)
         s.prob = ODEProblem(s.simple_sys, nothing, tspan)
         steady_prob = SteadyStateProblem(s.prob)
-        s.steady_sol = solve(steady_prob, DynamicSS(solver; tspan=tspan), abstol=steady_tol, reltol=steady_tol)
+        s.steady_sol = solve(steady_prob, DynamicSS(solver; tspan=tspan), abstol=steady_tol, reltol=steady_tol, dt=dt)
         s.prob = remake(s.prob; u0=s.steady_sol.u)
     elseif new_inital_conditions
         if prn; println("initializing with last model and new steady state"); end
         pos = init_pos(s)
         s.prob = ODEProblem(s.simple_sys, [s.simple_sys.pos => pos, s.simple_sys.tether_length => s.tether_lengths], tspan)
         steady_prob = SteadyStateProblem(s.prob)
-        s.steady_sol = solve(steady_prob, DynamicSS(solver; tspan=tspan), abstol=steady_tol, reltol=steady_tol)
+        s.steady_sol = solve(steady_prob, DynamicSS(solver; tspan=tspan), abstol=steady_tol, reltol=steady_tol, dt=dt)
         s.prob = remake(s.prob; u0=s.steady_sol.u)
     else
         if prn; println("initializing with last model and last steady state"); end
