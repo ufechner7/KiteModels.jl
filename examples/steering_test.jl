@@ -1,8 +1,8 @@
 # apply different rel_steering values and plot turn rate
 using Printf
-using KiteModels, KitePodModels, KiteUtils
+using KiteModels, KitePodModels, KiteUtils, Pkg
 
-set = deepcopy(load_settings("system_v9.yaml"))
+set = deepcopy(load_settings("system.yaml"))
 
 set.abs_tol=0.00006
 set.rel_tol=0.000001
@@ -13,7 +13,11 @@ set.elevation = 69.4
 # the following values can be changed to match your interest
 set.sample_freq = 50
 set.solver="DFBDF" # IDA or DFBDF
-STEPS = 2000 # was 3100
+if set.kcu_model == "KCU2"
+    STEPS = 2600
+else
+    STEPS = 2400
+end
 PLOT = true
 FRONT_VIEW = true
 ZOOM = true
@@ -32,6 +36,7 @@ if PLOT
     using Pkg
     if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
         using TestEnv; TestEnv.activate()
+        pkg"add ControlPlots#main"
     end
     using ControlPlots
 end
@@ -41,8 +46,9 @@ function wrap2pi(angle)
     angle - 2π * num2pi
 end
 
-function simulate(integrator, steps, steering; plot=false)
+function simulate(integrator, steps; plot=false)
     iter = 0
+    steering = 0.1
     set_depower_steering(kps4.kcu, kps4.depower, 0)
     last_heading = 0.0
     heading = 0.0
@@ -84,18 +90,18 @@ function simulate(integrator, steps, steering; plot=false)
     end
 end
 
-SET_STEERING = 0.1:0.1:0.1
 
-for steering in 1*SET_STEERING
-    integrator = KiteModels.init_sim!(kps4;  delta=0.0, stiffness_factor=1, prn=STATISTIC)
-    simulate(integrator, STEPS, steering; plot=true)
-end
+integrator = KiteModels.init_sim!(kps4;  delta=0.0, stiffness_factor=1, prn=STATISTIC)
+simulate(integrator, STEPS; plot=true)
 
 function plot_steering_vs_turn_rate()
     lg = load_log("tmp")
     sl = lg.syslog
     psi = rad2deg.(wrap2pi.(sl.heading))
-    plot(sl.time, -sl.var_16, sl.var_15; ylabels=["- rel_steering", "turnrate [°/s]"], fig="steering vs turnrate")
+    plot(sl.time, -sl.var_16, sl.var_15; 
+         ylabels=["- rel_steering", "turnrate [°/s]"], 
+         ylims=[(-0.6, 0.6), (-90, 90)],
+         fig="steering vs turnrate")
 end
 
 save_log(logger, "tmp")
