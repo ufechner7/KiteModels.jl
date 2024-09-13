@@ -81,6 +81,12 @@ $(TYPEDFIELDS)
     cd_spline::Union{Spline2D, Nothing} = nothing
     "Function for calculating the trailing edge force coefficient, using a spline based on the provided value pairs."
     c_te_spline::Union{Spline2D, Nothing} = nothing
+    "Min and max cl value in polars"
+    cl_bounds::MVector{2, S} = zeros(MVector{2, S})
+    "Min and max cd value in polars"
+    cd_bounds::MVector{2, S} = zeros(MVector{2, S})
+    "Min and max c_te value in polars"
+    c_te_bounds::MVector{2, S} = zeros(MVector{2, S})
     "Reference to the motor models as implemented in the package WinchModels. index 1: middle motor, index 2: left motor, index 3: right motor"
     motors::SizedArray{Tuple{3}, AbstractWinchModel}
     "Iterations, number of calls to the function residual!"
@@ -244,28 +250,30 @@ function clear!(s::KPS4_3L)
 
     polars = read_csv(s.polar_file)
     alphas = deg2rad.(polars["alpha"])
-    flap_angles = deg2rad.(polars["flap_angle"])
+    d_flap_angles = deg2rad.(polars["d_flap_angle"])
     cl_values = polars["cl"]
     cd_values = polars["cd"]
     c_te_values = polars["c_te"]
-    smoothing_param = 0.1
-    order = 2
-    found = false
-    while !found
-        try
-            s.cl_spline = Spline2D(alphas, flap_angles, cl_values; kx = order, ky = order, s = smoothing_param)
-            s.cd_spline = Spline2D(alphas, flap_angles, cd_values; kx = order, ky = order, s = smoothing_param)
-            s.c_te_spline = Spline2D(alphas, flap_angles, c_te_values; kx = order, ky = order, s = smoothing_param)
-            found = true
-        catch e
-            if isa(e, ErrorException)
-                smoothing_param += 0.1
-                println("Smoothing param was too low. Increased to $smoothing_param.")
-            else
-                rethrow(e)
-            end
+
+    rm_idx = []
+    dist = 0.02
+    for i in 2:length(alphas)-1
+        if d_flap_angles[i-1] == d_flap_angles[i+1] && abs(cd_values[i-1] - cd_values[i]) > dist && abs(cd_values[i+1] - cd_values[i]) > dist
+            push!(rm_idx, i)
         end
     end
+    deleteat!(alphas, rm_idx)
+    deleteat!(d_flap_angles, rm_idx)
+    deleteat!(cl_values, rm_idx)
+    deleteat!(cd_values, rm_idx)
+    deleteat!(c_te_values, rm_idx)
+    order = 1
+    s.cl_spline = Spline2D(alphas, d_flap_angles, cl_values; kx = order+1, ky = order, s=1.0)
+    s.cd_spline = Spline2D(alphas, d_flap_angles, cd_values; kx = order+1, ky = order, s=0.3)
+    s.c_te_spline = Spline2D(alphas, d_flap_angles, c_te_values; kx = order+1, ky = order, s=0.04)
+    s.cl_bounds = (minimum(cl_values), maximum(cl_values))
+    s.cd_bounds = (minimum(cd_values), maximum(cd_values))
+    s.c_te_bounds = (minimum(c_te_values), maximum(c_te_values))
 end
 
 # include(joinpath(@__DIR__, "CreatePolars.jl"))
@@ -494,7 +502,7 @@ end
 
 Determine the height of the topmost kite particle above ground.
 """
-function calc_height(s::KPS4_3L)isnothing(s.prob) || 
+function calc_height(s::KPS4_3L)
     pos_kite(s)[3]
 end
 
@@ -539,7 +547,7 @@ end
 @register_symbolic calc_acc_torque(motor::TorqueControlledMachine, tether_speed, norm_, set_torque)
 
 function sym_spline(spline::Spline2D, aoa, flap_angle)
-    return spline(aoa, flap_angle)
+    return spline(aoa, flap_angle-aoa)
 end
 @register_symbolic sym_spline(spline::Spline2D, aoa, flap_angle)
 
@@ -592,6 +600,7 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
         e_drift(t)[1:3, 1:2n]
         v_a_xr(t)[1:3, 1:2n]
         aoa(t)[1:n*2]
+        cl_seg(t)[1:n*2]
         L_seg(t)[1:3, 1:2n]
         D_seg(t)[1:3, 1:2n]
         F_te_seg(t)[1:3, 1:2n]
@@ -653,10 +662,12 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
                 seg_flap_angle[i]    ~ ((flap_angle[2] - flap_angle[1]) / (s.α_r - s.α_l) * (α - s.α_l) + (flap_angle[1]))
 
             aoa[i]      ~ -asin((v_a_xr[:, i] / norm(v_a_xr[:, i])) ⋅ e_r[:, i]) + deg2rad(s.set.alpha_zero)
+            cl_seg[i]   ~ clamp(sym_spline(s.cl_spline, aoa[i], seg_flap_angle[i]), s.cl_bounds[1], s.cl_bounds[2])
 
-            L_seg[:, i] ~ 0.5 * rho * (norm(v_a_xr[:, i]))^2 * s.set.radius * dα * kite_length * sym_spline(s.cl_spline, aoa[i], seg_flap_angle[i]) * 
+            L_seg[:, i] ~ 0.5 * rho * (norm(v_a_xr[:, i]))^2 * s.set.radius * dα * kite_length * cl_seg[i] * 
                                 ((v_a_xr[:, i] × e_drift[:, i]) / norm(v_a_xr[:, i] × e_drift[:, i]))
-            D_seg[:, i] ~ 0.5 * rho * norm(v_a_xr[:, i]) * s.set.radius * dα * kite_length * sym_spline(s.cd_spline, aoa[i], seg_flap_angle[i]) * 
+            D_seg[:, i] ~ 0.5 * rho * norm(v_a_xr[:, i]) * s.set.radius * dα * kite_length * 
+                                clamp(sym_spline(s.cd_spline, aoa[i], seg_flap_angle[i]), s.cd_bounds[1], s.cd_bounds[2]) * 
                                 v_a_xr[:,i]
 
 
@@ -666,7 +677,8 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
                 -rho * norm(v_kite[:, i])^2 * seg_flap_height * s.set.radius * dα * (seg_flap_height/2) / (kite_length/4),
                 rho * norm(v_kite[:, i])^2 * seg_flap_height * s.set.radius * dα * (seg_flap_height/2) / (kite_length/4)
             )
-            te_force[i] ~ 0.5 * rho * (norm(v_a_xr[:, i]))^2 * s.set.radius * dα * kite_length * sym_spline(s.c_te_spline, aoa[i], seg_flap_angle[i])
+            te_force[i] ~ 0.5 * rho * (norm(v_a_xr[:, i]))^2 * s.set.radius * dα * kite_length * 
+                                clamp(sym_spline(s.c_te_spline, aoa[i], seg_flap_angle[i]), s.c_te_bounds[1], s.c_te_bounds[2])
             F_te_seg[:, i] ~ (ram_force[i] + te_force[i]) * e_te[:, i]
         ]
 
@@ -856,7 +868,7 @@ function update_pos!(s, integrator)
     s.D_C               = s.get_D_C(integrator)
     s.D_D               = s.get_D_D(integrator)
     calc_kite_ref_frame!(s, s.pos[s.num_E], s.pos[s.num_C], s.pos[s.num_D])
-    @assert all(abs.(s.flap_angle) .<= π/2)
+    # @assert all(abs.(s.flap_angle) .<= π/2)
     nothing
 end
 
@@ -872,7 +884,7 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
         vel(t)[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
         acc(t)[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
         tether_length(t)[1:3]  = s.tether_lengths
-        flap_angle(t)[1:2]   = s.flap_angle # angle
+        flap_angle(t)[1:2]   = zeros(2) # angle
         flap_vel(t)[1:2]   = zeros(2) # angular vel
         flap_acc(t)[1:2]   = zeros(2) # angular acc
         tether_speed(t)[1:3]   = zeros(3) # left right middle

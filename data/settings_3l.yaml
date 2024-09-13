@@ -11,7 +11,7 @@ system:
 
 initial:
     l_tether: 50.0        # initial tether length       [m]
-    elevation: 60.8        # initial elevation angle   [deg]
+    elevation: 90.8        # initial elevation angle   [deg]
     v_reel_out: 0.0        # initial reel out speed    [m/s]
     depower:   25.0        # initial depower settings    [%]
 
@@ -99,7 +99,7 @@ winch:
     v_ro_min: -8.0         # minimal reel-out speed (=max reel-in speed)     [m/s]
     drum_radius: 0.110    # radius of the drum                              [m]
     gear_ratio: 1.0        # gear ratio of the winch                         [-]   
-    inertia_total: 0.104   # total inertia, as seen from the motor/generator [kgm²]
+    inertia_total: 0.024   # total inertia, as seen from the motor/generator [kgm²]
     f_coulomb: 122.0       # coulomb friction                                [N]
     c_vf: 30.6             # coefficient for the viscous friction            [Ns/m]
 

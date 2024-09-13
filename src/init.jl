@@ -161,7 +161,7 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
 end
 
 # implemented
-function init_pos_vel_acc(s::KPS4_3L, X=zeros(5*s.set.segments+3); delta = 0.0)
+function init_pos_vel_acc(s::KPS4_3L; delta = 0.0)
     pos = zeros(SVector{s.num_A, KVec3})
     vel = zeros(SVector{s.num_A, KVec3})
     acc = zeros(SVector{s.num_A, KVec3})
@@ -172,7 +172,7 @@ function init_pos_vel_acc(s::KPS4_3L, X=zeros(5*s.set.segments+3); delta = 0.0)
     sin_el, cos_el = sin(deg2rad(s.set.elevation)), cos(deg2rad(s.set.elevation))
     for (i, j) in enumerate(range(6, step=3, length=s.set.segments))
         radius = i * (s.set.l_tether/s.set.segments)
-        pos[j] .= [cos_el*radius + X[i], delta, sin_el*radius + X[s.set.segments+i]]
+        pos[j] .= [cos_el*radius, delta, sin_el*radius]
     end
 
     # kite points
@@ -180,8 +180,8 @@ function init_pos_vel_acc(s::KPS4_3L, X=zeros(5*s.set.segments+3); delta = 0.0)
     E, C, D, A, s.α_C, s.kite_length_C = KiteUtils.get_particles_3l(s.set.width, s.set.radius, 
                             s.set.middle_length, s.set.tip_length, s.set.bridle_center_distance, pos[s.num_E], vec_c, s.v_apparent)
 
-    pos[s.num_A] .= A + [X[s.set.segments*2+1], 0, X[s.set.segments*2+2]]
-    pos[s.num_C] .= C + X[s.set.segments*2+3 : s.set.segments*2+5]
+    pos[s.num_A] .= A
+    pos[s.num_C] .= C
     pos[s.num_D] .= [pos[s.num_C][1], -pos[s.num_C][2], pos[s.num_C][3]]
     
     # build tether connection points
@@ -193,15 +193,12 @@ function init_pos_vel_acc(s::KPS4_3L, X=zeros(5*s.set.segments+3); delta = 0.0)
     # distance_c_l = s.set.tip_length/2 # distance between c and left steering line
     pos[s.num_flap_C] .= pos[s.num_C] - s.e_x * flap_length * cos(angle_flap_c) + e_r_C * flap_length * sin(angle_flap_c)
     pos[s.num_flap_D] .= pos[s.num_flap_C] .* [1.0, -1.0, 1.0]
-    s.tether_lengths[1] = norm(pos[s.num_flap_C]) # find the right steering tether length, removed X!
+    s.tether_lengths[1] = norm(pos[s.num_flap_C])
     s.tether_lengths[2] = s.tether_lengths[1]
 
     # build left and right tether points
     for (i, j) in enumerate(range(4, step=3, length=s.set.segments-1))
-        pos[j] .= pos[s.num_flap_C] ./ s.set.segments .* i .+
-            [X[2*s.set.segments+6+i],
-            X[3*s.set.segments+5+i],
-            X[4*s.set.segments+4+i]]
+        pos[j] .= pos[s.num_flap_C] ./ s.set.segments .* i
         pos[j+1] .= [pos[j][1], -pos[j][2], pos[j][3]]
     end
 
@@ -227,13 +224,13 @@ function init_pos_vel(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)))
     pos, vel
 end
 
-function init_pos_vel(s::KPS4_3L, X=zeros(5*s.set.segments+3))
-    pos, vel, _ = init_pos_vel_acc(s, X)
+function init_pos_vel(s::KPS4_3L)
+    pos, vel, _ = init_pos_vel_acc(s)
     return pos, vel
 end
 
-function init_pos(s::KPS4_3L, X=zeros(5*s.set.segments+3); delta=0.0)
-    pos_, _, _ = init_pos_vel_acc(s, X; delta=0.0)
+function init_pos(s::KPS4_3L; delta=0.0)
+    pos_, _, _ = init_pos_vel_acc(s; delta=0.0)
     pos = zeros(3, s.num_A)
     [pos[:,i] .= pos_[i] for i in 1:s.num_A]
     return pos
@@ -244,8 +241,8 @@ function init_inner(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); o
     vcat(pos[2:end], vel[2:end]), vcat(vel[2:end], acc[2:end])
 end
 
-function init_inner(s::KPS4_3L, X=zeros(5*s.set.segments+3);delta=0.0)
-    pos_, vel_, acc_ = init_pos_vel_acc(s, X; delta=delta)
+function init_inner(s::KPS4_3L; delta=0.0)
+    pos_, vel_, acc_ = init_pos_vel_acc(s; delta=delta)
     # remove last left and right tether point and replace them by the length from C and D
     pos = vcat(
         pos_[4:s.num_flap_C-1], 
@@ -275,8 +272,8 @@ end
 
 
 # implemented
-function init(s::KPS4_3L, X=zeros(5*s.set.segments+3); delta=0.0)
-    y_, yd_ = init_inner(s, X; delta = delta)
+function init(s::KPS4_3L; delta=0.0)
+    y_, yd_ = init_inner(s; delta = delta)
     y = vcat(reduce(vcat, y_), reduce(vcat,[s.tether_lengths, zeros(3)]))
     yd = vcat(reduce(vcat, yd_), zeros(6))
     MVector{6*(s.num_A-5)+4+6, SimFloat}(y), MVector{6*(s.num_A-5)+4+6, SimFloat}(yd)
