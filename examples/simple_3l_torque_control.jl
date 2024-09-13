@@ -1,4 +1,4 @@
-using KiteModels, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK, LinearAlgebra, Timers
+using KiteModels, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK, LinearAlgebra, Timers, Statistics
 using Base: summarysize
 tic()
 
@@ -11,7 +11,7 @@ using ControlPlots
 set = deepcopy(load_settings("system_3l.yaml"))
 # set.elevation = 71
 dt = 0.05
-total_time = 0.4
+total_time = 5.0
 
 steps = Int(round(total_time / dt))
 logger = Logger(3*set.segments + 6, steps)
@@ -21,10 +21,10 @@ s.set = update_settings()
 s.set.abs_tol = 0.0006
 s.set.rel_tol = 0.001
 s.set.l_tether = 50.1
-s.set.damping = 450
+s.set.damping = 900
 println("init sim")
 integrator = KiteModels.init_sim!(s; prn=true, torque_control=false, stiffness_factor=1.0)
-println("acc ", norm(integrator[s.simple_sys.acc]))
+println("acc ", mean(norm.(integrator[s.simple_sys.force])))
 sys_state = KiteModels.SysState(s)
 if sys_state.heading > pi
     sys_state.heading -= 2*pi
@@ -39,10 +39,10 @@ for i in 1:steps
     @show time
     # println("acc ", norm(integrator[s.simple_sys.acc]))
     global total_step_time, sys_state, steering
-    if time < 0.5
-        steering = [-1.0,-1.0,-0.0] # left right middle
-    elseif time < 0.6
-        steering = [0,0.3,-0.6]
+    if time < 5
+        steering = [0.0,0.0,-0.6] # left right middle
+    elseif time < 10
+        steering = [0,0.0,-0.0]
     elseif time < 4.0
         steering = [0,0.0,-0.6]
     end
@@ -87,8 +87,11 @@ for i in 1:steps
     # @show (integrator[s.simple_sys.flap_angle[end]])
     # @show integrator[s.simple_sys.force[1, :]]
     # @show norm.(integrator[s.simple_sys.acc])
-    @show s.winch_forces
-    # plot2d(s.pos, time; zoom=false, front=false, xlim=(-50, 50), ylim=(0, 100))
+    # @show s.winch_forces
+    # println("acc ", mean(norm.(integrator[s.simple_sys.force])))
+    @show s.damping_coeff
+
+    plot2d(s.pos, time; zoom=false, front=false, xlim=(-50, 50), ylim=(0, 100))
 end
 
 times_reltime = (total_time/2) / total_step_time

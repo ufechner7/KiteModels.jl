@@ -128,6 +128,8 @@ $(TYPEDFIELDS)
     rho::S =               0.0
     "multiplier for the stiffniss of tether and bridle"
     stiffness_factor::S =  1.0
+    "multiplier for the damping of all movement"
+    damping_coeff::S =  0.0
     "current masses, depending on the total tether length"
     masses::MVector{P, S}         = zeros(P)
     "vector of the springs, defined as struct"
@@ -182,6 +184,7 @@ $(TYPEDFIELDS)
     simple_sys::Union{ModelingToolkit.ODESystem, Nothing} = nothing
 
     set_values_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
+    damping_coeff_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
     v_wind_gnd_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
     stiffness_factor_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
     v_wind_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
@@ -393,34 +396,39 @@ function init_sim!(s::KPS4_3L; t_end=1.0, stiffness_factor=1.0, prn=false,
     dt = 1/s.set.sample_freq*2
     tspan   = (0.0, dt) 
     solver = KenCarp4(autodiff=false) # TRBDF2, Rodas4P, Rodas5P, Kvaerno5, KenCarp4, radau, QNDF
+    @show s.damping_coeff = 100
 
     new_inital_conditions = (s.last_init_elevation != s.set.elevation || s.last_init_tether_length != s.set.l_tether)
     s.set_hash = settings_hash(s.set)
-    steady_tol = 1e-6
+    # steady_tol = 1e-6
     if isnothing(s.prob) || change_control_mode || s.last_set_hash != s.set_hash
         if prn; println("initializing with new model and new steady state"); end
         pos = init_pos(s)
         model!(s, pos; torque_control=s.torque_control)
         s.prob = ODEProblem(s.simple_sys, nothing, tspan)
-        steady_prob = SteadyStateProblem(s.prob)
-        s.steady_sol = solve(steady_prob, DynamicSS(solver; tspan=tspan), abstol=steady_tol, reltol=steady_tol, dt=dt)
-        s.prob = remake(s.prob; u0=s.steady_sol.u)
-    elseif new_inital_conditions
+
+        # steady_prob = SteadyStateProblem(s.prob)
+        # s.steady_sol = solve(steady_prob, DynamicSS(solver; tspan=tspan), abstol=steady_tol, reltol=steady_tol, dt=dt)
+        # s.prob = remake(s.prob; u0=s.steady_sol.u)
+    elseif new_inital_conditions && !isnothing(s.set_values_idx)
         if prn; println("initializing with last model and new steady state"); end
         pos = init_pos(s)
-        s.prob = ODEProblem(s.simple_sys, [s.simple_sys.pos => pos, s.simple_sys.tether_length => s.tether_lengths], tspan)
-        steady_prob = SteadyStateProblem(s.prob)
-        s.steady_sol = solve(steady_prob, DynamicSS(solver; tspan=tspan), abstol=steady_tol, reltol=steady_tol, dt=dt)
-        s.prob = remake(s.prob; u0=s.steady_sol.u)
+        s.prob = ODEProblem(s.simple_sys, [s.simple_sys.pos => pos, s.simple_sys.tether_length => s.tether_lengths], 
+                tspan, [s.simple_sys.damping_coeff => s.damping_coeff])
+        # steady_prob = SteadyStateProblem(s.prob)
+        # @time s.steady_sol = solve(steady_prob, DynamicSS(solver; tspan=tspan), abstol=steady_tol, reltol=steady_tol, dt=dt)
+        # s.prob = remake(s.prob; u0=s.steady_sol.u)
     else
         if prn; println("initializing with last model and last steady state"); end
     end
+
     s.last_init_elevation = s.set.elevation
     s.last_init_tether_length = s.set.l_tether    
     s.last_set_hash = s.set_hash
     integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
     if isnothing(s.set_values_idx)
         s.set_values_idx = parameter_index(integrator.f, :set_values)
+        s.damping_coeff_idx = parameter_index(integrator.f, :damping_coeff)
         s.v_wind_gnd_idx = parameter_index(integrator.f, :v_wind_gnd)
         s.v_wind_idx = parameter_index(integrator.f, :v_wind)
         s.stiffness_factor_idx = parameter_index(integrator.f, :stiffness_factor)
@@ -448,15 +456,12 @@ function next_step!(s::KPS4_3L, integrator; set_values=zeros(KVec3), v_wind_gnd=
     integrator.ps[s.v_wind_gnd_idx] .= s.v_wind_gnd
     integrator.ps[s.v_wind_idx] .= s.v_wind
     integrator.ps[s.stiffness_factor_idx] = s.stiffness_factor
+    integrator.ps[s.damping_coeff_idx] = s.damping_coeff
     s.t_0 = integrator.t
     OrdinaryDiffEqCore.step!(integrator, dt, true)
     update_pos!(s, integrator)
-    if s.stiffness_factor < 1.0
-        s.stiffness_factor+=0.01
-        if s.stiffness_factor > 1.0
-            s.stiffness_factor = 1.0
-        end
-    end
+    s.stiffness_factor = s.stiffness_factor < 1.0 ? s.stiffness_factor + dt/5 : 1.0
+    s.damping_coeff = s.damping_coeff > 0.1 ? s.damping_coeff - 60*dt : 0.0
     integrator.t
 end
 
@@ -880,6 +885,7 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
         v_wind_gnd[1:3] = s.v_wind_gnd
         v_wind[1:3] = s.v_wind
         stiffness_factor = s.stiffness_factor
+        damping_coeff = s.damping_coeff
     end
     @variables begin
         pos(t)[1:3, 1:s.num_A] = pos_ # left right middle
@@ -971,7 +977,7 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
     end
     for i in 4:s.num_flap_C-1
         eqs2 = vcat(eqs2, vcat(force_eqs[:,i]))
-        eqs2 = vcat(eqs2, acc[:, i] .~ [0.0; 0.0; -G_EARTH] .+ (force[:,i] ./ mass_tether_particle[(i-1)%3+1]))
+        eqs2 = vcat(eqs2, acc[:, i] .~ [0.0; 0.0; -G_EARTH] .+ (force[:,i] ./ mass_tether_particle[(i-1)%3+1]) .- damping_coeff * vel[:, i])
     end
 
     # torque = I * flap_acc
@@ -989,13 +995,13 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
         eqs2
         vcat(force_eqs[:, s.num_flap_C])
         vcat(force_eqs[:, s.num_flap_D])
-        flap_acc[1] ~ force[:, s.num_flap_C] ⋅ e_te_C * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - 1600 * flap_vel[1]
-        flap_acc[2] ~ force[:, s.num_flap_D] ⋅ e_te_D * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - 1600 * flap_vel[2]
+        flap_acc[1] ~ force[:, s.num_flap_C] ⋅ e_te_C * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - (1600 + damping_coeff) * flap_vel[1]
+        flap_acc[2] ~ force[:, s.num_flap_D] ⋅ e_te_D * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - (1600 + damping_coeff) * flap_vel[2]
     ]
 
     for i in s.num_E:s.num_A
         eqs2 = vcat(eqs2, vcat(force_eqs[:,i]))
-        eqs2 = vcat(eqs2, acc[:, i] .~ [0.0; 0.0; -G_EARTH] .+ (force[:, i] ./ s.masses[i]))
+        eqs2 = vcat(eqs2, acc[:, i] .~ [0.0; 0.0; -G_EARTH] .+ (force[:, i] ./ s.masses[i]) .- damping_coeff * vel[:, i])
     end
 
     eqs = vcat(eqs1, eqs2)
