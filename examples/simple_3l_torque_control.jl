@@ -11,7 +11,7 @@ using ControlPlots
 set = deepcopy(load_settings("system_3l.yaml"))
 # set.elevation = 71
 dt = 0.05
-total_time = 3.0
+total_time = 4.0
 
 steps = Int(round(total_time / dt))
 logger = Logger(3*set.segments + 6, steps)
@@ -40,9 +40,9 @@ for i in 1:steps
     # println("acc ", norm(integrator[s.simple_sys.acc]))
     global total_step_time, sys_state, steering
     if time < 0.5
-        steering = [0,0,-0.3] # left right middle
+        steering = [0,0,-0.4] # left right middle
     elseif time < 1.0
-        steering = [0,0,-0.4]
+        steering = [0,0.3,-0.6]
     end
     # if i == 40
     #     steering = [0,0,-20]
@@ -63,6 +63,8 @@ for i in 1:steps
     sys_state.var_07 =  norm(integrator[s.simple_sys.acc[:, s.num_E]] .- (integrator[s.simple_sys.acc[:, s.num_E]] ⋅ normalize(s.pos[s.num_E])) * normalize(s.pos[s.num_E]))
     sys_state.var_08 =  norm(s.L_C + s.L_D)
     sys_state.var_09 =  norm(s.D_C + s.D_D)
+
+    @show argmax(norm.(integrator[s.simple_sys.acc]))
 
     step_time = @elapsed next_step!(s, integrator; set_values=steering, dt=dt)
     if time > 0.5
