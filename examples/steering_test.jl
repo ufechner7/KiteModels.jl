@@ -6,6 +6,7 @@ set = deepcopy(load_settings("system.yaml"))
 
 set.abs_tol=0.00006
 set.rel_tol=0.000001
+set.v_wind = 10
 set.elevation = 69.4
 # set.v_steering = 0.2*6
 # set.steering_gain = 10.0
@@ -100,7 +101,7 @@ function plot_steering_vs_turn_rate()
     psi = rad2deg.(wrap2pi.(sl.heading))
     plot(sl.time, -sl.var_16, sl.var_15; 
          ylabels=["- rel_steering", "turnrate [°/s]"], 
-         ylims=[(-0.6, 0.6), (-90, 90)],
+         ylims=[(-0.6, 0.6), (-100, 100)],
          fig="steering vs turnrate")
 end
 
