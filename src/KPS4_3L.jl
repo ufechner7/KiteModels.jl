@@ -988,12 +988,8 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
         eqs2
         vcat(force_eqs[:, s.num_flap_C])
         vcat(force_eqs[:, s.num_flap_D])
-        flap_acc[1] ~ force[:, s.num_flap_C] ⋅ e_te_C * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - (10 ) * flap_vel[1]
-        flap_acc[2] ~ force[:, s.num_flap_D] ⋅ e_te_D * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - (10 ) * flap_vel[2]
-        # flap_acc[1] ~ ifelse(damping_coeff > 0.1, 0.0,
-        #         force[:, s.num_flap_C] ⋅ e_te_C * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - (10 ) * flap_vel[1])
-        # flap_acc[2] ~ ifelse(damping_coeff > 0.1, 0.0,
-        #         force[:, s.num_flap_D] ⋅ e_te_D * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - (10 ) * flap_vel[2])
+        flap_acc[1] ~ force[:, s.num_flap_C] ⋅ e_te_C * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - (10 + damping_coeff*100) * flap_vel[1]
+        flap_acc[2] ~ force[:, s.num_flap_D] ⋅ e_te_D * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - (10 + damping_coeff*100) * flap_vel[2]
     ]
 
     for i in s.num_E:s.num_A

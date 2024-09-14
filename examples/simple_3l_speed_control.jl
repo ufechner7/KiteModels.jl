@@ -53,8 +53,8 @@ for i in 1:steps
     if sys_state.heading > pi
         sys_state.heading -= 2*pi
     end
-    sys_state.var_01 =  clamp(rad2deg(s.flap_angle[1]), -25, 25)
-    sys_state.var_02 =  clamp(rad2deg(s.flap_angle[2]), -25, 25)
+    sys_state.var_01 =  clamp(rad2deg(s.flap_angle[1]), -1000, 1000)
+    sys_state.var_02 =  clamp(rad2deg(s.flap_angle[2]), -1000, 1000)
     sys_state.var_03 =  s.reel_out_speeds[1]
     sys_state.var_04 =  s.reel_out_speeds[2]
     sys_state.var_05 =  s.reel_out_speeds[3]
