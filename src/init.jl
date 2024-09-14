@@ -30,32 +30,6 @@ function init_springs!(s::KPS4)
     s.springs
 end
 
-# # implemented
-# function get_particles(s::KPS4_3L; pos_kite = [ 75., 0., 129.90381057], vec_c=[-15., 0., -25.98076211], v_app=[10.4855, 0, -3.08324])
-#     # inclination angle of the kite; beta = atan(-pos_kite[2], pos_kite[1]) ???
-#     beta = pi/2.0
-#     width = s.set.width
-
-#     e_z = normalize(vec_c) # vec_c is the direction of the last two particles
-#     e_y = normalize(cross(v_app, e_z))
-#     e_x = normalize(cross(e_y, e_z))
-
-#     α_0 = pi/2 - s.set.width/2/s.set.radius
-#     s.α_C = α_0 + s.set.width*(-2*s.set.tip_length + sqrt(2*s.set.middle_length^2 + 2*s.set.tip_length^2)) /
-#         (4*(s.set.middle_length - s.set.tip_length)) / s.set.radius
-
-#     E = pos_kite
-#     E_c = pos_kite + e_z * (-s.set.bridle_center_distance + s.set.radius) # E at center of circle on which the kite shape lies
-#     C = E_c + e_y*cos(α_C)*s.set.radius - e_z*sin(α_C)*s.set.radius
-#     D = E_c + e_y*cos(α_D)*s.set.radius - e_z*sin(α_D)*s.set.radius
-
-#     s.kite_length_C = (s.set.tip_length + (s.set.middle_length-s.set.tip_length)*s.α_C*s.set.radius/(0.5*s.set.width))
-#     P_c = (C+D)./2
-#     A = P_c - e_x*(s.kite_length_C*(3/4 - 1/4))
-
-#     [E, C, D, A] # important to have the order E = 1, C = 2, D = 3, A = 4
-# end
-
 # implemented - looks good
 function init_springs!(s::KPS4_3L)
     l_0 = s.set.l_tether / s.set.segments
@@ -199,8 +173,7 @@ function init_pos_vel_acc(s::KPS4_3L; delta = 0.0)
     for (i, j) in enumerate(range(4, step=3, length=s.set.segments-1))
         len = (s.set.segments-1)/2
         middle_distance = (len - abs(i-len))/len
-        @show middle_distance
-        pos[j] .= pos[s.num_flap_C] ./ s.set.segments .* i .+ [(middle_distance)*s.kite_length_C*20, 0.0, 0.0]
+        pos[j] .= pos[s.num_flap_C] ./ s.set.segments .* i .+ [(middle_distance)*s.tether_lengths[3]/2, 0.0, 0.0]
         s.tether_lengths[1] += norm(pos[j] - pos[j-3])
         pos[j+1] .= [pos[j][1], -pos[j][2], pos[j][3]]
     end

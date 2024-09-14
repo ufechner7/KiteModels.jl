@@ -396,7 +396,7 @@ function init_sim!(s::KPS4_3L; t_end=1.0, stiffness_factor=1.0, prn=false,
     dt = 1/s.set.sample_freq*2
     tspan   = (0.0, dt) 
     solver = KenCarp4(autodiff=false) # TRBDF2, Rodas4P, Rodas5P, Kvaerno5, KenCarp4, radau, QNDF
-    @show s.damping_coeff = 200
+    @show s.damping_coeff = 100
 
     new_inital_conditions = (s.last_init_elevation != s.set.elevation || s.last_init_tether_length != s.set.l_tether)
     s.set_hash = settings_hash(s.set)
@@ -454,7 +454,7 @@ function next_step!(s::KPS4_3L, integrator; set_values=zeros(KVec3), v_wind_gnd=
     OrdinaryDiffEqCore.step!(integrator, dt, true)
     update_pos!(s, integrator)
     s.stiffness_factor = s.stiffness_factor < 1.0 ? s.stiffness_factor + dt/5 : 1.0
-    s.damping_coeff = s.damping_coeff > 0.1 ? s.damping_coeff - dt*s.damping_coeff : 0.0
+    s.damping_coeff = s.damping_coeff > 0.1 ? s.damping_coeff - 200*dt : 0.0
     integrator.t
 end
 

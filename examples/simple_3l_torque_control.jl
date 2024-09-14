@@ -20,8 +20,8 @@ if !@isdefined s; s = KPS4_3L(KCU(set)); end
 s.set = update_settings()
 s.set.abs_tol = 0.0006
 s.set.rel_tol = 0.001
-s.set.l_tether = 50.0
-s.set.damping = 900
+s.set.l_tether = 30.0
+s.set.damping = 450
 println("init sim")
 integrator = KiteModels.init_sim!(s; prn=true, torque_control=false, stiffness_factor=1.0)
 println("acc ", mean(norm.(integrator[s.simple_sys.force])))
@@ -40,22 +40,21 @@ for i in 1:steps
     # println("acc ", norm(integrator[s.simple_sys.acc]))
     global total_step_time, sys_state, steering
     steering = [0.0,0.0,0.0] # left right middle
-    # if time < 5
-    #     steering = [0.0,0.0,0.0] # left right middle
-    # elseif time < 10
-    #     steering = [0,0.0,-0.0]
-    # elseif time < 4.0
-    #     steering = [0,0.0,-0.6]
-    # end
-    if time > 10.0
-        s.damping_coeff = 0.0
+    if time < 3
+        steering = [0.0,0.0,0.0] # left right middle
+    elseif time < 4
+        steering = [0,0.3,-0.0]
+    elseif time < 6
+        steering = [0.6,0.0,-0.0]
+    elseif time < 10
+        steering = [0.0, 0.0, 0.0]
     end
 
     if sys_state.heading > pi
         sys_state.heading -= 2*pi
     end
-    sys_state.var_01 =  rad2deg(s.flap_angle[1])
-    sys_state.var_02 =  rad2deg(s.flap_angle[2])
+    sys_state.var_01 =  clamp(rad2deg(s.flap_angle[1]), -25, 25)
+    sys_state.var_02 =  clamp(rad2deg(s.flap_angle[2]), -25, 25)
     sys_state.var_03 =  s.reel_out_speeds[1]
     sys_state.var_04 =  s.reel_out_speeds[2]
     sys_state.var_05 =  s.reel_out_speeds[3]
@@ -76,19 +75,6 @@ for i in 1:steps
         sys_state.heading -= 2*pi
     end
     log!(logger, sys_state)
-    # @show (integrator[s.simple_sys.L_seg[:, end]])
-    # @show integrator[s.simple_sys.cl_seg[end]]
-    # @show norm(integrator[s.simple_sys.v_a_xr[:, end]])
-    # @show norm(integrator[s.simple_sys.v_kite[:, end]])
-    # @show norm(integrator[s.simple_sys.vel[:, s.num_C]])
-    # @show (integrator[s.simple_sys.aoa[end]])
-    # @show (integrator[s.simple_sys.flap_angle[end]])
-    # @show integrator[s.simple_sys.force[1, :]]
-    # @show norm.(integrator[s.simple_sys.acc])
-    # @show s.winch_forces
-    # println("acc ", mean(norm.(integrator[s.simple_sys.force])))
-    @show s.damping_coeff
-
     plot2d(s.pos, time; zoom=false, front=false, xlim=(-50, 50), ylim=(0, 100))
 end
 
