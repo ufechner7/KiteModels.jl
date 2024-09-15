@@ -6,8 +6,9 @@ set = deepcopy(load_settings("system.yaml"))
 
 set.abs_tol=0.00006
 set.rel_tol=0.000001
-set.v_wind = 10
+set.v_wind = 12
 set.elevation = 69.4
+set.l_tether = 200
 # set.kcu_mass = 8.4
 # set.v_steering = 0.2*6
 # set.steering_gain = 10.0
@@ -41,6 +42,7 @@ if PLOT
         pkg"add ControlPlots#main"
     end
     using ControlPlots, StatsBase
+    close("all")
 end
 
 function wrap2pi(angle)
@@ -49,6 +51,7 @@ function wrap2pi(angle)
 end
 
 function simulate(integrator, steps; plot=false)
+    OFFSET = 5
     iter = 0
     steering = 0.1
     set_depower_steering(kps4.kcu, kps4.depower, 0)
@@ -67,11 +70,14 @@ function simulate(integrator, steps; plot=false)
                 heading -= 2*pi
             end
 
-            if rad2deg(heading) < -5
+            if rad2deg(heading) < -OFFSET
                 set_depower_steering(kps4.kcu, kps4.depower, -steering)
-            elseif rad2deg(heading) > 5
+            elseif rad2deg(heading) > OFFSET
                 set_depower_steering(kps4.kcu, kps4.depower, steering)
-                if rad2deg(last_heading) <= 5
+                if rad2deg(last_heading) <= OFFSET
+                    if steering == 0.5
+                        break
+                    end
                     steering +=0.1
                 end
             end
@@ -124,7 +130,7 @@ function plot_steering_vs_turn_rate()
 
     # p2=plot(sl.time, sl.v_app; ylabel="v_app [m/s]", fig="v_app")
     delta = delay(sl.var_16, -sl.var_15./sl.v_app)
-    println("delay of turnrate: $delta timesteps")
+    println("delay of turnrate: $(delta*dt) s")
     delayed_steering = shift_vector(sl.var_16, delta)    
     G = -sl.var_15./sl.v_app./delayed_steering
     for (i, g) in enumerate(G)
@@ -134,7 +140,7 @@ function plot_steering_vs_turn_rate()
     end
     G_mean = mean(filter(!isnan, G))
     G_std = std(filter(!isnan, G))
-    println("mean turnrate_law factor: $(G_mean) std: $(G_std)")
+    println("mean turnrate_law factor: $(G_mean) ± $(G_std/G_mean*100) %")
     p1=plot(sl.time, -delayed_steering, sl.var_15./sl.v_app; 
     ylabels=["- delayed_steering", "turnrate/v_app [°/m]"],
     ylims=[(-0.6, 0.6), (-G_mean*0.6, G_mean*0.6)],
