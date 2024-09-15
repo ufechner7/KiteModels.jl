@@ -20,10 +20,11 @@ if !@isdefined s; s = KPS4_3L(KCU(set)); end
 s.set = update_settings()
 s.set.abs_tol = 0.0006
 s.set.rel_tol = 0.001
-s.set.l_tether = 30.0
-s.set.damping = 450
+s.set.l_tether = 50.0
+s.set.damping = 473
+s.set.elevation = 85
 println("init sim")
-integrator = KiteModels.init_sim!(s; prn=true, torque_control=false, stiffness_factor=1.0)
+integrator = KiteModels.init_sim!(s; prn=true, torque_control=false)
 println("acc ", mean(norm.(integrator[s.simple_sys.force])))
 sys_state = KiteModels.SysState(s)
 if sys_state.heading > pi
@@ -37,6 +38,7 @@ toc()
 for i in 1:steps
     time = (i-1) * dt
     @show time
+    @show integrator[s.simple_sys.damping_coeff]
     # println("acc ", norm(integrator[s.simple_sys.acc]))
     global total_step_time, sys_state, steering
     steering = [0.0,0.0,0.0] # left right middle
@@ -47,19 +49,23 @@ for i in 1:steps
     elseif time < 6
         steering = [0.6,0.0,-0.0]
     elseif time < 10
-        steering = [0.0, 0.0, 0.0]
+        steering = [-0.6, -0.6, 0.0]
     end
 
     if sys_state.heading > pi
         sys_state.heading -= 2*pi
     end
-    sys_state.var_01 =  clamp(rad2deg(s.flap_angle[1]), -1000, 1000)
-    sys_state.var_02 =  clamp(rad2deg(s.flap_angle[2]), -1000, 1000)
+    sys_state.var_01 =  rad2deg(s.flap_angle[1])
+    sys_state.var_02 =  rad2deg(s.flap_angle[2])
     sys_state.var_03 =  s.reel_out_speeds[1]
     sys_state.var_04 =  s.reel_out_speeds[2]
     sys_state.var_05 =  s.reel_out_speeds[3]
-    sys_state.var_06 =  norm((integrator[s.simple_sys.acc[:, s.num_E]] ⋅ normalize(s.pos[s.num_E])) * normalize(s.pos[s.num_E]))
-    sys_state.var_07 =  norm(integrator[s.simple_sys.acc[:, s.num_E]] .- (integrator[s.simple_sys.acc[:, s.num_E]] ⋅ normalize(s.pos[s.num_E])) * normalize(s.pos[s.num_E]))
+    sys_state.var_06 =  clamp(
+        norm((integrator[s.simple_sys.acc[:, s.num_E]] ⋅ normalize(s.pos[s.num_E])) * normalize(s.pos[s.num_E])),
+        0.0, 100.0)
+    sys_state.var_07 =  clamp(
+        norm(integrator[s.simple_sys.acc[:, s.num_E]] .- (integrator[s.simple_sys.acc[:, s.num_E]] ⋅ normalize(s.pos[s.num_E])) * normalize(s.pos[s.num_E])),
+        0.0, 100.0)
     sys_state.var_08 =  norm(s.L_C + s.L_D)
     sys_state.var_09 =  norm(s.D_C + s.D_D)
 

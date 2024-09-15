@@ -43,7 +43,7 @@ const SPRINGS_INPUT_3L = [1.      4.  -1. # s1: E, A
 # E = 1, C = 2, D = 3, A = 4
 # E = segments*3+1, C = segments*3+2, D = segments*3+3, A = segments*3+4
 
-
+# TODO: add line multiplier: multiple lines doing same thing
 const KITE_SPRINGS_3L = 6
 const KITE_PARTICLES_3L = 4
 
@@ -126,8 +126,6 @@ $(TYPEDFIELDS)
     flap_angle::MVector{2, S} =      zeros(S, 2)
     "air density at the height of the kite"
     rho::S =               0.0
-    "multiplier for the stiffniss of tether and bridle"
-    stiffness_factor::S =  1.0
     "multiplier for the damping of all movement"
     damping_coeff::S =  0.0
     "current masses, depending on the total tether length"
@@ -184,9 +182,7 @@ $(TYPEDFIELDS)
     simple_sys::Union{ModelingToolkit.ODESystem, Nothing} = nothing
 
     set_values_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
-    damping_coeff_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
     v_wind_gnd_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
-    stiffness_factor_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
     v_wind_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
     prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
     get_pos::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
@@ -367,25 +363,24 @@ end
 
 
 """
-    init_sim!(s; t_end=1.0, stiffness_factor=1.0, prn=false)
+    init_sim!(s; damping_coeff=1.0, prn=false, torque_control=true)
 
 Initialises the integrator of the model.
 
 Parameters:
-- s:     an instance of an abstract kite model
-- t_end: end time of the simulation; normally not needed
-- stiffness_factor: factor applied to the tether stiffness during initialisation
+- s:     an instance of a 3 line kite model
+- damping_coeff: amount of damping in the first steps
 - prn: if set to true, print the detailed solver results
-- steady_state_history: an instance of SteadyStateHistory containing old pairs of AKM objects and integrators
+- torque_control: wether or not to use torque control
+- ss:   an instance of a sys state
 
 Returns:
 An instance of a DAE integrator.
 """
-function init_sim!(s::KPS4_3L; t_end=1.0, stiffness_factor=1.0, prn=false, 
-                   torque_control=true)
+function init_sim!(s::KPS4_3L; damping_coeff=100.0, prn=false, 
+                   torque_control=true) # TODO: add sysstate init ability
     clear!(s)
     change_control_mode = s.torque_control != torque_control
-    s.stiffness_factor = stiffness_factor
     s.torque_control = torque_control
     if s.torque_control
         [s.motors[i] = TorqueControlledMachine(s.set) for i in 1:3]
@@ -396,23 +391,28 @@ function init_sim!(s::KPS4_3L; t_end=1.0, stiffness_factor=1.0, prn=false,
     dt = 1/s.set.sample_freq*2
     tspan   = (0.0, dt) 
     solver = KenCarp4(autodiff=false) # TRBDF2, Rodas4P, Rodas5P, Kvaerno5, KenCarp4, radau, QNDF
-    @show s.damping_coeff = 100
+    s.damping_coeff = damping_coeff
 
     new_inital_conditions = (s.last_init_elevation != s.set.elevation || s.last_init_tether_length != s.set.l_tether)
     s.set_hash = settings_hash(s.set)
-    # steady_tol = 1e-6
-    if isnothing(s.prob) || change_control_mode || s.last_set_hash != s.set_hash
-        if prn; println("initializing with new model and new steady state"); end
+    init_new_model = isnothing(s.prob) || change_control_mode || s.last_set_hash != s.set_hash
+    init_new_pos = new_inital_conditions && !isnothing(s.set_values_idx)
+
+    if init_new_model
+        if prn; println("initializing with new model and new pos"); end
         pos = init_pos(s)
-        model!(s, pos; torque_control=s.torque_control)
+        model!(s, pos)
         s.prob = ODEProblem(s.simple_sys, nothing, tspan)
-    elseif new_inital_conditions && !isnothing(s.set_values_idx) || true # REMOVE FLAG
-        if prn; println("initializing with last model and new steady state"); end
+    elseif init_new_pos
+        if prn; println("initializing with last model and new pos"); end
         pos = init_pos(s)
-        s.prob = ODEProblem(s.simple_sys, [s.simple_sys.pos => pos, s.simple_sys.tether_length => s.tether_lengths], 
-                tspan, [s.simple_sys.damping_coeff => s.damping_coeff])
+        s.prob = ODEProblem(
+            s.simple_sys, 
+            [s.simple_sys.pos => pos, s.simple_sys.tether_length => s.tether_lengths, s.simple_sys.damping_coeff => s.damping_coeff], 
+            tspan, [s.simple_sys.damping_coeff => s.damping_coeff]
+        )
     else
-        if prn; println("initializing with last model and last steady state"); end
+        if prn; println("initializing with last model and last pos"); end
     end
 
     s.last_init_elevation = s.set.elevation
@@ -421,10 +421,8 @@ function init_sim!(s::KPS4_3L; t_end=1.0, stiffness_factor=1.0, prn=false,
     integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
     if isnothing(s.set_values_idx)
         s.set_values_idx = parameter_index(integrator.f, :set_values)
-        s.damping_coeff_idx = parameter_index(integrator.f, :damping_coeff)
         s.v_wind_gnd_idx = parameter_index(integrator.f, :v_wind_gnd)
         s.v_wind_idx = parameter_index(integrator.f, :v_wind)
-        s.stiffness_factor_idx = parameter_index(integrator.f, :stiffness_factor)
         s.get_pos = getu(integrator.sol, s.simple_sys.pos[:,:])
         s.get_flap_angle = getu(integrator.sol, s.simple_sys.flap_angle)
         s.get_flap_acc = getu(integrator.sol, s.simple_sys.flap_acc)
@@ -441,6 +439,7 @@ function init_sim!(s::KPS4_3L; t_end=1.0, stiffness_factor=1.0, prn=false,
     return integrator
 end
 
+
 function next_step!(s::KPS4_3L, integrator; set_values=zeros(KVec3), v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
     s.iter = 0
     set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
@@ -448,13 +447,9 @@ function next_step!(s::KPS4_3L, integrator; set_values=zeros(KVec3), v_wind_gnd=
     integrator.ps[s.set_values_idx] .= s.set_values
     integrator.ps[s.v_wind_gnd_idx] .= s.v_wind_gnd
     integrator.ps[s.v_wind_idx] .= s.v_wind
-    integrator.ps[s.stiffness_factor_idx] = s.stiffness_factor
-    integrator.ps[s.damping_coeff_idx] = s.damping_coeff
     s.t_0 = integrator.t
     OrdinaryDiffEqCore.step!(integrator, dt, true)
     update_pos!(s, integrator)
-    s.stiffness_factor = s.stiffness_factor < 1.0 ? s.stiffness_factor + dt/5 : 1.0
-    s.damping_coeff = s.damping_coeff > 0.1 ? s.damping_coeff - 200*dt : 0.0
     integrator.t
 end
 
@@ -730,13 +725,13 @@ The result is stored in the array s.forces.
 """
 function calc_particle_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos1, pos2, vel1, vel2, length, c_spring, 
     damping, rho, i, l_0, k, c, segment, rel_vel, av_vel, norm1, unit_vector, k1, k2, c1, c2, spring_vel, perp_vel,
-            spring_force, v_apparent, v_wind_tether, area, v_app_perp, half_drag_force, stiffness_factor)
+            spring_force, v_apparent, v_wind_tether, area, v_app_perp, half_drag_force)
     d_tether = s.set.d_tether/1000.0
     eqs2 = [
         eqs2
         i <= s.set.segments*3 ? l_0 ~ length[(i-1) % 3 + 1] : l_0 ~ s.springs[i].length # Unstressed length
-        i <= s.set.segments*3 ? k   ~ c_spring[(i-1) % 3 + 1] * stiffness_factor :
-                                k   ~ s.springs[i].c_spring * stiffness_factor        # Spring constant
+        i <= s.set.segments*3 ? k   ~ c_spring[(i-1) % 3 + 1] :
+                                k   ~ s.springs[i].c_spring        # Spring constant
         i <= s.set.segments*3 ? c   ~ damping[(i-1) % 3 + 1] : c ~ s.springs[i].damping # Damping coefficient    
         segment     .~ pos1 - pos2
         rel_vel     .~ vel1 - vel2
@@ -805,7 +800,7 @@ Output:length
 - s.forces
 - s.v_wind_tether
 """
-@inline function inner_loop_mtk!(s::KPS4_3L, eqs2, force_eqs, t, force, pos, vel, length, c_spring, damping, v_wind_gnd, stiffness_factor)
+@inline function inner_loop_mtk!(s::KPS4_3L, eqs2, force_eqs, t, force, pos, vel, length, c_spring, damping, v_wind_gnd)
     @variables begin
         height(t)[eachindex(s.springs)]
         rho(t)[eachindex(s.springs)]
@@ -847,7 +842,7 @@ Output:length
                           vel[:, p2], length, c_spring, damping, rho[i], i, l_0[i], k[i], c[i], segment[:, i], 
                           rel_vel[:, i], av_vel[:, i], norm1[i], unit_vector[:, i], k1[i], k2[i], c1[i], c2[i], spring_vel[i],
                           perp_vel[:, i], spring_force[:, i], v_apparent[:,i], v_wind_tether[:, i], area[i], v_app_perp[:, i], 
-                          half_drag_force[:, i], stiffness_factor)
+                          half_drag_force[:, i])
     end
 
     return eqs2, force_eqs
@@ -868,22 +863,21 @@ function update_pos!(s, integrator)
     s.D_C               = s.get_D_C(integrator)
     s.D_D               = s.get_D_D(integrator)
     calc_kite_ref_frame!(s, s.pos[s.num_E], s.pos[s.num_C], s.pos[s.num_D])
-    # @assert all(abs.(s.flap_angle) .<= π/2)
+    @assert all(abs.(s.flap_angle) .<= deg2rad(70))
     nothing
 end
 
-function model!(s::KPS4_3L, pos_; torque_control=false)
+function model!(s::KPS4_3L, pos_)
     @parameters begin
         set_values[1:3] = s.set_values
         v_wind_gnd[1:3] = s.v_wind_gnd
         v_wind[1:3] = s.v_wind
-        stiffness_factor = s.stiffness_factor
-        damping_coeff = s.damping_coeff
     end
     @variables begin
         pos(t)[1:3, 1:s.num_A] = pos_ # left right middle
         vel(t)[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
         acc(t)[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
+        damping_coeff(t) = s.damping_coeff
         tether_length(t)[1:3]  = s.tether_lengths
         flap_angle(t)[1:2]   = zeros(2) # angle
         flap_vel(t)[1:2]   = zeros(2) # angular vel
@@ -923,7 +917,7 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
     [eqs1 = vcat(eqs1, D.(vel[:, i]) .~ acc[:,i]) for i in s.num_E:s.num_A]
 
     eqs1 = vcat(eqs1, D.(tether_length) .~ tether_speed)
-    if torque_control
+    if s.torque_control
         eqs1 = vcat(eqs1, D.(tether_speed) .~ [calc_acc_torque(s.motors[i], tether_speed[i], norm(force[:, (i-1) % 3 + 1]),
                                                                set_values[i]) for i in 1:3])
     else
@@ -958,11 +952,12 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
         # E_C is the center of the circle shape of the front view of the kite
         E_C     ~ pos[:, s.num_E] + e_z * (-s.set.bridle_center_distance + s.set.radius) 
         rho_kite ~ calc_rho(s.am, pos[3,s.num_A])
+        damping_coeff ~ max(1.0 - t, 0.0) * s.damping_coeff
     ]
 
     eqs2, force_eqs = calc_aero_forces_mtk!(s, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, E_C, rho_kite, v_wind, flap_angle)
     eqs2, force_eqs = inner_loop_mtk!(s, eqs2, force_eqs, t, force, pos, vel, segment_length, c_spring, damping, 
-                                      v_wind_gnd, stiffness_factor)
+                                      v_wind_gnd)
     
     for i in 1:3
         eqs2 = vcat(eqs2, vcat(force_eqs[:, i]))
@@ -988,8 +983,10 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
         eqs2
         vcat(force_eqs[:, s.num_flap_C])
         vcat(force_eqs[:, s.num_flap_D])
-        flap_acc[1] ~ force[:, s.num_flap_C] ⋅ e_te_C * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - (10 + damping_coeff*100) * flap_vel[1]
-        flap_acc[2] ~ force[:, s.num_flap_D] ⋅ e_te_D * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - (10 + damping_coeff*100) * flap_vel[2]
+        flap_acc[1] ~ force[:, s.num_flap_C] ⋅ e_te_C * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - 
+                    (60 + damping_coeff*200) * flap_vel[1]
+        flap_acc[2] ~ force[:, s.num_flap_D] ⋅ e_te_D * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - 
+                    (60 + damping_coeff*200) * flap_vel[2]
     ]
 
     for i in s.num_E:s.num_A

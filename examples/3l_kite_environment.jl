@@ -8,10 +8,10 @@ const StateVec = MVector{11, Float32}
 @with_kw mutable struct Env
     kcu::KCU = KCU(se())
     s::KPS4_3L = KPS4_3L(kcu)
-    max_render_length::Int = 10000
+    max_render_length::Int = Int(1e5)
     i::Int = 1
     logger::Logger = Logger(s.num_A, max_render_length)
-    integrator::OrdinaryDiffEq.ODEIntegrator = KiteModels.init_sim!(s; stiffness_factor=0.04, prn=false, mtk=true, torque_control=true)
+    integrator::OrdinaryDiffEq.ODEIntegrator = KiteModels.init_sim!(s; prn=false, torque_control=true)
     sys_state::SysState = SysState(s)
     state::StateVec = zeros(StateVec)
     state_d::StateVec = zeros(StateVec)
