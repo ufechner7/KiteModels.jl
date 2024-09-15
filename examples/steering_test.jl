@@ -101,9 +101,16 @@ function plot_steering_vs_turn_rate()
     psi = rad2deg.(wrap2pi.(sl.heading))
     p1=plot(sl.time, -sl.var_16, sl.var_15./sl.v_app; 
     ylabels=["- rel_steering", "turnrate/v_app [°/m]"],
-    ylims=[(-0.6, 0.6), (-100, 100)],
+    ylims=[(-0.6, 0.6), (-5, 5)],
     fig="steering vs turnrate")
-    p2=plot(sl.time, sl.v_app; ylabel="v_app [m/s]", fig="v_app")
+    # p2=plot(sl.time, sl.v_app; ylabel="v_app [m/s]", fig="v_app")
+    G = -sl.var_15./sl.v_app./sl.var_16
+    for (i, g) in enumerate(G)
+        if abs(sl.var_16[i]) < 0.099
+            G[i] = 0
+        end
+    end
+    p2=plot(sl.time, G; ylabel="G [-]", fig="turnrate_law")
     display(p1); display(p2)
 end
 
