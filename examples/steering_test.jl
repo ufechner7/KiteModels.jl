@@ -99,10 +99,12 @@ function plot_steering_vs_turn_rate()
     lg = load_log("tmp")
     sl = lg.syslog
     psi = rad2deg.(wrap2pi.(sl.heading))
-    plot(sl.time, -sl.var_16, sl.var_15; 
-         ylabels=["- rel_steering", "turnrate [°/s]"], 
-         ylims=[(-0.6, 0.6), (-100, 100)],
-         fig="steering vs turnrate")
+    p1=plot(sl.time, -sl.var_16, sl.var_15./sl.v_app; 
+    ylabels=["- rel_steering", "turnrate/v_app [°/m]"],
+    ylims=[(-0.6, 0.6), (-100, 100)],
+    fig="steering vs turnrate")
+    p2=plot(sl.time, sl.v_app; ylabel="v_app [m/s]", fig="v_app")
+    display(p1); display(p2)
 end
 
 save_log(logger, "tmp")
