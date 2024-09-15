@@ -8,6 +8,7 @@ set.abs_tol=0.00006
 set.rel_tol=0.000001
 set.v_wind = 10
 set.elevation = 69.4
+# set.kcu_mass = 8.4
 # set.v_steering = 0.2*6
 # set.steering_gain = 10.0
 
