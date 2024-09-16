@@ -295,18 +295,6 @@ The result is stored in the array s.forces.
 end
 
 """
-    asin2(arg)
-
-Calculate the asin of arg, but allow values slightly above one and below
-minus one to avoid exceptions in case of rounding errors. Returns an
-angle in radian.
-"""
-@inline function asin2(arg)
-   arg2 = min(max(arg, -one(arg)), one(arg))
-   asin(arg2)
-end
-
-"""
     calc_aero_forces!(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
 
 Calculates the aerodynamic forces acting on the kite particles.

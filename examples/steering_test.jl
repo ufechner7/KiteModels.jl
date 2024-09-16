@@ -44,11 +44,6 @@ if PLOT
     close("all")
 end
 
-function wrap2pi(angle)
-    num2pi = floor(angle / 2π + 0.5)
-    angle - 2π * num2pi
-end
-
 function simulate(integrator, steps; plot=false)
     OFFSET = 5
     iter = 0
