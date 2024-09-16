@@ -174,7 +174,7 @@ function init_pos_vel_acc(s::KPS4_3L; delta = 0.0)
     for (i, j) in enumerate(range(4, step=3, length=s.set.segments-1))
         len = (s.set.segments-1)/2
         middle_distance = (len - abs(i-len))/len
-        pos[j] .= pos[s.num_flap_C] ./ s.set.segments .* i .+ [(middle_distance)*s.tether_lengths[3]/2, 0.0, 0.0]
+        pos[j] .= pos[s.num_flap_C] ./ s.set.segments .* i .+ [(middle_distance)*s.tether_lengths[3]*0.4, 0.0, 0.0]
         s.tether_lengths[1] += norm(pos[j] - pos[j-3])
         pos[j+1] .= [pos[j][1], -pos[j][2], pos[j][3]]
     end

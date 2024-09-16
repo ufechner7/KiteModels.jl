@@ -623,6 +623,7 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
     α_middle    = π/2
     dα          = (α_middle - α_0) / n
     tip_flap_height = s.set.flap_height / s.set.middle_length * s.set.tip_length
+    ram_range = 0.1 # TODO: do experiment to find out what value is right here
     for i in 1:n*2
         if i <= n
             α = α_0 + -dα/2 + i * dα
@@ -667,9 +668,11 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
             e_te[:, i] ~ e_x * sin(seg_flap_angle[i]) + e_r[:, i] * cos(seg_flap_angle[i])
             ram_force[i] ~ ifelse(
                 seg_flap_angle[i] > aoa[i],
-                -rho * norm(v_a[:, i])^2 * seg_flap_height * s.set.radius * dα * (seg_flap_height/2) / (kite_length/4),
-                rho * norm(v_a[:, i])^2 * seg_flap_height * s.set.radius * dα * (seg_flap_height/2) / (kite_length/4)
-            )
+                -rho * norm(v_a[:, i])^2 * seg_flap_height * s.set.radius * dα * (seg_flap_height/2) / (kite_length/4) * 
+                        min((seg_flap_angle[i] - aoa[i])/deg2rad(ram_range), 1.0),
+                rho  * norm(v_a[:, i])^2 * seg_flap_height * s.set.radius * dα * (seg_flap_height/2) / (kite_length/4) *
+                        min((aoa[i] - seg_flap_angle[i])/deg2rad(ram_range), 1.0),
+                )
             te_force[i] ~ 0.5 * rho * (norm(v_a_xr[:, i]))^2 * s.set.radius * dα * kite_length * 
                                 clamp(sym_spline(s.c_te_spline, aoa[i], seg_flap_angle[i]), s.c_te_bounds[1], s.c_te_bounds[2])
             F_te_seg[:, i] ~ (ram_force[i] + te_force[i]) * e_te[:, i]
@@ -984,9 +987,9 @@ function model!(s::KPS4_3L, pos_)
         vcat(force_eqs[:, s.num_flap_C])
         vcat(force_eqs[:, s.num_flap_D])
         flap_acc[1] ~ force[:, s.num_flap_C] ⋅ e_te_C * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - 
-                    (100 + damping_coeff*200) * flap_vel[1]
+                    (500 + damping_coeff*200) * flap_vel[1]
         flap_acc[2] ~ force[:, s.num_flap_D] ⋅ e_te_D * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - 
-                    (100 + damping_coeff*200) * flap_vel[2]
+                    (500 + damping_coeff*200) * flap_vel[2]
     ]
 
     for i in s.num_E:s.num_A
