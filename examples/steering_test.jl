@@ -39,7 +39,6 @@ if PLOT
     using Pkg
     if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
         using TestEnv; TestEnv.activate()
-        pkg"add ControlPlots#main"
     end
     using ControlPlots, StatsBase
     close("all")
