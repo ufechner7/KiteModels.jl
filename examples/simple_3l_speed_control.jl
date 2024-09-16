@@ -69,6 +69,8 @@ for i in 1:steps
         0.0, 100.0)
     sys_state.var_08 =  norm(s.L_C + s.L_D)
     sys_state.var_09 =  norm(s.D_C + s.D_D)
+    sys_state.var_10 =  integrator[s.simple_sys.te_force[end]]
+    sys_state.var_11 =  integrator[s.simple_sys.ram_force[end]]
 
     # @show argmax(norm.(integrator[s.simple_sys.acc]))
 
@@ -90,9 +92,10 @@ println("times realtime MTK model: ", times_reltime)
 # println("avg steptime MTK model:   ", total_step_time/steps)
 
 p=plotx(logger.time_vec, [logger.var_01_vec,  logger.var_02_vec], [logger.var_03_vec,  logger.var_04_vec, logger.var_05_vec], 
-            rad2deg.(logger.heading_vec), [logger.var_06_vec, logger.var_07_vec], [logger.var_08_vec, logger.var_09_vec]; 
-        ylabels=["Steering", "Reelout speed", "Heading [deg]", "Acc", "Force"], 
+            rad2deg.(logger.heading_vec), [logger.var_06_vec, logger.var_07_vec], [logger.var_08_vec, logger.var_09_vec],
+            [logger.var_10_vec, logger.var_11_vec]; 
+        ylabels=["Steering", "Reelout speed", "Heading [deg]", "Acc", "Force", "Force"], 
         labels=[["Steering Pos C", "Steering Pos D"], ["v_ro left", "v_ro right", "v_ro middle"], "Heading",
-            ["middle tether", "perp middle tether"], ["Lift", "Drag"]], 
+            ["Middle tether", "Perp middle tether"], ["Lift", "Drag"], ["TE Force", "Ram Force"]], 
         fig="Steering and Heading MTK model")
 display(p)
