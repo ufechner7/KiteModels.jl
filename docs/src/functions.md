@@ -32,6 +32,7 @@ calc_elevation
 calc_azimuth
 calc_heading
 calc_course
+cl_cd
 winch_force
 spring_forces
 lift_drag
