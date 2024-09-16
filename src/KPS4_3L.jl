@@ -733,7 +733,7 @@ function calc_particle_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos1, pos
         i <= s.set.segments*3 ? k   ~ c_spring[(i-1) % 3 + 1] :
                                 k   ~ s.springs[i].c_spring        # Spring constant
         i <= s.set.segments*3 ? c   ~ damping[(i-1) % 3 + 1] : c ~ s.springs[i].damping # Damping coefficient    
-        segment     .~ pos1 - pos2
+        segment     .~ pos1 - pos2 # TODO: all segments have same length and tension
         rel_vel     .~ vel1 - vel2
         av_vel      .~ 0.5 * (vel1 + vel2)
         norm1        ~ norm(segment)
@@ -984,9 +984,9 @@ function model!(s::KPS4_3L, pos_)
         vcat(force_eqs[:, s.num_flap_C])
         vcat(force_eqs[:, s.num_flap_D])
         flap_acc[1] ~ force[:, s.num_flap_C] ⋅ e_te_C * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - 
-                    (60 + damping_coeff*200) * flap_vel[1]
+                    (100 + damping_coeff*200) * flap_vel[1]
         flap_acc[2] ~ force[:, s.num_flap_D] ⋅ e_te_D * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - 
-                    (60 + damping_coeff*200) * flap_vel[2]
+                    (100 + damping_coeff*200) * flap_vel[2]
     ]
 
     for i in s.num_E:s.num_A

@@ -25,6 +25,7 @@ s.set.damping = 473
 s.set.elevation = 85
 println("init sim")
 integrator = KiteModels.init_sim!(s; prn=true, torque_control=false)
+@time next_step!(s, integrator; set_values=[0.0, 0.0, 0.0], dt=2.0)
 println("acc ", mean(norm.(integrator[s.simple_sys.force])))
 sys_state = KiteModels.SysState(s)
 if sys_state.heading > pi
@@ -81,7 +82,7 @@ for i in 1:steps
         sys_state.heading -= 2*pi
     end
     log!(logger, sys_state)
-    plot2d(s.pos, time; zoom=false, front=false, xlim=(-50, 50), ylim=(0, 100))
+    # plot2d(s.pos, time; zoom=false, front=false, xlim=(-30, 30), ylim=(0, 60))
 end
 
 times_reltime = (total_time/2) / total_step_time
