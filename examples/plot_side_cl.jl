@@ -68,7 +68,8 @@ for (i, steering) in pairs(STEERING)
     SIDE_CL[i] = side_cl
     println("steering: $steering, side_cl: $side_cl")
 end
-plot(STEERING, SIDE_CL; xlabel="rel_steering [-]", ylabel="side lift coefficient [-]", fig="Side lift coefficient vs steering")
-
+p = plot(STEERING, SIDE_CL; xlabel="rel_steering [-]", 
+         ylabel="side lift coefficient [-]", fig="Side lift coefficient vs steering")
+display(p)
 
 
