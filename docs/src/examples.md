@@ -35,11 +35,11 @@ The first command copies the files settings.yaml and system.yaml to the folder d
 They can be customized later. The second command creates an examples folder with some examples.
 
 ## Plotting the initial state
-First, an instance of the model of the kite control unit (KCU) is created which is needed by the Kite Power System model KPS3. Then we create a kps instance, passing the kcu model as parameter. We need to declare these variables as const to achieve a decent performance.
+First, an instance of the model of the kite control unit (KCU) is created which is needed by the Kite Power System model KPS3. Then we create a kps instance, passing the kcu model as parameter. We need to declare the type these variables to achieve a decent performance.
 ```julia
 using KiteModels
-const kcu = KCU(se())
-const kps = KPS3(kcu)
+kcu::KCU = KCU(se())
+kps::KPS3 = KPS3(kcu)
 ```
 Then we call the function `find_steady_state` which uses a non-linear solver to find the solution for a given elevation angle, reel-out speed and wind speed. 
 ```julia
