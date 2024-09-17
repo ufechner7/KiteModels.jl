@@ -20,7 +20,7 @@ if !@isdefined s; s = KPS4_3L(KCU(set)); end
 s.set = update_settings()
 s.set.abs_tol = 0.0006
 s.set.rel_tol = 0.001
-s.set.l_tether = 50.1
+s.set.l_tether = 50.0
 s.set.damping = 473
 s.set.elevation = 85
 println("init sim")
@@ -59,11 +59,10 @@ for i in 1:steps
     sys_state.var_03 =  s.reel_out_speeds[1]
     sys_state.var_04 =  s.reel_out_speeds[2]
     sys_state.var_05 =  s.reel_out_speeds[3]
-    @show sys_state.var_06 =  rad2deg(s.integrator[s.simple_sys.seg_flap_angle[div(s.set.segments, 2)]] - s.integrator[s.simple_sys.aoa[div(s.set.segments, 2)]])
-    @show s.integrator[s.simple_sys.aoa[div(s.set.segments, 2)]]
+    sys_state.var_06 =  rad2deg(s.integrator[s.simple_sys.seg_flap_angle[div(s.set.segments, 2)]] - s.integrator[s.simple_sys.aoa[div(s.set.segments, 2)]])
     sys_state.var_07 =  s.integrator[s.simple_sys.ram_force[div(s.set.segments, 2)]]
     sys_state.var_08 =  s.integrator[s.simple_sys.cl_seg[div(s.set.segments, 2)]]
-    @show sys_state.var_09 =  s.integrator[s.simple_sys.cd_seg[div(s.set.segments, 2)]]
+    sys_state.var_09 =  s.integrator[s.simple_sys.cd_seg[div(s.set.segments, 2)]]
     # sys_state.var_09 =  norm(s.D_C + s.D_D)
 
     step_time = @elapsed next_step!(s; set_values=steering, dt=dt)

@@ -1,4 +1,4 @@
-using Dierckx
+using Dierckx, Statistics
 using Pkg
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
     using TestEnv; TestEnv.activate()
@@ -45,11 +45,11 @@ deleteat!(c_te_values, rm_idx)
 
 order = 1
 println("1")
-cl_spline = Spline2D(alphas, d_flap_angles, cl_values; kx = order+1, ky = order, s=1.0) # order - 2nd order s = 29 - 5th order s = 34
+cl_spline = Spline2D(alphas, d_flap_angles, cl_values; kx = order+1, ky = order, s=2.0) # order - 2nd order s = 29 - 5th order s = 34
 println("2")
 cd_spline = Spline2D(alphas, d_flap_angles, cd_values; kx = order+1, ky = order, s=0.3) # order - 2nd order s = 5 - 5th order s = 8
 println("3")
-c_te_spline = Spline2D(alphas, d_flap_angles, c_te_values; kx = order+1, ky = order, s=0.04) # order - 2nd order s = 1 - 5th order s = 0.4
+c_te_spline = Spline2D(alphas, d_flap_angles, c_te_values; kx = order+1, ky = order, s=0.02) # order - 2nd order s = 1 - 5th order s = 0.4
 
 d_flap_angles_to_plot = [deg2rad(-78.5), deg2rad(2.0), deg2rad(79.5)]  # List of flap angles to plot
 
@@ -128,4 +128,5 @@ plt.show()
 # plt.grid(true)
 # plt.show()
 
-@show cl_spline(-0.0866, 1.29 - 0.0866)
+@show mean(cd_spline.(-0.5:0.01:0.5, -0.5:0.01:0.5))
+# 0.145 for ncrit=6

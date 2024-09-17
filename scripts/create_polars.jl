@@ -108,7 +108,7 @@ end
             cl = 0.0
             cd = 0.0
             # Solve for the given angle of attack
-            cl, cd, _, _, converged = Xfoil.solve_alpha(alpha, re; iter=50, reinit=reinit, mach=kite_speed/speed_of_sound, ncrit=6)
+            cl, cd, _, _, converged = Xfoil.solve_alpha(alpha, re; iter=50, reinit=reinit, mach=kite_speed/speed_of_sound, ncrit=3)
             reinit = false
             times_not_converged += !converged
             if times_not_converged > 20
