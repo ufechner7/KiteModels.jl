@@ -26,6 +26,7 @@ function plot_cl_cd(alpha)
     display(plot(ALPHA, [cl./cd]; xlabel=L"\mathrm{AoA}~\alpha", ylabel="LoD", fig="LoD"))
 end
 
-
+ALPHA = 0:0.1:14
+plot_cl_cd(ALPHA)
 
 
