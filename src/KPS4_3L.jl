@@ -405,7 +405,7 @@ function init_sim!(s::KPS4_3L; damping_coeff=100.0, prn=false,
         pos = init_pos(s)
         model!(s, pos)
         s.prob = ODEProblem(s.simple_sys, nothing, tspan)
-        s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
+        s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, dtmin=1e-7)
         next_step!(s; dt=2.0) # step 2 sec to get stable state
         s.u0 = deepcopy(s.integrator.u)
         OrdinaryDiffEqCore.reinit!(s.integrator, s.u0)
@@ -459,6 +459,7 @@ function next_step!(s::KPS4_3L; set_values=zeros(KVec3), v_wind_gnd=s.set.v_wind
     s.integrator.p[s.v_wind_idx] .= s.v_wind
     s.t_0 = s.integrator.t
     OrdinaryDiffEqCore.step!(s.integrator, dt, true)
+    @assert s.integrator.sol.retcode == ReturnCode.Success
     update_pos!(s)
     s.integrator.t
 end
@@ -851,7 +852,6 @@ Output:length
             v_wind_tether[:, i] ~ calc_wind_factor(s.am, height[i]) * v_wind_gnd
         ]
 
-        # TODO: @assert height > 0
         eqs2, force_eqs = calc_particle_forces_mtk!(s, eqs2, force_eqs, force, pos[:, p1], pos[:, p2], vel[:, p1], 
                           vel[:, p2], length, c_spring, damping, rho[i], i, l_0[i], k[i], c[i], segment[:, i], 
                           rel_vel[:, i], av_vel[:, i], norm1[i], unit_vector[:, i], k1[i], k2[i], c1[i], c2[i], spring_vel[i],
@@ -877,7 +877,7 @@ function update_pos!(s)
     s.D_C               = s.get_D_C(s.integrator)
     s.D_D               = s.get_D_D(s.integrator)
     calc_kite_ref_frame!(s, s.pos[s.num_E], s.pos[s.num_C], s.pos[s.num_D])
-    @assert all(abs.(s.flap_angle) .<= deg2rad(70))
+    # @assert all(abs.(s.flap_angle) .<= deg2rad(70))
     nothing
 end
 

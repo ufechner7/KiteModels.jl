@@ -40,7 +40,7 @@ for i in 1:steps
     @show time
     # println("acc ", norm(s.integrator[s.simple_sys.acc]))
     global total_step_time, sys_state, steering
-    steering = [0.0,0.0,0.0] # left right middle
+    # steering = [0.0,0.0,1000.0] # left right middle
     if time < 3
         steering = [0.0,0.0,0.0] # left right middle
     elseif time < 4
