@@ -12,8 +12,8 @@ end
 using ControlPlots, LaTeXStrings
 
 set.v_wind = 14 # 25
-kcu = KCU(set)
-kps4 = KPS4(kcu)
+kcu::KCU = KCU(set)
+kps4::KPS4 = KPS4(kcu)
 
 function plot_cl_cd(alpha)
     cl = zeros(length(alpha))
