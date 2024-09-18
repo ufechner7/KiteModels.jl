@@ -3,7 +3,7 @@
 
 using KiteModels
 
-set = deepcopy(load_settings("system.yaml"))
+set = deepcopy(load_settings("system_v9.yaml"))
 
 using Pkg
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
