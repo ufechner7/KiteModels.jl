@@ -19,14 +19,14 @@ end
 using ControlPlots
 plt.close("all")
 
-set.abs_tol=0.000006
-set.rel_tol=0.0000001
-V_WIND = 10
+set.abs_tol=0.0006
+set.rel_tol=0.00001
+V_WIND = 7
 
 # the following values can be changed to match your interest
 dt = 0.05
 set.solver="DFBDF" # IDA or DFBDF
-STEPS = 680
+STEPS = 700
 PLOT = true
 PRINT = true
 STATISTIC = false
@@ -94,7 +94,7 @@ for depower in DEPOWER
 
     kcu::KCU = KCU(set)
     kps4::KPS4 = KPS4(kcu)
-    integrator = KiteModels.init_sim!(kps4; delta=0.03, stiffness_factor=0.15, prn=STATISTIC)
+    integrator = KiteModels.init_sim!(kps4; delta=0.01, stiffness_factor=1, prn=STATISTIC)
     if ! isnothing(integrator)
         try
             cl, cd = simulate(kps4, integrator, logger, STEPS)
@@ -121,7 +121,9 @@ for depower in DEPOWER
     else
         set.elevation = elev - 4
     end 
-    if i ==3
+    if i ==2
+        set.elevation -= 4
+    elseif i == 3
         set.elevation -= 4
     end
 
