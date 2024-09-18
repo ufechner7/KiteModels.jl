@@ -77,6 +77,7 @@ CL = zeros(length(DEPOWER))
 CD = zeros(length(DEPOWER))
 AOA = zeros(length(DEPOWER))
 DEP = zeros(length(DEPOWER))
+ELEV = zeros(length(DEPOWER))
 
 elev = set.elevation
 i = 1
@@ -90,9 +91,6 @@ for depower in DEPOWER
     DEP[i] = depower
     set.depower = 100*depower
     # set.depower_gain = 5
-    if i == 2
-        set.v_wind = V_WIND
-    end
 
     kcu::KCU = KCU(set)
     kps4::KPS4 = KPS4(kcu)
@@ -116,21 +114,23 @@ for depower in DEPOWER
         break
     end
     elev = rad2deg(logger.elevation_vec[end])
-    if elev > 50 && elev < 75
-        if elev > 70
-            set.elevation = elev - 4
-        else
-            set.elevation = elev - 4
-        end 
-    end
+    ELEV[i] = elev
+
+    if elev > 70
+        set.elevation = elev - 4
+    else
+        set.elevation = elev - 4
+    end 
+
     aoa = kps4.alpha_2
     v_app = norm(kps4.v_apparent)
+    height = calc_height(kps4)
     CL[i] = cl
     CD[i] = cd
     AOA[i] = aoa
     if PRINT
         print("Depower: $depower, CL $(round(cl, digits=3)), CD: $(round(cd, digits=3)), aoa: $(round(aoa, digits=2)), CL/CD: $(round(cl/cd, digits=2))")
-        println(", elevation: $(round((elev), digits=2)), v_app: $(round(v_app, digits=2))")
+        println(", elevation: $(round((elev), digits=2)), height:$(round(height, digits=2)), v_app: $(round(v_app, digits=2))")
     end
     # if depower in [DEPOWER[begin+1], DEPOWER[end]] && PLOT
     if PLOT
@@ -150,6 +150,7 @@ for (i, alpha) in pairs(AOA)
     cd[i] = kps4.calc_cd(alpha)
 end
 
-display(plot(AOA, [CL, cl], xlabel="AOA [deg]", ylabel="CL", labels=["CL","cl"], fig="CL vs AOA"))
-display(plot(AOA, [CD, cd], xlabel="AOA [deg]", ylabel="CD", labels=["CD","cd"], fig="CD vs AOA"))
-display(plot(DEP, AOA, xlabel="Depower", ylabel="AOA [deg]", fig="AOA vs Depower"))
+# display(plot(AOA, [CL, cl], xlabel="AOA [deg]", ylabel="CL", labels=["CL","cl"], fig="CL vs AOA"))
+# display(plot(AOA, [CD, cd], xlabel="AOA [deg]", ylabel="CD", labels=["CD","cd"], fig="CD vs AOA"))
+# display(plot(DEP, AOA, xlabel="Depower", ylabel="AOA [deg]", fig="AOA vs Depower"))
+display(plot(DEP, ELEV; xlabel="depower", ylabel="elevation [°]", scatter=true, fig="elevation vs depower"))
