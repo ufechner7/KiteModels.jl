@@ -3,8 +3,9 @@
 # ──────────────────────────────────────────────────────────
 # 11624.9  11653.3      28.4    40.0     268.3       70.6789
 # 11538.2  11559.5      21.3    44.0     250.1       65.2369
-# 12866.4  12886.6      20.2    51.98    249.4       57.9619
 # 11472.8  11490.6      17.8    47.99    237.5       61.4089
+# 12866.4  12886.6      20.2    51.98    249.4       57.9619
+
 
 using Printf
 using KiteModels, KitePodModels, KiteUtils, LinearAlgebra
@@ -25,11 +26,11 @@ V_WIND = 14.5
 # the following values can be changed to match your interest
 dt = 0.05
 set.solver="DFBDF" # IDA or DFBDF
-STEPS = 400
+STEPS = 500
 PLOT = true
 PRINT = true
 STATISTIC = false
-DEPOWER = [0.40, 0.44, 0.5198, 0.4799]
+DEPOWER = [0.40, 0.44, 0.4799, 0.5198]
 # end of user parameter section #
 
 bridle_length = KiteModels.bridle_length(set)
@@ -151,7 +152,4 @@ end
 
 display(plot(AOA, [CL, cl], xlabel="AOA [deg]", ylabel="CL", labels=["CL","cl"], fig="CL vs AOA"))
 display(plot(AOA, [CD, cd], xlabel="AOA [deg]", ylabel="CD", labels=["CD","cd"], fig="CD vs AOA"))
-# AOA= 0:0.05:20
-# calc_cd1 = KiteModels.Spline1D(se().alpha_cd, se().cd_list)
-# plot(AOA, calc_cd1.(AOA), fig="calc_cd1", xlabel="AOA [deg]", ylabel="CD")
 display(plot(DEP, AOA, xlabel="Depower", ylabel="AOA [deg]", fig="AOA vs Depower"))
