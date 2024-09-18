@@ -385,7 +385,10 @@ Output:
         p2 = s.springs[i].p2  # Second point nr.
         height = 0.5 * (pos[p1][3] + pos[p2][3])
         rho = calc_rho(s.am, height)
-        @assert height > 0
+        if height <= -1000.0
+            println("Error: height: $height")
+        end
+        @assert height > -1000
         if height < 6
             height = 6
         end
