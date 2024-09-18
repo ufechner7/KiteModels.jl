@@ -1,10 +1,10 @@
 # plot the lift and drag coefficients as function of angle of attack
-# t_start  t_stop   duration  depower  height   av_elevation    
-# ──────────────────────────────────────────────────────────
-# 11624.9  11653.3      28.4    40.0     268.3       70.6789
-# 11538.2  11559.5      21.3    44.0     250.1       65.2369
-# 11472.8  11490.6      17.8    47.99    237.5       61.4089
-# 12866.4  12886.6      20.2    51.98    249.4       57.9619
+# t_start  t_stop   duration  depower  height   av_elevation  av_wind_200   
+# ───────────────────────────────────────────────────────────────────────
+# 11624.9  11653.3      28.4    40.0     268.3       70.6789  10.23
+# 11538.2  11559.5      21.3    44.0     250.1       65.2369  11.53
+# 11472.8  11490.6      17.8    47.99    237.5       61.4089  12.0867
+# 12866.4  12886.6      20.2    51.98    249.4       57.9619  11.92
 
 
 using Printf
@@ -21,7 +21,7 @@ plt.close("all")
 
 set.abs_tol=0.00006
 set.rel_tol=0.000001
-V_WIND = 14.5
+V_WIND = 10
 
 # the following values can be changed to match your interest
 dt = 0.05
@@ -89,14 +89,14 @@ for depower in DEPOWER
     logger = Logger(set.segments + 5, STEPS)
     DEP[i] = depower
     set.depower = 100*depower
-    set.depower_gain = 5
+    # set.depower_gain = 5
     if i == 2
         set.v_wind = V_WIND
     end
 
-    kcu = KCU(set)
-    kps4 = KPS4(kcu)
-    integrator = KiteModels.init_sim!(kps4; delta=0.03, stiffness_factor=0.5, prn=STATISTIC)
+    kcu::KCU = KCU(set)
+    kps4::KPS4 = KPS4(kcu)
+    integrator = KiteModels.init_sim!(kps4; delta=0.03, stiffness_factor=0.05, prn=STATISTIC)
     if ! isnothing(integrator)
         try
             cl, cd = simulate(kps4, integrator, logger, STEPS)
