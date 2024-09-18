@@ -877,7 +877,7 @@ function update_pos!(s)
     s.D_C               = s.get_D_C(s.integrator)
     s.D_D               = s.get_D_D(s.integrator)
     calc_kite_ref_frame!(s, s.pos[s.num_E], s.pos[s.num_C], s.pos[s.num_D])
-    # @assert all(abs.(s.flap_angle) .<= deg2rad(70))
+    @assert all(abs.(s.flap_angle) .<= deg2rad(70))
     nothing
 end
 
