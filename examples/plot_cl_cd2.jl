@@ -26,7 +26,7 @@ V_WIND = 10
 # the following values can be changed to match your interest
 dt = 0.05
 set.solver="DFBDF" # IDA or DFBDF
-STEPS = 500
+STEPS = 600
 PLOT = true
 PRINT = true
 STATISTIC = false
@@ -96,7 +96,7 @@ for depower in DEPOWER
 
     kcu::KCU = KCU(set)
     kps4::KPS4 = KPS4(kcu)
-    integrator = KiteModels.init_sim!(kps4; delta=0.03, stiffness_factor=0.05, prn=STATISTIC)
+    integrator = KiteModels.init_sim!(kps4; delta=0.03, stiffness_factor=0.15, prn=STATISTIC)
     if ! isnothing(integrator)
         try
             cl, cd = simulate(kps4, integrator, logger, STEPS)
@@ -118,9 +118,9 @@ for depower in DEPOWER
     elev = rad2deg(logger.elevation_vec[end])
     if elev > 50 && elev < 75
         if elev > 70
-            set.elevation = elev - 2
+            set.elevation = elev - 4
         else
-            set.elevation = elev
+            set.elevation = elev - 4
         end 
     end
     aoa = kps4.alpha_2
