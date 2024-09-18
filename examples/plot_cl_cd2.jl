@@ -19,8 +19,8 @@ end
 using ControlPlots
 plt.close("all")
 
-set.abs_tol=0.00006
-set.rel_tol=0.000001
+set.abs_tol=0.000006
+set.rel_tol=0.0000001
 V_WIND = 10
 
 # the following values can be changed to match your interest
@@ -121,10 +121,13 @@ for depower in DEPOWER
     else
         set.elevation = elev - 4
     end 
+    if i ==3
+        set.elevation -= 4
+    end
 
     aoa = kps4.alpha_2
     v_app = norm(kps4.v_apparent)
-    height = calc_height(kps4)
+    height = logger.z_vec[end][end-2]
     CL[i] = cl
     CD[i] = cd
     AOA[i] = aoa
