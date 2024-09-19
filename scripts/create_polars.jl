@@ -8,6 +8,7 @@ end
 using KiteUtils
 tic()
 const procs = addprocs()
+se::Settings = KiteUtils.se("system_3l.yaml")
 
 function normalize!(x, y)
     x_min = minimum(x)
@@ -108,7 +109,7 @@ end
             cl = 0.0
             cd = 0.0
             # Solve for the given angle of attack
-            cl, cd, _, _, converged = Xfoil.solve_alpha(alpha, re; iter=50, reinit=reinit, mach=kite_speed/speed_of_sound, ncrit=3)
+            cl, cd, _, _, converged = Xfoil.solve_alpha(alpha, re; iter=50, reinit=reinit, mach=kite_speed/speed_of_sound, ncrit=5)
             reinit = false
             times_not_converged += !converged
             if times_not_converged > 20
@@ -156,7 +157,7 @@ function get_lower_upper(x, y)
     return lower_flap, upper_flap
 end
 
-function create_polars(foil_file="naca2412.dat", polar_file="polars.csv")
+function create_polars(foil_file=se.foil_file, polar_file=se.polar_file)
     println("Creating polars")
     if !endswith(polar_file, ".csv")
         polar_file *= ".csv"
@@ -170,9 +171,9 @@ function create_polars(foil_file="naca2412.dat", polar_file="polars.csv")
     alphas = -180:0.5:180
     d_flap_angles = -90:0.5:90
 
-    kite_speed = 20
+    kite_speed = se.v_wind
     speed_of_sound = 343
-    reynolds_number = kite_speed * (se("system_3l.yaml").middle_length + se("system_3l.yaml").tip_length)/2 / 1.460e-5
+    reynolds_number = kite_speed * (se.middle_length + se.tip_length)/2 / 1.460e-5
     println("Reynolds number for flying speed of $kite_speed is $reynolds_number")
 
     # Read airfoil coordinates from a file.
@@ -208,6 +209,8 @@ function create_polars(foil_file="naca2412.dat", polar_file="polars.csv")
     for (alpha, d_flap_angle, cl, cd, c_te) in polars
         println("$alpha\t$d_flap_angle\t$(cl)\t$(cd)\t$(c_te)")
     end
+
+    println("Relative flap height: ", upper - lower)
 
     csv_content = "alpha,d_flap_angle,cl,cd,c_te\n"
     for (alpha, d_flap_angle, cl, cd, c_te) in polars

@@ -328,8 +328,8 @@ function update_sys_state!(ss::SysState, s::KPS4_3L, zoom=1.0)
     ss.v_app = norm(s.v_apparent)
     ss.l_tether = s.tether_lengths[3]
     ss.v_reelout = s.reel_out_speeds[3]
-    ss.depower = 100 - ((s.flap_angle[1] + s.flap_angle[2])/2) / ((s.set.middle_length + s.set.tip_length)/2) * 100
-    ss.steering = (s.flap_angle[2] - s.flap_angle[1]) / ((s.set.middle_length + s.set.tip_length)/2) * 100
+    ss.depower = rad2deg(s.flap_angle[1] + s.flap_angle[2])
+    ss.steering = rad2deg(s.flap_angle[2] - s.flap_angle[1])
     ss.vel_kite .= s.vel_kite
     nothing
 end
@@ -354,8 +354,8 @@ function SysState(s::KPS4_3L, zoom=1.0)
     course = calc_course(s)
     v_app_norm = norm(s.v_apparent)
     t_sim = 0
-    depower = 100 - ((s.flap_angle[1] + s.flap_angle[2])/2) / ((s.set.middle_length + s.set.tip_length)/2) * 100
-    steering = (s.flap_angle[1] - s.flap_angle[2]) / ((s.set.middle_length + s.set.tip_length)/2) * 100
+    depower = rad2deg(s.flap_angle[1] + s.flap_angle[2])
+    steering = rad2deg(s.flap_angle[2] - s.flap_angle[1])
     KiteUtils.SysState{P}(s.t_0, t_sim, 0, 0, orient, elevation, azimuth, s.tether_lengths[3], s.reel_out_speeds[3], forces[3], depower, steering, 
                           heading, course, v_app_norm, s.vel_kite, X, Y, Z, 
                           0, 0, 0, 0, 
@@ -634,7 +634,6 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
     α_0         = π/2 - s.set.width/2/s.set.radius
     α_middle    = π/2
     dα          = (α_middle - α_0) / n
-    tip_flap_height = s.set.flap_height / s.set.middle_length * s.set.tip_length
     ram_range = 0.1 # TODO: do experiment to find out what value is right here
     for i in 1:n*2
         if i <= n
@@ -643,12 +642,12 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
             α = pi - (α_0 + -dα/2 + (i-n) * dα)
         end
         if α < π/2
-            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (α - α_0) / (π/2 - α_0)
-            seg_flap_height = tip_flap_height + (s.set.flap_height-tip_flap_height) * (α - α_0) / (π/2 - α_0)
+            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (α - α_0) / (π/2 - α_0) # TODO: kite length gets less with flap turning
         else
             kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (π - α_0 - α) / (π/2 - α_0)
-            seg_flap_height = tip_flap_height + (s.set.flap_height-tip_flap_height) * (π - α_0 - α) / (π/2 - α_0)
         end
+        seg_flap_height = kite_length * s.set.flap_height
+        @show seg_flap_height
         eqs2 = [
             eqs2
             F[:, i]          ~ E_C + e_y * cos(α) * s.set.radius - e_z * sin(α) * s.set.radius
@@ -669,7 +668,7 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
 
             aoa[i]      ~ -asin((v_a_xr[:, i] / norm(v_a_xr[:, i])) ⋅ e_r[:, i]) + deg2rad(s.set.alpha_zero)
             cl_seg[i]   ~ clamp(sym_spline(s.cl_spline, aoa[i], seg_flap_angle[i]), s.cl_bounds[1], s.cl_bounds[2])
-            cd_seg[i]   ~  clamp(sym_spline(s.cd_spline, aoa[i], seg_flap_angle[i]), s.cd_bounds[1], s.cd_bounds[2])
+            cd_seg[i]   ~  clamp(sym_spline(s.cd_spline, aoa[i], seg_flap_angle[i]), s.cd_bounds[1], s.cd_bounds[2]) # TODO: fix amount of drag
 
             L_seg[:, i] ~ 0.5 * rho * (norm(v_a_xr[:, i]))^2 * s.set.radius * dα * kite_length * cl_seg[i] * 
                                 ((v_a_xr[:, i] × e_drift[:, i]) / norm(v_a_xr[:, i] × e_drift[:, i]))

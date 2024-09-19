@@ -37,7 +37,7 @@ depower:
 
 kite:
     model: "data/kite.obj" # 3D model of the kite
-    foil_file: "naca2412.dat"  # filename for the foil shape
+    foil_file: "MH82.dat"  # filename for the foil shape
     polar_file: "polars.csv"   # filename for the polars
     physical_model: "KPS4_3L" # name of the kite model to use (KPS3 or KPS4)
     version: 2             # version of the model to use
@@ -65,7 +65,7 @@ kps4_3l:
     min_steering_line_distance: 1.0
     width:         4.1     # width of the kite                          [m]
     aero_surfaces: 5      # number of aerodynamic surfaces in 3 line model
-    flap_height: 0.09     # height at the start of the flap             [m]
+    flap_height: 0.044     # height at the start of the flap of a normalized kite segment
 
 kcu:
     kcu_mass: 8.4                # mass of the kite control unit   [kg]
