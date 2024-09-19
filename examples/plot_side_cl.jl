@@ -4,8 +4,8 @@ using KiteModels, KitePodModels, KiteUtils
 
 set = deepcopy(load_settings("system_v9.yaml"))
 
-set.abs_tol=0.000006
-set.rel_tol=0.0000001
+set.abs_tol=0.0006
+set.rel_tol=0.00001
 set.elevation = 69.4
 set.v_steering = 0.2*6
 # set.steering_gain = 10.0
@@ -30,6 +30,7 @@ if PLOT
         using TestEnv; TestEnv.activate()
     end
     using ControlPlots
+    plt.close("all")
 end
 
 function simulate(integrator, steps, steering; plot=false)
