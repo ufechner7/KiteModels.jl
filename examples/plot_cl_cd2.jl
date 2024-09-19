@@ -5,6 +5,7 @@
 # 11538.2  11559.5      21.3    44.0     250.1       65.2369  11.53
 # 11472.8  11490.6      17.8    47.99    237.5       61.4089  12.0867
 # 12866.4  12886.6      20.2    51.98    249.4       57.9619  11.92
+ELEV_MEASURED = [70.6789, 65.2369, 61.4089, 57.9619]
 
 
 using Printf
@@ -21,16 +22,17 @@ plt.close("all")
 
 set.abs_tol=0.0006
 set.rel_tol=0.00001
-V_WIND = 7
+V_WIND = 8.7
 
 # the following values can be changed to match your interest
 dt = 0.05
 set.solver="DFBDF" # IDA or DFBDF
-STEPS = 700
+STEPS = 600
 PLOT = true
 PRINT = true
 STATISTIC = false
 DEPOWER = [0.40, 0.44, 0.4799, 0.5198]
+# DEPOWER = [0.236, 0.28, 0.32, 0.36] # for hyra20 kite
 # end of user parameter section #
 
 bridle_length = KiteModels.bridle_length(set)
@@ -61,6 +63,8 @@ function simulate(kps4, integrator, logger, steps)
     for i in 1:steps
         KiteModels.next_step!(kps4, integrator; set_speed=0, dt)
         sys_state = KiteModels.SysState(kps4)
+        aoa = kps4.alpha_2
+        sys_state.var_01 = aoa
         log!(logger, sys_state)
         iter += kps4.iter
         if i > steps - 50 # last 2.5s
@@ -101,7 +105,7 @@ for depower in DEPOWER
         catch e
             println("Error: $e")
             if PLOT
-                p = plot(logger.time_vec, rad2deg.(logger.elevation_vec), xlabel="time [s]", ylabel="elevation [°]", 
+                p = plot(logger.time_vec, rad2deg.(logger.elevation_vec), logger.var_01_vec, xlabel="time [s]", ylabels=["elevation [°]", "aoa"], 
                          fig="depower: $depower")
                 display(p)
                 sleep(0.2)
@@ -139,7 +143,7 @@ for depower in DEPOWER
     end
     # if depower in [DEPOWER[begin+1], DEPOWER[end]] && PLOT
     if PLOT
-        p = plot(logger.time_vec, rad2deg.(logger.elevation_vec), xlabel="time [s]", ylabel="elevation [°]", 
+        p = plot(logger.time_vec, rad2deg.(logger.elevation_vec), logger.var_01_vec, xlabel="time [s]", ylabels=["elevation [°]", "aoa [°]"], 
                  fig="depower: $depower")
         display(p)
         sleep(0.2)
@@ -158,4 +162,4 @@ end
 # display(plot(AOA, [CL, cl], xlabel="AOA [deg]", ylabel="CL", labels=["CL","cl"], fig="CL vs AOA"))
 # display(plot(AOA, [CD, cd], xlabel="AOA [deg]", ylabel="CD", labels=["CD","cd"], fig="CD vs AOA"))
 # display(plot(DEP, AOA, xlabel="Depower", ylabel="AOA [deg]", fig="AOA vs Depower"))
-display(plot(DEP, ELEV; xlabel="depower", ylabel="elevation [°]", scatter=true, fig="elevation vs depower"))
+display(plot(DEP,[ELEV, ELEV_MEASURED]; xlabel="depower", ylabel="elevation [°]", scatter=true, labels=["simulated", "measured"], fig="elevation vs depower"))
