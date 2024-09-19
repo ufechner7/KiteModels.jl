@@ -22,7 +22,7 @@ plt.close("all")
 
 set.abs_tol=0.0006
 set.rel_tol=0.00001
-V_WIND = 8.7
+V_WIND = 8.9
 
 # the following values can be changed to match your interest
 dt = 0.05
@@ -61,7 +61,11 @@ function simulate(kps4, integrator, logger, steps)
     cl = 0.0
     cd = 0.0
     for i in 1:steps
-        KiteModels.next_step!(kps4, integrator; set_speed=0, dt)
+        force = norm(kps4.forces[1])
+        r = set.drum_radius
+        n = set.gear_ratio
+        set_torque = -r/n * force
+        KiteModels.next_step!(kps4, integrator; set_torque, dt)
         sys_state = KiteModels.SysState(kps4)
         aoa = kps4.alpha_2
         sys_state.var_01 = aoa
@@ -133,13 +137,14 @@ for depower in DEPOWER
 
     aoa = kps4.alpha_2
     v_app = norm(kps4.v_apparent)
+    v_200 = calc_wind_factor(kps4.am, 200) * V_WIND
     height = logger.z_vec[end][end-2]
     CL[i] = cl
     CD[i] = cd
     AOA[i] = aoa
     if PRINT
         print("Depower: $depower, CL $(round(cl, digits=3)), CD: $(round(cd, digits=3)), aoa: $(round(aoa, digits=2)), CL/CD: $(round(cl/cd, digits=2))")
-        println(", elevation: $(round((elev), digits=2)), height:$(round(height, digits=2)), v_app: $(round(v_app, digits=2))")
+        println(", elevation: $(round((elev), digits=2)), height:$(round(height, digits=2)), v_200: $(round(v_200, digits=2))")
     end
     # if depower in [DEPOWER[begin+1], DEPOWER[end]] && PLOT
     if PLOT
