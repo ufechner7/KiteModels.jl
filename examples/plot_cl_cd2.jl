@@ -27,7 +27,7 @@ V_WIND = 8.7
 # the following values can be changed to match your interest
 dt = 0.05
 set.solver="DFBDF" # IDA or DFBDF
-STEPS = 600
+STEPS = 500
 PLOT = true
 PRINT = true
 STATISTIC = false

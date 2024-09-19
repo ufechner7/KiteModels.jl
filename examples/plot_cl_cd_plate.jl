@@ -10,6 +10,7 @@ if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
     using TestEnv; TestEnv.activate()
 end
 using ControlPlots, LaTeXStrings
+plt.close("all")
 
 set.v_wind = 14 # 25
 kcu::KCU = KCU(set)
