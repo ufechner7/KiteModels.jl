@@ -1,7 +1,7 @@
 # plot the lift and drag coefficients as function of angle of attack
 # of any of the plates of the kite
 
-using KiteModels, LaTeXStrings
+using KiteModels
 
 set = deepcopy(load_settings("system_v9.yaml"))
 
@@ -9,11 +9,12 @@ using Pkg
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
     using TestEnv; TestEnv.activate()
 end
-using ControlPlots
+using ControlPlots, LaTeXStrings
+plt.close("all")
 
 set.v_wind = 14 # 25
-kcu = KCU(set)
-kps4 = KPS4(kcu)
+kcu::KCU = KCU(set)
+kps4::KPS4 = KPS4(kcu)
 
 function plot_cl_cd(alpha)
     cl = zeros(length(alpha))
@@ -26,7 +27,7 @@ function plot_cl_cd(alpha)
     display(plot(ALPHA, [cl./cd]; xlabel=L"\mathrm{AoA}~\alpha", ylabel="LoD", fig="LoD"))
 end
 
-ALPHA = 0:0.1:14
+ALPHA = -10:0.1:20
 plot_cl_cd(ALPHA)
 
 

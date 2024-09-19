@@ -103,8 +103,12 @@ $(TYPEDFIELDS)
     v_apparent::T =       zeros(S, 3)
     "bridle_factor = set.l_bridle/bridle_length(set)"
     bridle_factor::S = 1.0
+    "side lift coefficient, the difference of the left and right lift coeficients"
+    side_cl::S = 0.0
     "drag force of kite and bridle; output of calc_aero_forces!"
     drag_force::T =       zeros(S, 3)
+    "side_force acting on the kite"
+    side_force::T =       zeros(S, 3)
     "max_steering angle in radian"
     ks::S =               0.0
     "lift force of the kite; output of calc_aero_forces!"
@@ -208,6 +212,7 @@ function clear!(s::KPS4)
     end
     s.drag_force .= [0.0, 0, 0]
     s.lift_force .= [0.0, 0, 0]
+    s.side_force .= [0.0, 0, 0]
     s.rho = s.set.rho_0
     s.bridle_factor = s.set.l_bridle / bridle_length(s.set)
     s.ks = deg2rad(s.set.max_steering) 
@@ -290,18 +295,6 @@ The result is stored in the array s.forces.
 end
 
 """
-    asin2(arg)
-
-Calculate the asin of arg, but allow values slightly above one and below
-minus one to avoid exceptions in case of rounding errors. Returns an
-angle in radian.
-"""
-@inline function asin2(arg)
-   arg2 = min(max(arg, -one(arg)), one(arg))
-   asin(arg2)
-end
-
-"""
     calc_aero_forces!(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
 
 Calculates the aerodynamic forces acting on the kite particles.
@@ -345,6 +338,9 @@ Updates the vector s.forces of the first parameter.
     s.alpha_4 = alpha_4
     s.alpha_4b = rad2deg(π/2 + asin2(normalize(va_xy4) ⋅ x))
     if s.set.version == 3
+        alpha_2 = rad2deg(π/2 + asin2(normalize(va_xz2) ⋅ x) - alpha_depower)     + s.set.alpha_zero
+        alpha_3 = rad2deg(π/2 + asin2(normalize(va_xy3) ⋅ x) - rel_steering * s.ks) + s.set.alpha_ztip
+        alpha_4 = rad2deg(π/2 + asin2(normalize(va_xy4) ⋅ x) + rel_steering * s.ks) + s.set.alpha_ztip
         drag_corr = 1.0
     else
         drag_corr = DRAG_CORR
@@ -353,6 +349,7 @@ Updates the vector s.forces of the first parameter.
     CL2, CD2 = s.calc_cl(alpha_2), drag_corr * s.calc_cd(alpha_2)
     CL3, CD3 = s.calc_cl(alpha_3), drag_corr * s.calc_cd(alpha_3)
     CL4, CD4 = s.calc_cl(alpha_4), drag_corr * s.calc_cd(alpha_4)
+    s.side_cl = CL4 - CL3
     L2 = (-0.5 * rho * (norm(va_xz2))^2 * s.set.area * CL2) * normalize(va_2 × y)
     L3 = (-0.5 * rho * (norm(va_xy3))^2 * s.set.area * rel_side_area * CL3) * normalize(va_3 × z)
     L4 = (-0.5 * rho * (norm(va_xy4))^2 * s.set.area * rel_side_area * CL4) * normalize(z × va_4)
@@ -370,6 +367,7 @@ Updates the vector s.forces of the first parameter.
     
     s.forces[s.set.segments + 4] .+= (L3 + D3)
     s.forces[s.set.segments + 5] .+= (L4 + D4)
+    s.side_force .= (L3 + L4)
 end
 
 """
@@ -387,7 +385,10 @@ Output:
         p2 = s.springs[i].p2  # Second point nr.
         height = 0.5 * (pos[p1][3] + pos[p2][3])
         rho = calc_rho(s.am, height)
-        @assert height > 0
+        if height <= -1000.0
+            println("Error: height: $height")
+        end
+        @assert height > -1000
         if height < 6
             height = 6
         end
