@@ -1,4 +1,9 @@
 # Changelog
+### Unreleased
+#### Added
+- example `plot_side_cl.jl`
+- example `plot_cl_cd_plate.jl`
+- example `steering_test.jl`
 
 ### KiteModels v0.6.6 - 2024-09-03
 #### Changed
