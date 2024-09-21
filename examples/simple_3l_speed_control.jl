@@ -20,7 +20,7 @@ if !@isdefined s; s = KPS4_3L(KCU(set)); end
 s.set = update_settings()
 s.set.abs_tol = 0.0006
 s.set.rel_tol = 0.001
-s.set.l_tether = 50.0
+s.set.l_tether = 40.0
 s.set.damping = 473
 s.set.elevation = 85
 println("init sim")
@@ -37,7 +37,6 @@ total_step_time = 0.0
 toc()
 steering = [0.0, 0.0, 0.0]
 amount = 2.0
-sign = 1
 for i in 1:steps
     time = (i-1) * dt
     @show time

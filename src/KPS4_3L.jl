@@ -191,7 +191,7 @@ $(TYPEDFIELDS)
     get_kite_vel::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_winch_forces::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_tether_lengths::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
-    get_tether_speeds::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
+    get_tether_vels::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_L_C::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_L_D::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_D_C::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
@@ -415,25 +415,24 @@ function init_sim!(s::KPS4_3L; damping_coeff=100.0, prn=false,
 
     if init_new_model
         if prn; println("initializing with new model and new pos"); end
-        pos = init_pos(s)
-        model!(s, pos)
-        s.prob = ODEProblem(s.simple_sys, nothing, tspan)
+        pos, vel = init_pos_vel(s)
+        model!(s, pos, vel)
+        s.prob = ODEProblem(s.simple_sys, nothing, tspan; fully_determined=true)
         s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, dtmin=1e-7)
-        # next_step!(s; set_values=zeros(3), dt=2.0) # step 2 sec to get stable state
+        next_step!(s; set_values=zeros(3), dt=2.0) # step 2 sec to get stable state
         s.u0 = deepcopy(s.integrator.u)
-        # OrdinaryDiffEqCore.reinit!(s.integrator, s.u0)
+        OrdinaryDiffEqCore.reinit!(s.integrator, s.u0)
     elseif init_new_pos
         if prn; println("initializing with last model and new pos"); end
-        pos = init_pos(s)
-        s.prob = ODEProblem(
-            s.simple_sys, 
-            [s.simple_sys.pos => pos, s.simple_sys.tether_length => s.tether_lengths, s.simple_sys.damping_coeff => s.damping_coeff], 
-            tspan, [s.simple_sys.damping_coeff => s.damping_coeff]
-        )
+        pos, vel = init_pos_vel(s)
+        defaults = vcat([vcat([s.simple_sys.pos[j, i] => pos[j, i] for i in 1:s.num_flap_C-1 for j in 1:3]), 
+                        vcat([s.simple_sys.pos[j, i] => pos[j, i] for i in s.num_flap_D+1:s.num_A for j in 1:3]),
+                        s.simple_sys.tether_length => s.tether_lengths]...)
+        s.prob = ODEProblem(s.simple_sys, defaults, tspan)
         OrdinaryDiffEqCore.reinit!(s.integrator, s.prob.u0)
-        # next_step!(s; set_values=zeros(3), dt=2.0) # step 2 sec to get stable state
+        next_step!(s; set_values=zeros(3), dt=2.0) # step 2 sec to get stable state
         s.u0 = deepcopy(s.integrator.u)
-        # OrdinaryDiffEqCore.reinit!(s.integrator, s.u0)
+        OrdinaryDiffEqCore.reinit!(s.integrator, s.u0)
     else
         if prn; println("initializing with last model and last pos"); end
         OrdinaryDiffEqCore.reinit!(s.integrator, s.u0)
@@ -464,7 +463,7 @@ function next_step!(s::KPS4_3L; set_values=zeros(KVec3), v_wind_gnd=s.set.v_wind
         s.get_D_C = getu(s.integrator.sol, s.simple_sys.D_C)
         s.get_D_D = getu(s.integrator.sol, s.simple_sys.D_D)
         s.get_tether_lengths = getu(s.integrator.sol, s.simple_sys.tether_length)
-        s.get_tether_speeds = getu(s.integrator.sol, s.simple_sys.tether_speed)
+        s.get_tether_vels = getu(s.integrator.sol, s.simple_sys.tether_vel)
     end
     s.set_values .= set_values
     s.integrator.p[s.set_values_idx] .= s.set_values
@@ -553,15 +552,15 @@ function winch_force(s::KPS4_3L) norm.(s.winch_forces) end
 # Implementation of the three-line model using ModellingToolkit.jl
 
 
-function calc_acc_speed(motor::AsyncMachine, tether_speed, norm_, set_speed)
-    calc_acceleration(motor, tether_speed, norm_; set_speed, set_torque=nothing, use_brake=true)
+function calc_acc_speed(motor::AsyncMachine, tether_vel, norm_, set_speed)
+    calc_acceleration(motor, tether_vel, norm_; set_speed, set_torque=nothing, use_brake=true)
 end
-@register_symbolic calc_acc_speed(motor::AsyncMachine, tether_speed, norm_, set_speed)
+@register_symbolic calc_acc_speed(motor::AsyncMachine, tether_vel, norm_, set_speed)
 
-function calc_acc_torque(motor::TorqueControlledMachine, tether_speed, norm_, set_torque)
-    calc_acceleration(motor, tether_speed, norm_; set_speed=nothing, set_torque, use_brake=false)
+function calc_acc_torque(motor::TorqueControlledMachine, tether_vel, norm_, set_torque)
+    calc_acceleration(motor, tether_vel, norm_; set_speed=nothing, set_torque, use_brake=false)
 end
-@register_symbolic calc_acc_torque(motor::TorqueControlledMachine, tether_speed, norm_, set_torque)
+@register_symbolic calc_acc_torque(motor::TorqueControlledMachine, tether_vel, norm_, set_torque)
 
 function sym_spline(spline::Spline2D, aoa, flap_angle)
     return spline(aoa, flap_angle-aoa)
@@ -647,7 +646,6 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
     α_0         = π/2 - s.set.width/2/s.set.radius
     α_middle    = π/2
     dα          = (α_middle - α_0) / n
-    ram_range = 1.0 # TODO: do experiment to find out what value is right here
     for i in 1:n*2
         if i <= n
             α = α_0 + -dα/2 + i * dα
@@ -688,10 +686,8 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
             e_te[:, i] ~ e_x * sin(seg_flap_angle[i]) + e_r[:, i] * cos(seg_flap_angle[i])
             ram_force[i] ~ ifelse(
                 seg_flap_angle[i] > aoa[i],
-                -rho * norm(v_a[:, i])^2 * seg_flap_height * s.set.radius * dα * (seg_flap_height/2) / (kite_length/4) * 
-                        min((seg_flap_angle[i] - aoa[i])/deg2rad(ram_range), 1.0),
-                rho  * norm(v_a[:, i])^2 * seg_flap_height * s.set.radius * dα * (seg_flap_height/2) / (kite_length/4) *
-                        min((aoa[i] - seg_flap_angle[i])/deg2rad(ram_range), 1.0),
+                -rho * norm(v_a[:, i])^2 * seg_flap_height * s.set.radius * dα * (seg_flap_height/2) / (kite_length/4),
+                rho  * norm(v_a[:, i])^2 * seg_flap_height * s.set.radius * dα * (seg_flap_height/2) / (kite_length/4)
                 )
             te_force[i] ~ 0.5 * rho * (norm(v_a_xr[:, i]))^2 * s.set.radius * dα * kite_length * 
                                 clamp(sym_spline(s.c_te_spline, aoa[i], seg_flap_angle[i]), s.c_te_bounds[1], s.c_te_bounds[2])
@@ -879,7 +875,7 @@ function update_pos!(s)
     winch_forces        = s.get_winch_forces(s.integrator)
     [s.winch_forces[i] .= (winch_forces[:, i]) for i in 1:3]
     s.tether_lengths   .= s.get_tether_lengths(s.integrator)
-    s.reel_out_speeds  .= s.get_tether_speeds(s.integrator)
+    s.reel_out_speeds  .= s.get_tether_vels(s.integrator)
     s.L_C               = s.get_L_C(s.integrator)
     s.L_D               = s.get_L_D(s.integrator)
     s.D_C               = s.get_D_C(s.integrator)
@@ -889,27 +885,27 @@ function update_pos!(s)
     nothing
 end
 
-function model!(s::KPS4_3L, pos_)
+function model!(s::KPS4_3L, pos_, vel_)
     @parameters begin
         set_values[1:3] = s.set_values
         v_wind_gnd[1:3] = s.v_wind_gnd
         v_wind[1:3] = s.v_wind
     end
     @variables begin
-        pos(t)[1:3, 1:s.num_A] = pos_ # left right middle
-        vel(t)[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
-        acc(t)[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
-        damping_coeff(t) = s.damping_coeff
-        tether_length(t)[1:3]  = s.tether_lengths
+        pos(t)[1:3, 1:s.num_A] = pos_
+        vel(t)[1:3, 1:s.num_A] = vel_
+        acc(t)[1:3, 1:s.num_A]
         flap_angle(t)[1:2]   = zeros(2) # angle
-        flap_vel(t)[1:2]   = zeros(2) # angular vel
-        flap_acc(t)[1:2]   = zeros(2) # angular acc
-        tether_speed(t)[1:3]   = zeros(3) # left right middle
-        segment_length(t)[1:3] = zeros(3) # left right middle
-        mass_tether_particle(t)[1:3]      # left right middle
-        damping(t)[1:3] = s.damping ./ (s.tether_lengths ./ s.set.segments)   # left right middle
-        c_spring(t)[1:3] = s.c_spring ./ (s.tether_lengths ./ s.set.segments) # left right middle
-        P_c(t)[1:3] = 0.5 .* (s.pos[s.num_C] + s.pos[s.num_D])
+        flap_vel(t)[1:2]     = zeros(2) # angular vel
+        flap_acc(t)[1:2]                # angular acc
+        tether_length(t)[1:3]  = s.tether_lengths
+        tether_vel(t)[1:3] = zeros(3)
+        segment_length(t)[1:3]
+        mass_tether_particle(t)[1:3]
+        damping(t)[1:3]
+        damping_coeff(t)
+        c_spring(t)[1:3]
+        P_c(t)[1:3]
         E_C(t)[1:3]
         e_x(t)[1:3]
         e_y(t)[1:3]
@@ -918,8 +914,8 @@ function model!(s::KPS4_3L, pos_)
         e_r_D(t)[1:3]
         e_te_C(t)[1:3]
         e_te_D(t)[1:3]
-        force(t)[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
-        rho_kite(t) = 0.0
+        force(t)[1:3, 1:s.num_A]
+        rho_kite(t)
     end
     # Collect the arrays into variables
     pos = collect(pos)
@@ -938,12 +934,12 @@ function model!(s::KPS4_3L, pos_)
     eqs1 = [eqs1; D(flap_vel)   ~ flap_acc]
     [eqs1 = vcat(eqs1, D.(vel[:, i]) .~ acc[:, i]) for i in s.num_E:s.num_A]
 
-    eqs1 = vcat(eqs1, D.(tether_length) .~ tether_speed)
+    eqs1 = vcat(eqs1, D.(tether_length) .~ tether_vel)
     if s.torque_control
-        eqs1 = vcat(eqs1, D.(tether_speed) .~ [calc_acc_torque(s.motors[i], tether_speed[i], norm(force[:, (i-1) % 3 + 1]),
+        eqs1 = vcat(eqs1, D.(tether_vel) .~ [calc_acc_torque(s.motors[i], tether_vel[i], norm(force[:, (i-1) % 3 + 1]),
                                                                set_values[i]) for i in 1:3])
     else
-        eqs1 = vcat(eqs1, D.(tether_speed) .~ [calc_acc_speed(s.motors[i], tether_speed[i], norm(force[:,(i-1) % 3 + 1]), 
+        eqs1 = vcat(eqs1, D.(tether_vel) .~ [calc_acc_speed(s.motors[i], tether_vel[i], norm(force[:,(i-1) % 3 + 1]), 
                                                                set_values[i]) for i in 1:3])
     end
 
