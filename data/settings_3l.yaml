@@ -37,8 +37,8 @@ depower:
 
 kite:
     model: "data/kite.obj" # 3D model of the kite
-    foil_file: "MH82.dat"  # filename for the foil shape
-    polar_file: "polars.csv"   # filename for the polars
+    foil_file: "data/MH82.dat"  # filename for the foil shape
+    polar_file: "data/polars.csv"   # filename for the polars
     physical_model: "KPS4_3L" # name of the kite model to use (KPS3 or KPS4)
     version: 2             # version of the model to use
     mass:  0.9             # kite mass [kg]

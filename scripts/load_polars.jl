@@ -44,8 +44,6 @@ deleteat!(cd_values, rm_idx)
 deleteat!(c_te_values, rm_idx)
 
 wd = 2.0 .- abs.(cd_values ./ argmax(abs, cd_values))
-
-
 order = 2
 println("1")
 cl_spline = Spline2D(alphas, d_flap_angles, cl_values; kx=order, ky=order, s=20.0)

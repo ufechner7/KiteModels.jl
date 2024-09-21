@@ -174,7 +174,6 @@ function create_polars(foil_file=se.foil_file, polar_file=se.polar_file)
     kite_speed = se.v_wind
     speed_of_sound = 343
     reynolds_number = kite_speed * (se.middle_length + se.tip_length)/2 / 1.460e-5
-    println("Reynolds number for flying speed of $kite_speed is $reynolds_number")
 
     # Read airfoil coordinates from a file.
     x, y = open(foil_file, "r") do f
@@ -211,6 +210,7 @@ function create_polars(foil_file=se.foil_file, polar_file=se.polar_file)
     end
 
     println("Relative flap height: ", upper - lower)
+    println("Reynolds number for flying speed of $kite_speed is $reynolds_number")
 
     csv_content = "alpha,d_flap_angle,cl,cd,c_te\n"
     for (alpha, d_flap_angle, cl, cd, c_te) in polars

@@ -174,7 +174,7 @@ function init_pos_vel_acc(s::KPS4_3L; delta = 0.0)
     for (i, j) in enumerate(range(4, step=3, length=s.set.segments-1))
         len = (s.set.segments-1)/2
         middle_distance = (len - abs(i-len))/len
-        pos[j] .= pos[s.num_flap_C] ./ s.set.segments .* i .+ [(middle_distance)*s.tether_lengths[3]*0.4, 0.0, 0.0]
+        pos[j] .= pos[s.num_flap_C] ./ s.set.segments .* i .+ [(middle_distance)*s.tether_lengths[3]*0.5, 0.0, 0.0]
         s.tether_lengths[1] += norm(pos[j] - pos[j-3])
         pos[j+1] .= [pos[j][1], -pos[j][2], pos[j][3]]
     end
@@ -266,3 +266,11 @@ function rotate_in_xz(vec, angle)
     result
 end
 
+# rotate a 3d vector around the z axis
+function rotate_in_yx(vec, angle)
+    result = similar(vec)
+    result[1] = cos(angle) * vec[1] + sin(angle) * vec[2]
+    result[2] = cos(angle) * vec[2] - sin(angle) * vec[1]
+    result[3] = vec[3]
+    result
+end

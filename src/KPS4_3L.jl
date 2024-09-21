@@ -198,9 +198,6 @@ $(TYPEDFIELDS)
     get_D_D::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     integrator::Union{Sundials.CVODEIntegrator, Nothing} = nothing
     u0:: Vector{Float64} = [0.0]
-
-    foil_file = "naca2412.dat"
-    polar_file = "polars.csv"
 end
 
 """
@@ -258,14 +255,15 @@ function KPS4_3L(kcu::KCU)
     else
         s = KPS4_3L{SimFloat, KVec3, set.segments*3+2+KITE_PARTICLES_3L, set.segments*3+KITE_SPRINGS_3L, SP}(set=kcu.set, motors=[AsyncMachine(set) for _ in 1:3])
     end
-    open(joinpath(get_data_path(), s.foil_file), "r") do f
+    open(joinpath(dirname(get_data_path()), s.set.foil_file), "r") do f
         lines = readlines(f)
         if !endswith(chomp(lines[1]), "polars created")
-            error("No polars created for $(s.foil_file). Run scripts/create_polars.jl to create a polars file.")
+            error("No polars created for $(s.set.foil_file). Run scripts/create_polars.jl to create a polars file.")
         end
     end
     clear!(s)
-    polars = read_csv(s.polar_file)
+    
+    polars = read_csv(s.set.polar_file)
     alphas = deg2rad.(polars["alpha"])
     d_flap_angles = deg2rad.(polars["d_flap_angle"])
     cl_values = polars["cl"]
@@ -284,10 +282,13 @@ function KPS4_3L(kcu::KCU)
     deleteat!(cl_values, rm_idx)
     deleteat!(cd_values, rm_idx)
     deleteat!(c_te_values, rm_idx)
-    order = 1
-    s.cl_spline = Spline2D(alphas, d_flap_angles, cl_values; kx = order+1, ky = order, s=2.0)
-    s.cd_spline = Spline2D(alphas, d_flap_angles, cd_values; kx = order+1, ky = order, s=0.3)
-    s.c_te_spline = Spline2D(alphas, d_flap_angles, c_te_values; kx = order+1, ky = order, s=0.02)
+    
+    wd = 2.0 .- abs.(cd_values ./ argmax(abs, cd_values))
+    order = 2
+    s.cl_spline = Spline2D(alphas, d_flap_angles, cl_values; kx=order, ky=order, s=20.0)
+    s.cd_spline = Spline2D(alphas, d_flap_angles, cd_values; w=wd, kx=order, ky=order, s=10.0)
+    s.c_te_spline = Spline2D(alphas, d_flap_angles, c_te_values; kx=order, ky=order, s=1.0)
+    
     s.cl_bounds = (minimum(cl_values), maximum(cl_values))
     s.cd_bounds = (minimum(cd_values), maximum(cd_values))
     s.c_te_bounds = (minimum(c_te_values), maximum(c_te_values))
@@ -363,6 +364,18 @@ function SysState(s::KPS4_3L, zoom=1.0)
 end
 
 
+function calc_heading(s::KPS4_3L)
+    # turn s.e_x by -azimuth around global z-axis and then by elevation around global y-axis
+    vec = rotate_in_xz(rotate_in_yx(s.e_x, -calc_azimuth(s)), -calc_elevation(s))
+    heading = atan(-vec[2], vec[3])
+    return heading
+end
+
+function calc_heading_stable(s::KPS4_3L)
+
+end
+
+
 """
     init_sim!(s; damping_coeff=1.0, prn=false, torque_control=true)
 
@@ -406,7 +419,7 @@ function init_sim!(s::KPS4_3L; damping_coeff=100.0, prn=false,
         model!(s, pos)
         s.prob = ODEProblem(s.simple_sys, nothing, tspan)
         s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, dtmin=1e-7)
-        next_step!(s; dt=2.0) # step 2 sec to get stable state
+        next_step!(s; set_values=zeros(3), dt=2.0) # step 2 sec to get stable state
         s.u0 = deepcopy(s.integrator.u)
         OrdinaryDiffEqCore.reinit!(s.integrator, s.u0)
     elseif init_new_pos
@@ -418,9 +431,9 @@ function init_sim!(s::KPS4_3L; damping_coeff=100.0, prn=false,
             tspan, [s.simple_sys.damping_coeff => s.damping_coeff]
         )
         OrdinaryDiffEqCore.reinit!(s.integrator, s.prob.u0)
-        next_step!(s; dt=2.0) # step 2 sec to get stable state
+        # next_step!(s; set_values=zeros(3), dt=2.0) # step 2 sec to get stable state
         s.u0 = deepcopy(s.integrator.u)
-        OrdinaryDiffEqCore.reinit!(s.integrator, s.u0)
+        # OrdinaryDiffEqCore.reinit!(s.integrator, s.u0)
     else
         if prn; println("initializing with last model and last pos"); end
         OrdinaryDiffEqCore.reinit!(s.integrator, s.u0)
@@ -634,20 +647,16 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
     α_0         = π/2 - s.set.width/2/s.set.radius
     α_middle    = π/2
     dα          = (α_middle - α_0) / n
-    ram_range = 0.1 # TODO: do experiment to find out what value is right here
+    ram_range = 1.0 # TODO: do experiment to find out what value is right here
     for i in 1:n*2
         if i <= n
             α = α_0 + -dα/2 + i * dα
-        else
-            α = pi - (α_0 + -dα/2 + (i-n) * dα)
-        end
-        if α < π/2
             kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (α - α_0) / (π/2 - α_0) # TODO: kite length gets less with flap turning
         else
+            α = pi - (α_0 + -dα/2 + (i-n) * dα)
             kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (π - α_0 - α) / (π/2 - α_0)
         end
         seg_flap_height = kite_length * s.set.flap_height
-        @show seg_flap_height
         eqs2 = [
             eqs2
             F[:, i]          ~ E_C + e_y * cos(α) * s.set.radius - e_z * sin(α) * s.set.radius
@@ -668,7 +677,7 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
 
             aoa[i]      ~ -asin((v_a_xr[:, i] / norm(v_a_xr[:, i])) ⋅ e_r[:, i]) + deg2rad(s.set.alpha_zero)
             cl_seg[i]   ~ clamp(sym_spline(s.cl_spline, aoa[i], seg_flap_angle[i]), s.cl_bounds[1], s.cl_bounds[2])
-            cd_seg[i]   ~  clamp(sym_spline(s.cd_spline, aoa[i], seg_flap_angle[i]), s.cd_bounds[1], s.cd_bounds[2]) # TODO: fix amount of drag
+            cd_seg[i]   ~ clamp(sym_spline(s.cd_spline, aoa[i], seg_flap_angle[i]), s.cd_bounds[1], s.cd_bounds[2])
 
             L_seg[:, i] ~ 0.5 * rho * (norm(v_a_xr[:, i]))^2 * s.set.radius * dα * kite_length * cl_seg[i] * 
                                 ((v_a_xr[:, i] × e_drift[:, i]) / norm(v_a_xr[:, i] × e_drift[:, i]))
@@ -752,7 +761,7 @@ function calc_particle_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos1, pos
         av_vel      .~ 0.5 * (vel1 + vel2)
         norm1        ~ norm(segment)
         unit_vector .~ segment / norm1
-        k1           ~ 0.25 * k # compression stiffness kite segments
+        k1           ~ 1.0 * k # compression stiffness kite segments
         k2           ~ 0.1 * k  # compression stiffness tether segments
         c1           ~ 6.0 * c  # damping kite segments
         c2           ~ 0.05 * c  # damping perpendicular
@@ -760,7 +769,7 @@ function calc_particle_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos1, pos
         perp_vel    .~ rel_vel .- spring_vel * unit_vector
     ]
 
-    if i >= s.num_flap_C  # kite springs
+    if i >= Base.length(s.springs) - KITE_SPRINGS_3L + 1  # kite springs
         for j in 1:3
             eqs2 = [
                 eqs2
@@ -876,7 +885,7 @@ function update_pos!(s)
     s.D_C               = s.get_D_C(s.integrator)
     s.D_D               = s.get_D_D(s.integrator)
     calc_kite_ref_frame!(s, s.pos[s.num_E], s.pos[s.num_C], s.pos[s.num_D])
-    @assert all(abs.(s.flap_angle) .<= deg2rad(70))
+    # @assert all(abs.(s.flap_angle) .<= deg2rad(70))
     nothing
 end
 
@@ -995,16 +1004,16 @@ function model!(s::KPS4_3L, pos_)
     eqs2 = [
         eqs2
         vcat(force_eqs[:, s.num_flap_C])
-        vcat(force_eqs[:, s.num_flap_D])
-        flap_acc[1] ~ force[:, s.num_flap_C] ⋅ e_te_C * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - 
-                    (500 + damping_coeff*200) * flap_vel[1]
-        flap_acc[2] ~ force[:, s.num_flap_D] ⋅ e_te_D * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - 
-                    (500 + damping_coeff*200) * flap_vel[2]
+        vcat(force_eqs[:, s.num_flap_D]) # TODO: add gravity to flaps
+        flap_acc[1] ~ (force[:, s.num_flap_C] ⋅ e_te_C - s.damping * 0.25 * flap_vel[1]) * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - 
+                    (damping_coeff*200) * flap_vel[1]
+        flap_acc[2] ~ (force[:, s.num_flap_D] ⋅ e_te_D - s.damping * 0.25 * flap_vel[2]) * flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - 
+                    (damping_coeff*200) * flap_vel[2]
     ]
 
     for i in s.num_E:s.num_A
         eqs2 = vcat(eqs2, vcat(force_eqs[:, i]))
-        eqs2 = vcat(eqs2, acc[:, i] .~ [0.0; 0.0; -G_EARTH] .+ (force[:, i] ./ s.masses[i]) .- damping_coeff * vel[:, i])
+        eqs2 = vcat(eqs2, acc[:, i] .~ [0.0; 0.0; -G_EARTH] .+ (force[:, i] ./ s.masses[i]) .- (damping_coeff) * vel[:, i])
     end
 
     eqs = vcat(eqs1, eqs2)
@@ -1032,7 +1041,7 @@ function read_csv(filename="polars.csv")
     if !endswith(filename, ".csv")
         filename *= ".csv"
     end
-    filename = joinpath(get_data_path(), filename)
+    filename = joinpath(dirname(get_data_path()), filename)
     data = Dict{String, Vector{Float64}}()
     try
         open(filename, "r") do f
