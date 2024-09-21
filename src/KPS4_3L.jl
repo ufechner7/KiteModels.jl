@@ -419,9 +419,9 @@ function init_sim!(s::KPS4_3L; damping_coeff=100.0, prn=false,
         model!(s, pos)
         s.prob = ODEProblem(s.simple_sys, nothing, tspan)
         s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, dtmin=1e-7)
-        next_step!(s; set_values=zeros(3), dt=2.0) # step 2 sec to get stable state
+        # next_step!(s; set_values=zeros(3), dt=2.0) # step 2 sec to get stable state
         s.u0 = deepcopy(s.integrator.u)
-        OrdinaryDiffEqCore.reinit!(s.integrator, s.u0)
+        # OrdinaryDiffEqCore.reinit!(s.integrator, s.u0)
     elseif init_new_pos
         if prn; println("initializing with last model and new pos"); end
         pos = init_pos(s)
