@@ -781,22 +781,22 @@ function model!(s::KPS4_3L, pos_; torque_control=false)
     @variables begin
         pos(t)[1:3, 1:s.num_A] = pos_ # left right middle
         vel(t)[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
-        acc(t)[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
-        tether_length(t)[1:3]  = s.tether_lengths
-        steering_pos(t)[1:2]   = s.steering_pos
+        acc(t)[1:3, 1:s.num_A] 
+        tether_length(t)[1:3]  = s.tether_lengths  
+        steering_pos(t)[1:2]   = s.steering_pos  
         steering_vel(t)[1:2]   = zeros(2)
-        steering_acc(t)[1:2]   = zeros(2)
-        tether_speed(t)[1:3]   = zeros(3) # left right middle
-        segment_length(t)[1:3] = zeros(3) # left right middle
+        steering_acc(t)[1:2]   
+        tether_speed(t)[1:3] = zeros(3)  
+        segment_length(t)[1:3] 
         mass_tether_particle(t)[1:3]      # left right middle
-        damping(t)[1:3] = s.set.damping ./ s.tether_lengths ./ s.set.segments   # left right middle
-        c_spring(t)[1:3] = s.set.c_spring ./ s.tether_lengths ./ s.set.segments # left right middle
-        P_c(t)[1:3] = 0.5 .* (s.pos[s.num_C] + s.pos[s.num_D])
+        damping(t)[1:3] 
+        c_spring(t)[1:3]
+        P_c(t)[1:3]
         e_x(t)[1:3]
         e_y(t)[1:3]
         e_z(t)[1:3]
-        force(t)[1:3, 1:s.num_A] = zeros(3, s.num_A) # left right middle
-        rho_kite(t) = 0.0
+        force(t)[1:3, 1:s.num_A]
+        rho_kite(t)
     end
     # Collect the arrays into variables
     pos = collect(pos)
