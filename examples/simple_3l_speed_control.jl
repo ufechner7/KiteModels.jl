@@ -20,7 +20,7 @@ if !@isdefined s; s = KPS4_3L(KCU(set)); end
 s.set = update_settings()
 s.set.abs_tol = 0.0006
 s.set.rel_tol = 0.001
-s.set.l_tether = 20.0
+s.set.l_tether = 50.0
 s.set.damping = 473
 s.set.elevation = 85
 println("init sim")
@@ -36,7 +36,7 @@ println("stepping")
 total_step_time = 0.0
 toc()
 steering = [0.0, 0.0, 0.0]
-amount = 0.6
+amount = 2.0
 sign = 1
 for i in 1:steps
     time = (i-1) * dt
@@ -44,7 +44,7 @@ for i in 1:steps
     # println("vel ", norm(s.integrator[s.simple_sys.vel]))
     global total_step_time, sys_state, steering
     # steering = [0.0,0.0,1000.0] # left right middle
-    sign = ifelse(mod(floor(time), 2) == 0, 1, -1)
+    sign = ifelse(mod(floor(time-0.5), 2) == 0, 1, -1)
     steering[1] -= sign * dt * amount
     steering[2] += sign * dt * amount
 
@@ -79,7 +79,7 @@ for i in 1:steps
     end
     log!(logger, sys_state)
     l = s.set.l_tether+10
-    # plot2d(s.pos, time; zoom=true, front=true, xlim=(-l/2, l/2), ylim=(0, l))
+    plot2d(s.pos, time; zoom=true, front=false, xlim=(-l/2, l/2), ylim=(0, l))
 end
 
 times_reltime = (total_time/2) / total_step_time
