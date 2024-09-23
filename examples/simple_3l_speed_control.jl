@@ -11,7 +11,7 @@ using ControlPlots
 set = deepcopy(load_settings("system_3l.yaml"))
 # set.elevation = 71
 dt = 0.05
-total_time = 8.0
+total_time = 20.0
 
 steps = Int(round(total_time / dt))
 logger = Logger(3*set.segments + 6, steps)
@@ -78,7 +78,7 @@ for i in 1:steps
     end
     log!(logger, sys_state)
     l = s.set.l_tether+10
-    plot2d(s.pos, time; zoom=true, front=false, xlim=(-l/2, l/2), ylim=(0, l))
+    # plot2d(s.pos, time; zoom=true, front=false, xlim=(-l/2, l/2), ylim=(0, l))
 end
 
 times_reltime = (total_time/2) / total_step_time

@@ -196,7 +196,7 @@ $(TYPEDFIELDS)
     get_L_D::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_D_C::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_D_D::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
-    integrator::Union{Sundials.CVODEIntegrator, Nothing} = nothing
+    integrator::Union{Sundials.CVODEIntegrator, OrdinaryDiffEqCore.ODEIntegrator, Nothing} = nothing
     u0:: Vector{Float64} = [0.0]
 end
 
@@ -386,12 +386,11 @@ Parameters:
 - damping_coeff: amount of damping in the first steps
 - prn: if set to true, print the detailed solver results
 - torque_control: wether or not to use torque control
-- ss:   an instance of a sys state
 
 Returns:
-An instance of a DAE integrator.
+Nothing.
 """
-function init_sim!(s::KPS4_3L; damping_coeff=100.0, prn=false, 
+function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false, 
                    torque_control=true) # TODO: add sysstate init ability
     clear!(s)
     change_control_mode = s.torque_control != torque_control
@@ -404,10 +403,8 @@ function init_sim!(s::KPS4_3L; damping_coeff=100.0, prn=false,
 
     dt = 1/s.set.sample_freq*2
     tspan   = (0.0, dt) 
-    # solver = KenCarp4(autodiff=false) # TRBDF2, Rodas4P, Rodas5P, Kvaerno5, KenCarp4, radau, QNDF
-    solver = CVODE_BDF() # 2 times faster
+    solver = FBDF(autodiff=false) # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
     s.damping_coeff = damping_coeff
-
     new_inital_conditions = (s.last_init_elevation != s.set.elevation || s.last_init_tether_length != s.set.l_tether)
     s.set_hash = settings_hash(s.set)
     init_new_model = isnothing(s.prob) || change_control_mode || s.last_set_hash != s.set_hash
@@ -418,8 +415,8 @@ function init_sim!(s::KPS4_3L; damping_coeff=100.0, prn=false,
         pos, vel = init_pos_vel(s)
         model!(s, pos, vel)
         s.prob = ODEProblem(s.simple_sys, nothing, tspan; fully_determined=true)
-        s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, dtmin=1e-7)
-        next_step!(s; set_values=zeros(3), dt=2.0) # step 2 sec to get stable state
+        s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, dtmin=1e-10)
+        next_step!(s; set_values=zeros(3), dt=1.0) # step to get stable state
         s.u0 = deepcopy(s.integrator.u)
         OrdinaryDiffEqCore.reinit!(s.integrator, s.u0)
     elseif init_new_pos
@@ -430,7 +427,7 @@ function init_sim!(s::KPS4_3L; damping_coeff=100.0, prn=false,
                         s.simple_sys.tether_length => s.tether_lengths]...)
         s.prob = ODEProblem(s.simple_sys, defaults, tspan)
         OrdinaryDiffEqCore.reinit!(s.integrator, s.prob.u0)
-        next_step!(s; set_values=zeros(3), dt=2.0) # step 2 sec to get stable state
+        next_step!(s; set_values=zeros(3), dt=1.0) # step to get stable state
         s.u0 = deepcopy(s.integrator.u)
         OrdinaryDiffEqCore.reinit!(s.integrator, s.u0)
     else
@@ -881,7 +878,7 @@ function update_pos!(s)
     s.D_C               = s.get_D_C(s.integrator)
     s.D_D               = s.get_D_D(s.integrator)
     calc_kite_ref_frame!(s, s.pos[s.num_E], s.pos[s.num_C], s.pos[s.num_D])
-    # @assert all(abs.(s.flap_angle) .<= deg2rad(70))
+    @assert all(abs.(s.flap_angle) .<= deg2rad(90))
     nothing
 end
 
@@ -970,7 +967,7 @@ function model!(s::KPS4_3L, pos_, vel_)
         # E_C is the center of the circle shape of the front view of the kite
         E_C     ~ pos[:, s.num_E] + e_z * (-s.set.bridle_center_distance + s.set.radius) 
         rho_kite ~ calc_rho(s.am, pos[3,s.num_A])
-        damping_coeff ~ max(1.0 - t, 0.0) * s.damping_coeff
+        damping_coeff ~ max(1.0 - t/2, 0.0) * s.damping_coeff
     ]
 
     eqs2, force_eqs = calc_aero_forces_mtk!(s, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, E_C, rho_kite, v_wind, flap_angle)
@@ -1001,9 +998,9 @@ function model!(s::KPS4_3L, pos_, vel_)
         eqs2
         vcat(force_eqs[:, s.num_flap_C])
         vcat(force_eqs[:, s.num_flap_D])
-        flap_acc[1] ~ ((force[:, s.num_flap_C] + [0.0, 0.0, -G_EARTH]) ⋅ e_te_C - s.damping * 0.25 * flap_vel[1]) * 
+        flap_acc[1] ~ ((force[:, s.num_flap_C] + [0.0, 0.0, -G_EARTH]) ⋅ e_te_C - s.damping * 0.50 * flap_vel[1]) * 
                     flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - (damping_coeff*200) * flap_vel[1]
-        flap_acc[2] ~ ((force[:, s.num_flap_D] + [0.0, 0.0, -G_EARTH]) ⋅ e_te_D - s.damping * 0.25 * flap_vel[2]) * 
+        flap_acc[2] ~ ((force[:, s.num_flap_D] + [0.0, 0.0, -G_EARTH]) ⋅ e_te_D - s.damping * 0.50 * flap_vel[2]) * 
                     flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - (damping_coeff*200) * flap_vel[2]
     ]
 
