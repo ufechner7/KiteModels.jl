@@ -51,9 +51,9 @@ const KITE_PARTICLES_3L = 4
     mutable struct KPS4_3L{S, T, P, Q, SP} <: AbstractKiteModel
 
 State of the kite power system, using a 3 point kite model and three steering lines to the ground. Parameters:
-- S: Scalar type, e.g. SimFloat
-  In the documentation mentioned as Any, but when used in this module it is always SimFloat and not Any.
-- T: Vector type, e.g. MVector{3, SimFloat}
+- S: Scalar type, e.g. SmallFloat
+  In the documentation mentioned as Any, but when used in this module it is always SmallFloat and not Any.
+- T: Vector type, e.g. MVector{3, SmallFloat}
 - P: number of points of the system, segments+3
 - Q: number of springs in the system, P-1
 - SP: struct type, describing a spring
@@ -68,9 +68,9 @@ $(TYPEDFIELDS)
     "Reference to the settings hash"
     set_hash::UInt64        = 0
     "The last initial elevation"
-    last_init_elevation::SimFloat     = 0.0
+    last_init_elevation::S     = 0.0
     "The last initial tether length"
-    last_init_tether_length::SimFloat = 0.0
+    last_init_tether_length::S = 0.0
     "Reference to the last settings hash"
     last_set_hash::UInt64   = 0
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
@@ -161,13 +161,13 @@ $(TYPEDFIELDS)
     "Point number of A"
     num_A::Int64 =           0
     "Angle of left tip"
-    α_l::SimFloat =     0.0
+    α_l::S =     0.0
     "Angle of right tip"
-    α_r::SimFloat =     0.0
+    α_r::S =     0.0
     "Angle of point C"
-    α_C::SimFloat =     0.0
+    α_C::S =     0.0
     "Kite length at point C"
-    kite_length_C::SimFloat =     0.0
+    kite_length_C::S =     0.0
     "Lift of point C"
     L_C::T = zeros(S, 3)
     "Lift of point D"
@@ -197,7 +197,7 @@ $(TYPEDFIELDS)
     get_D_C::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_D_D::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     integrator::Union{Sundials.CVODEIntegrator, OrdinaryDiffEqCore.ODEIntegrator, Nothing} = nothing
-    u0:: Vector{Float64} = [0.0]
+    u0:: Vector{SmallFloat} = [0.0]
 end
 
 """
@@ -251,9 +251,9 @@ end
 function KPS4_3L(kcu::KCU)
     set = kcu.set
     if set.winch_model == "TorqueControlledMachine"
-        s = KPS4_3L{SimFloat, KVec3, set.segments*3+2+KITE_PARTICLES_3L, set.segments*3+KITE_SPRINGS_3L, SP}(set=kcu.set, motors=[TorqueControlledMachine(set) for _ in 1:3])
+        s = KPS4_3L{SmallFloat, MVector{3, SmallFloat}, set.segments*3+2+KITE_PARTICLES_3L, set.segments*3+KITE_SPRINGS_3L, SP}(set=kcu.set, motors=[TorqueControlledMachine(set) for _ in 1:3])
     else
-        s = KPS4_3L{SimFloat, KVec3, set.segments*3+2+KITE_PARTICLES_3L, set.segments*3+KITE_SPRINGS_3L, SP}(set=kcu.set, motors=[AsyncMachine(set) for _ in 1:3])
+        s = KPS4_3L{SmallFloat, MVector{3, SmallFloat}, set.segments*3+2+KITE_PARTICLES_3L, set.segments*3+KITE_SPRINGS_3L, SP}(set=kcu.set, motors=[AsyncMachine(set) for _ in 1:3])
     end
     open(joinpath(dirname(get_data_path()), s.set.foil_file), "r") do f
         lines = readlines(f)
@@ -423,8 +423,8 @@ function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false,
         if prn; println("initializing with last model and new pos"); end
         pos, vel = init_pos_vel(s)
         defaults = vcat([vcat([s.simple_sys.pos[j, i] => pos[j, i] for i in 1:s.num_flap_C-1 for j in 1:3]), 
-                        vcat([s.simple_sys.pos[j, i] => pos[j, i] for i in s.num_flap_D+1:s.num_A for j in 1:3]),
-                        s.simple_sys.tether_length => s.tether_lengths]...)
+        vcat([s.simple_sys.pos[j, i] => pos[j, i] for i in s.num_flap_D+1:s.num_A for j in 1:3]),
+        s.simple_sys.tether_length => s.tether_lengths]...)
         s.prob = ODEProblem(s.simple_sys, defaults, tspan)
         OrdinaryDiffEqCore.reinit!(s.integrator, s.prob.u0)
         next_step!(s; set_values=zeros(3), dt=1.0) # step to get stable state
@@ -433,6 +433,7 @@ function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false,
     else
         if prn; println("initializing with last model and last pos"); end
         OrdinaryDiffEqCore.reinit!(s.integrator, s.u0)
+        # s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, dtmin=1e-10)
     end
 
     s.last_init_elevation = s.set.elevation
@@ -634,11 +635,11 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
     d_d_eq = SizedArray{Tuple{3}, Symbolics.Equation}(collect(D_D .~ 0))
     f_te_c_eq = SizedArray{Tuple{3}, Symbolics.Equation}(collect(F_te_C .~ 0))
     f_te_d_eq = SizedArray{Tuple{3}, Symbolics.Equation}(collect(F_te_D .~ 0))
-    kite_length = zero(SimFloat)
-    α           = zero(SimFloat)
-    α_0         = zero(SimFloat)
-    α_middle    = zero(SimFloat)
-    dα          = zero(SimFloat)
+    kite_length = zero(SmallFloat)
+    α           = zero(SmallFloat)
+    α_0         = zero(SmallFloat)
+    α_middle    = zero(SmallFloat)
+    dα          = zero(SmallFloat)
     # Calculate the lift and drag
     α_0         = π/2 - s.set.width/2/s.set.radius
     α_middle    = π/2
@@ -1035,17 +1036,17 @@ function read_csv(filename="polars.csv")
         filename *= ".csv"
     end
     filename = joinpath(dirname(get_data_path()), filename)
-    data = Dict{String, Vector{Float64}}()
+    data = Dict{String, Vector{SmallFloat}}()
     try
         open(filename, "r") do f
             header = split(chomp(readline(f)), ",")
             for col in header
-                data[col] = Float64[]
+                data[col] = SmallFloat[]
             end
             for line in eachline(f)
                 values = split(chomp(line), ",")
                 for (i, col) in enumerate(header)
-                    push!(data[col], parse(Float64, values[i]))
+                    push!(data[col], parse(SmallFloat, values[i]))
                 end
             end
         end

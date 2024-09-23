@@ -76,6 +76,7 @@ This type is used for all real variables, used in the Simulation. Possible alter
 Other types than Float64 or Float32 do require support of Julia types by the solver. 
 """
 const SimFloat = Float64
+const SmallFloat = Float32
 
 """
    const KVec3    = MVector{3, SimFloat}
