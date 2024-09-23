@@ -415,7 +415,7 @@ function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false,
         pos, vel = init_pos_vel(s)
         model!(s, pos, vel)
         s.prob = ODEProblem(s.simple_sys, nothing, tspan; fully_determined=true)
-        s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, dtmin=1e-10)
+        s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
         next_step!(s; set_values=zeros(3), dt=1.0) # step to get stable state
         s.u0 = deepcopy(s.integrator.u)
         OrdinaryDiffEqCore.reinit!(s.integrator, s.u0)
@@ -433,7 +433,6 @@ function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false,
     else
         if prn; println("initializing with last model and last pos"); end
         OrdinaryDiffEqCore.reinit!(s.integrator, s.u0)
-        # s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, dtmin=1e-10)
     end
 
     s.last_init_elevation = s.set.elevation
