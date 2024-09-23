@@ -253,11 +253,12 @@ function orient_euler(s::AKM)
 end
 
 function calc_orient_quat(s::AKM)
-    x, _, z = kite_ref_frame(s)
-    pos_kite_ = pos_kite(s)
-    pos_before = pos_kite_ .+ z
-   
-    rotation = rot(pos_kite_, pos_before, -x)
+    x, y, z = kite_ref_frame(s)
+    # reference: NED
+    ax = [0, 1, 0]
+    ay = [1, 0, 0]
+    az = [0, 0, -1]
+    rotation = rot3d(ax, ay, az, x, y, z)
     q = QuatRotation(rotation)
     return Rotations.params(q)
 end
