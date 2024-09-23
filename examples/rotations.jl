@@ -37,3 +37,6 @@ println("roll: $roll, pitch: $pitch, yaw: $yaw")
 q = QuatRotation(calc_orient_quat(x, y, z))
 w, i, j, k = Rotations.params(q)
 println("w: $w, i: $i, j: $j, k: $k")
+
+roll, pitch, yaw = rad2deg.(Rotations.params(RotXYZ(q)))
+println("roll: $roll, pitch: $pitch, yaw: $yaw")
