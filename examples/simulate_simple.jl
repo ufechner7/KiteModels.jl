@@ -1,5 +1,6 @@
 using Printf
-using KiteModels, KitePodModels, KiteUtils
+
+using KiteModels, KitePodModels, KiteUtils, Rotations
 
 set = deepcopy(load_settings("system.yaml"))
 
@@ -20,6 +21,18 @@ STATISTIC = false
 kcu::KCU = KCU(set)
 kps4::KPS4 = KPS4(kcu)
 
+function quat2euler(q)
+    # Convert quaternion to RotXYZ
+    rot = RotXYZ(q)
+    
+    # Extract roll, pitch, and yaw from RotXYZ
+    roll = rot.theta1
+    pitch = rot.theta2
+    yaw = rot.theta3
+
+    return roll, pitch, yaw
+end
+
 if PLOT
     using Pkg
     if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
@@ -39,6 +52,12 @@ function simulate(integrator, steps, plot=false)
 
         KiteModels.next_step!(kps4, integrator; set_speed=0, dt)
         iter += kps4.iter
+
+        sys_state = SysState(kps4)
+        q = QuatRotation(sys_state.orient)
+        # println(q)
+        roll, pitch, yaw = rad2deg.(quat2euler(q))
+        println("roll: ", roll, " pitch: ", pitch, " yaw: ", yaw)
         
         if plot
             reltime = i*dt-dt
