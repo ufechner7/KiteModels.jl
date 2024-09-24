@@ -233,12 +233,23 @@ end
 
 
 """
-    orient_euler(s::AKM)
+    orient_euler(s::KPS4)
 
 Calculate and return the orientation of the kite in euler angles (roll, pitch, yaw)
 as SVector. 
 """
-function orient_euler(s::AKM)
+function orient_euler(s::KPS4)
+    q = calc_orient_quat(s)
+    return (quat2euler(q))
+end
+
+"""
+    orient_euler(s::KPS3)
+
+Calculate and return the orientation of the kite in euler angles (roll, pitch, yaw)
+as SVector. 
+"""
+function orient_euler(s::KPS3)
     x, y, z = kite_ref_frame(s)
     roll = atan(y[3], z[3]) - π/2
     if roll < -π/2
@@ -252,12 +263,31 @@ function orient_euler(s::AKM)
     SVector(roll, pitch, yaw)
 end
 
+# use the function from KiteUtils when bumped
+quat2euler(q::AbstractVector) = quat2euler(QuatRotation(q))
+function quat2euler(q::QuatRotation)
+    # Convert quaternion to RotXYZ
+    rot = RotXYZ(q)
+    
+    # Extract roll, pitch, and yaw from RotXYZ
+    roll = rot.theta1
+    pitch = rot.theta2
+    yaw = rot.theta3
+
+    return roll, pitch, yaw
+end
+
+"""
+    calc_orient_quat(s::AKM)
+
+Calculate and return the orientation of the kite with respect to the NED frame as a quaternion.
+"""
 function calc_orient_quat(s::AKM)
     x, y, z = kite_ref_frame(s)
     # reference: NED
-    ax = [0, 1, 0]
-    ay = [1, 0, 0]
-    az = [0, 0, -1]
+    ax = SVec3([0, 1, 0])
+    ay = SVec3([1, 0, 0])
+    az = SVec3([0, 0, -1])
     rotation = rot3d(ax, ay, az, x, y, z)
     q = QuatRotation(rotation)
     return Rotations.params(q)
