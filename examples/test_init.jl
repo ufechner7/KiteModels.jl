@@ -1,8 +1,6 @@
 # plot the lift and drag coefficients as function of angle of attack
 
 using Printf
-using Pkg
-pkg"add KiteUtils#main"
 using KiteModels, KitePodModels, KiteUtils, LinearAlgebra, Rotations
 
 set = deepcopy(load_settings("system.yaml"))
@@ -39,7 +37,7 @@ end
 elev = set.elevation
 i = 1
 set.v_wind = V_WIND # 25
-logger = Logger(set.segments + 5, STEPS)
+logger::Logger = Logger(set.segments + 5, STEPS)
 
 kcu::KCU = KCU(set)
 kps4::KPS4 = KPS4(kcu)

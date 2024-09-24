@@ -14,7 +14,7 @@ steps = 50
 dt = 1/set.sample_freq
 tspan   = (0.0, dt)
 
-logger = Logger(3*set.segments + 6, steps)
+logger::Logger = Logger(3*set.segments + 6, steps)
 
 steering = [5,5,-30.0]
 
