@@ -62,3 +62,4 @@ println("y:", kps4.y)
 println("z:", kps4.z)
 
 # print point C and point D
+pos_C, pos_D = kps4.pos[kps4.set.segments+4], kps4.pos[kps4.set.segments+5]
