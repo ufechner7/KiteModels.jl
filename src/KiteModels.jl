@@ -394,13 +394,7 @@ function SysState(s::AKM, zoom=1.0)
         Z[i] = pos[i][3] * zoom
     end
     
-    x, y, z = kite_ref_frame(s)
-    pos_kite_ = pos_kite(s)
-    pos_before = pos_kite_ + z
-   
-    rotation = rot(pos_kite_, pos_before, -x)
-    q = QuatRotation(rotation)
-    orient = MVector{4, Float32}(Rotations.params(q))
+    orient = calc_orient_quat(s)
 
     elevation = calc_elevation(s)
     azimuth = calc_azimuth(s)
