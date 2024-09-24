@@ -15,6 +15,9 @@ plt.close("all")
 
 kcu::KCU = KCU(set)
 kps4::KPS4 = KPS4(kcu)
+KiteModels.init_springs!(kps4)
+KiteModels.init_masses!(kps4)
+KiteModels.init_pos_vel_acc(kps4)
 
 function calc_aoa(s::KPS4, pos, vel, alpha_depower=0.0, rel_steering=0.0)
     # pos_B, pos_C, pos_D: position of the kite particles B, C, and D
