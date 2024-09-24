@@ -658,7 +658,7 @@ end
         # they belong to your package or not (on Julia 1.8 and higher)
         integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
         integrator = KiteModels.init_sim!(kps4_; delta=0.03, stiffness_factor=0.05, prn=false)     
-        integrator = KiteModels.init_sim!(kps4_3l_)   
+        # integrator = KiteModels.init_sim!(kps4_3l_)   
         nothing
     end
 end
