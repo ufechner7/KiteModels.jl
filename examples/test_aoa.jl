@@ -4,6 +4,7 @@ using Printf
 using KiteModels, KitePodModels, KiteUtils, LinearAlgebra, Rotations
 
 set = deepcopy(load_settings("system.yaml"))
+set.elevation = 85.0
 
 using Pkg
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
