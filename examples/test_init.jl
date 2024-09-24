@@ -1,6 +1,8 @@
 # plot the lift and drag coefficients as function of angle of attack
 
 using Printf
+using Pkg
+pkg"add KiteUtils#main"
 using KiteModels, KitePodModels, KiteUtils, LinearAlgebra, Rotations
 
 set = deepcopy(load_settings("system.yaml"))
@@ -27,16 +29,11 @@ STATISTIC = false
 DEPOWER = 0.47:-0.005:0.355
 # end of user parameter section #
 
-function quat2euler(q)
-    # Convert quaternion to RotXYZ
-    rot = RotXYZ(q)
-    
-    # Extract roll, pitch, and yaw from RotXYZ
-    roll = rot.theta1
-    pitch = rot.theta2
-    yaw = rot.theta3
-
-    return roll, pitch, yaw
+function calc_heading(s::KPS4; upwind_dir=-π/2)
+    orientation = orient_euler(s)
+    elevation = calc_elevation(s)
+    azimuth = calc_azimuth(s)
+    KiteUtils.calc_heading(orientation, elevation, azimuth; upwind_dir, respos=false)
 end
 
 elev = set.elevation
@@ -55,7 +52,7 @@ println("Lift: $lift, Drag: $drag, elev: $elev, Iterations: $(kps4.iter)")
 
 q = QuatRotation(sys_state.orient)
 # println(q)
-roll, pitch, yaw = rad2deg.(quat2euler(q))
+roll, pitch, yaw = rad2deg.(KiteUtils.quat2euler(q))
 println("roll: ", roll, " pitch: ", pitch, " yaw: ", yaw)
 # println("x:", kps4.x)
 # println("y:", kps4.y)
@@ -67,6 +64,7 @@ nothing
 
 # print alpha2, alpha3, alpha4
 println(kps4.alpha_2, " ", kps4.alpha_3, " ", kps4.alpha_4)
+println("heading: ", rad2deg(calc_heading(kps4)))
 
 # output on main branch
 # Lift: 1047.1795339611076, Drag: 281.39765463928745, elev: 72.77014, Iterations: 1552
