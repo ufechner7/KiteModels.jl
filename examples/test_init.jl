@@ -57,12 +57,16 @@ q = QuatRotation(sys_state.orient)
 # println(q)
 roll, pitch, yaw = rad2deg.(quat2euler(q))
 println("roll: ", roll, " pitch: ", pitch, " yaw: ", yaw)
-println("x:", kps4.x)
-println("y:", kps4.y)
-println("z:", kps4.z)
+# println("x:", kps4.x)
+# println("y:", kps4.y)
+# println("z:", kps4.z)
 
 # print point C and point D
 pos_C, pos_D = kps4.pos[kps4.set.segments+4], kps4.pos[kps4.set.segments+5]
+nothing
+
+# print alpha2, alpha3, alpha4
+println(kps4.alpha_2, " ", kps4.alpha_3, " ", kps4.alpha_4)
 
 # output on main branch
 # Lift: 1047.1795339611076, Drag: 281.39765463928745, elev: 72.77014, Iterations: 1552
