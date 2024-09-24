@@ -63,3 +63,10 @@ println("z:", kps4.z)
 
 # print point C and point D
 pos_C, pos_D = kps4.pos[kps4.set.segments+4], kps4.pos[kps4.set.segments+5]
+
+# output on main branch
+# Lift: 1047.1795339611076, Drag: 281.39765463928745, elev: 72.77014, Iterations: 1552
+# roll: -0.0 pitch: 5.755691707832273 yaw: 90.00000250447816
+# x:[-0.9949585608372032, 0.0, 0.10028689952711267]
+# y:[0.0, 1.0, 0.0]
+# z:[-0.10028689952711267, -2.8981421002141166e-19, -0.9949585608372032]
