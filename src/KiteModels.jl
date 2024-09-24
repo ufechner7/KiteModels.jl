@@ -316,12 +316,20 @@ end
 
 Determine the heading angle of the kite in radian.
 """
-function calc_heading(s::AKM)
+function calc_heading(s::KPS4; upwind_dir=-π/2)
+    orientation = orient_euler(s)
+    elevation = calc_elevation(s)
+    azimuth = calc_azimuth(s)
+    KiteUtils.calc_heading(orientation, elevation, azimuth; upwind_dir)
+end
+
+function calc_heading(s::KPS3; upwind_dir=-π/2)
     orientation = orient_euler(s)
     elevation = calc_elevation(s)
     azimuth = calc_azimuth(s)
     KiteUtils.calc_heading(orientation, elevation, azimuth)
 end
+
 
 """
     calc_course(s::AKM)
@@ -507,7 +515,7 @@ end
 
 
 """
-    next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, v_wind_gnd=s.set.v_wind, wind_dir=0.0, 
+    next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2, 
                dt=1/s.set.sample_freq)
 
 Calculates the next simulation step.
