@@ -4,7 +4,8 @@ using Printf
 using KiteModels, KitePodModels, KiteUtils, LinearAlgebra, Rotations
 
 set = deepcopy(load_settings("system.yaml"))
-set.elevation = 85.0
+set.elevation = 70.0
+set.alpha_zero = 0.0
 
 using Pkg
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
@@ -20,7 +21,7 @@ KiteModels.init_springs!(kps4)
 KiteModels.init_masses!(kps4)
 pos, vel, acc = KiteModels.init_pos_vel_acc(kps4)
 
-function calc_aoa(s::KPS4, pos, vel, alpha_depower=0.0, rel_steering=0.0)
+function calc_aoa(s::KPS4, pos, vel; alpha_depower=0.0, rel_steering=0.0, old=true)
     # pos_B, pos_C, pos_D: position of the kite particles B, C, and D
     # v_B,   v_C,   v_D:   velocity of the kite particles B, C, and D
     pos_B, pos_C, pos_D = pos[s.set.segments+3], pos[s.set.segments+4], pos[s.set.segments+5]
@@ -30,7 +31,12 @@ function calc_aoa(s::KPS4, pos, vel, alpha_depower=0.0, rel_steering=0.0)
     pos_centre = 0.5 * (pos_C + pos_D)
     delta = pos_B - pos_centre
     z = -normalize(delta)
-    y = normalize(pos_C - pos_D)
+    if old
+        y = normalize(pos_C - pos_D)
+    else
+        y = normalize(pos_D - pos_C)
+    end
+
     x = y × z
     s.x .= x; s.y .= y; s.z .= z # save the kite reference frame in the state
 
@@ -43,4 +49,9 @@ function calc_aoa(s::KPS4, pos, vel, alpha_depower=0.0, rel_steering=0.0)
     alpha_2, alpha_3, alpha_4
 end
 
+
+reltime=0.0
+zoom=false
+p=plot2d(kps4.pos, reltime; zoom, xlim=(0,60), front=false, segments=set.segments)    
+display(p)
 calc_aoa(kps4, pos, vel)
