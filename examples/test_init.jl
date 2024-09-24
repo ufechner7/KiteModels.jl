@@ -57,3 +57,8 @@ q = QuatRotation(sys_state.orient)
 # println(q)
 roll, pitch, yaw = rad2deg.(quat2euler(q))
 println("roll: ", roll, " pitch: ", pitch, " yaw: ", yaw)
+println("x:", kps4.x)
+println("y:", kps4.y)
+println("z:", kps4.z)
+
+# print point C and point D
