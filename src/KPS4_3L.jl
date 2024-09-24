@@ -432,7 +432,8 @@ function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false,
         OrdinaryDiffEqCore.reinit!(s.integrator, s.u0)
     else
         if prn; println("initializing with last model and last pos"); end
-        OrdinaryDiffEqCore.reinit!(s.integrator, s.u0)
+        # OrdinaryDiffEqCore.reinit!(s.integrator, s.u0)
+        s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
     end
 
     s.last_init_elevation = s.set.elevation
@@ -468,6 +469,9 @@ function next_step!(s::KPS4_3L; set_values=zeros(KVec3), v_wind_gnd=s.set.v_wind
     s.integrator.p[s.v_wind_idx] .= s.v_wind
     s.t_0 = s.integrator.t
     OrdinaryDiffEqCore.step!(s.integrator, dt, true)
+    if !successful_retcode(s.integrator.sol)
+        println("Return code for solution: ", s.integrator.sol.retcode)
+    end
     @assert successful_retcode(s.integrator.sol)
     update_pos!(s)
     s.integrator.t
