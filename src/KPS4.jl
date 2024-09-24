@@ -332,15 +332,15 @@ Updates the vector s.forces of the first parameter.
     alpha_3 = rad2deg(π - acos2(normalize(va_xy3) ⋅ -x) - rel_steering * s.ks) + s.set.alpha_ztip
     alpha_4 = rad2deg(π - acos2(normalize(va_xy4) ⋅ -x) + rel_steering * s.ks) + s.set.alpha_ztip
     s.alpha_2 = alpha_2
-    s.alpha_2b = rad2deg(π/2 + asin2(normalize(va_xz2) ⋅ x))
+    s.alpha_2b = rad2deg(π/2 + asin2(normalize(va_xz2) ⋅ -x))
     s.alpha_3 = alpha_3
-    s.alpha_3b = rad2deg(π/2 + asin2(normalize(va_xy3) ⋅ x))
+    s.alpha_3b = rad2deg(π/2 + asin2(normalize(va_xy3) ⋅ -x))
     s.alpha_4 = alpha_4
-    s.alpha_4b = rad2deg(π/2 + asin2(normalize(va_xy4) ⋅ x))
+    s.alpha_4b = rad2deg(π/2 + asin2(normalize(va_xy4) ⋅ -x))
     if s.set.version == 3
-        # alpha_2 = rad2deg(π/2 + asin2(normalize(va_xz2) ⋅ x) - alpha_depower)     + s.set.alpha_zero
-        # alpha_3 = rad2deg(π/2 + asin2(normalize(va_xy3) ⋅ x) - rel_steering * s.ks) + s.set.alpha_ztip
-        # alpha_4 = rad2deg(π/2 + asin2(normalize(va_xy4) ⋅ x) + rel_steering * s.ks) + s.set.alpha_ztip
+        # alpha_2 = rad2deg(π/2 + asin2(normalize(va_xz2) ⋅ -x) - alpha_depower)     + s.set.alpha_zero
+        # alpha_3 = rad2deg(π/2 + asin2(normalize(va_xy3) ⋅ -x) - rel_steering * s.ks) + s.set.alpha_ztip
+        # alpha_4 = rad2deg(π/2 + asin2(normalize(va_xy4) ⋅ -x) + rel_steering * s.ks) + s.set.alpha_ztip
         drag_corr = 1.0
     else
         drag_corr = DRAG_CORR
