@@ -60,9 +60,12 @@ end
 reltime=0.0
 zoom=false
 # plot2d(kps4.pos, reltime; zoom, xlim=(0,60), front=false, segments=set.segments)
-vel[kps4.set.segments+3] .= [1.0, 1.0, 1.0]
-vel[kps4.set.segments+4] .= [1.0, 1.0, 1.0]
-vel[kps4.set.segments+5] .= [1.0, 1.0, 1.0]
+vel[kps4.set.segments+3] .= [1.0, 2.0, 3.0]
+vel[kps4.set.segments+4] .= [1.0, 2.0, 3.0]
+vel[kps4.set.segments+5] .= [1.0, 2.0, 3.0]
+pos[kps4.set.segments+3] .+= [0.1, 0.2, 0.3]
+pos[kps4.set.segments+4] .+= [0.1, 0.2, 0.3]
+pos[kps4.set.segments+5] .+= [0.1, 0.2, 0.3]
 res=calc_aoa(kps4, pos, vel; old=true)
 println("alpha_2: ", res[1], " alpha_3: ", res[2], " alpha_4: ", res[3])
 res=calc_aoa(kps4, pos, vel; old=false)
