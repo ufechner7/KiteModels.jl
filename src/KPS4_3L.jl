@@ -51,9 +51,9 @@ const KITE_PARTICLES_3L = 4
     mutable struct KPS4_3L{S, T, P, Q, SP} <: AbstractKiteModel
 
 State of the kite power system, using a 3 point kite model and three steering lines to the ground. Parameters:
-- S: Scalar type, e.g. SmallFloat
-  In the documentation mentioned as Any, but when used in this module it is always SmallFloat and not Any.
-- T: Vector type, e.g. MVector{3, SmallFloat}
+- S: Scalar type, e.g. SimFloat
+  In the documentation mentioned as Any, but when used in this module it is always SimFloat and not Any.
+- T: Vector type, e.g. KVec3
 - P: number of points of the system, segments+3
 - Q: number of springs in the system, P-1
 - SP: struct type, describing a spring
@@ -197,7 +197,7 @@ $(TYPEDFIELDS)
     get_D_C::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_D_D::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     integrator::Union{Sundials.CVODEIntegrator, OrdinaryDiffEqCore.ODEIntegrator, Nothing} = nothing
-    u0:: Vector{SmallFloat} = [0.0]
+    u0:: Vector{SimFloat} = [0.0]
 end
 
 """
@@ -251,9 +251,9 @@ end
 function KPS4_3L(kcu::KCU)
     set = kcu.set
     if set.winch_model == "TorqueControlledMachine"
-        s = KPS4_3L{SmallFloat, MVector{3, SmallFloat}, set.segments*3+2+KITE_PARTICLES_3L, set.segments*3+KITE_SPRINGS_3L, SP}(set=kcu.set, motors=[TorqueControlledMachine(set) for _ in 1:3])
+        s = KPS4_3L{SimFloat, KVec3, set.segments*3+2+KITE_PARTICLES_3L, set.segments*3+KITE_SPRINGS_3L, SP}(set=kcu.set, motors=[TorqueControlledMachine(set) for _ in 1:3])
     else
-        s = KPS4_3L{SmallFloat, MVector{3, SmallFloat}, set.segments*3+2+KITE_PARTICLES_3L, set.segments*3+KITE_SPRINGS_3L, SP}(set=kcu.set, motors=[AsyncMachine(set) for _ in 1:3])
+        s = KPS4_3L{SimFloat, KVec3, set.segments*3+2+KITE_PARTICLES_3L, set.segments*3+KITE_SPRINGS_3L, SP}(set=kcu.set, motors=[AsyncMachine(set) for _ in 1:3])
     end
     open(joinpath(dirname(get_data_path()), s.set.foil_file), "r") do f
         lines = readlines(f)
@@ -468,7 +468,7 @@ function next_step!(s::KPS4_3L; set_values=zeros(KVec3), v_wind_gnd=s.set.v_wind
     s.integrator.p[s.v_wind_idx] .= s.v_wind
     s.t_0 = s.integrator.t
     OrdinaryDiffEqCore.step!(s.integrator, dt, true)
-    @assert s.integrator.sol.retcode == ReturnCode.Success
+    @assert successful_retcode(s.integrator.sol)
     update_pos!(s)
     s.integrator.t
 end
@@ -634,11 +634,11 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
     d_d_eq = SizedArray{Tuple{3}, Symbolics.Equation}(collect(D_D .~ 0))
     f_te_c_eq = SizedArray{Tuple{3}, Symbolics.Equation}(collect(F_te_C .~ 0))
     f_te_d_eq = SizedArray{Tuple{3}, Symbolics.Equation}(collect(F_te_D .~ 0))
-    kite_length = zero(SmallFloat)
-    α           = zero(SmallFloat)
-    α_0         = zero(SmallFloat)
-    α_middle    = zero(SmallFloat)
-    dα          = zero(SmallFloat)
+    kite_length = zero(SimFloat)
+    α           = zero(SimFloat)
+    α_0         = zero(SimFloat)
+    α_middle    = zero(SimFloat)
+    dα          = zero(SimFloat)
     # Calculate the lift and drag
     α_0         = π/2 - s.set.width/2/s.set.radius
     α_middle    = π/2
@@ -998,9 +998,9 @@ function model!(s::KPS4_3L, pos_, vel_)
         eqs2
         vcat(force_eqs[:, s.num_flap_C])
         vcat(force_eqs[:, s.num_flap_D])
-        flap_acc[1] ~ ((force[:, s.num_flap_C] + [0.0, 0.0, -G_EARTH]) ⋅ e_te_C - s.damping * 0.50 * flap_vel[1]) * 
+        flap_acc[1] ~ ((force[:, s.num_flap_C] + [0.0, 0.0, -G_EARTH]) ⋅ e_te_C - s.damping * 0.75 * flap_vel[1]) * # TODO: add turning drag instead of damping
                     flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - (damping_coeff*200) * flap_vel[1]
-        flap_acc[2] ~ ((force[:, s.num_flap_D] + [0.0, 0.0, -G_EARTH]) ⋅ e_te_D - s.damping * 0.50 * flap_vel[2]) * 
+        flap_acc[2] ~ ((force[:, s.num_flap_D] + [0.0, 0.0, -G_EARTH]) ⋅ e_te_D - s.damping * 0.75 * flap_vel[2]) * 
                     flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - (damping_coeff*200) * flap_vel[2]
     ]
 
@@ -1035,17 +1035,17 @@ function read_csv(filename="polars.csv")
         filename *= ".csv"
     end
     filename = joinpath(dirname(get_data_path()), filename)
-    data = Dict{String, Vector{SmallFloat}}()
+    data = Dict{String, Vector{SimFloat}}()
     try
         open(filename, "r") do f
             header = split(chomp(readline(f)), ",")
             for col in header
-                data[col] = SmallFloat[]
+                data[col] = SimFloat[]
             end
             for line in eachline(f)
                 values = split(chomp(line), ",")
                 for (i, col) in enumerate(header)
-                    push!(data[col], parse(SmallFloat, values[i]))
+                    push!(data[col], parse(SimFloat, values[i]))
                 end
             end
         end

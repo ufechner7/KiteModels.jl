@@ -51,6 +51,7 @@ import OrdinaryDiffEqCore.init
 import OrdinaryDiffEqCore.step!
 using ModelingToolkit, SymbolicIndexingInterface, SteadyStateDiffEq
 using ModelingToolkit: t_nounits as t, D_nounits as D
+import ModelingToolkit.SciMLBase: successful_retcode
 
 export KPS3, KPS4, KPS4_3L, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                     # constants and types
 export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                            # helper functions
@@ -76,7 +77,6 @@ This type is used for all real variables, used in the Simulation. Possible alter
 Other types than Float64 or Float32 do require support of Julia types by the solver. 
 """
 const SimFloat = Float64
-const SmallFloat = Float32
 
 """
    const KVec3    = MVector{3, SimFloat}
