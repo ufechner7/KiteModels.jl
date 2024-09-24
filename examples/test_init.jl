@@ -64,7 +64,7 @@ nothing
 
 # print alpha2, alpha3, alpha4
 println(kps4.alpha_2, " ", kps4.alpha_3, " ", kps4.alpha_4)
-println("heading: ", rad2deg(calc_heading(kps4)))
+println("heading: ", round(rad2deg(calc_heading(kps4; upwind_dir=-pi/2)), digits = 2), "°")
 
 # output on main branch
 # Lift: 1047.1795339611076, Drag: 281.39765463928745, elev: 72.77014, Iterations: 1552
