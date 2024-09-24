@@ -263,20 +263,6 @@ function orient_euler(s::KPS3)
     SVector(roll, pitch, yaw)
 end
 
-# use the function from KiteUtils when bumped
-quat2euler(q::AbstractVector) = quat2euler(QuatRotation(q))
-function quat2euler(q::QuatRotation)
-    # Convert quaternion to RotXYZ
-    rot = RotXYZ(q)
-    
-    # Extract roll, pitch, and yaw from RotXYZ
-    roll = rot.theta1
-    pitch = rot.theta2
-    yaw = rot.theta3
-
-    return roll, pitch, yaw
-end
-
 """
     calc_orient_quat(s::AKM)
 
