@@ -26,6 +26,7 @@ FRONT_VIEW = true
 ZOOM = true
 PRINT = false
 STATISTIC = false
+GAIN = 0.5
 # end of user parameter section #
 
 dt = 1/set.sample_freq
@@ -64,10 +65,19 @@ function simulate(integrator, steps; plot=false)
                 heading -= 2*pi
             end
 
-            if rad2deg(heading) < -OFFSET && az < 0
-                set_depower_steering(kps4.kcu, kps4.depower, -steering)
+            if rad2deg(heading) < -OFFSET
+                if az < 0
+                    set_depower_steering(kps4.kcu, kps4.depower, -steering)
+                else
+                    set_depower_steering(kps4.kcu, kps4.depower, GAIN * steering)
+                end
+                
             elseif rad2deg(heading) > OFFSET && az > 0
-                set_depower_steering(kps4.kcu, kps4.depower, steering)
+                if az > 0
+                    set_depower_steering(kps4.kcu, kps4.depower, steering)
+                else
+                    set_depower_steering(kps4.kcu, kps4.depower, -GAIN * steering)
+                end
                 if rad2deg(last_heading) <= OFFSET
                     if steering == 0.5
                         break
