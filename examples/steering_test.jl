@@ -64,9 +64,9 @@ function simulate(integrator, steps; plot=false)
                 heading -= 2*pi
             end
 
-            if rad2deg(heading) < -OFFSET
+            if rad2deg(heading) < -OFFSET && az < 0
                 set_depower_steering(kps4.kcu, kps4.depower, -steering)
-            elseif rad2deg(heading) > OFFSET
+            elseif rad2deg(heading) > OFFSET && az > 0
                 set_depower_steering(kps4.kcu, kps4.depower, steering)
                 if rad2deg(last_heading) <= OFFSET
                     if steering == 0.5
@@ -141,7 +141,12 @@ function plot_steering_vs_turn_rate()
               ylims=[(-0.6, 0.6), (-G_mean*0.6, G_mean*0.6)],
               fig="steering vs turnrate")
     p2 = plot(sl.time, G/G_mean; ylabel="G/G_mean [-]", fig="turnrate_law")
-    display(p1); display(p2)
+    p3 = plot(sl.time, psi, rad2deg.(sl.azimuth);
+              ylims=[(-80, 80), (-50, 50)],
+              ylabels=["psi [°]", "azimuth [°]"], fig="psi and azimuth")
+    display(p1); 
+    # display(p2); 
+    display(p3)
 end
 
 save_log(logger, "tmp")
