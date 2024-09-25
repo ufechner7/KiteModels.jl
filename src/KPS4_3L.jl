@@ -181,10 +181,11 @@ $(TYPEDFIELDS)
     "Simplified system of the mtk model"
     simple_sys::Union{ModelingToolkit.ODESystem, Nothing} = nothing
 
-    set_values_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
+    # set_values_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
     v_wind_gnd_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
     v_wind_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
     prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
+    set_set_values::Union{SymbolicIndexingInterface.MultipleSetters, Nothing} = nothing
     get_pos::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_flap_angle::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_flap_acc::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
@@ -400,13 +401,13 @@ function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false,
     new_inital_conditions = (s.last_init_elevation != s.set.elevation || s.last_init_tether_length != s.set.l_tether)
     s.set_hash = settings_hash(s.set)
     init_new_model = isnothing(s.prob) || change_control_mode || s.last_set_hash != s.set_hash
-    init_new_pos = new_inital_conditions && !isnothing(s.set_values_idx)
+    init_new_pos = new_inital_conditions && !isnothing(s.get_pos)
 
     if init_new_model
         if prn; println("initializing with new model and new pos"); end
         pos, vel = init_pos_vel(s)
-        sys = model!(s, pos, vel)
-        s.simple_sys = structural_simplify(sys; simplify=true)
+        sys, inputs = model!(s, pos, vel)
+        (s.simple_sys, _) = structural_simplify(sys, (inputs, []); simplify=true)
         s.prob = ODEProblem(s.simple_sys, nothing, tspan; fully_determined=true)
         s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
         next_step!(s; set_values=zeros(3), dt=1.0) # step to get stable state
@@ -440,10 +441,10 @@ end
 function next_step!(s::KPS4_3L; set_values=zeros(KVec3), v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
     s.iter = 0
     set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
-    if isnothing(s.set_values_idx)
-        s.set_values_idx = parameter_index(s.integrator.f, :set_values)
+    if isnothing(s.get_pos)
         s.v_wind_gnd_idx = parameter_index(s.integrator.f, :v_wind_gnd)
         s.v_wind_idx = parameter_index(s.integrator.f, :v_wind)
+        s.set_set_values = setu(s.integrator.sol, s.simple_sys.set_values)
         s.get_pos = getu(s.integrator.sol, s.simple_sys.pos[:,:])
         s.get_flap_angle = getu(s.integrator.sol, s.simple_sys.flap_angle)
         s.get_flap_acc = getu(s.integrator.sol, s.simple_sys.flap_acc)
@@ -457,7 +458,7 @@ function next_step!(s::KPS4_3L; set_values=zeros(KVec3), v_wind_gnd=s.set.v_wind
         s.get_tether_vels = getu(s.integrator.sol, s.simple_sys.tether_vel)
     end
     s.set_values .= set_values
-    s.integrator.p[s.set_values_idx] .= s.set_values
+    s.set_set_values(s.integrator, s.set_values)
     s.integrator.p[s.v_wind_gnd_idx] .= s.v_wind_gnd
     s.integrator.p[s.v_wind_idx] .= s.v_wind
     s.t_0 = s.integrator.t
@@ -888,9 +889,9 @@ function model!(s::KPS4_3L, pos_, vel_)
     @parameters begin
         v_wind_gnd[1:3] = s.v_wind_gnd
         v_wind[1:3] = s.v_wind
-        set_values[1:3] = s.set_values
     end
     @variables begin
+        set_values(t)[1:3] = s.set_values
         pos(t)[1:3, 1:s.num_A] = pos_
         vel(t)[1:3, 1:s.num_A] = vel_
         acc(t)[1:3, 1:s.num_A]
@@ -1014,7 +1015,7 @@ function model!(s::KPS4_3L, pos_, vel_)
     eqs = vcat(eqs1, eqs2)
 
     @named sys = ODESystem(Symbolics.scalarize.(reduce(vcat, Symbolics.scalarize.(eqs))), t)
-    return sys
+    return sys, collect(set_values)
 end
 
 
