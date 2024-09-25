@@ -371,11 +371,6 @@ function calc_heading(s::KPS4_3L)
     return heading
 end
 
-function calc_heading_stable(s::KPS4_3L)
-
-end
-
-
 """
     init_sim!(s; damping_coeff=1.0, prn=false, torque_control=true)
 
@@ -413,7 +408,8 @@ function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false,
     if init_new_model
         if prn; println("initializing with new model and new pos"); end
         pos, vel = init_pos_vel(s)
-        model!(s, pos, vel)
+        sys = model!(s, pos, vel)
+        s.simple_sys = structural_simplify(sys; simplify=true)
         s.prob = ODEProblem(s.simple_sys, nothing, tspan; fully_determined=true)
         s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
         next_step!(s; set_values=zeros(3), dt=1.0) # step to get stable state
@@ -1016,8 +1012,7 @@ function model!(s::KPS4_3L, pos_, vel_)
     eqs = vcat(eqs1, eqs2)
 
     @named sys = ODESystem(Symbolics.scalarize.(reduce(vcat, Symbolics.scalarize.(eqs))), t)
-    s.simple_sys = structural_simplify(sys; simplify=true)
-    nothing
+    return sys
 end
 
 

@@ -109,7 +109,7 @@ end
             cl = 0.0
             cd = 0.0
             # Solve for the given angle of attack
-            cl, cd, _, _, converged = Xfoil.solve_alpha(alpha, re; iter=50, reinit=reinit, mach=kite_speed/speed_of_sound, ncrit=5)
+            cl, cd, _, _, converged = Xfoil.solve_alpha(alpha, re; iter=50, reinit=reinit, mach=kite_speed/speed_of_sound, ncrit=5) # TODO: use 5% point
             reinit = false
             times_not_converged += !converged
             if times_not_converged > 20
@@ -165,8 +165,8 @@ function create_polars(foil_file=se.foil_file, polar_file=se.polar_file)
     if !endswith(foil_file, ".dat")
         foil_file *= ".dat"
     end
-    polar_file = joinpath(get_data_path(), polar_file)
-    foil_file = joinpath(get_data_path(), foil_file)
+    polar_file = joinpath(dirname(get_data_path()), polar_file)
+    foil_file = joinpath(dirname(get_data_path()), foil_file)
 
     alphas = -180:0.5:180
     d_flap_angles = -90:0.5:90
