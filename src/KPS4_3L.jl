@@ -252,8 +252,10 @@ function KPS4_3L(kcu::KCU)
     set = kcu.set
     if set.winch_model == "TorqueControlledMachine"
         s = KPS4_3L{SimFloat, KVec3, set.segments*3+2+KITE_PARTICLES_3L, set.segments*3+KITE_SPRINGS_3L, SP}(set=kcu.set, motors=[TorqueControlledMachine(set) for _ in 1:3])
+        s.torque_control = true
     else
         s = KPS4_3L{SimFloat, KVec3, set.segments*3+2+KITE_PARTICLES_3L, set.segments*3+KITE_SPRINGS_3L, SP}(set=kcu.set, motors=[AsyncMachine(set) for _ in 1:3])
+        s.torque_control = false
     end
     open(joinpath(dirname(get_data_path()), s.set.foil_file), "r") do f
         lines = readlines(f)
@@ -390,11 +392,6 @@ function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false,
     clear!(s)
     change_control_mode = s.torque_control != torque_control
     s.torque_control = torque_control
-    if s.torque_control
-        [s.motors[i] = TorqueControlledMachine(s.set) for i in 1:3]
-    else
-        [s.motors[i] = AsyncMachine(s.set) for i in 1:3]
-    end
 
     dt = 1/s.set.sample_freq*2
     tspan   = (0.0, dt) 
@@ -883,10 +880,15 @@ function update_pos!(s)
 end
 
 function model!(s::KPS4_3L, pos_, vel_)
+    if s.torque_control
+        [s.motors[i] = TorqueControlledMachine(s.set) for i in 1:3]
+    else
+        [s.motors[i] = AsyncMachine(s.set) for i in 1:3]
+    end
     @parameters begin
-        set_values[1:3] = s.set_values
         v_wind_gnd[1:3] = s.v_wind_gnd
         v_wind[1:3] = s.v_wind
+        set_values[1:3] = s.set_values
     end
     @variables begin
         pos(t)[1:3, 1:s.num_A] = pos_
