@@ -55,7 +55,7 @@ function simulate(integrator, steps; plot=false)
     for i in 1:steps
         reltime = i*dt-dt
         if reltime >= 10.0 && reltime < 10.05
-            set_depower_steering(kps4.kcu, kps4.depower, steering)
+            set_depower_steering(kps4.kcu, kps4.depower, -steering)
         end
         last_heading = heading
         if reltime > 10.05
@@ -67,16 +67,16 @@ function simulate(integrator, steps; plot=false)
 
             if rad2deg(heading) < -OFFSET
                 if az < 0
-                    set_depower_steering(kps4.kcu, kps4.depower, -steering)
+                    set_depower_steering(kps4.kcu, kps4.depower, steering)
                 else
-                    set_depower_steering(kps4.kcu, kps4.depower, GAIN * steering)
+                    set_depower_steering(kps4.kcu, kps4.depower, -GAIN * steering)
                 end
                 
             elseif rad2deg(heading) > OFFSET && az > 0
                 if az > 0
-                    set_depower_steering(kps4.kcu, kps4.depower, steering)
+                    set_depower_steering(kps4.kcu, kps4.depower, -steering)
                 else
-                    set_depower_steering(kps4.kcu, kps4.depower, -GAIN * steering)
+                    set_depower_steering(kps4.kcu, kps4.depower, GAIN * steering)
                 end
                 if rad2deg(last_heading) <= OFFSET
                     if steering == 0.5
