@@ -1,7 +1,7 @@
 # plot the lift and drag coefficients as function of angle of attack
 
 using Printf
-using KiteModels, KitePodModels, KiteUtils, LinearAlgebra
+using KiteModels, KitePodModels, KiteUtils, LinearAlgebra, Rotations
 
 set = deepcopy(load_settings("system.yaml"))
 
@@ -9,6 +9,7 @@ using Pkg
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
     using TestEnv; TestEnv.activate()
 end
+
 using ControlPlots
 plt.close("all")
 
@@ -26,6 +27,18 @@ STATISTIC = false
 DEPOWER = 0.47:-0.005:0.355
 # end of user parameter section #
 
+function quat2euler(q)
+    # Convert quaternion to RotXYZ
+    rot = RotXYZ(q)
+    
+    # Extract roll, pitch, and yaw from RotXYZ
+    roll = rot.theta1
+    pitch = rot.theta2
+    yaw = rot.theta3
+
+    return roll, pitch, yaw
+end
+
 elev = set.elevation
 i = 1
 set.v_wind = V_WIND # 25
@@ -39,3 +52,16 @@ sys_state = KiteModels.SysState(kps4)
 log!(logger, sys_state)
 elev = rad2deg(logger.elevation_vec[end])
 println("Lift: $lift, Drag: $drag, elev: $elev, Iterations: $(kps4.iter)")
+
+q = QuatRotation(sys_state.orient)
+# println(q)
+roll, pitch, yaw = rad2deg.(quat2euler(q))
+println("roll: ", roll, " pitch: ", pitch, " yaw: ", yaw)
+println("x:", kps4.x)
+println("y:", kps4.y)
+println("z:", kps4.z)
+
+# print point C and point D
+pos_C, pos_D = kps4.pos[kps4.set.segments+4], kps4.pos[kps4.set.segments+5]
+
+println(kps4.alpha_2, " ", kps4.alpha_3, " ", kps4.alpha_4)

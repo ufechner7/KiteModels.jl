@@ -1,11 +1,14 @@
 # plot the lift and drag coefficients as function of angle of attack
-# t_start  t_stop   duration  depower  height   av_elevation  av_wind_200   
-# ───────────────────────────────────────────────────────────────────────
-# 11624.9  11653.3      28.4    40.0     268.3       70.6789  10.23
-# 11538.2  11559.5      21.3    44.0     250.1       65.2369  11.53
-# 11472.8  11490.6      17.8    47.99    237.5       61.4089  12.0867
-# 12866.4  12886.6      20.2    51.98    249.4       57.9619  11.92
+
+# t_start  t_stop   duration  depower  height   av_elevation  av_pitch  av_wind_200 
+# ─────────────────────────────────────────────────────────────────────────────────
+# 11624.9  11653.3      28.4    40.0     268.3       70.6789   12.8284      10.23
+# 11538.2  11559.5      21.3    44.0     250.1       65.2369   13.7453      11.53
+# 12866.4  12886.6      20.2    51.98    249.4       57.9619   14.0217      12.0867
+# 11472.8  11490.6      17.8    47.99    237.5       61.4089   14.8983      11.92
+
 ELEV_MEASURED = [70.6789, 65.2369, 61.4089, 57.9619]
+PITCH         = [12.8284, 13.7453, 14.8983, 14.0217]
 
 
 using Printf
@@ -136,6 +139,9 @@ for depower in DEPOWER
     end
 
     aoa = kps4.alpha_2
+    orient_vec = orient_euler(kps4)
+    alpha_depower = rad2deg(kps4.alpha_depower)
+    pitch = rad2deg(orient_vec[2]) + alpha_depower
     v_app = norm(kps4.v_apparent)
     v_200 = calc_wind_factor(kps4.am, 200) * V_WIND
     height = logger.z_vec[end][end-2]
@@ -143,7 +149,7 @@ for depower in DEPOWER
     CD[i] = cd
     AOA[i] = aoa
     if PRINT
-        print("Depower: $depower, CL $(round(cl, digits=3)), CD: $(round(cd, digits=3)), aoa: $(round(aoa, digits=2)), CL/CD: $(round(cl/cd, digits=2))")
+        print("Depower: $depower, alpha_dp: $(round(alpha_depower, digits=2)), CL $(round(cl, digits=3)), CD: $(round(cd, digits=3)), aoa: $(round(aoa, digits=2)), pitch: $(round(pitch, digits=2)), CL/CD: $(round(cl/cd, digits=2))")
         println(", elevation: $(round((elev), digits=2)), height:$(round(height, digits=2)), v_200: $(round(v_200, digits=2))")
     end
     # if depower in [DEPOWER[begin+1], DEPOWER[end]] && PLOT
@@ -168,3 +174,4 @@ end
 # display(plot(AOA, [CD, cd], xlabel="AOA [deg]", ylabel="CD", labels=["CD","cd"], fig="CD vs AOA"))
 # display(plot(DEP, AOA, xlabel="Depower", ylabel="AOA [deg]", fig="AOA vs Depower"))
 display(plot(DEP,[ELEV, ELEV_MEASURED]; xlabel="depower", ylabel="elevation [°]", scatter=true, labels=["simulated", "measured"], fig="elevation vs depower"))
+display(plot(DEP,[AOA, 1.5*25.5 .- 2PITCH]; xlabel="depower", ylabel="aoa/pitch [°]", scatter=true, labels=["aoa", "38.25°-2pitch"], fig="pitch and aoa vs depower"))

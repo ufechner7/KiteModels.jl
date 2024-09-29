@@ -4,9 +4,9 @@ using KiteModels, KitePodModels, KiteUtils
 set = deepcopy(load_settings("system.yaml"))
 
 # the following values can be changed to match your interest
-dt::Float64 = 0.05
+dt = 0.05
 ALPHA_ZERO = 8.8 
-STEPS::Int64 = round(600/dt*0.05)
+STEPS = round(600/dt*0.05)
 PLOT = true
 FRONT_VIEW = false
 ZOOM = true
@@ -47,7 +47,7 @@ function simulate(s, integrator, steps, plot=false; fig="")
         if plot
             reltime = i*dt-dt
             if mod(i, 5) == 1
-                plot2d(s.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, fig)          
+                plot2d(s.pos, reltime; zoom=ZOOM, xlim=(35,55), front=FRONT_VIEW, fig)          
             end
         end
     end
