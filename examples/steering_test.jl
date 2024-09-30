@@ -26,7 +26,8 @@ FRONT_VIEW = true
 ZOOM = true
 PRINT = false
 STATISTIC = false
-GAIN = 0.5
+GAIN = 1 # 1 or -1
+DELAY = false
 # end of user parameter section #
 
 dt = 1/set.sample_freq
@@ -134,9 +135,15 @@ function plot_steering_vs_turn_rate()
     psi = rad2deg.(wrap2pi.(sl.heading))
 
     # p2=plot(sl.time, sl.v_app; ylabel="v_app [m/s]", fig="v_app")
-    delta = delay(sl.var_16, -sl.var_15./sl.v_app)
-    println("delay of turnrate: $(delta*dt) s")
-    delayed_steering = shift_vector(sl.var_16, delta)    
+    if DELAY
+        delta = delay(sl.var_16, -sl.var_15./sl.v_app)
+        println("delay of turnrate: $(delta*dt) s")
+        delayed_steering = shift_vector(sl.var_16, delta)  
+        ylabel = "- delayed_steering"  
+    else
+        delayed_steering = sl.var_16
+        ylabel = "- steering"
+    end
     G = -sl.var_15./sl.v_app./delayed_steering
     for (i, g) in enumerate(G)
         if abs(delayed_steering[i]) < 0.1
@@ -147,7 +154,7 @@ function plot_steering_vs_turn_rate()
     G_std = std(filter(!isnan, G))
     println("mean turnrate_law factor: $(G_mean) ± $(G_std/G_mean*100) %")
     p1 = plot(sl.time, -delayed_steering, sl.var_15./sl.v_app; 
-              ylabels=["- delayed_steering", "turnrate/v_app [°/m]"],
+              ylabels=[ylabel, "turnrate/v_app [°/m]"],
               ylims=[(-0.6, 0.6), (-G_mean*0.6, G_mean*0.6)],
               fig="steering vs turnrate")
     p2 = plot(sl.time, G/G_mean; ylabel="G/G_mean [-]", fig="turnrate_law")
