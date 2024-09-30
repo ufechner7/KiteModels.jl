@@ -84,7 +84,7 @@ bridle:
     rel_damping: 6.0          # relative damping of the kite spring (relative to main tether)
 
 tether:
-    d_tether:  2           # tether diameter                 [mm]
+    d_tether:  1           # tether diameter                 [mm]
     cd_tether: 0.958       # drag coefficient of the tether
     damping: 473.0         # unit damping coefficient        [Ns]
     c_spring: 614600.0     # unit spring constant coefficient [N]

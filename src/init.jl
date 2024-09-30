@@ -30,7 +30,6 @@ function init_springs!(s::KPS4)
     s.springs
 end
 
-# implemented - looks good
 function init_springs!(s::KPS4_3L)
     l_0 = s.set.l_tether / s.set.segments
     
@@ -77,7 +76,7 @@ function init_masses!(s::KPS4)
     s.masses 
 end
 
-# implemented
+
 function init_masses!(s::KPS4_3L)
     s.masses = zeros(s.num_A)
     l_0 = s.set.l_tether / s.set.segments 
@@ -134,8 +133,8 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
     pos, vel, acc
 end
 
-# implemented
-function init_pos_vel_acc(s::KPS4_3L; delta = 0.0)
+
+function init_pos_vel_acc(s::KPS4_3L; delta = 0.0, α = 45.0)
     pos = zeros(SVector{s.num_A, KVec3})
     vel = zeros(SVector{s.num_A, KVec3})
     acc = zeros(SVector{s.num_A, KVec3})
@@ -170,14 +169,24 @@ function init_pos_vel_acc(s::KPS4_3L; delta = 0.0)
     
     s.tether_lengths[3] = norm(pos[s.num_E])
     s.tether_lengths[1] = 0.0
-    # build left and right tether points
+    # build left and right tether points with degrees of bend α
+    l = s.tether_lengths[3]
+    @assert s.set.elevation > α > 0.0
+    α = deg2rad(α)
+    h = l/(2tan(α))
+    r = l/(2sin(α))
     for (i, j) in enumerate(range(4, step=3, length=s.set.segments-1))
-        len = (s.set.segments-1)/2
-        middle_distance = (len - abs(i-len))/len
-        pos[j] .= pos[s.num_flap_C] ./ s.set.segments .* i .+ [(middle_distance)*s.tether_lengths[3]*0.5, 0.0, 0.0]
+        # pos[j] .= pos[s.num_flap_C] ./ s.set.segments .* i .+ [(middle_distance)*s.tether_lengths[3]*0.5, 0.0, 0.0]
+        γ = -α + 2α*i / s.set.segments
+        local_z_minus = l/2 + r * sin(γ)
+        local_x = h - r * cos(γ)
+        local_y = pos[s.num_flap_C][2] / s.set.segments * i
+        pos[j] .= local_z_minus * -s.e_z + local_x * s.e_x + local_y * s.e_y
+
         s.tether_lengths[1] += norm(pos[j] - pos[j-3])
         pos[j+1] .= [pos[j][1], -pos[j][2], pos[j][3]]
     end
+    s.tether_lengths[1] += norm(pos[s.num_flap_C] - pos[s.num_flap_C-3])
     s.tether_lengths[2] = s.tether_lengths[1]
 
     # set vel and acc
@@ -188,7 +197,7 @@ function init_pos_vel_acc(s::KPS4_3L; delta = 0.0)
     
     for i in eachindex(pos)
         s.pos[i] .= pos[i]
-    end  
+    end
 
     return pos, vel, acc
 end
@@ -248,7 +257,7 @@ function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=fal
 end
 
 
-# implemented
+
 function init(s::KPS4_3L; delta=0.0)
     y_, yd_ = init_inner(s; delta = delta)
     y = vcat(reduce(vcat, y_), reduce(vcat,[s.tether_lengths, zeros(3)]))

@@ -403,7 +403,7 @@ function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false,
     init_new_model = isnothing(s.prob) || change_control_mode || s.last_set_hash != s.set_hash
     init_new_pos = new_inital_conditions && !isnothing(s.get_pos)
 
-    if init_new_model
+    if init_new_model || true
         if prn; println("initializing with new model and new pos"); end
         pos, vel = init_pos_vel(s)
         sys, inputs = model!(s, pos, vel)
@@ -426,8 +426,8 @@ function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false,
         OrdinaryDiffEqCore.reinit!(s.integrator, s.u0)
     else
         if prn; println("initializing with last model and last pos"); end
-        # OrdinaryDiffEqCore.reinit!(s.integrator, s.u0)
-        s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
+        OrdinaryDiffEqCore.reinit!(s.integrator, s.u0)
+        # s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
     end
 
     s.last_init_elevation = s.set.elevation
@@ -787,8 +787,8 @@ function calc_particle_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos1, pos
         eqs2
         v_apparent       ~ v_wind_tether - av_vel
         i >= s.num_flap_C ?
-            area             ~ norm1 * d_tether * 10 :
-            area             ~ norm1 * d_tether
+            area             ~ norm1 * d_tether * 10 : # 10 is the number of parallel lines in the bridle system
+            area             ~ norm1 * d_tether * (1 + (i%3 == 0)) # double area for middle tether
         v_app_perp       ~ v_apparent - (v_apparent ⋅ unit_vector) * unit_vector
         half_drag_force .~ (0.25 * rho * s.set.cd_tether * norm(v_app_perp) * area) .* v_app_perp
     ]
@@ -957,8 +957,8 @@ function model!(s::KPS4_3L, pos_, vel_)
         acc[:, s.num_flap_D]    ~ acc[:, s.num_D] - e_x * flap_length * cos(flap_acc[2]) + e_r_D * flap_length * sin(flap_acc[2])
         segment_length          ~ tether_length  ./ s.set.segments
         mass_tether_particle    ~ mass_per_meter .* segment_length
-        damping                 ~ s.damping  ./ segment_length
-        c_spring                ~ s.c_spring ./ segment_length
+        damping                 ~ [s.damping / segment_length[1], s.damping / segment_length[2], s.damping*2 / segment_length[3]]
+        c_spring                ~ [s.c_spring / segment_length[1], s.c_spring / segment_length[2], s.c_spring*2 / segment_length[3]]
         P_c     ~ 0.5 * (pos[:, s.num_C] + pos[:, s.num_D])
         e_y     ~ (pos[:, s.num_C] - pos[:, s.num_D]) / norm(pos[:, s.num_C] - pos[:, s.num_D])
         e_z     ~ (pos[:, s.num_E] - P_c) / norm(pos[:, s.num_E] - P_c)

@@ -61,9 +61,6 @@ for i in 1:steps
     sys_state.var_09 =  norm(s.D_D)
     sys_state.var_10 =  (s.integrator[s.simple_sys.vel[:, s.num_E-3]]) ⋅ s.e_z
     sys_state.var_11 =  norm(s.integrator[s.simple_sys.vel[:, s.num_E-3]] .- (s.integrator[s.simple_sys.vel[:, s.num_E-3]]) ⋅ s.e_z)
-    # sys_state.var_09 =  norm(s.D_C + s.D_D)
-
-    # @show s.integrator[s.simple_sys.aoa[div(s.set.aero_surfaces, 2)]]
 
     step_time = @elapsed next_step!(s; set_values=steering, dt=dt)
     if time > total_time/2
@@ -73,7 +70,7 @@ for i in 1:steps
     KiteModels.update_sys_state!(sys_state, s)
     log!(logger, sys_state)
     l = s.set.l_tether+10
-    # plot2d(s.pos, time; zoom=true, front=false, xlim=(-l/2, l/2), ylim=(0, l))
+    plot2d(s.pos, time; zoom=true, front=false, xlim=(-l/2, l/2), ylim=(0, l))
 end
 
 times_reltime = (total_time/2) / total_step_time
