@@ -225,9 +225,6 @@ function upwind_dir(s::AKM)
 end
 
 """
-    pos_kite(s::AKM)
-
-"""
     tether_length(s::AKM)
 
 Calculate and return the real, stretched tether lenght.
