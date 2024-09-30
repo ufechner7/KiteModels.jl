@@ -58,6 +58,7 @@ export clear!, find_steady_state!, residual!, model!, steady_state_model!       
 export init_sim!, reset_sim!, next_step!, init_pos_vel, init_pos, update_pos!                            # high level workers
 export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, calc_orient_quat  # getters
 export winch_force, lift_drag, cl_cd, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
+export upwind_dir
 export kite_ref_frame, orient_euler, spring_forces
 import LinearAlgebra: norm
 
@@ -217,6 +218,14 @@ function set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind, wind_dir=0.
     s.rho = calc_rho(s.am, height)
     nothing
 end
+
+function upwind_dir(s::AKM)
+    wind_dir = atan(s.v_wind_gnd[2], s.v_wind_gnd[1])
+    -(wind_dir + π/2)
+end
+
+"""
+    pos_kite(s::AKM)
 
 """
     tether_length(s::AKM)
