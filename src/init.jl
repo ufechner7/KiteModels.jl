@@ -212,13 +212,13 @@ function init_pos_vel(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)))
 end
 
 function init_pos_vel(s::KPS4_3L; delta=0.0)
-    pos_, _, _ = init_pos_vel_acc(s; delta=0.0)
-    pos = Array{Union{Nothing, Float64}}(nothing, 3, s.num_A)
-    vel = Array{Union{Nothing, Float64}}(nothing, 3, s.num_A)
-    [pos[:,i] .= pos_[i] for i in 1:s.num_flap_C-1]
-    [vel[:,i] .= zeros(3) for i in 1:s.num_flap_C-1]
-    [pos[:,i] .= pos_[i] for i in s.num_flap_D+1:s.num_A]
-    [vel[:,i] .= zeros(3) for i in s.num_flap_D+1:s.num_A]
+    pos, vel, _ = init_pos_vel_acc(s; delta=0.0)
+    # pos = Array{Union{Nothing, Float64}}(nothing, 3, s.num_A)
+    # vel = Array{Union{Nothing, Float64}}(nothing, 3, s.num_A)
+    # [pos[:,i] .= pos_[i] for i in 1:s.num_flap_C-1]
+    # [vel[:,i] .= zeros(3) for i in 1:s.num_flap_C-1]
+    # [pos[:,i] .= pos_[i] for i in s.num_flap_D+1:s.num_A]
+    # [vel[:,i] .= zeros(3) for i in s.num_flap_D+1:s.num_A]
     return pos, vel
 end
 

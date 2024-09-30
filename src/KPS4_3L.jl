@@ -403,7 +403,7 @@ function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false,
     init_new_model = isnothing(s.prob) || change_control_mode || s.last_set_hash != s.set_hash
     init_new_pos = new_inital_conditions && !isnothing(s.get_pos)
 
-    if init_new_model || true
+    if init_new_model
         if prn; println("initializing with new model and new pos"); end
         pos, vel = init_pos_vel(s)
         sys, inputs = model!(s, pos, vel)
@@ -881,6 +881,12 @@ function update_pos!(s)
 end
 
 function model!(s::KPS4_3L, pos_, vel_)
+    pos_init = Array{Union{Nothing, Float64}}(nothing, 3, s.num_A)
+    vel_init = Array{Union{Nothing, Float64}}(nothing, 3, s.num_A)
+    [pos_init[:,i] .= pos_[i] for i in 1:s.num_flap_C-1]
+    [vel_init[:,i] .= zeros(3) for i in 1:s.num_flap_C-1]
+    [pos_init[:,i] .= pos_[i] for i in s.num_flap_D+1:s.num_A]
+    [vel_init[:,i] .= zeros(3) for i in s.num_flap_D+1:s.num_A]
     if s.torque_control
         [s.motors[i] = TorqueControlledMachine(s.set) for i in 1:3]
     else
@@ -892,8 +898,8 @@ function model!(s::KPS4_3L, pos_, vel_)
     end
     @variables begin
         set_values(t)[1:3] = s.set_values
-        pos(t)[1:3, 1:s.num_A] = pos_
-        vel(t)[1:3, 1:s.num_A] = vel_
+        pos(t)[1:3, 1:s.num_A] = pos_init
+        vel(t)[1:3, 1:s.num_A] = vel_init
         acc(t)[1:3, 1:s.num_A]
         flap_angle(t)[1:2]   = zeros(2) # angle
         flap_vel(t)[1:2]     = zeros(2) # angular vel
