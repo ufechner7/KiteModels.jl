@@ -333,9 +333,11 @@ Determine the course angle of the kite in radian.
 Undefined if the velocity of the kite is near zero.
 """
 function calc_course(s::AKM)
+    upwind_dir=upwind_dir(s)
+    downwind_dir = upwind_dir + π
     elevation = calc_elevation(s)
     azimuth = calc_azimuth(s)
-    KiteUtils.calc_course(s.vel_kite, elevation, azimuth)
+    KiteUtils.calc_course(s.vel_kite, elevation, azimuth, downwind_dir)
 end
 
 # mutable struct SysState{P}
