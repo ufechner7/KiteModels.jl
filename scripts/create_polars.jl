@@ -1,4 +1,4 @@
-using Distributed, Timers
+using Distributed, Timers, Serialization, SharedArrays
 using Xfoil
 using Pkg
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
@@ -20,7 +20,7 @@ function normalize!(x, y)
 end
 
 @everywhere begin
-    using Xfoil, Statistics
+    using Xfoil, Statistics, SharedArrays
 
     function turn_flap!(angle, x, y, lower_turn, upper_turn)
         theta = deg2rad(angle)
@@ -94,8 +94,7 @@ end
         return c_te
     end
 
-    function solve_alpha(alphas, d_flap_angle, re, x_, y_, lower, upper, kite_speed, speed_of_sound)
-        polars = []
+    function solve_alpha!(cls, cds, c_tes, alphas, alpha_idxs, d_flap_angle, re, x_, y_, lower, upper, kite_speed, speed_of_sound)
         x = deepcopy(x_)
         y = deepcopy(y_)
         turn_flap!(d_flap_angle, x, y, lower, upper)
@@ -104,33 +103,42 @@ end
         times_not_converged = 0
         @show d_flap_angle
         reinit = true
-        for alpha in alphas
+        for (alpha, alpha_idx) in zip(alphas, alpha_idxs)
             converged = false
             cl = 0.0
             cd = 0.0
             # Solve for the given angle of attack
             cl, cd, _, _, converged = Xfoil.solve_alpha(alpha, re; iter=50, reinit=reinit, mach=kite_speed/speed_of_sound, ncrit=5) # TODO: use 5% point
             reinit = false
-            times_not_converged += !converged
-            if times_not_converged > 20
-                break
-            end
+            # times_not_converged += !converged
+            # if times_not_converged > 20
+            #     break
+            # end
             if converged
-                times_not_converged = 0
+                # times_not_converged = 0
                 _, cp = Xfoil.cpdump()
                 c_te = calculate_constants(d_flap_angle, x, y, cp, lower, upper)
-                push!(polars, (alpha, d_flap_angle, cl, cd, c_te))
+                cls[alpha_idx] = cl
+                cds[alpha_idx] = cd
+                c_tes[alpha_idx] = c_te
             end
         end
-        return polars
+        return nothing
     end
 
     function run_solve_alpha(alphas, d_flap_angle, re, x_, y_, lower, upper, kite_speed, speed_of_sound)
-        neg_alphas = sort(alphas[findall(alphas .< 0.0)], rev = true)
-        pos_alphas = sort(alphas[findall(alphas .>= 0.0)])
-        polars = solve_alpha(neg_alphas, d_flap_angle, re, x_, y_, lower, upper, kite_speed, speed_of_sound)
-        polars = append!(polars, solve_alpha(pos_alphas, d_flap_angle, re, x_, y_, lower, upper, kite_speed, speed_of_sound))
-        return polars
+        cls = Float64[NaN for _ in alphas]
+        cds = Float64[NaN for _ in alphas]
+        c_tes = Float64[NaN for _ in alphas]
+        neg_idxs = sort(findall(alphas .< 0.0), rev=true)
+        neg_alphas = alphas[neg_idxs]
+        pos_idxs = sort(findall(alphas .>= 0.0))
+        pos_alphas = alphas[pos_idxs]
+        solve_alpha!(cls, cds, c_tes, neg_alphas, neg_idxs, d_flap_angle, 
+                            re, x_, y_, lower, upper, kite_speed, speed_of_sound)
+        solve_alpha!(cls, cds, c_tes, pos_alphas, pos_idxs, d_flap_angle, 
+                            re, x_, y_, lower, upper, kite_speed, speed_of_sound)
+        return cls, cds, c_tes
     end
 end
 
@@ -157,10 +165,19 @@ function get_lower_upper(x, y)
     return lower_flap, upper_flap
 end
 
+function remove_nothing(matrix)
+    # Identify rows and columns containing `nothing`
+    rows_to_keep = [all(!isnothing, matrix[i, :]) for i in 1:size(matrix)[1]]
+    cols_to_keep = [all(!isnothing, matrix[:, j]) for j in 1:size(matrix)[2]]
+
+    return matrix[rows_to_keep, cols_to_keep]
+end
+
 function create_polars(foil_file=se.foil_file, polar_file=se.polar_file)
+    global cl_matrix, cd_matrix, c_te_matrix
     println("Creating polars")
-    if !endswith(polar_file, ".csv")
-        polar_file *= ".csv"
+    if !endswith(polar_file, ".bin")
+        polar_file *= ".bin"
     end
     if !endswith(foil_file, ".dat")
         foil_file *= ".dat"
@@ -168,9 +185,12 @@ function create_polars(foil_file=se.foil_file, polar_file=se.polar_file)
     polar_file = joinpath(dirname(get_data_path()), polar_file)
     foil_file = joinpath(dirname(get_data_path()), foil_file)
 
-    alphas = -180:0.5:180
-    d_flap_angles = -90:0.5:90
-
+    alphas = -90:1.0:90
+    d_flap_angles = -90:1.0:90
+    cl_matrix = SharedArray{Float64}((length(alphas), length(d_flap_angles)), init = (a) -> fill!(a, NaN))
+    cd_matrix = SharedArray{Float64}((length(alphas), length(d_flap_angles)), init = (a) -> fill!(a, NaN))
+    c_te_matrix = SharedArray{Float64}((length(alphas), length(d_flap_angles)), init = (a) -> fill!(a, NaN))
+    
     kite_speed = se.v_wind
     speed_of_sound = 343
     reynolds_number = kite_speed * (se.middle_length + se.tip_length)/2 / 1.460e-5
@@ -194,43 +214,35 @@ function create_polars(foil_file=se.foil_file, polar_file=se.polar_file)
     x, y = Xfoil.pane(npan=140)
     lower, upper = get_lower_upper(x, y)
 
-    polars = nothing
     try
-        polars = @distributed (append!) for d_flap_angle in d_flap_angles
-            return run_solve_alpha(alphas, d_flap_angle, reynolds_number, x, y, lower, upper, kite_speed, speed_of_sound)
+        @sync @distributed for j in eachindex(d_flap_angles)
+            cl_matrix[:, j], cd_matrix[:, j], c_te_matrix[:, j] = run_solve_alpha(alphas, d_flap_angles[j], 
+                            reynolds_number, x, y, lower, upper, kite_speed, speed_of_sound)
         end
+    catch e
+        println(e)
     finally
         println("removing processes")
         rmprocs(procs)
     end
 
-    println("Alpha\t\tFlap Angle\tCl\t\tCd\t\tc_te")
-    for (alpha, d_flap_angle, cl, cd, c_te) in polars
-        println("$alpha\t$d_flap_angle\t$(cl)\t$(cd)\t$(c_te)")
-    end
+    println("cl_matrix")
+    [println(cl_matrix[i, :]) for i in eachindex(alphas)]
 
     println("Relative flap height: ", upper - lower)
     println("Reynolds number for flying speed of $kite_speed is $reynolds_number")
 
-    csv_content = "alpha,d_flap_angle,cl,cd,c_te\n"
-    for (alpha, d_flap_angle, cl, cd, c_te) in polars
-        csv_content *= string(
-            alpha, ",", 
-            d_flap_angle, ",", 
-            cl, ",", 
-            cd, ",", 
-            c_te, "\n"
-        )
-    end
-    open(polar_file, "w") do f
-        write(f, csv_content)
-    end
+    # TODO: serialize the splines
+    serialize(polar_file, (alphas, d_flap_angles, Matrix(cl_matrix), Matrix(cd_matrix), Matrix(c_te_matrix)))
+
     open(foil_file, "r+") do f
         lines = readlines(f)
-        if any(isletter, chomp(lines[1]))
-            lines[1] *= " - polars created"
-        else
-            pushfirst!(lines, "polars created")
+        if !endswith(chomp(lines[1]), "polars created")
+            if any(isletter, chomp(lines[1]))
+                lines[1] *= " - polars created"
+            else
+                pushfirst!(lines, "polars created")
+            end
         end
         seek(f, 0)
         for line in lines

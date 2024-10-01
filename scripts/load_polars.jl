@@ -1,72 +1,72 @@
-using Dierckx, Statistics
+using Interpolations, Statistics, Serialization, BenchmarkTools
 using Pkg
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
     using TestEnv; TestEnv.activate()
 end
 using ControlPlots, KiteUtils
 
-# Load the csv file
-function read_csv(filename)
-    data = Dict{String, Vector{Float64}}()
-    open(filename, "r") do f
-        header = split(chomp(readline(f)), ",")
-        for col in header
-            data[col] = Float64[]
-        end
-        for line in eachline(f)
-            values = split(chomp(line), ",")
-            for (i, col) in enumerate(header)
-                push!(data[col], parse(Float64, values[i]))
+alphas, d_flap_angles, cl_matrix, cd_matrix, c_te_matrix = deserialize(joinpath(dirname(get_data_path()), se("system_3l.yaml").polar_file))
+
+function replace_nan!(matrix)
+    rows, cols = size(matrix)
+    
+    distance = 3
+    for i in distance+1:rows-distance-1
+        for j in distance+1:cols-distance-1
+            if isnan(matrix[i, j])
+                neighbors = []
+                for d in 1:distance
+                    found = false
+                    if !isnan(matrix[i-d, j]);
+                        push!(neighbors, matrix[i-1, j])
+                        found = true
+                    end
+                    if !isnan(matrix[i+d, j])
+                        push!(neighbors, matrix[i+1, j])
+                        found = true
+                    end
+                    if !isnan(matrix[i, j-d])
+                        push!(neighbors, matrix[i, j-1])
+                        found = true
+                    end
+                    if !isnan(matrix[i, j+d])
+                        push!(neighbors, matrix[i, j+1])
+                        found = true
+                    end
+                    if found; break; end
+                end
+                if !isempty(neighbors)
+                    matrix[i, j] = sum(neighbors) / length(neighbors)
+                end
             end
         end
     end
-    return data
+    return nothing
 end
 
-polars = read_csv("data/polars.csv")
-alphas = deg2rad.(polars["alpha"])
-d_flap_angles = deg2rad.(polars["d_flap_angle"])
-cl_values = polars["cl"]
-cd_values = polars["cd"]
-c_te_values = polars["c_te"]
+replace_nan!(cl_matrix)
+replace_nan!(cd_matrix)
+replace_nan!(c_te_matrix)
 
-rm_idx = []
-dist = 0.02
-for i in 2:length(alphas)-1
-    if d_flap_angles[i-1] == d_flap_angles[i+1] && abs(cd_values[i-1] - cd_values[i]) > dist && abs(cd_values[i+1] - cd_values[i]) > dist
-        push!(rm_idx, i)
-    end
-end
-deleteat!(alphas, rm_idx)
-deleteat!(d_flap_angles, rm_idx)
-deleteat!(cl_values, rm_idx)
-deleteat!(cd_values, rm_idx)
-deleteat!(c_te_values, rm_idx)
+cl_interp = linear_interpolation((alphas, d_flap_angles), cl_matrix; extrapolation_bc = NaN)
+cd_interp = linear_interpolation((alphas, d_flap_angles), cd_matrix; extrapolation_bc = NaN)
+c_te_interp = linear_interpolation((alphas, d_flap_angles), c_te_matrix; extrapolation_bc = NaN)
 
-wd = 2.0 .- abs.(cd_values ./ argmax(abs, cd_values))
-order = 2
-println("1")
-cl_spline = Spline2D(alphas, d_flap_angles, cl_values; kx=order, ky=order, s=20.0)
-println("2")
-cd_spline = Spline2D(alphas, d_flap_angles, cd_values; w=wd, kx=order, ky=order, s=10.0)
-println("3")
-c_te_spline = Spline2D(alphas, d_flap_angles, c_te_values; kx=order, ky=order, s=1.0)
-
-function plot_values(spline, values, name)
+function plot_values(alphas, d_flap_angles, matrix, interp, name)
     fig = plt.figure()
     ax = fig.add_subplot(projection="3d")
-    # alpha = 0.6396476065600847
-    plot_alphas = 0.0:0.04:deg2rad(60)
-    plot_flap_angles = -1.5:0.1:deg2rad(60)
 
-    idx = reduce(vcat, [findall(x -> abs(x - alpha) < deg2rad(0.3), alphas) for alpha in plot_alphas])
-    
-    spl_values = reduce(vcat, [reduce(vcat, [spline(alpha, flap_angle) for flap_angle in plot_flap_angles]) for alpha in plot_alphas])
-    extended_plot_alphas = reduce(vcat, [reduce(vcat, [alpha for _ in plot_flap_angles]) for alpha in plot_alphas])
-    extended_plot_flap_angles = reduce(vcat, [reduce(vcat, [flap_angle for flap_angle in plot_flap_angles]) for _ in plot_alphas])
+    X_data = collect(d_flap_angles) .+ zeros(length(alphas))'
+    Y_data = collect(alphas)' .+ zeros(length(d_flap_angles))
 
-    ax.scatter(d_flap_angles[idx], alphas[idx], values[idx])
-    ax.scatter(extended_plot_flap_angles, extended_plot_alphas, spl_values)
+    interp_matrix = similar(matrix)
+    int_alphas, int_d_flap_angles = alphas .+ deg2rad(0.5), d_flap_angles .+ deg2rad(0.5)
+    interp_matrix .= [interp(alpha, d_flap_angle) for alpha in int_alphas, d_flap_angle in int_d_flap_angles]
+    X_int = collect(int_d_flap_angles) .+ zeros(length(int_alphas))'
+    Y_int = collect(int_alphas)' .+ zeros(length(int_d_flap_angles))
+
+    ax.plot_wireframe(X_data, Y_data, matrix, edgecolor="royalblue", lw=0.5, rstride=5, cstride=5, alpha=0.6)
+    ax.plot_wireframe(X_int, Y_int, interp_matrix, edgecolor="orange", lw=0.5, rstride=5, cstride=5, alpha=0.6)
     plt.xlabel("Flap angle")
     plt.ylabel("Alpha")
     plt.zlabel("$name values")
@@ -76,8 +76,32 @@ function plot_values(spline, values, name)
     plt.show()
 end
 
-plot_values(cd_spline, cd_values, "Cd")
-plot_values(cl_spline, cl_values, "Cl")
-plot_values(c_te_spline, c_te_values, "C_te")
 
-cd_spline(0,0)*π
+plot_values(alphas, d_flap_angles, cl_matrix, cl_interp, "Cl")
+plot_values(alphas, d_flap_angles, cd_matrix, cd_interp, "Cd")
+plot_values(alphas, d_flap_angles, c_te_matrix, c_te_interp, "C_te")
+# plot_values(cl_interp, cl_values, "Cl")
+# plot_values(c_te_interp, c_te_values, "C_te")
+
+@benchmark cd_interp(rand(),rand())
+# Dierckx
+# @benchmark cd_interp(rand(),rand())
+# Range (min … max):  156.364 ns … 102.205 μs  ┊ GC (min … max): 0.00% … 99.77%
+# Time  (median):     218.206 ns               ┊ GC (median):    0.00%
+# Time  (mean ± σ):   223.494 ns ±   1.021 μs  ┊ GC (mean ± σ):  5.06% ±  2.26%
+
+#                ▅                   █▅ ▃▃                        
+#  ▂▁▂▂▂▂▂▂▂▂▂▃▃▂█▄▄▅▂▂▂▂▂▂▂▂▂▂▂▂▂▃▃▃██▇██▆▄▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▂▁▂▂ ▃
+#  156 ns           Histogram: frequency by time          264 ns <
+# Memory estimate: 160 bytes, allocs estimate: 4.
+
+# Interpolations.jl
+# BenchmarkTools.Trial: 10000 samples with 985 evaluations.
+#  Range (min … max):  53.683 ns … 271.883 ns  ┊ GC (min … max): 0.00% … 0.00%
+#  Time  (median):     69.062 ns               ┊ GC (median):    0.00%
+#  Time  (mean ± σ):   73.499 ns ±  15.021 ns  ┊ GC (mean ± σ):  0.00% ± 0.00%
+
+#            ▄▇██▇▅▅▃▃▂▁▁▁▁▁                             ▁▂▁▁    ▂
+#   ▇▇█▇▅▄▃▂███████████████████▇▆▇▇▆▅▆▅▆▆▆▆▆▅▄▆▆▇▆▆▆▇▆▆▆█████▇█▆ █
+#   53.7 ns       Histogram: log(frequency) by time       128 ns <
+#  Memory estimate: 48 bytes, allocs estimate: 3.

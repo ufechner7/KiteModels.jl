@@ -75,18 +75,12 @@ $(TYPEDFIELDS)
     last_set_hash::UInt64   = 0
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
-    "Function for calculating the lift coefficent, using a spline based on the provided value pairs."
-    cl_spline::Union{Spline2D, Nothing} = nothing
-    "Function for calculating the drag coefficent, using a spline based on the provided value pairs."
-    cd_spline::Union{Spline2D, Nothing} = nothing
-    "Function for calculating the trailing edge force coefficient, using a spline based on the provided value pairs."
-    c_te_spline::Union{Spline2D, Nothing} = nothing
-    "Min and max cl value in polars"
-    cl_bounds::MVector{2, S} = zeros(MVector{2, S})
-    "Min and max cd value in polars"
-    cd_bounds::MVector{2, S} = zeros(MVector{2, S})
-    "Min and max c_te value in polars"
-    c_te_bounds::MVector{2, S} = zeros(MVector{2, S})
+    "Function for calculating the lift coefficent, using linear interpolation based on the provided value pairs."
+    cl_interp::Function
+    "Function for calculating the drag coefficent, using linear interpolation based on the provided value pairs."
+    cd_interp::Function
+    "Function for calculating the trailing edge force coefficient, using linear interpolation based on the provided value pairs."
+    c_te_interp::Function
     "Reference to the motor models as implemented in the package WinchModels. index 1: middle motor, index 2: left motor, index 3: right motor"
     motors::SizedArray{Tuple{3}, AbstractWinchModel}
     "Iterations, number of calls to the function residual!"
@@ -251,50 +245,42 @@ end
 # include(joinpath(@__DIR__, "CreatePolars.jl"))
 function KPS4_3L(kcu::KCU)
     set = kcu.set
-    if set.winch_model == "TorqueControlledMachine"
-        s = KPS4_3L{SimFloat, KVec3, set.segments*3+2+KITE_PARTICLES_3L, set.segments*3+KITE_SPRINGS_3L, SP}(set=kcu.set, motors=[TorqueControlledMachine(set) for _ in 1:3])
-        s.torque_control = true
-    else
-        s = KPS4_3L{SimFloat, KVec3, set.segments*3+2+KITE_PARTICLES_3L, set.segments*3+KITE_SPRINGS_3L, SP}(set=kcu.set, motors=[AsyncMachine(set) for _ in 1:3])
-        s.torque_control = false
-    end
-    open(joinpath(dirname(get_data_path()), s.set.foil_file), "r") do f
+    open(joinpath(dirname(get_data_path()), set.foil_file), "r") do f
         lines = readlines(f)
         if !endswith(chomp(lines[1]), "polars created")
             error("No polars created for $(s.set.foil_file). Run scripts/create_polars.jl to create a polars file.")
         end
     end
-    clear!(s)
-    
-    polars = read_csv(s.set.polar_file)
-    alphas = deg2rad.(polars["alpha"])
-    d_flap_angles = deg2rad.(polars["d_flap_angle"])
-    cl_values = polars["cl"]
-    cd_values = polars["cd"]
-    c_te_values = polars["c_te"]
 
-    rm_idx = []
-    dist = 0.02
-    for i in 2:length(alphas)-1
-        if d_flap_angles[i-1] == d_flap_angles[i+1] && abs(cd_values[i-1] - cd_values[i]) > dist && abs(cd_values[i+1] - cd_values[i]) > dist
-            push!(rm_idx, i)
-        end
+    alphas, d_flap_angles, cl_matrix, cd_matrix, c_te_matrix = deserialize(joinpath(dirname(get_data_path()), set.polar_file))
+    replace_nan!(cl_matrix)
+    replace_nan!(cd_matrix)
+    replace_nan!(c_te_matrix)
+    cl_struct = linear_interpolation((alphas, d_flap_angles), cl_matrix; extrapolation_bc = NaN)
+    cd_struct = linear_interpolation((alphas, d_flap_angles), cd_matrix; extrapolation_bc = NaN)
+    c_te_struct = linear_interpolation((alphas, d_flap_angles), c_te_matrix; extrapolation_bc = NaN)
+    cl_interp(a, d) = cl_struct(a, d)
+    cd_interp(a, d) = cd_struct(a, d)
+    c_te_interp(a, d) = c_te_struct(a, d)
+    
+    if set.winch_model == "TorqueControlledMachine"
+        s = KPS4_3L{SimFloat, KVec3, set.segments*3+2+KITE_PARTICLES_3L, set.segments*3+KITE_SPRINGS_3L, SP}(
+            set=kcu.set, 
+            motors=[TorqueControlledMachine(set) for _ in 1:3],
+            cl_interp = cl_interp,
+            cd_interp = cd_interp,
+            c_te_interp = c_te_interp,)
+        s.torque_control = true
+    else
+        s = KPS4_3L{SimFloat, KVec3, set.segments*3+2+KITE_PARTICLES_3L, set.segments*3+KITE_SPRINGS_3L, SP}(
+            set=kcu.set, 
+            motors=[AsyncMachine(set) for _ in 1:3],
+            cl_interp = cl_interp,
+            cd_interp = cd_interp,
+            c_te_interp = c_te_interp,)
+        s.torque_control = false
     end
-    deleteat!(alphas, rm_idx)
-    deleteat!(d_flap_angles, rm_idx)
-    deleteat!(cl_values, rm_idx)
-    deleteat!(cd_values, rm_idx)
-    deleteat!(c_te_values, rm_idx)
-    
-    wd = 2.0 .- abs.(cd_values ./ argmax(abs, cd_values))
-    order = 2
-    s.cl_spline = Spline2D(alphas, d_flap_angles, cl_values; kx=order, ky=order, s=20.0)
-    s.cd_spline = Spline2D(alphas, d_flap_angles, cd_values; w=wd, kx=order, ky=order, s=10.0)
-    s.c_te_spline = Spline2D(alphas, d_flap_angles, c_te_values; kx=order, ky=order, s=1.0)
-    
-    s.cl_bounds = (minimum(cl_values), maximum(cl_values))
-    s.cd_bounds = (minimum(cd_values), maximum(cd_values))
-    s.c_te_bounds = (minimum(c_te_values), maximum(c_te_values))
+    clear!(s)    
     return s
 end
 
@@ -417,8 +403,8 @@ function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false,
         if prn; println("initializing with last model and new pos"); end
         pos, vel = init_pos_vel(s)
         defaults = vcat([vcat([s.simple_sys.pos[j, i] => pos[j, i] for i in 1:s.num_flap_C-1 for j in 1:3]), 
-        vcat([s.simple_sys.pos[j, i] => pos[j, i] for i in s.num_flap_D+1:s.num_A for j in 1:3]),
-        s.simple_sys.tether_length => s.tether_lengths]...)
+                        vcat([s.simple_sys.pos[j, i] => pos[j, i] for i in s.num_flap_D+1:s.num_A for j in 1:3]),
+                        s.simple_sys.tether_length => s.tether_lengths]...)
         s.prob = ODEProblem(s.simple_sys, defaults, tspan)
         OrdinaryDiffEqCore.reinit!(s.integrator, s.prob.u0)
         next_step!(s; set_values=zeros(3), dt=1.0) # step to get stable state
@@ -557,10 +543,10 @@ function calc_acc_torque(motor::TorqueControlledMachine, tether_vel, norm_, set_
 end
 @register_symbolic calc_acc_torque(motor::TorqueControlledMachine, tether_vel, norm_, set_torque)
 
-function sym_spline(spline::Spline2D, aoa, flap_angle)
-    return spline(aoa, flap_angle-aoa)
+function sym_interp(interp::Function, aoa, flap_angle)
+    return interp(aoa, flap_angle-aoa)
 end
-@register_symbolic sym_spline(spline::Spline2D, aoa, flap_angle)
+@register_symbolic sym_interp(interp::Function, aoa, flap_angle)
 
 
 """
@@ -669,8 +655,8 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
                 seg_flap_angle[i]    ~ ((flap_angle[2] - flap_angle[1]) / (s.α_r - s.α_l) * (α - s.α_l) + (flap_angle[1]))
 
             aoa[i]      ~ -asin((v_a_xr[:, i] / norm(v_a_xr[:, i])) ⋅ e_r[:, i]) + deg2rad(s.set.alpha_zero)
-            cl_seg[i]   ~ clamp(sym_spline(s.cl_spline, aoa[i], seg_flap_angle[i]), s.cl_bounds[1], s.cl_bounds[2])
-            cd_seg[i]   ~ clamp(sym_spline(s.cd_spline, aoa[i], seg_flap_angle[i]), s.cd_bounds[1], s.cd_bounds[2])
+            cl_seg[i]   ~ sym_interp(s.cl_interp, aoa[i], seg_flap_angle[i])
+            cd_seg[i]   ~ sym_interp(s.cd_interp, aoa[i], seg_flap_angle[i])
 
             L_seg[:, i] ~ 0.5 * rho * (norm(v_a_xr[:, i]))^2 * s.set.radius * dα * kite_length * cl_seg[i] * 
                                 ((v_a_xr[:, i] × e_drift[:, i]) / norm(v_a_xr[:, i] × e_drift[:, i]))
@@ -685,7 +671,7 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
                 rho  * norm(v_a[:, i])^2 * seg_flap_height * s.set.radius * dα * (seg_flap_height/2) / (kite_length/4)
                 )
             te_force[i] ~ 0.5 * rho * (norm(v_a_xr[:, i]))^2 * s.set.radius * dα * kite_length * 
-                                clamp(sym_spline(s.c_te_spline, aoa[i], seg_flap_angle[i]), s.c_te_bounds[1], s.c_te_bounds[2])
+                                sym_interp(s.c_te_interp, aoa[i], seg_flap_angle[i])
             F_te_seg[:, i] ~ (ram_force[i] + te_force[i]) * e_te[:, i]
         ]
 
@@ -1038,29 +1024,38 @@ function settings_hash(st)
     return h
 end
 
-function read_csv(filename="polars.csv")
-    if !endswith(filename, ".csv")
-        filename *= ".csv"
-    end
-    filename = joinpath(dirname(get_data_path()), filename)
-    data = Dict{String, Vector{SimFloat}}()
-    try
-        open(filename, "r") do f
-            header = split(chomp(readline(f)), ",")
-            for col in header
-                data[col] = SimFloat[]
-            end
-            for line in eachline(f)
-                values = split(chomp(line), ",")
-                for (i, col) in enumerate(header)
-                    push!(data[col], parse(SimFloat, values[i]))
+function replace_nan!(matrix)
+    rows, cols = size(matrix)
+    distance = 3
+    for i in distance+1:rows-distance-1
+        for j in distance+1:cols-distance-1
+            if isnan(matrix[i, j])
+                neighbors = []
+                for d in 1:distance
+                    found = false
+                    if !isnan(matrix[i-d, j]);
+                        push!(neighbors, matrix[i-1, j])
+                        found = true
+                    end
+                    if !isnan(matrix[i+d, j])
+                        push!(neighbors, matrix[i+1, j])
+                        found = true
+                    end
+                    if !isnan(matrix[i, j-d])
+                        push!(neighbors, matrix[i, j-1])
+                        found = true
+                    end
+                    if !isnan(matrix[i, j+d])
+                        push!(neighbors, matrix[i, j+1])
+                        found = true
+                    end
+                    if found; break; end
+                end
+                if !isempty(neighbors)
+                    matrix[i, j] = sum(neighbors) / length(neighbors)
                 end
             end
         end
-    catch e
-        println("Could not open csv file.")
-        println(e)
-        return nothing
     end
-    return data
+    return nothing
 end
