@@ -402,6 +402,7 @@ function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false,
     elseif init_new_pos
         if prn; println("initializing with last model and new pos"); end
         pos, vel = init_pos_vel(s)
+        pos, vel = convert_pos_vel(s, pos, vel)
         defaults = vcat([vcat([s.simple_sys.pos[j, i] => pos[j, i] for i in 1:s.num_flap_C-1 for j in 1:3]), 
                         vcat([s.simple_sys.pos[j, i] => pos[j, i] for i in s.num_flap_D+1:s.num_A for j in 1:3]),
                         s.simple_sys.tether_length => s.tether_lengths]...)
@@ -676,6 +677,7 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
         ]
 
         # TODO: correct for extra torque in wingtips (add to c substract from d)
+        # TODO: use SymbolicNumericIntegration.jl
         if i <= n
             [l_c_eq[j] = (L_C[j] ~ l_c_eq[j].rhs + L_seg[j, i]) for j in 1:3]
             [d_c_eq[j] = (D_C[j] ~ d_c_eq[j].rhs + D_seg[j, i]) for j in 1:3]
@@ -686,6 +688,7 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
             [f_te_d_eq[j] = (F_te_D[j] ~ f_te_d_eq[j].rhs + F_te_seg[j, i]) for j in 1:3]
         end
     end
+
     
     eqs2 = [
         eqs2
@@ -866,13 +869,18 @@ function update_pos!(s)
     nothing
 end
 
+function convert_pos_vel(s::KPS4_3L, pos_, vel_)
+    pos = Array{Union{Nothing, Float64}}(nothing, 3, s.num_A)
+    vel = Array{Union{Nothing, Float64}}(nothing, 3, s.num_A)
+    [pos[:,i] .= pos_[i] for i in 1:s.num_flap_C-1]
+    [vel[:,i] .= vel_[i] for i in 1:s.num_flap_C-1]
+    [pos[:,i] .= pos_[i] for i in s.num_flap_D+1:s.num_A]
+    [vel[:,i] .= vel_[i] for i in s.num_flap_D+1:s.num_A]
+    return pos, vel
+end
+
 function model!(s::KPS4_3L, pos_, vel_)
-    pos_init = Array{Union{Nothing, Float64}}(nothing, 3, s.num_A)
-    vel_init = Array{Union{Nothing, Float64}}(nothing, 3, s.num_A)
-    [pos_init[:,i] .= pos_[i] for i in 1:s.num_flap_C-1]
-    [vel_init[:,i] .= zeros(3) for i in 1:s.num_flap_C-1]
-    [pos_init[:,i] .= pos_[i] for i in s.num_flap_D+1:s.num_A]
-    [vel_init[:,i] .= zeros(3) for i in s.num_flap_D+1:s.num_A]
+    pos_, vel_ = convert_pos_vel(s, pos_, vel_)
     if s.torque_control
         [s.motors[i] = TorqueControlledMachine(s.set) for i in 1:3]
     else
@@ -884,8 +892,8 @@ function model!(s::KPS4_3L, pos_, vel_)
     end
     @variables begin
         set_values(t)[1:3] = s.set_values
-        pos(t)[1:3, 1:s.num_A] = pos_init
-        vel(t)[1:3, 1:s.num_A] = vel_init
+        pos(t)[1:3, 1:s.num_A] = pos_
+        vel(t)[1:3, 1:s.num_A] = vel_
         acc(t)[1:3, 1:s.num_A]
         flap_angle(t)[1:2]   = zeros(2) # angle
         flap_vel(t)[1:2]     = zeros(2) # angular vel
