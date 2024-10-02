@@ -19,6 +19,9 @@ STEPS = 200
 PRINT = false
 STATISTIC = false
 PLOT=true
+UPWIND_DIR2       = -pi/2+deg2rad(10)     # Zero is at north; clockwise positive
+ZOOM = true
+FRONT_VIEW = true
 # end of user parameter section #
 
 kcu::KCU = KCU(set)
@@ -28,7 +31,7 @@ v_time = zeros(STEPS)
 v_speed = zeros(STEPS)
 v_force = zeros(STEPS)
 
-function simulate(integrator, steps, offset=0)
+function simulate(integrator, steps, plot=true)
     iter = 0
     for i in 1:steps
         acc = 0.0
@@ -42,8 +45,16 @@ function simulate(integrator, steps, offset=0)
             println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
         end
 
-        KiteModels.next_step!(kps4, integrator; set_speed, dt=dt)
+        KiteModels.next_step!(kps4, integrator; set_speed, dt, upwind_dir=UPWIND_DIR2)
         iter += kps4.iter
+        if plot && i > 10
+            reltime = i*dt-dt
+            if mod(i, 5) == 1
+                plot2d(kps4.pos, reltime; zoom=true, front=FRONT_VIEW, 
+                       segments=set.segments, fig="front_view") 
+                sleep(0.05)           
+            end
+        end
     end
     iter / steps
 end
@@ -51,7 +62,7 @@ end
 integrator = KiteModels.init_sim!(kps4, delta=0, stiffness_factor=0.5, prn=STATISTIC)
 
 println("\nStarting simulation...")
-simulate(integrator, 100, 100)
+simulate(integrator, 100)
 runtime = @elapsed av_steps = simulate(integrator, STEPS-100)
 println("\nSolver: $(set.solver)")
 println("Total simulation time: $(round(runtime, digits=3)) s")
@@ -65,8 +76,8 @@ lift, drag = KiteModels.lift_drag(kps4)
 println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
 println("Average number of callbacks per time step: $av_steps")
 
-# Ryzen 7950X, Solver: DFBDF
-# Total simulation time: 0.043 s
-# Simulation speed: 116.99 times realtime.
-# lift, drag  [N]: 798.46, 314.82
-# Average number of callbacks per time step: 126.41
+# TODO
+# - plot front view of kite
+println("v_wind: $(kps4.v_wind)")
+pos = pos_kite(kps4)
+println("pos_y: $(round(pos[2], digits=2))")
