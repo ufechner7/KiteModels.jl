@@ -30,6 +30,7 @@ kps4::KPS4 = KPS4(kcu)
 v_time = zeros(STEPS)
 v_speed = zeros(STEPS)
 v_force = zeros(STEPS)
+heading = zeros(STEPS)
 
 function simulate(integrator, steps, plot=true)
     iter = 0
@@ -38,6 +39,7 @@ function simulate(integrator, steps, plot=true)
         v_time[i] = kps4.t_0
         v_speed[i] = kps4.v_reel_out
         v_force[i] = winch_force(kps4)
+        heading[i] = rad2deg(wrap2pi(calc_heading(kps4)))
         set_speed = kps4.sync_speed+acc*dt
         if PRINT
             lift, drag = KiteModels.lift_drag(kps4)
@@ -47,7 +49,7 @@ function simulate(integrator, steps, plot=true)
 
         KiteModels.next_step!(kps4, integrator; set_speed, dt, upwind_dir=UPWIND_DIR2)
         iter += kps4.iter
-        if plot && i > 10
+        if plot
             reltime = i*dt-dt
             if mod(i, 5) == 1
                 plot2d(kps4.pos, reltime; zoom=true, front=FRONT_VIEW, 
@@ -62,22 +64,17 @@ end
 integrator = KiteModels.init_sim!(kps4, delta=0, stiffness_factor=0.5, prn=STATISTIC)
 
 println("\nStarting simulation...")
-simulate(integrator, 100)
-runtime = @elapsed av_steps = simulate(integrator, STEPS-100)
-println("\nSolver: $(set.solver)")
-println("Total simulation time: $(round(runtime, digits=3)) s")
-speed = (STEPS-100) / runtime * dt
-println("Simulation speed: $(round(speed, digits=2)) times realtime.")
+simulate(integrator, STEPS)
 if PLOT
     p = plotx(v_time[1:STEPS-100], v_speed[1:STEPS-100], v_force[1:STEPS-100]; ylabels=["v_reelout  [m/s]","tether_force [N]"], fig="winch")
     # display(p)
 end
 lift, drag = KiteModels.lift_drag(kps4)
 println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
-println("Average number of callbacks per time step: $av_steps")
 
-# TODO
-# - plot front view of kite
 println("v_wind: $(kps4.v_wind)")
+println("UPWIND_DIR2: $(rad2deg(UPWIND_DIR2))°")
 pos = pos_kite(kps4)
 println("pos_y: $(round(pos[2], digits=2))")
+# for an  UPWIND_DIR2 of -80°, pos_y must be negative, also v_wind[2] must be negative
+# this is OK
