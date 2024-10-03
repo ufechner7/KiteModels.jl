@@ -11,7 +11,7 @@ using ControlPlots
 set = deepcopy(load_settings("system_3l.yaml"))
 # set.elevation = 71
 dt = 0.05
-total_time = 10.0
+total_time = 9.0
 
 steps = Int(round(total_time / dt))
 logger = Logger(3*set.segments + 6, steps)
@@ -38,7 +38,7 @@ amount = 0.6
 sign = 1
 for i in 1:steps
     time = (i-1) * dt
-    @show time
+    Core.println("time: ", time)
     # println("vel ", norm(s.integrator[s.simple_sys.vel]))
     global total_step_time, sys_state, steering, sign
     # steering = [0.0,0.0,1000.0] # left right middle
@@ -47,6 +47,8 @@ for i in 1:steps
     elseif s.tether_lengths[1] < s.tether_lengths[2] - 0.1
         sign = 1
     end
+    period = 3
+    sign = (time + period/4) % period > period/2 ? 1 : -1
     steering[1] += sign * dt * amount
     steering[2] -= sign * dt * amount
 
@@ -70,7 +72,7 @@ for i in 1:steps
     KiteModels.update_sys_state!(sys_state, s)
     log!(logger, sys_state)
     l = s.set.l_tether+10
-    # plot2d(s.pos, time; zoom=true, front=false, xlim=(-l/2, l/2), ylim=(0, l))
+    # plot2d(s.pos, time; zoom=true, front=true, xlim=(-l/2, l/2), ylim=(0, l))
 end
 
 times_reltime = (total_time/2) / total_step_time
