@@ -827,7 +827,7 @@ Output:length
         p2 = s.springs[i].p2
         eqs2 = [
             eqs2
-            height[i]           ~ 0.5 * (pos[:, p1][3] + pos[:, p2][3])
+            height[i]           ~ max(0.0, 0.5 * (pos[:, p1][3] + pos[:, p2][3]))
             rho[i]              ~ calc_rho(s.am, height[i])
             v_wind_tether[:, i] ~ calc_wind_factor(s.am, height[i]) * v_wind_gnd
         ]
