@@ -1,5 +1,5 @@
 using Printf
-using KiteModels, KitePodModels, KiteUtils, Rotations
+using KiteModels, KitePodModels, KiteUtils, Rotations, StaticArrays
 
 using Pkg
 if ! ("KiteViewers" ∈ keys(Pkg.project().dependencies))
@@ -33,6 +33,76 @@ v_speed = zeros(STEPS)
 v_force = zeros(STEPS)
 heading = zeros(STEPS)
 
+""" 
+    fromKS2EX(vector, orientation)
+
+Transform a vector (x,y,z) from KiteSensor to Earth Xsens reference frame.
+
+- orientation in Euler angles (roll, pitch, yaw)
+"""
+function fromKS2EX(vector, orientation)
+    roll, pitch, yaw  = orientation[1], orientation[2], orientation[3]
+    rotateYAW = @SMatrix[cos(yaw) -sin(yaw) 0;
+                         sin(yaw)  cos(yaw) 0;
+                             0         0    1]
+    rotatePITCH = @SMatrix[cos(pitch)   0  sin(pitch);
+                             0          1        0;
+                       -sin(pitch)      0  cos(pitch)]
+    rotateROLL = @SMatrix[ 1        0         0;
+                           0   cos(roll) -sin(roll);
+                           0   sin(roll)  cos(roll)]
+    rotateYAW * rotatePITCH * rotateROLL * vector
+end
+
+"""
+    fromEX2EG(vector)
+
+Transform a vector (x,y,z) from EarthXsens to Earth Groundstation reference frame
+"""
+function fromEX2EG(vector)
+    rotateEX2EG = @SMatrix[1  0  0;
+                           0 -1  0;
+                           0  0 -1]
+    rotateEX2EG * vector
+end
+
+function calc_heading_w2(orientation, down_wind_direction = pi/2.0)
+    # create a unit heading vector in the xsense reference frame
+    heading_sensor =  SVector(1, 0, 0)
+    # rotate headingSensor to the Earth Xsens reference frame
+    headingEX = fromKS2EX(heading_sensor, orientation)
+    # rotate headingEX to earth groundstation reference frame
+    headingEG = fromEX2EG(headingEX)
+    # rotate headingEG to headingW and convert to 2d HeadingW vector
+    fromEG2W(headingEG, down_wind_direction)
+end
+
+"""
+    calc_heading(orientation, elevation, azimuth; upwind_dir=-pi/2, respos=true)
+
+Calculate the heading angle of the kite in radians. The heading is the direction
+the nose of the kite is pointing to. 
+If respos is true the heading angle is defined in the range of 0 .. 2π,
+otherwise in the range -π .. π
+"""
+function calc_heading2(orientation, elevation, azimuth; upwind_dir=-pi/2, respos=true)
+    down_wind_direction = wrap2pi(upwind_dir + π)
+    headingSE = fromW2SE(calc_heading_w2(orientation, down_wind_direction), elevation, azimuth)
+    angle = atan(headingSE.y, headingSE.x) # - π
+    if angle < 0 && respos
+        angle += 2π
+    end
+    angle
+end
+
+function calc_heading2(s::KPS4; upwind_dir=upwind_dir(s))
+    orientation = orient_euler(s)
+    elevation = calc_elevation(s)
+    azimuth = calc_azimuth(s)
+    println("azimuth: ", rad2deg(azimuth))
+    calc_heading2(orientation, elevation, azimuth; upwind_dir)
+end
+
 function simulate(integrator, steps, plot=true)
     iter = 0
     for i in 1:steps
@@ -40,7 +110,7 @@ function simulate(integrator, steps, plot=true)
         v_time[i] = kps4.t_0
         v_speed[i] = kps4.v_reel_out
         v_force[i] = winch_force(kps4)
-        heading[i] = rad2deg(wrap2pi(calc_heading(kps4)))
+        heading[i] = rad2deg(wrap2pi(calc_heading2(kps4)))
         set_speed = kps4.sync_speed+acc*dt
         if PRINT
             lift, drag = KiteModels.lift_drag(kps4)
@@ -68,7 +138,7 @@ function simulate(integrator, steps, plot=true)
         q_viewer = AngleAxis(-π/2, 0, 1, 0) * q
         sys_state.orient .= Rotations.params(q_viewer)
         KiteViewers.update_system(viewer, sys_state; scale = 0.08, kite_scale=3)
-        # if wrap2pi(calc_heading(kps4)) > 0 && i > 100; break; end
+        # if wrap2pi(calc_heading2(kps4)) > 0 && i > 100; break; end
     end
     iter / steps
 end
