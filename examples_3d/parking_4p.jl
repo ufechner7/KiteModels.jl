@@ -1,8 +1,9 @@
 using Printf
-using KiteModels, KitePodModels, KiteUtils
+using KiteModels, KitePodModels, KiteUtils, Rotations
 
 using Pkg
 Pkg.activate("examples_3d")
+pkg"add ControlPlots#main"
 using ControlPlots, KiteViewers
 
 set = deepcopy(se())
@@ -22,6 +23,7 @@ FRONT_VIEW = true
 
 kcu::KCU = KCU(set)
 kps4::KPS4 = KPS4(kcu)
+viewer::Viewer3D = Viewer3D(true)
 
 v_time = zeros(STEPS)
 v_speed = zeros(STEPS)
@@ -53,6 +55,11 @@ function simulate(integrator, steps, plot=true)
                 sleep(0.05)           
             end
         end
+        sys_state = SysState(kps4)
+        q = QuatRotation(sys_state.orient)
+        q_viewer = AngleAxis(-π/2, 0, 1, 0) * q
+        sys_state.orient .= Rotations.params(q_viewer)
+        KiteViewers.update_system(viewer, sys_state; scale = 0.08, kite_scale=3)
     end
     iter / steps
 end
