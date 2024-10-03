@@ -10,26 +10,26 @@ alphas, d_flap_angles, cl_matrix, cd_matrix, c_te_matrix = deserialize(joinpath(
 function replace_nan!(matrix)
     rows, cols = size(matrix)
     
-    distance = 3
-    for i in distance+1:rows-distance-1
-        for j in distance+1:cols-distance-1
+    distance = 10
+    for i in 1:rows
+        for j in 1:cols
             if isnan(matrix[i, j])
                 neighbors = []
                 for d in 1:distance
                     found = false
-                    if !isnan(matrix[i-d, j]);
+                    if i-d >= 1 && !isnan(matrix[i-d, j]);
                         push!(neighbors, matrix[i-1, j])
                         found = true
                     end
-                    if !isnan(matrix[i+d, j])
+                    if i+d <= rows && !isnan(matrix[i+d, j])
                         push!(neighbors, matrix[i+1, j])
                         found = true
                     end
-                    if !isnan(matrix[i, j-d])
+                    if j-d >= 1 && !isnan(matrix[i, j-d])
                         push!(neighbors, matrix[i, j-1])
                         found = true
                     end
-                    if !isnan(matrix[i, j+d])
+                    if j+d <= cols && !isnan(matrix[i, j+d])
                         push!(neighbors, matrix[i, j+1])
                         found = true
                     end
@@ -44,7 +44,7 @@ function replace_nan!(matrix)
     return nothing
 end
 
-replace_nan!(cl_matrix)
+replace_nan!(cl_matrix) # TODO: RAD2DEG
 replace_nan!(cd_matrix)
 replace_nan!(c_te_matrix)
 
@@ -67,8 +67,8 @@ function plot_values(alphas, d_flap_angles, matrix, interp, name)
 
     ax.plot_wireframe(X_data, Y_data, matrix, edgecolor="royalblue", lw=0.5, rstride=5, cstride=5, alpha=0.6)
     ax.plot_wireframe(X_int, Y_int, interp_matrix, edgecolor="orange", lw=0.5, rstride=5, cstride=5, alpha=0.6)
-    plt.xlabel("Flap angle")
-    plt.ylabel("Alpha")
+    plt.xlabel("Alpha")
+    plt.ylabel("Flap angle")
     plt.zlabel("$name values")
     plt.title("$name for different d_flap and angle")
     plt.legend()
@@ -83,7 +83,7 @@ plot_values(alphas, d_flap_angles, c_te_matrix, c_te_interp, "C_te")
 # plot_values(cl_interp, cl_values, "Cl")
 # plot_values(c_te_interp, c_te_values, "C_te")
 
-@benchmark cd_interp(rand(),rand())
+@benchmark cd_interp(rad2deg(rand()),rad2deg(rand()))
 # Dierckx
 # @benchmark cd_interp(rand(),rand())
 # Range (min … max):  156.364 ns … 102.205 μs  ┊ GC (min … max): 0.00% … 99.77%

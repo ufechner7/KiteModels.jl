@@ -39,16 +39,12 @@ sign = 1
 for i in 1:steps
     time = (i-1) * dt
     Core.println("time: ", time)
-    # println("vel ", norm(s.integrator[s.simple_sys.vel]))
     global total_step_time, sys_state, steering, sign
-    # steering = [0.0,0.0,1000.0] # left right middle
     if s.tether_lengths[1] > s.tether_lengths[2] + 0.1
         sign = -1
     elseif s.tether_lengths[1] < s.tether_lengths[2] - 0.1
         sign = 1
     end
-    period = 3
-    sign = (time + period/4) % period > period/2 ? 1 : -1
     steering[1] += sign * dt * amount
     steering[2] -= sign * dt * amount
 

@@ -545,7 +545,7 @@ end
 @register_symbolic calc_acc_torque(motor::TorqueControlledMachine, tether_vel, norm_, set_torque)
 
 function sym_interp(interp::Function, aoa, flap_angle)
-    return interp(aoa, flap_angle-aoa)
+    return interp(rad2deg(aoa), rad2deg(flap_angle-aoa))
 end
 @register_symbolic sym_interp(interp::Function, aoa, flap_angle)
 
@@ -665,7 +665,7 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
 
 
             e_te[:, i] ~ e_x * sin(seg_flap_angle[i]) + e_r[:, i] * cos(seg_flap_angle[i])
-            ram_force[i] ~ smooth_sign(s.set.alpha_zero - seg_flap_angle[i]) *
+            ram_force[i] ~ smooth_sign(deg2rad(s.set.alpha_zero) - seg_flap_angle[i]) *
                         rho * norm(v_a[:, i])^2 * seg_flap_height * s.set.radius * dα * (seg_flap_height/2) / (kite_length/4)
             te_force[i] ~ 0.5 * rho * (norm(v_a_xr[:, i]))^2 * s.set.radius * dα * kite_length * 
                                 sym_interp(s.c_te_interp, aoa[i], seg_flap_angle[i])
@@ -1031,26 +1031,26 @@ end
 
 function replace_nan!(matrix)
     rows, cols = size(matrix)
-    distance = 3
-    for i in distance+1:rows-distance-1
-        for j in distance+1:cols-distance-1
+    distance = 10
+    for i in 1:rows
+        for j in 1:cols
             if isnan(matrix[i, j])
                 neighbors = []
                 for d in 1:distance
                     found = false
-                    if !isnan(matrix[i-d, j]);
+                    if i-d >= 1 && !isnan(matrix[i-d, j]);
                         push!(neighbors, matrix[i-1, j])
                         found = true
                     end
-                    if !isnan(matrix[i+d, j])
+                    if i+d <= rows && !isnan(matrix[i+d, j])
                         push!(neighbors, matrix[i+1, j])
                         found = true
                     end
-                    if !isnan(matrix[i, j-d])
+                    if j-d >= 1 && !isnan(matrix[i, j-d])
                         push!(neighbors, matrix[i, j-1])
                         found = true
                     end
-                    if !isnan(matrix[i, j+d])
+                    if j+d <= cols && !isnan(matrix[i, j+d])
                         push!(neighbors, matrix[i, j+1])
                         found = true
                     end

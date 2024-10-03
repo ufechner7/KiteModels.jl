@@ -174,17 +174,17 @@ end
     prn && println(av_steps)
     if Sys.isapple()
         println("isapple $av_steps")
-        prn || @test_broken isapprox(av_steps, 13.6, atol=1.0)
+        prn || @test isapprox(av_steps, 13.6, atol=1.0)
     else
         println("not apple $av_steps")
-        prn || @test_broken isapprox(av_steps, 13.6, atol=1.0)
+        prn || @test isapprox(av_steps, 13.6, atol=1.0)
     end
   
     if prn
         @show k3l.L_C
         @show k3l.reel_out_speeds
     else
-        @test isapprox(av_L_C, [-0.04844843598134605, 20.29171614531311, 42.748038497687936], atol=1.0)
+        @test isapprox(av_L_C, [0.958166069034197, 103.82204584738277, 218.11784652013483], atol=1.0)
         @test isapprox(normalize(k3l.L_C) ⋅ normalize(k3l.v_wind), 0.0, atol=1e-2)
         @test isapprox(k3l.reel_out_speeds, [0.0, 0.0, 0.0], atol=tol)
         @test isapprox(k3l.L_C[2], -k3l.L_D[2], atol=1e-1)
