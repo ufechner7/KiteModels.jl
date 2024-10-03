@@ -3,7 +3,7 @@ using KiteModels, KitePodModels, KiteUtils
 
 using Pkg
 Pkg.activate("examples_3d")
-using ControlPlots
+using ControlPlots, KiteViewers
 
 set = deepcopy(se())
 
