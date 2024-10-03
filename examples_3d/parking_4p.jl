@@ -2,8 +2,10 @@ using Printf
 using KiteModels, KitePodModels, KiteUtils, Rotations
 
 using Pkg
-Pkg.activate("examples_3d")
-pkg"add ControlPlots#main"
+if ! ("KiteViewers" ∈ keys(Pkg.project().dependencies))
+    Pkg.activate("examples_3d")
+    pkg"add ControlPlots#main"
+end
 using ControlPlots, KiteViewers
 
 set = deepcopy(se())
@@ -12,18 +14,19 @@ set = deepcopy(se())
 dt = 0.05
 set.solver="DFBDF"              # IDA or DFBDF
 set.linear_solver="GMRES"       # GMRES, LapackDense or Dense
-STEPS = 200
+STEPS = 352
 PRINT = false
 STATISTIC = false
 PLOT=true
 UPWIND_DIR2       = -pi/2+deg2rad(10)     # Zero is at north; clockwise positive
 ZOOM = true
 FRONT_VIEW = true
+SHOW_KITE = false
 # end of user parameter section #
 
 kcu::KCU = KCU(set)
 kps4::KPS4 = KPS4(kcu)
-viewer::Viewer3D = Viewer3D(true)
+viewer::Viewer3D = Viewer3D(SHOW_KITE)
 
 v_time = zeros(STEPS)
 v_speed = zeros(STEPS)
@@ -44,6 +47,11 @@ function simulate(integrator, steps, plot=true)
             @printf "%.2f: " round(integrator.t, digits=2)
             println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
         end
+        steering = 0
+        if i > 200
+            steering = 0.05
+        end
+        set_depower_steering(kps4.kcu, kps4.depower, steering)
 
         KiteModels.next_step!(kps4, integrator; set_speed, dt, upwind_dir=UPWIND_DIR2)
         iter += kps4.iter
@@ -60,6 +68,7 @@ function simulate(integrator, steps, plot=true)
         q_viewer = AngleAxis(-π/2, 0, 1, 0) * q
         sys_state.orient .= Rotations.params(q_viewer)
         KiteViewers.update_system(viewer, sys_state; scale = 0.08, kite_scale=3)
+        # if wrap2pi(calc_heading(kps4)) > 0 && i > 100; break; end
     end
     iter / steps
 end
@@ -81,3 +90,7 @@ pos = pos_kite(kps4)
 println("pos_y: $(round(pos[2], digits=2))")
 # for an  UPWIND_DIR2 of -80°, pos_y must be negative, also v_wind[2] must be negative
 # this is OK
+
+# print heading
+println("heading: $(round(heading[STEPS], digits=2))°")
+plot(v_time, heading; xlabel="time [s]", ylabel="heading [°]", fig="heading")
