@@ -173,11 +173,11 @@ $(TYPEDFIELDS)
     sync_speed::Union{S, Nothing} =        0.0
     "set_torque of the motor/generator"
     set_torque::Union{S, Nothing} = nothing
-    "x vector of kite reference frame"
+    "x vector of kite reference frame, from trailing edge to leading edge"
     x::T =                 zeros(S, 3)
-    "y vector of kite reference frame"
+    "y vector of kite reference frame, to the right looking in flight direction"
     y::T =                 zeros(S, 3)
-    "z vector of kite reference frame"
+    "z vector of kite reference frame, down"
     z::T =                 zeros(S, 3)
 end
 
