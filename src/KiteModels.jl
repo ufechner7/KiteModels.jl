@@ -279,7 +279,7 @@ Calculate and return the orientation of the kite with respect to the NED frame a
 """
 function calc_orient_quat(s::AKM)
     x, y, z = kite_ref_frame(s)
-    # reference: NED
+    # reference: NED, convert from ENU
     ax = SVec3([0, 1, 0])
     ay = SVec3([1, 0, 0])
     az = SVec3([0, 0, -1])
