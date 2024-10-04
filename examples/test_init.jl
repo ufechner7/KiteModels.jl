@@ -27,12 +27,12 @@ STATISTIC = false
 DEPOWER = 0.47:-0.005:0.355
 # end of user parameter section #
 
-function calc_heading(s::KPS4; upwind_dir=-π/2)
-    orientation = orient_euler(s)
-    elevation = calc_elevation(s)
-    azimuth = calc_azimuth(s)
-    KiteUtils.calc_heading(orientation, elevation, azimuth; upwind_dir, respos=false)
-end
+# function calc_heading(s::KPS4; upwind_dir=-π/2)
+#     orientation = orient_euler(s)
+#     elevation = calc_elevation(s)
+#     azimuth = calc_azimuth(s)
+#     KiteUtils.calc_heading(orientation, elevation, azimuth; upwind_dir, respos=false)
+# end
 
 elev = set.elevation
 i = 1
@@ -55,6 +55,8 @@ println("roll: ", roll, " pitch: ", pitch, " yaw: ", yaw)
 println("x:", kps4.x) # from trailing edge to leading edge in ENU reference frame
 println("y:", kps4.y) # to the right looking in flight direction
 println("z:", kps4.z) # down
+azimuth = calc_azimuth(kps4)
+println("azimuth: ", rad2deg(azimuth))
 
 # print point C and point D
 pos_C, pos_D = kps4.pos[kps4.set.segments+4], kps4.pos[kps4.set.segments+5]
