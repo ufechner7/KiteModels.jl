@@ -247,8 +247,8 @@ end
 Calculate and return the orientation of the kite in euler angles (roll, pitch, yaw)
 as SVector. 
 """
-function orient_euler(s::KPS4)
-    q = calc_orient_quat(s)
+function orient_euler(s::KPS4; SWD=true)
+    q = calc_orient_quat(s; SWD)
     return (quat2euler(q))
 end
 
@@ -258,7 +258,7 @@ end
 Calculate and return the orientation of the kite in euler angles (roll, pitch, yaw)
 as SVector. 
 """
-function orient_euler(s::KPS3)
+function orient_euler(s::KPS3; SWD=false)
     x, y, z = kite_ref_frame(s)
     roll = atan(y[3], z[3]) - π/2
     if roll < -π/2
@@ -273,17 +273,26 @@ function orient_euler(s::KPS3)
 end
 
 """
-    calc_orient_quat(s::AKM)
+    calc_orient_quat(s::AKM; SWD=true)
 
 Calculate and return the orientation of the kite with respect to the NED frame as a quaternion.
 """
-function calc_orient_quat(s::AKM)
+function calc_orient_quat(s::AKM; SWD=true)
     x, y, z = kite_ref_frame(s)
-    # reference: NED, convert from ENU
-    ax = SVec3([0, 1, 0])
-    ay = SVec3([1, 0, 0])
-    az = SVec3([0, 0, -1])
+    if SWD
+        # convert ENU to SWD
+        ax = SVec3([0, -1, 0])
+        ay = SVec3([-1, 0, 0])
+        az = SVec3([0, 0, -1])
+    else
+        # convert ENU to NED
+        ax = SVec3([0, 1, 0])
+        ay = SVec3([1, 0, 0])
+        az = SVec3([0, 0, -1])
+    end
+
     rotation = rot3d(ax, ay, az, x, y, z)
+    # rotation = rot3d(x, y, z, ax, ay, az)
     q = QuatRotation(rotation)
     return Rotations.params(q)
 end
@@ -318,8 +327,8 @@ function calc_heading(s::KPS4; upwind_dir=upwind_dir(s))
     KiteUtils.calc_heading(orientation, elevation, azimuth; upwind_dir)
 end
 
-function calc_heading(s::KPS3; upwind_dir=-π/2)
-    orientation = orient_euler(s)
+function calc_heading(s::KPS3; upwind_dir=-π/2, SWD=false)
+    orientation = orient_euler(s; SWD)
     elevation = calc_elevation(s)
     azimuth = calc_azimuth(s)
     KiteUtils.calc_heading(orientation, elevation, azimuth)
