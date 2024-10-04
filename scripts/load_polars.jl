@@ -65,7 +65,7 @@ function plot_values(alphas, d_flap_angles, matrix, interp, name)
     X_int = collect(int_d_flap_angles) .+ zeros(length(int_alphas))'
     Y_int = collect(int_alphas)' .+ zeros(length(int_d_flap_angles))
 
-    ax.plot_wireframe(X_data, Y_data, matrix, edgecolor="royalblue", lw=0.5, rstride=5, cstride=5, alpha=0.6)
+    # ax.plot_wireframe(X_data, Y_data, matrix, edgecolor="royalblue", lw=0.5, rstride=5, cstride=5, alpha=0.6)
     ax.plot_wireframe(X_int, Y_int, interp_matrix, edgecolor="orange", lw=0.5, rstride=5, cstride=5, alpha=0.6)
     plt.xlabel("Alpha")
     plt.ylabel("Flap angle")
@@ -77,13 +77,12 @@ function plot_values(alphas, d_flap_angles, matrix, interp, name)
 end
 
 
-plot_values(alphas, d_flap_angles, cl_matrix, cl_interp, "Cl")
-plot_values(alphas, d_flap_angles, cd_matrix, cd_interp, "Cd")
-plot_values(alphas, d_flap_angles, c_te_matrix, c_te_interp, "C_te")
-# plot_values(cl_interp, cl_values, "Cl")
-# plot_values(c_te_interp, c_te_values, "C_te")
+# plot_values(alphas, d_flap_angles, cl_matrix, cl_interp, "Cl")
+# plot_values(alphas, d_flap_angles, cd_matrix, cd_interp, "Cd")
+# plot_values(alphas, d_flap_angles, c_te_matrix, c_te_interp, "C_te")
+display(plot(alphas, cd_interp.(alphas, 0.0)))
 
-@benchmark cd_interp(rad2deg(rand()),rad2deg(rand()))
+# @benchmark cd_interp(rad2deg(rand()),rad2deg(rand()))
 # Dierckx
 # @benchmark cd_interp(rand(),rand())
 # Range (min … max):  156.364 ns … 102.205 μs  ┊ GC (min … max): 0.00% … 99.77%

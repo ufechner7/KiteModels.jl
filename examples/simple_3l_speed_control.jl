@@ -33,7 +33,6 @@ println("stepping")
 total_step_time = 0.0
 toc()
 steering = [0.0, 0.0, 0.0]
-start_tether = copy(s.tether_lengths[3])
 amount = 0.6
 sign = 1
 for i in 1:steps
