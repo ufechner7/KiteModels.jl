@@ -14,7 +14,10 @@ PRINT = false
 STATISTIC = false
 # end of user parameter section #
 
-kcu::KCU = KCU(set)
+set = deepcopy(se())
+set.version = 2
+
+kcu::KCU  = KCU(set)
 kps4::KPS4 = KPS4(kcu)
 kps3::KPS3 = KPS3(kcu)
 
@@ -44,7 +47,7 @@ function simulate(s, integrator, steps, plot=false; fig="")
         if plot
             reltime = i*dt-dt
             if mod(i, 5) == 1
-                lines, sc, txt = plot2d(s.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=set.segments, fig, lines, sc, txt)    
+                plot2d(s.pos, reltime; zoom=ZOOM, xlim=(35,55), front=FRONT_VIEW, fig)          
             end
         end
     end

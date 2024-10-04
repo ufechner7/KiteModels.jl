@@ -1,9 +1,6 @@
 # plot the lift and drag coefficients as function of angle of attack
 
 using Printf
-using Pkg
-pkg"add KiteUtils#main"
-
 using KiteModels, KitePodModels, KiteUtils, LinearAlgebra, Rotations
 
 set = deepcopy(load_settings("system.yaml"))
@@ -29,13 +26,6 @@ PRINT = true
 STATISTIC = false
 DEPOWER = 0.47:-0.005:0.355
 # end of user parameter section #
-
-# function calc_heading(s::KPS4; upwind_dir=-π/2)
-#     orientation = orient_euler(s)
-#     elevation = calc_elevation(s)
-#     azimuth = calc_azimuth(s)
-#     KiteUtils.calc_heading(orientation, elevation, azimuth; upwind_dir, respos=false)
-# end
 
 elev = set.elevation
 i = 1
@@ -75,3 +65,4 @@ println("heading: ", round(rad2deg(calc_heading(kps4)), digits = 2), "°")
 # y:[0.0, 1.0, 0.0]
 # z:[-0.10028689952711267, -2.8981421002141166e-19, -0.9949585608372032]
 # alpha2, alpha3, alpha4: 7.546125780476343 10.000000853773646 10.000000853773646
+

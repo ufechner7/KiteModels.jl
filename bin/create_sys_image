@@ -70,6 +70,7 @@ julia --startup-file=no -e "using Pkg; Pkg.add(\"TestEnv\")"
 
 if [[ $update == true ]]; then
     echo "Updating packages..."
+    export JULIA_PKG_SERVER_REGISTRY_PREFERENCE="eager"
     if test -f "Manifest.toml"; then
         mv Manifest.toml Manifest.toml.bak
     fi
