@@ -4,7 +4,6 @@ using Pkg
 if ! ("KiteViewers" ∈ keys(Pkg.project().dependencies))
     Pkg.activate("examples_3d")
     pkg"add ControlPlots#main"
-    pkg"add KiteUtils#main"
     pkg"add KiteModels#stable"
 end
 using KiteModels, KitePodModels, KiteUtils, Rotations, StaticArrays
