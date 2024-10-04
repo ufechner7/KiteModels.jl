@@ -99,40 +99,40 @@ let
     kps4.stiffness_factor = 0.04
     simulate(integrator, 100, true)
 end
-let 
-    using KiteModels, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK, LinearAlgebra
-    using Base: summarysize
+# let 
+#     using KiteModels, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK, LinearAlgebra
+#     using Base: summarysize
 
-    update_settings()
-    set = se("system_3l.yaml")
-    set.abs_tol = 0.006
-    set.rel_tol = 0.01
-    steps = 150
-    dt = 1/set.sample_freq
-    tspan   = (0.0, dt)
+#     update_settings()
+#     set = se("system_3l.yaml")
+#     set.abs_tol = 0.006
+#     set.rel_tol = 0.01
+#     steps = 150
+#     dt = 1/set.sample_freq
+#     tspan   = (0.0, dt)
 
-    logger = Logger(3*set.segments + 6, steps)
+#     logger = Logger(3*set.segments + 6, steps)
 
-    steering = [5,5,-30.0]
+#     steering = [5,5,-30.0]
 
-    println("Running models")
-    if ! @isdefined mtk_kite; mtk_kite = KPS4_3L(KCU(set)); end
-    mtk_integrator = KiteModels.init_sim!(mtk_kite; prn=false, torque_control=true)
+#     println("Running models")
+#     if ! @isdefined mtk_kite; mtk_kite = KPS4_3L(KCU(set)); end
+#     mtk_integrator = KiteModels.init_sim!(mtk_kite; prn=false, torque_control=true)
 
-    println("compiling")
-    total_new_time = 0.0
-    for i in 1:5
-        total_new_time += @elapsed next_step!(mtk_kite, mtk_integrator; set_values=steering)
-    end
-    sys_state = KiteModels.SysState(mtk_kite)
-    if sys_state.heading > pi
-        sys_state.heading -= 2*pi
-    end
-    log!(logger, sys_state)
+#     println("compiling")
+#     total_new_time = 0.0
+#     for i in 1:5
+#         total_new_time += @elapsed next_step!(mtk_kite, mtk_integrator; set_values=steering)
+#     end
+#     sys_state = KiteModels.SysState(mtk_kite)
+#     if sys_state.heading > pi
+#         sys_state.heading -= 2*pi
+#     end
+#     log!(logger, sys_state)
 
-    println("stepping")
-    total_old_time = 0.0
-    total_new_time = 0.0
-end
+#     println("stepping")
+#     total_old_time = 0.0
+#     total_new_time = 0.0
+# end
 
 @info "Precompile script has completed execution."

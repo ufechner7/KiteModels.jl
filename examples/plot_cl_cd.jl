@@ -80,7 +80,7 @@ for depower in DEPOWER
     if depower < 0.356
         depower = 0.356
     end
-    logger = Logger(set.segments + 5, STEPS)
+    logger::Logger = Logger(set.segments + 5, STEPS)
     DEP[i] = depower
     set.depower = 100*depower
     set.depower_gain = 5

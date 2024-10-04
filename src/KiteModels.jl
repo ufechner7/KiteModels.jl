@@ -58,6 +58,7 @@ export clear!, find_steady_state!, residual!, model!, steady_state_model!       
 export init_sim!, reset_sim!, next_step!, init_pos_vel, init_pos, update_pos!                            # high level workers
 export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, calc_orient_quat  # getters
 export winch_force, lift_drag, cl_cd, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
+export upwind_dir
 export kite_ref_frame, orient_euler, spring_forces
 import LinearAlgebra: norm
 
@@ -218,6 +219,14 @@ function set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind, wind_dir=0.
     nothing
 end
 
+function upwind_dir(s::AKM)
+    if s.v_wind_gnd[1] == 0.0 && s.v_wind_gnd[2] == 0.0
+        return NaN
+    end
+    wind_dir = atan(s.v_wind_gnd[2], s.v_wind_gnd[1])
+    -(wind_dir + π/2)
+end
+
 """
     tether_length(s::AKM)
 
@@ -233,12 +242,23 @@ end
 
 
 """
-    orient_euler(s::AKM)
+    orient_euler(s::KPS4)
 
 Calculate and return the orientation of the kite in euler angles (roll, pitch, yaw)
 as SVector. 
 """
-function orient_euler(s::AKM)
+function orient_euler(s::KPS4; SWD=true)
+    q = calc_orient_quat(s; SWD)
+    return (quat2euler(q))
+end
+
+"""
+    orient_euler(s::KPS3)
+
+Calculate and return the orientation of the kite in euler angles (roll, pitch, yaw)
+as SVector. 
+"""
+function orient_euler(s::KPS3; SWD=false)
     x, y, z = kite_ref_frame(s)
     roll = atan(y[3], z[3]) - π/2
     if roll < -π/2
@@ -252,13 +272,27 @@ function orient_euler(s::AKM)
     SVector(roll, pitch, yaw)
 end
 
-function calc_orient_quat(s::AKM)
+"""
+    calc_orient_quat(s::AKM; SWD=true)
+
+Calculate and return the orientation of the kite with respect to the NED frame as a quaternion.
+"""
+function calc_orient_quat(s::AKM; SWD=true)
     x, y, z = kite_ref_frame(s)
-    # reference: NED
-    ax = [0, 1, 0]
-    ay = [1, 0, 0]
-    az = [0, 0, -1]
+    if SWD
+        # convert ENU to SWD
+        ax = SVec3([0, -1, 0])
+        ay = SVec3([-1, 0, 0])
+        az = SVec3([0, 0, -1])
+    else
+        # convert ENU to NED
+        ax = SVec3([0, 1, 0])
+        ay = SVec3([1, 0, 0])
+        az = SVec3([0, 0, -1])
+    end
+
     rotation = rot3d(ax, ay, az, x, y, z)
+    # rotation = rot3d(x, y, z, ax, ay, az)
     q = QuatRotation(rotation)
     return Rotations.params(q)
 end
@@ -286,12 +320,20 @@ end
 
 Determine the heading angle of the kite in radian.
 """
-function calc_heading(s::AKM)
-    orientation = orient_euler(s)
+function calc_heading(s::KPS4; upwind_dir=upwind_dir(s), SWD=false)
+    orientation = orient_euler(s; SWD)
+    elevation = calc_elevation(s)
+    azimuth = calc_azimuth(s)
+    KiteUtils.calc_heading(orientation, elevation, azimuth; upwind_dir)
+end
+
+function calc_heading(s::KPS3; upwind_dir=-π/2, SWD=false)
+    orientation = orient_euler(s; SWD)
     elevation = calc_elevation(s)
     azimuth = calc_azimuth(s)
     KiteUtils.calc_heading(orientation, elevation, azimuth)
 end
+
 
 """
     calc_course(s::AKM)
@@ -300,9 +342,10 @@ Determine the course angle of the kite in radian.
 Undefined if the velocity of the kite is near zero.
 """
 function calc_course(s::AKM)
+    downwind_dir = wrap2pi(upwind_dir(s) + π)
     elevation = calc_elevation(s)
     azimuth = calc_azimuth(s)
-    KiteUtils.calc_course(s.vel_kite, elevation, azimuth)
+    KiteUtils.calc_course(s.vel_kite, elevation, azimuth, downwind_dir)
 end
 
 # mutable struct SysState{P}
@@ -350,7 +393,7 @@ end
 #     var_16::MyFloat
 # end 
 
-function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
+function update_sys_state!(ss::SysState, s::AKM, zoom=1.0; SWD=true)
     ss.time = s.t_0
     pos = s.pos
     P = length(pos)
@@ -359,7 +402,7 @@ function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
         ss.Y[i] = pos[i][2] * zoom
         ss.Z[i] = pos[i][3] * zoom
     end
-    ss.orient .= calc_orient_quat(s)
+    ss.orient .= calc_orient_quat(s; SWD)
     ss.elevation = calc_elevation(s)
     ss.azimuth = calc_azimuth(s)
     ss.force = winch_force(s)
@@ -382,7 +425,7 @@ The SysState object can be used either for logging or for displaying the
 system state in a viewer. Optionally the position arrays can be zoomed
 according to the requirements of the viewer.
 """
-function SysState(s::AKM, zoom=1.0)
+function SysState(s::AKM, zoom=1.0; SWD=true)
     pos = s.pos
     P = length(pos)
     X = zeros(MVector{P, MyFloat})
@@ -394,7 +437,7 @@ function SysState(s::AKM, zoom=1.0)
         Z[i] = pos[i][3] * zoom
     end
     
-    orient = calc_orient_quat(s)
+    orient = calc_orient_quat(s; SWD)
 
     elevation = calc_elevation(s)
     azimuth = calc_azimuth(s)
@@ -477,7 +520,7 @@ end
 
 
 """
-    next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, v_wind_gnd=s.set.v_wind, wind_dir=0.0, 
+    next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2, 
                dt=1/s.set.sample_freq)
 
 Calculates the next simulation step.
@@ -620,7 +663,7 @@ end
         # they belong to your package or not (on Julia 1.8 and higher)
         integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
         integrator = KiteModels.init_sim!(kps4_; delta=0.03, stiffness_factor=0.05, prn=false)     
-        integrator = KiteModels.init_sim!(kps4_3l_)   
+        # integrator = KiteModels.init_sim!(kps4_3l_)   
         nothing
     end
 end

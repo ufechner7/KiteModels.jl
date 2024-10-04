@@ -173,11 +173,11 @@ $(TYPEDFIELDS)
     sync_speed::Union{S, Nothing} =        0.0
     "set_torque of the motor/generator"
     set_torque::Union{S, Nothing} = nothing
-    "x vector of kite reference frame"
+    "x vector of kite reference frame, from trailing edge to leading edge"
     x::T =                 zeros(S, 3)
-    "y vector of kite reference frame"
+    "y vector of kite reference frame, to the right looking in flight direction"
     y::T =                 zeros(S, 3)
-    "z vector of kite reference frame"
+    "z vector of kite reference frame, down"
     z::T =                 zeros(S, 3)
 end
 
@@ -321,8 +321,8 @@ Updates the vector s.forces of the first parameter.
     pos_centre = 0.5 * (pos_C + pos_D)
     delta = pos_B - pos_centre
     z = -normalize(delta)
-    y = normalize(pos_C - pos_D)
-    x = y × z
+    y = -normalize(pos_D - pos_C)
+    x = (y × z)
     s.x .= x; s.y .= y; s.z .= z # save the kite reference frame in the state
 
     va_xz2 = va_2 - (va_2 ⋅ y) * y
@@ -338,9 +338,9 @@ Updates the vector s.forces of the first parameter.
     s.alpha_4 = alpha_4
     s.alpha_4b = rad2deg(π/2 + asin2(normalize(va_xy4) ⋅ x))
     if s.set.version == 3
-        alpha_2 = rad2deg(π/2 + asin2(normalize(va_xz2) ⋅ x) - alpha_depower)     + s.set.alpha_zero
-        alpha_3 = rad2deg(π/2 + asin2(normalize(va_xy3) ⋅ x) - rel_steering * s.ks) + s.set.alpha_ztip
-        alpha_4 = rad2deg(π/2 + asin2(normalize(va_xy4) ⋅ x) + rel_steering * s.ks) + s.set.alpha_ztip
+        # alpha_2 = rad2deg(π/2 + asin2(normalize(va_xz2) ⋅ -x) - alpha_depower)     + s.set.alpha_zero
+        # alpha_3 = rad2deg(π/2 + asin2(normalize(va_xy3) ⋅ -x) - rel_steering * s.ks) + s.set.alpha_ztip
+        # alpha_4 = rad2deg(π/2 + asin2(normalize(va_xy4) ⋅ -x) + rel_steering * s.ks) + s.set.alpha_ztip
         drag_corr = 1.0
     else
         drag_corr = DRAG_CORR
