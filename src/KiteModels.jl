@@ -393,7 +393,7 @@ end
 #     var_16::MyFloat
 # end 
 
-function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
+function update_sys_state!(ss::SysState, s::AKM, zoom=1.0; SWD=true)
     ss.time = s.t_0
     pos = s.pos
     P = length(pos)
@@ -402,7 +402,7 @@ function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
         ss.Y[i] = pos[i][2] * zoom
         ss.Z[i] = pos[i][3] * zoom
     end
-    ss.orient .= calc_orient_quat(s)
+    ss.orient .= calc_orient_quat(s; SWD)
     ss.elevation = calc_elevation(s)
     ss.azimuth = calc_azimuth(s)
     ss.force = winch_force(s)
@@ -425,7 +425,7 @@ The SysState object can be used either for logging or for displaying the
 system state in a viewer. Optionally the position arrays can be zoomed
 according to the requirements of the viewer.
 """
-function SysState(s::AKM, zoom=1.0)
+function SysState(s::AKM, zoom=1.0; SWD=true)
     pos = s.pos
     P = length(pos)
     X = zeros(MVector{P, MyFloat})
@@ -437,7 +437,7 @@ function SysState(s::AKM, zoom=1.0)
         Z[i] = pos[i][3] * zoom
     end
     
-    orient = calc_orient_quat(s)
+    orient = calc_orient_quat(s; SWD)
 
     elevation = calc_elevation(s)
     azimuth = calc_azimuth(s)
