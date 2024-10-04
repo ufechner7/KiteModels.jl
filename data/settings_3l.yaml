@@ -11,7 +11,7 @@ system:
 
 initial:
     l_tether: 50.0        # initial tether length       [m]
-    elevation: 70.8        # initial elevation angle   [deg]
+    elevation: 85.0        # initial elevation angle   [deg]
     v_reel_out: 0.0        # initial reel out speed    [m/s]
     depower:   25.0        # initial depower settings    [%]
 
@@ -37,6 +37,8 @@ depower:
 
 kite:
     model: "data/kite.obj" # 3D model of the kite
+    foil_file: "data/MH82.dat"  # filename for the foil shape
+    polar_file: "data/polars.bin"   # filename for the polars
     physical_model: "KPS4_3L" # name of the kite model to use (KPS3 or KPS4)
     version: 2             # version of the model to use
     mass:  0.9             # kite mass [kg]
@@ -63,6 +65,7 @@ kps4_3l:
     min_steering_line_distance: 1.0
     width:         4.1     # width of the kite                          [m]
     aero_surfaces: 5      # number of aerodynamic surfaces in 3 line model
+    flap_height: 0.044     # height at the start of the flap of a normalized kite segment
 
 kcu:
     kcu_mass: 8.4                # mass of the kite control unit   [kg]
@@ -96,7 +99,7 @@ winch:
     v_ro_min: -8.0         # minimal reel-out speed (=max reel-in speed)     [m/s]
     drum_radius: 0.110    # radius of the drum                              [m]
     gear_ratio: 1.0        # gear ratio of the winch                         [-]   
-    inertia_total: 0.104   # total inertia, as seen from the motor/generator [kgm²]
+    inertia_total: 0.024   # total inertia, as seen from the motor/generator [kgm²]
     f_coulomb: 122.0       # coulomb friction                                [N]
     c_vf: 30.6             # coefficient for the viscous friction            [Ns/m]
 

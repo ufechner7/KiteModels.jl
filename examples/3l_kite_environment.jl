@@ -1,7 +1,8 @@
 module Environment
 
-using KiteModels, StaticArrays, LinearAlgebra, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK, Parameters
-export reset, step, render
+using KiteModels, StaticArrays, LinearAlgebra, Parameters
+import OrdinaryDiffEqCore: ODEIntegrator
+export reset, step, render, Env
 
 const StateVec = MVector{11, Float32}
 
@@ -11,7 +12,7 @@ const StateVec = MVector{11, Float32}
     max_render_length::Int = 10000
     i::Int = 1
     logger::Logger = Logger(s.num_A, max_render_length)
-    integrator::OrdinaryDiffEq.ODEIntegrator = KiteModels.init_sim!(s; stiffness_factor=0.04, prn=false, mtk=true, torque_control=true)
+    integrator::ODEIntegrator = KiteModels.init_sim!(s; prn=false, torque_control=true)
     sys_state::SysState = SysState(s)
     state::StateVec = zeros(StateVec)
     state_d::StateVec = zeros(StateVec)
@@ -25,27 +26,26 @@ const StateVec = MVector{11, Float32}
     rotation::Float64 = 0.0
 end
 
-const e = Env()
-
-function step(reel_out_torques; prn=false)
-    reel_out_torques = Vector{Float64}(reel_out_torques) .* 100
+function step(e::Env, reel_out_torques; prn=false)
+    reel_out_torques = Vector{Float64}(reel_out_torques)
 
     old_heading = calc_heading(e.s)
     if prn
-        KiteModels.next_step!(e.s, e.integrator; set_values=reel_out_torques, torque_control=false)
+        KiteModels.next_step!(e.s, e.integrator; set_values=reel_out_torques)
     else
-        redirect_stdout(devnull) do
-            KiteModels.next_step!(e.s, e.integrator; set_values=reel_out_torques, torque_control=true)
+        redirect_stderr(devnull) do
+            redirect_stdout(devnull) do
+                KiteModels.next_step!(e.s, e.integrator; set_values=reel_out_torques)
+            end
         end
     end
-    println(e.s.pos[end])
-    _calc_rotation(old_heading, calc_heading(e.s))
+    _calc_rotation(e, old_heading, calc_heading(e.s))
     update_sys_state!(e.sys_state, e.s)
     e.i += 1
-    return _calc_state(e.s)
+    return (e.integrator.last_stepfail, _calc_state(e, e.s))
 end
 
-function reset(name="sim_log", elevation=0.0, azimuth=0.0, tether_length=50.0, force=5000.0, log=false)
+function reset(e::Env, name="sim_log", elevation=0.0, azimuth=0.0, tether_length=50.0, force=5000.0, log=false)
     e.wanted_elevation = Float32(elevation)
     e.wanted_azimuth = Float32(azimuth)
     e.wanted_tether_length = Float32(tether_length)
@@ -56,24 +56,22 @@ function reset(name="sim_log", elevation=0.0, azimuth=0.0, tether_length=50.0, f
         save_log(e.logger, basename(name))
     end
     update_settings()
-    @time e.logger = Logger(e.s.num_A, e.max_render_length)
-    println(e.integrator)
-    @time e.integrator = KiteModels.reset_sim!(e.s; stiffness_factor=0.04)
+    e.logger = Logger(e.s.num_A, e.max_render_length)
+    e.integrator = KiteModels.init_sim!(e.s; prn=false, torque_control=true)
     e.sys_state = SysState(e.s)
     e.i = 1
-    return _calc_state(e.s)
+    return _calc_state(e, e.s)
 end
 
-function render()
+function render(e::Env)
     if(e.i <= e.max_render_length)
         log!(e.logger, e.sys_state)
     end
 end
 
-function _calc_state(s::KPS4_3L)
-    _calc_reward(s)
+function _calc_state(e::Env, s::KPS4_3L)
     e.state .= vcat(
-        _calc_reward(s),                # length 1
+        _calc_speed_reward(e,s),                # length 1
         calc_orient_quat(s),            # length 4
         s.tether_lengths,                    # length 3 # normalize to min and max 
         
@@ -96,27 +94,57 @@ function _calc_state(s::KPS4_3L)
     return vcat(e.state, e.state_d, e.state_dd)
 end
 
-function _calc_reward(s::KPS4_3L)
-    if (KiteModels.calc_tether_elevation(s) < e.wanted_elevation ||
+function _calc_reward(e::Env, s::KPS4_3L)
+    if  s.vel_kite ⋅ s.e_x < 0 ||
+        (KiteModels.calc_tether_elevation(s) < e.wanted_elevation ||
         !(-2*π < e.rotation < 2*π) ||
-        s.tether_lengths[1] > e.wanted_tether_length*1.5 ||
-        s.tether_lengths[1] < e.wanted_tether_length*0.95 ||
+        s.tether_lengths[3] > e.wanted_tether_length*1.5 ||
+        s.tether_lengths[3] < e.wanted_tether_length*0.95 ||
         sum(winch_force(s)) > e.max_force)
         return 0.0
     end
-    force_component = _calc_force_component(s)
+    force_component = _calc_force_component(e,s)
     reward = clamp(force_component / e.max_force, 0.0, 1.0) # range [-1, 1] clamped to [0, 1] because 0 is physical minimum
     return reward
 end
 
-function _calc_force_component(s::KPS4_3L)
+function _calc_speed_reward(e::Env, s::KPS4_3L)
+    speed = s.vel_kite ⋅ s.e_x
+    if  (KiteModels.calc_tether_elevation(s) < e.wanted_elevation ||
+        !(-2*π < e.rotation < 2*π) ||
+        s.tether_lengths[3] > e.wanted_tether_length*1.5 ||
+        s.tether_lengths[3] < e.wanted_tether_length*0.95 ||
+        sum(winch_force(s)) > e.max_force)
+        return 0.0
+    end
+    # wanted_minus_z = [cos(e.wanted_elevation)*cos(e.wanted_azimuth), cos(e.wanted_elevation)*-sin(e.wanted_azimuth), sin(e.wanted_elevation)]
+    # reward = speed * (-s.e_z ⋅ wanted_minus_z)
+    reward = speed
+    return reward
+end
+
+function _calc_direction_reward(e::Env, s::KPS4_3L)
+    if  s.vel_kite ⋅ s.e_x < 0.0 ||
+        (KiteModels.calc_tether_elevation(s) < e.wanted_elevation ||
+        !(-2*π < e.rotation < 2*π) ||
+        s.tether_lengths[3] > e.wanted_tether_length*1.5 ||
+        s.tether_lengths[3] < e.wanted_tether_length*0.95 ||
+        sum(winch_force(s)) > e.max_force)
+        return 0.01
+    end
+    wanted_direction = [cos(e.wanted_elevation)*cos(e.wanted_azimuth), cos(e.wanted_elevation)*-sin(e.wanted_azimuth), sin(e.wanted_elevation)]
+    reward = normalize(s.pos[6]) ⋅ wanted_direction + 1.0
+    return reward
+end
+
+function _calc_force_component(e::Env, s::KPS4_3L)
     wanted_force_vector = [cos(e.wanted_elevation)*cos(e.wanted_azimuth), cos(e.wanted_elevation)*-sin(e.wanted_azimuth), sin(e.wanted_elevation)]
-    tether_force = sum(s.forces[1:3])
+    tether_force = sum(s.winch_forces)
     force_component = tether_force ⋅ wanted_force_vector
     return force_component
 end
 
-function _calc_rotation(old_heading, new_heading)
+function _calc_rotation(e::Env, old_heading, new_heading)
     d_rotation = new_heading - old_heading
     if d_rotation > 1
         d_rotation -= 2*pi

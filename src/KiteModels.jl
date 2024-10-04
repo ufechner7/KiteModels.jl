@@ -34,8 +34,8 @@ Scientific background: http://arxiv.org/abs/1406.6218 =#
 module KiteModels
 
 using PrecompileTools: @setup_workload, @compile_workload 
-using Dierckx, StaticArrays, Rotations, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, OrdinaryDiffEqCore, 
-      OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK, Serialization, DataInterpolations
+using Dierckx, Interpolations, Serialization, StaticArrays, Rotations, LinearAlgebra, Parameters, NLsolve, 
+      DocStringExtensions, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK
 import Sundials
 using Reexport, Pkg
 @reexport using KitePodModels
@@ -51,11 +51,12 @@ import OrdinaryDiffEqCore.init
 import OrdinaryDiffEqCore.step!
 using ModelingToolkit, SymbolicIndexingInterface, SteadyStateDiffEq
 using ModelingToolkit: t_nounits as t, D_nounits as D
+import ModelingToolkit.SciMLBase: successful_retcode
 
 export KPS3, KPS4, KPS4_3L, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                     # constants and types
 export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                            # helper functions
-export clear!, find_steady_state!, residual!, model!, steady_state_model!                     # low level workers
-export init_sim!, reset_sim!, next_step!, init_pos_vel, init_pos, update_pos!                            # high level workers
+export clear!, find_steady_state!, residual!                                                  # low level workers
+export init_sim!, reset_sim!, next_step!, init_pos_vel, init_pos, model!                                 # high level workers
 export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, calc_orient_quat  # getters
 export winch_force, lift_drag, cl_cd, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
 export kite_ref_frame, orient_euler, spring_forces
@@ -91,10 +92,8 @@ Basic 3-dimensional vector, stack allocated, immutable.
 """
 const SVec3    = SVector{3, SimFloat}  
 
-# the following two definitions speed up the function residual! from 940ns to 540ns
-# disadvantage: changing the cl and cd curves requires a restart of the program     
-const rad_cl_mtk = CubicSpline(se().cl_list, deg2rad.(se().alpha_cl); extrapolate=true) 
-const rad_cd_mtk = CubicSpline(se().cd_list, deg2rad.(se().alpha_cd); extrapolate=true) 
+# const rad_cl_mtk = CubicSpline(se().cl_list, deg2rad.(se().alpha_cl); extrapolate=true) 
+# const rad_cd_mtk = CubicSpline(se().cd_list, deg2rad.(se().alpha_cd); extrapolate=true) 
 
 """
     abstract type AbstractKiteModel
@@ -613,14 +612,14 @@ end
     set.kcu_diameter = 0
     kps4_::KPS4 = KPS4(KCU(set))
     kps3_::KPS3 = KPS3(KCU(se("system.yaml")))
-    kps4_3l_::KPS4_3L = KPS4_3L(KCU(se(SYS_3L)))
+    # kps4_3l_::KPS4_3L = KPS4_3L(KCU(se(SYS_3L))) # TODO: add back
     @assert ! isnothing(kps4_.wm)
     @compile_workload begin
         # all calls in this block will be precompiled, regardless of whether
         # they belong to your package or not (on Julia 1.8 and higher)
         integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
         integrator = KiteModels.init_sim!(kps4_; delta=0.03, stiffness_factor=0.05, prn=false)     
-        integrator = KiteModels.init_sim!(kps4_3l_)   
+        # integrator = KiteModels.init_sim!(kps4_3l_)   
         nothing
     end
 end
