@@ -52,9 +52,9 @@ q = QuatRotation(sys_state.orient)
 # println(q)
 roll, pitch, yaw = rad2deg.(KiteUtils.quat2euler(q))
 println("roll: ", roll, " pitch: ", pitch, " yaw: ", yaw)
-# println("x:", kps4.x)
-# println("y:", kps4.y)
-# println("z:", kps4.z)
+println("x:", kps4.x) # from trailing edge to leading edge in ENU reference frame
+println("y:", kps4.y) # to the right looking in flight direction
+println("z:", kps4.z) # down
 
 # print point C and point D
 pos_C, pos_D = kps4.pos[kps4.set.segments+4], kps4.pos[kps4.set.segments+5]
