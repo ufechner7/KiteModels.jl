@@ -321,8 +321,8 @@ Updates the vector s.forces of the first parameter.
     pos_centre = 0.5 * (pos_C + pos_D)
     delta = pos_B - pos_centre
     z = -normalize(delta)
-    y = normalize(pos_D - pos_C)
-    x = y × z
+    y = -normalize(pos_D - pos_C)
+    x = (y × z)
     s.x .= x; s.y .= y; s.z .= z # save the kite reference frame in the state
 
     va_xz2 = va_2 - (va_2 ⋅ y) * y
