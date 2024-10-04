@@ -328,15 +328,15 @@ Updates the vector s.forces of the first parameter.
     va_xz2 = va_2 - (va_2 ⋅ y) * y
     va_xy3 = va_3 - (va_3 ⋅ z) * z
     va_xy4 = va_4 - (va_4 ⋅ z) * z
-    alpha_2 = rad2deg(π - acos2(normalize(va_xz2) ⋅ -x) - alpha_depower)     + s.set.alpha_zero
-    alpha_3 = rad2deg(π - acos2(normalize(va_xy3) ⋅ -x) - rel_steering * s.ks) + s.set.alpha_ztip
-    alpha_4 = rad2deg(π - acos2(normalize(va_xy4) ⋅ -x) + rel_steering * s.ks) + s.set.alpha_ztip
+    alpha_2 = rad2deg(π - acos2(normalize(va_xz2) ⋅ x) - alpha_depower)     + s.set.alpha_zero
+    alpha_3 = rad2deg(π - acos2(normalize(va_xy3) ⋅ x) - rel_steering * s.ks) + s.set.alpha_ztip
+    alpha_4 = rad2deg(π - acos2(normalize(va_xy4) ⋅ x) + rel_steering * s.ks) + s.set.alpha_ztip
     s.alpha_2 = alpha_2
-    s.alpha_2b = rad2deg(π/2 + asin2(normalize(va_xz2) ⋅ -x))
+    s.alpha_2b = rad2deg(π/2 + asin2(normalize(va_xz2) ⋅ x))
     s.alpha_3 = alpha_3
-    s.alpha_3b = rad2deg(π/2 + asin2(normalize(va_xy3) ⋅ -x))
+    s.alpha_3b = rad2deg(π/2 + asin2(normalize(va_xy3) ⋅ x))
     s.alpha_4 = alpha_4
-    s.alpha_4b = rad2deg(π/2 + asin2(normalize(va_xy4) ⋅ -x))
+    s.alpha_4b = rad2deg(π/2 + asin2(normalize(va_xy4) ⋅ x))
     if s.set.version == 3
         # alpha_2 = rad2deg(π/2 + asin2(normalize(va_xz2) ⋅ -x) - alpha_depower)     + s.set.alpha_zero
         # alpha_3 = rad2deg(π/2 + asin2(normalize(va_xy3) ⋅ -x) - rel_steering * s.ks) + s.set.alpha_ztip
@@ -350,7 +350,7 @@ Updates the vector s.forces of the first parameter.
     CL3, CD3 = s.calc_cl(alpha_3), drag_corr * s.calc_cd(alpha_3)
     CL4, CD4 = s.calc_cl(alpha_4), drag_corr * s.calc_cd(alpha_4)
     s.side_cl = CL4 - CL3
-    L2 = (-0.5 * rho * (norm(va_xz2))^2 * s.set.area * CL2) * normalize(va_2 × -y)
+    L2 = (-0.5 * rho * (norm(va_xz2))^2 * s.set.area * CL2) * normalize(va_2 × y)
     L3 = (-0.5 * rho * (norm(va_xy3))^2 * s.set.area * rel_side_area * CL3) * normalize(va_3 × z)
     L4 = (-0.5 * rho * (norm(va_xy4))^2 * s.set.area * rel_side_area * CL4) * normalize(z × va_4)
     D2 = (-0.5 * K * rho * norm(va_2) * s.set.area * CD2) * va_2
