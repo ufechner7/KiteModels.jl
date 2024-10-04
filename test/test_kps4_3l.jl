@@ -1,6 +1,8 @@
 using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils
 using KiteModels, KitePodModels
 
+old_path = get_data_path()
+@show old_path
 set_data_path(joinpath(dirname(dirname(pathof(KiteModels))), "data"))
 kcu_3l::KCU = KCU(se("system_3l.yaml"))
 kcu_3l.set.winch_model = "AsyncMachine"
@@ -193,8 +195,11 @@ end
     # TODO Add testcase with varying reelout speed 
 end
 
-# # TODO: add testset for sysstate
+# TODO: add testset for sysstate
 
 
 end
+
+set_data_path(old_path)
+
 nothing
