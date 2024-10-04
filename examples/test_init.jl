@@ -59,13 +59,13 @@ println("x:", kps4.x) # from trailing edge to leading edge in ENU reference fram
 println("y:", kps4.y) # to the right looking in flight direction
 println("z:", kps4.z) # down
 azimuth = calc_azimuth(kps4)
-println("azimuth: ", rad2deg(azimuth))
+println("azimuth: ", round(rad2deg(azimuth), digits = 2), "°")
 
 # print point C and point D
 pos_C, pos_D = kps4.pos[kps4.set.segments+4], kps4.pos[kps4.set.segments+5]
 
 # print alpha2, alpha3, alpha4
-println(kps4.alpha_2, " ", kps4.alpha_3, " ", kps4.alpha_4)
+println("alpha2, alpha3, alpha4: ", kps4.alpha_2, " ", kps4.alpha_3, " ", kps4.alpha_4)
 println("heading: ", round(rad2deg(calc_heading(kps4; upwind_dir=-pi/2)), digits = 2), "°")
 
 # output on main branch
@@ -74,4 +74,4 @@ println("heading: ", round(rad2deg(calc_heading(kps4; upwind_dir=-pi/2)), digits
 # x:[-0.9949585608372032, 0.0, 0.10028689952711267]
 # y:[0.0, 1.0, 0.0]
 # z:[-0.10028689952711267, -2.8981421002141166e-19, -0.9949585608372032]
-# 7.546125780476343 10.000000853773646 10.000000853773646
+# alpha2, alpha3, alpha4: 7.546125780476343 10.000000853773646 10.000000853773646
