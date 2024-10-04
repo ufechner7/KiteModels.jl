@@ -4,7 +4,7 @@ using Pkg
 if ! ("KiteViewers" ∈ keys(Pkg.project().dependencies))
     Pkg.activate("examples_3d")
     pkg"add ControlPlots#main"
-    pkg"add KiteUtils"
+    pkg"add KiteUtils#main"
     pkg"add KiteModels#stable"
 end
 using KiteModels, KitePodModels, KiteUtils, Rotations, StaticArrays
@@ -133,7 +133,7 @@ function simulate(integrator, steps, plot=true)
         end
         steering = 0
         if i > 200
-            steering = 0.05
+            steering = -0.043
         end
         set_depower_steering(kps4.kcu, kps4.depower, steering)
 
