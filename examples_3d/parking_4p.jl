@@ -1,11 +1,13 @@
 using Printf
-using KiteModels, KitePodModels, KiteUtils, Rotations, StaticArrays
 
 using Pkg
 if ! ("KiteViewers" ∈ keys(Pkg.project().dependencies))
     Pkg.activate("examples_3d")
     pkg"add ControlPlots#main"
+    pkg"add KiteUtils#main"
+    pkg"add KiteModels#fix_yaw"
 end
+using KiteModels, KitePodModels, KiteUtils, Rotations, StaticArrays
 using ControlPlots, KiteViewers
 
 set = deepcopy(se())

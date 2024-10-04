@@ -320,8 +320,8 @@ end
 
 Determine the heading angle of the kite in radian.
 """
-function calc_heading(s::KPS4; upwind_dir=upwind_dir(s))
-    orientation = orient_euler(s)
+function calc_heading(s::KPS4; upwind_dir=upwind_dir(s), SWD=false)
+    orientation = orient_euler(s; SWD)
     elevation = calc_elevation(s)
     azimuth = calc_azimuth(s)
     KiteUtils.calc_heading(orientation, elevation, azimuth; upwind_dir)

@@ -1,6 +1,9 @@
 # plot the lift and drag coefficients as function of angle of attack
 
 using Printf
+using Pkg
+pkg"add KiteUtils#main"
+
 using KiteModels, KitePodModels, KiteUtils, LinearAlgebra, Rotations
 
 set = deepcopy(load_settings("system.yaml"))
