@@ -22,6 +22,7 @@ KiteModels.init_masses!(kps4)
 pos, vel, acc = KiteModels.init_pos_vel_acc(kps4)
 
 function calc_aoa(s::KPS4, pos, vel; alpha_depower=0.0, rel_steering=0.0, old=false)
+
     # pos_B, pos_C, pos_D: position of the kite particles B, C, and D
     # v_B,   v_C,   v_D:   velocity of the kite particles B, C, and D
     pos_B, pos_C, pos_D = pos[s.set.segments+3], pos[s.set.segments+4], pos[s.set.segments+5]

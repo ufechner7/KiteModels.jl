@@ -58,7 +58,6 @@ println("roll: ", roll, " pitch: ", pitch, " yaw: ", yaw)
 
 # print point C and point D
 pos_C, pos_D = kps4.pos[kps4.set.segments+4], kps4.pos[kps4.set.segments+5]
-nothing
 
 # print alpha2, alpha3, alpha4
 println(kps4.alpha_2, " ", kps4.alpha_3, " ", kps4.alpha_4)
