@@ -66,6 +66,18 @@ function fromEX2EG(vector)
     rotateEX2EG * vector
 end
 
+"""
+    fromEG2W(vector, down_wind_direction = pi/2.0)
+
+Transform a vector (x,y,z) from Earth Groundstation to Wind reference frame.
+"""
+function fromEG2W2(vector, down_wind_direction = pi/2.0)
+    rotateEG2W =    @SMatrix[cos(down_wind_direction) -sin(down_wind_direction)  0;
+                             sin(down_wind_direction)  cos(down_wind_direction)  0;
+                             0                        0                      1]
+    rotateEG2W * vector
+end
+
 function calc_heading_w2(orientation, down_wind_direction = pi/2.0)
     # create a unit heading vector in the xsense reference frame
     heading_sensor =  SVector(1, 0, 0)
@@ -74,7 +86,7 @@ function calc_heading_w2(orientation, down_wind_direction = pi/2.0)
     # rotate headingEX to earth groundstation reference frame
     headingEG = fromEX2EG(headingEX)
     # rotate headingEG to headingW and convert to 2d HeadingW vector
-    fromEG2W(headingEG, down_wind_direction)
+    fromEG2W2(headingEG, down_wind_direction)
 end
 
 """

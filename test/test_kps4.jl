@@ -557,5 +557,13 @@ end
     @test isfile("create_sys_image")
 end
 
+@testset "test_heading  " begin
+    orientation = [0.0, 0.0, 0.0]
+    down_wind_direction = pi/2.0
+    # @test isapprox(calc_heading_w2(orientation, down_wind_direction), 0.0)
+    println(calc_heading_w(orientation, down_wind_direction))
+    
+end
+
 end
 nothing
