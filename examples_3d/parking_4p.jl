@@ -65,7 +65,8 @@ function simulate(integrator, steps, plot=PLOT)
             end
             sleep(0.05)           
         end
-    sys_state = SysState(kps4)
+        sys_state = SysState(kps4)
+        sys_state.orient = calc_orient_quat(kps4; old=true)
         KiteViewers.update_system(viewer, sys_state; scale = 0.08, kite_scale=3)
     end
     iter / steps
