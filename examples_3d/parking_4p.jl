@@ -1,13 +1,14 @@
 using Printf
 
-using Pkg
+using Pkg, Timers
+tic()
 if ! ("KiteViewers" ∈ keys(Pkg.project().dependencies))
     Pkg.activate("examples_3d")
-    pkg"add ControlPlots#main"
     pkg"add KiteModels#main"
 end
 using KiteModels, KitePodModels, KiteUtils, Rotations, StaticArrays
 using ControlPlots, KiteViewers
+toc()
 
 set = deepcopy(se())
 
@@ -18,7 +19,7 @@ set.linear_solver="GMRES"       # GMRES, LapackDense or Dense
 STEPS = 352
 PRINT = false
 STATISTIC = false
-PLOT=true
+PLOT=false
 UPWIND_DIR2       = -pi/2+deg2rad(10)     # Zero is at north; clockwise positive
 ZOOM = true
 FRONT_VIEW = true
@@ -34,7 +35,7 @@ v_speed = zeros(STEPS)
 v_force = zeros(STEPS)
 heading = zeros(STEPS)
 
-function simulate(integrator, steps, plot=true)
+function simulate(integrator, steps, plot=PLOT)
     iter = 0
     for i in 1:steps
         acc = 0.0
@@ -56,15 +57,15 @@ function simulate(integrator, steps, plot=true)
 
         KiteModels.next_step!(kps4, integrator; set_speed, dt, upwind_dir=UPWIND_DIR2)
         iter += kps4.iter
-        if plot
-            reltime = i*dt-dt
-            if mod(i, 5) == 1
+        reltime = i*dt-dt
+        if mod(i, 5) == 1
+            if plot
                 plot2d(kps4.pos, reltime; zoom=true, front=FRONT_VIEW, 
-                       segments=set.segments, fig="front_view") 
-                sleep(0.05)           
+                    segments=set.segments, fig="front_view") 
             end
+            sleep(0.05)           
         end
-        sys_state = SysState(kps4)
+    sys_state = SysState(kps4)
         KiteViewers.update_system(viewer, sys_state; scale = 0.08, kite_scale=3)
     end
     iter / steps
