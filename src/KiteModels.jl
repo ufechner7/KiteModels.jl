@@ -59,7 +59,7 @@ export clear!, find_steady_state!, residual!                                    
 export init_sim!, reset_sim!, next_step!, init_pos_vel, init_pos, model!                                 # high level workers
 export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, calc_orient_quat  # getters
 export winch_force, lift_drag, cl_cd, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
-export kite_ref_frame, orient_euler, spring_forces
+export kite_ref_frame, orient_euler, spring_forces, upwind_dir
 import LinearAlgebra: norm
 
 set_zero_subnormals(true)       # required to avoid drastic slow down on Intel CPUs when numbers become very small
@@ -215,6 +215,14 @@ function set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind, wind_dir=0.
     s.v_wind_tether .= v_wind_gnd * calc_wind_factor(s.am, height / 2.0) .* [cos(wind_dir), sin(wind_dir), 0]
     s.rho = calc_rho(s.am, height)
     nothing
+end
+
+function upwind_dir(s::AKM)
+    if s.v_wind_gnd[1] == 0.0 && s.v_wind_gnd[2] == 0.0
+        return NaN
+    end
+    wind_dir = atan(s.v_wind_gnd[2], s.v_wind_gnd[1])
+    -(wind_dir + π/2)
 end
 
 """
