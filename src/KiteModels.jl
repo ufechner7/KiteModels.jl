@@ -619,13 +619,13 @@ end
     set = se("system.yaml")
     set.kcu_diameter = 0
     kps4_::KPS4 = KPS4(KCU(set))
-    # kps3_::KPS3 = KPS3(KCU(se("system.yaml")))
+    kps3_::KPS3 = KPS3(KCU(se("system.yaml")))
     # kps4_3l_::KPS4_3L = KPS4_3L(KCU(se(SYS_3L))) # TODO: add back
     @assert ! isnothing(kps4_.wm)
     @compile_workload begin
         # all calls in this block will be precompiled, regardless of whether
         # they belong to your package or not (on Julia 1.8 and higher)
-        # integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
+        integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
         integrator = KiteModels.init_sim!(kps4_; delta=0.03, stiffness_factor=0.05, prn=false)     
         # integrator = KiteModels.init_sim!(kps4_3l_)   
         nothing
