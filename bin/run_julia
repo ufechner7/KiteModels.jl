@@ -4,6 +4,8 @@ if [[ $(basename $(pwd)) == "bin" ]]; then
     cd ..
 fi
 
+export JULIA_PKG_SERVER_REGISTRY_PREFERANCE=eager
+
 julia_version=$(julia --version | awk '{print($3)}')
 julia_major=${julia_version:0:3} 
 if [[ $julia_major == "1.1" ]]; then
