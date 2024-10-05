@@ -51,7 +51,7 @@ function simulate(integrator, steps, plot=PLOT)
         end
         steering = 0
         if i > 200
-            steering = -0.043
+            steering = -0.0482
         end
         set_depower_steering(kps4.kcu, kps4.depower, steering)
 
