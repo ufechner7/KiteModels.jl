@@ -9,8 +9,7 @@ alphas, d_flap_angles, cl_matrix, cd_matrix, c_te_matrix = deserialize(joinpath(
 
 function replace_nan!(matrix)
     rows, cols = size(matrix)
-    
-    distance = 10
+    distance = max(rows, cols)
     for i in 1:rows
         for j in 1:cols
             if isnan(matrix[i, j])
@@ -18,19 +17,19 @@ function replace_nan!(matrix)
                 for d in 1:distance
                     found = false
                     if i-d >= 1 && !isnan(matrix[i-d, j]);
-                        push!(neighbors, matrix[i-1, j])
+                        push!(neighbors, matrix[i-d, j])
                         found = true
                     end
                     if i+d <= rows && !isnan(matrix[i+d, j])
-                        push!(neighbors, matrix[i+1, j])
+                        push!(neighbors, matrix[i+d, j])
                         found = true
                     end
                     if j-d >= 1 && !isnan(matrix[i, j-d])
-                        push!(neighbors, matrix[i, j-1])
+                        push!(neighbors, matrix[i, j-d])
                         found = true
                     end
                     if j+d <= cols && !isnan(matrix[i, j+d])
-                        push!(neighbors, matrix[i, j+1])
+                        push!(neighbors, matrix[i, j+d])
                         found = true
                     end
                     if found; break; end
@@ -48,9 +47,9 @@ replace_nan!(cl_matrix) # TODO: RAD2DEG
 replace_nan!(cd_matrix)
 replace_nan!(c_te_matrix)
 
-cl_interp = linear_interpolation((alphas, d_flap_angles), cl_matrix; extrapolation_bc = NaN)
-cd_interp = linear_interpolation((alphas, d_flap_angles), cd_matrix; extrapolation_bc = NaN)
-c_te_interp = linear_interpolation((alphas, d_flap_angles), c_te_matrix; extrapolation_bc = NaN)
+cl_interp = extrapolate(scale(interpolate(cl_matrix, BSpline(Quadratic())), alphas, d_flap_angles), NaN)
+cd_interp = extrapolate(scale(interpolate(cd_matrix, BSpline(Quadratic())), alphas, d_flap_angles), NaN)
+c_te_interp = extrapolate(scale(interpolate(c_te_matrix, BSpline(Quadratic())), alphas, d_flap_angles), NaN)
 
 function plot_values(alphas, d_flap_angles, matrix, interp, name)
     fig = plt.figure()
@@ -65,7 +64,7 @@ function plot_values(alphas, d_flap_angles, matrix, interp, name)
     X_int = collect(int_d_flap_angles) .+ zeros(length(int_alphas))'
     Y_int = collect(int_alphas)' .+ zeros(length(int_d_flap_angles))
 
-    # ax.plot_wireframe(X_data, Y_data, matrix, edgecolor="royalblue", lw=0.5, rstride=5, cstride=5, alpha=0.6)
+    ax.plot_wireframe(X_data, Y_data, matrix, edgecolor="royalblue", lw=0.5, rstride=5, cstride=5, alpha=0.6)
     ax.plot_wireframe(X_int, Y_int, interp_matrix, edgecolor="orange", lw=0.5, rstride=5, cstride=5, alpha=0.6)
     plt.xlabel("Alpha")
     plt.ylabel("Flap angle")
@@ -77,10 +76,11 @@ function plot_values(alphas, d_flap_angles, matrix, interp, name)
 end
 
 
-# plot_values(alphas, d_flap_angles, cl_matrix, cl_interp, "Cl")
-# plot_values(alphas, d_flap_angles, cd_matrix, cd_interp, "Cd")
-# plot_values(alphas, d_flap_angles, c_te_matrix, c_te_interp, "C_te")
+plot_values(alphas, d_flap_angles, cl_matrix, cl_interp, "Cl")
+plot_values(alphas, d_flap_angles, cd_matrix, cd_interp, "Cd")
+plot_values(alphas, d_flap_angles, c_te_matrix, c_te_interp, "C_te")
 display(plot(alphas, cd_interp.(alphas, 0.0)))
+# @show gradient(cd_interp, 10, 0)
 
 # @benchmark cd_interp(rad2deg(rand()),rad2deg(rand()))
 # Dierckx

@@ -256,9 +256,9 @@ function KPS4_3L(kcu::KCU)
     replace_nan!(cl_matrix)
     replace_nan!(cd_matrix)
     replace_nan!(c_te_matrix)
-    cl_struct = linear_interpolation((alphas, d_flap_angles), cl_matrix; extrapolation_bc = NaN)
-    cd_struct = linear_interpolation((alphas, d_flap_angles), cd_matrix; extrapolation_bc = NaN)
-    c_te_struct = linear_interpolation((alphas, d_flap_angles), c_te_matrix; extrapolation_bc = NaN)
+    cl_struct = extrapolate(scale(interpolate(cl_matrix, BSpline(Quadratic())), alphas, d_flap_angles), NaN)
+    cd_struct = extrapolate(scale(interpolate(cd_matrix, BSpline(Quadratic())), alphas, d_flap_angles), NaN)
+    c_te_struct = extrapolate(scale(interpolate(c_te_matrix, BSpline(Quadratic())), alphas, d_flap_angles), NaN)
     cl_interp(a, d) = cl_struct(a, d)
     cd_interp(a, d) = cd_struct(a, d)
     c_te_interp(a, d) = c_te_struct(a, d)
@@ -382,7 +382,7 @@ function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false,
 
     dt = 1/s.set.sample_freq*2
     tspan   = (0.0, dt) 
-    solver = FBDF(autodiff=false) # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
+    solver = QNDF(autodiff=false) # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
     s.damping_coeff = damping_coeff
     new_inital_conditions = (s.last_init_elevation != s.set.elevation || s.last_init_tether_length != s.set.l_tether)
     s.set_hash = settings_hash(s.set)
@@ -1031,7 +1031,7 @@ end
 
 function replace_nan!(matrix)
     rows, cols = size(matrix)
-    distance = 10
+    distance = max(rows, cols)
     for i in 1:rows
         for j in 1:cols
             if isnan(matrix[i, j])
@@ -1039,19 +1039,19 @@ function replace_nan!(matrix)
                 for d in 1:distance
                     found = false
                     if i-d >= 1 && !isnan(matrix[i-d, j]);
-                        push!(neighbors, matrix[i-1, j])
+                        push!(neighbors, matrix[i-d, j])
                         found = true
                     end
                     if i+d <= rows && !isnan(matrix[i+d, j])
-                        push!(neighbors, matrix[i+1, j])
+                        push!(neighbors, matrix[i+d, j])
                         found = true
                     end
                     if j-d >= 1 && !isnan(matrix[i, j-d])
-                        push!(neighbors, matrix[i, j-1])
+                        push!(neighbors, matrix[i, j-d])
                         found = true
                     end
                     if j+d <= cols && !isnan(matrix[i, j+d])
-                        push!(neighbors, matrix[i, j+1])
+                        push!(neighbors, matrix[i, j+d])
                         found = true
                     end
                     if found; break; end
