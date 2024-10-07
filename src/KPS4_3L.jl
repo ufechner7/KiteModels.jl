@@ -654,7 +654,7 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
                 seg_flap_angle[i]    ~ flap_angle[2] :
                 seg_flap_angle[i]    ~ ((flap_angle[2] - flap_angle[1]) / (s.α_r - s.α_l) * (α - s.α_l) + (flap_angle[1]))
 
-            aoa[i]      ~ -asin((v_a_xr[:, i] / norm(v_a_xr[:, i])) ⋅ e_r[:, i]) + deg2rad(s.set.alpha_zero)
+            aoa[i]      ~ -asin2((v_a_xr[:, i] / norm(v_a_xr[:, i])) ⋅ e_r[:, i]) + deg2rad(s.set.alpha_zero)
             cl_seg[i]   ~ sym_interp(s.cl_interp, aoa[i], seg_flap_angle[i])
             cd_seg[i]   ~ sym_interp(s.cd_interp, aoa[i], seg_flap_angle[i])
 
@@ -1013,7 +1013,7 @@ end
 
 # ====================== helper functions ====================================
 
-function smooth_sign(x; ϵ = 0.01)
+function smooth_sign(x; ϵ = 1e-3)
     return x / √(x^2 + ϵ^2)
 end
 @register_symbolic smooth_sign(x)
