@@ -41,10 +41,15 @@ log!(logger, sys_state)
 elev = rad2deg(logger.elevation_vec[end])
 println("Lift: $lift, Drag: $drag, elev: $elev, Iterations: $(kps4.iter)")
 
-q = QuatRotation(sys_state.orient)
-# println(q)
+q = QuatRotation(calc_orient_quat(kps4; old=false))
 roll, pitch, yaw = rad2deg.(KiteUtils.quat2euler(q))
-println("roll: ", roll, " pitch: ", pitch, " yaw: ", yaw)
+println("--> orient_quat:       roll: ", roll, " pitch:  ", pitch, "  yaw: ", yaw)
+roll, pitch, yaw = rad2deg.(orient_euler(kps4))
+println("--> orient_euler:      roll: ", roll, " pitch: ", pitch, " yaw:  ", yaw)
+q = QuatRotation(calc_orient_quat(kps4; old=true))
+roll, pitch, yaw = rad2deg.(KiteUtils.quat2euler(q))
+println("--> orient_quat (old): roll: ", roll, " pitch: ", pitch, "   yaw: ", yaw)
+
 println("x:", kps4.x) # from trailing edge to leading edge in ENU reference frame
 println("y:", kps4.y) # to the right looking in flight direction
 println("z:", kps4.z) # down
