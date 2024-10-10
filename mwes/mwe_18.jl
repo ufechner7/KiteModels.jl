@@ -20,16 +20,15 @@ ax = [1, 0, 0]
 ay = [0, 1, 0] 
 az = [0, 0, 1] 
 
-x = [1, 0, 0] 
-y = [0, 1, 0] 
-z = [0, 0, 1]
+x = [0, 1, 0]
+y = [1, 0, 0]
+z = [0, 0,-1]
 
 rot1 = rot3d(ax, ay, az, x, y, z)
 q1 = QuatRotation(rot1)
-@test all(Rotations.params(q) .== SVector{4, Float64}([1.0 0 0 0]))
 
-x = [-1, 0, 0] 
-y = [0, 1, 0] 
-z = [0, 0, 1]
+x = [ 0, 1, 0] 
+y = [ 0, 0, 1] 
+z = [-1, 0, 0] 
 rot2 = rot3d(ax, ay, az, x, y, z)
 q2 = QuatRotation(rot2)
