@@ -2,6 +2,10 @@
 import KiteUtils
 using LinearAlgebra, Rotations
 
+# x: from trailing edge to leading edge
+# y: to the right looking in flight direction
+# z: down
+
 # If kite (x axis) is pointing to the north, and is at zenith, then:
 # - x = 0, 1, 0
 # - y = 1, 0, 0
