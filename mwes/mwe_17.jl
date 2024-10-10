@@ -55,6 +55,7 @@ function calc_orient_quat(x, y, z)
 end
 rot = calc_orient_quat(x, y, z)
 q = QuatRotation(rot)
+println("q: ", q)
 roll, pitch, yaw = rad2deg.(quat2euler(q))
 println("--> orient_quat:       roll: ", roll, " pitch:  ", pitch, "  yaw: ", yaw)
 
