@@ -1,5 +1,5 @@
 # test calculation of the orientation, kite pointing to the north and is at zenith
-using LinearAlgebra, Rotations
+using LinearAlgebra, Rotations, Test
 
 # x: from trailing edge to leading edge
 # y: to the right looking in flight direction
@@ -67,6 +67,9 @@ q = QuatRotation(rot)
 println("q: ", q)
 roll, pitch, yaw = rad2deg.(quat2euler(q))
 println("--> orient_quat:       roll: ", roll, " pitch:  ", pitch, "  yaw: ", yaw)
+@test roll ≈ 0
+@test pitch ≈ 0
+@test yaw ≈ 0
 
 q = Rotations.params(q)
 roll, pitch, yaw = rad2deg.(quat2euler(q))

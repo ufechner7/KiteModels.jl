@@ -1,6 +1,6 @@
 # test calculation of the orientation, kite pointing to the west and is at zenith
 import KiteUtils
-using LinearAlgebra, Rotations
+using LinearAlgebra, Rotations, Test
 
 # z-y′-x″ (intrinsic rotations) or x-y-z (extrinsic rotations): 
 # the intrinsic rotations are known as: yaw, pitch and roll
@@ -26,7 +26,7 @@ function quat2euler(q::QuatRotation)
     return roll, pitch, yaw
 end
 
-function calc_orient_quat(x, y, z)
+function calc_orient_rot(x, y, z)
     # reference frame for the orientation: NED
     ax = [0, 1,  0] # in ENU reference frame this is pointing to the north
     ay = [1, 0,  0] # in ENU reference frame this is pointing to the east
@@ -36,10 +36,13 @@ function calc_orient_quat(x, y, z)
     # q = QuatRotation(rotation)
     # return Rotations.params(q)
 end
-rot = calc_orient_quat(x, y, z)
+rot = calc_orient_rot(x, y, z)
 q = QuatRotation(rot)
 roll, pitch, yaw = rad2deg.(quat2euler(q))
 println("--> orient_quat:       roll: ", roll, " pitch:  ", pitch, "  yaw: ", yaw)
+@test roll ≈ 0
+@test pitch ≈ 0
+@test yaw ≈ -90
 
 q = Rotations.params(q)
 roll, pitch, yaw = rad2deg.(quat2euler(q))
