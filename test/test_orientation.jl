@@ -50,7 +50,7 @@ function quat2euler(q::QuatRotation)
     return roll, pitch, yaw
 end
 
-@testset "test calculation of the orientation, kite pointing to the north and is at zenith" begin
+@testset "calc_orientation, kite pointing to the north and is at zenith" begin
     # If kite (x axis) is pointing to the north, and is at zenith, then in ENUs reference frame:
     # - x = 0, 1, 0
     # - y = 1, 0, 0
@@ -67,7 +67,7 @@ end
     @test pitch ≈ 0
     @test yaw ≈ 0
 end
-@testset "test calculation of the orientation, kite pointing to the west and is at zenith " begin
+@testset "calc_orientation, kite pointing to the west and is at zenith " begin
     x = [-1, 0, 0]
     y = [ 0, 1, 0]
     z = [ 0, 0,-1]
@@ -79,7 +79,7 @@ end
     @test pitch ≈ 0
     @test yaw ≈ -90
 end
-@testset "test calculation of the orientation, kite pointing to the north, right tip up   " begin
+@testset "calc_orientation, kite pointing to the north, right tip up   " begin
     # x = [0, 1, 0] y = [0, 0, 1] z = [1, 0, 0] should give -90 degrees roll
     x = [ 0, 1, 0]
     y = [ 0, 0, 1]
