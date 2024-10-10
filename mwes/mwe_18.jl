@@ -11,30 +11,33 @@ all vectors must already be normalized.
 Source: [TRIAD_Algorithm](http://en.wikipedia.org/wiki/User:Snietfeld/TRIAD_Algorithm)
 """
 function rot3d(ax, ay, az, bx, by, bz)
+    @assert is_right_handed_orthonormal(ax, ay, az)
+    @assert is_right_handed_orthonormal(bx, by, bz)
     R_ai = hcat(ax, az, ay)
     R_bi = hcat(bx, bz, by)
     return R_bi * R_ai'
 end
 
-function is_right_handed(x, y, z)
+function is_right_handed_orthonormal(x, y, z)
+    if !(norm(x) ≈ 1) || !(norm(y) ≈ 1) || !(norm(z) ≈ 1)
+        return false
+    end
+    if !((x ⋅ y) ≈ 0) || !((y ⋅ z) ≈ 0) || !((z ⋅ x) ≈ 0)
+        return false
+    end
     return det([x y z]) ≈ 1
 end
 
 ax = [1, 0, 0] 
 ay = [0, 1, 0] 
 az = [0, 0, 1]
-@assert is_right_handed(ax, ay, az)
+@assert is_right_handed_orthonormal(ax, ay, az)
 
 x = [0, 1, 0]
 y = [1, 0, 0]
 z = [0, 0,-1]
-@assert is_right_handed(x, y, z)
+@assert is_right_handed_orthonormal(x, y, z)
 
 rot1 = rot3d(ax, ay, az, x, y, z)
 q1 = QuatRotation(rot1)
 
-x = [ 0, 1, 0] 
-y = [ 0, 0, 1] 
-z = [-1, 0, 0] 
-rot2 = rot3d(ax, ay, az, x, y, z)
-q2 = QuatRotation(rot2)
