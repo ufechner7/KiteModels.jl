@@ -58,7 +58,7 @@ function quat2euler(q::QuatRotation)
     return roll, pitch, yaw
 end
 
-function calc_orient_quat(x, y, z)
+function calc_orient_rot(x, y, z)
     # reference frame for the orientation: NED
     ax = [0, 1,  0] # in ENU reference frame this is pointing to the north
     ay = [1, 0,  0] # in ENU reference frame this is pointing to the east
@@ -69,7 +69,7 @@ function calc_orient_quat(x, y, z)
     # q = QuatRotation(rotation)
     # return Rotations.params(q)
 end
-rot = calc_orient_quat(x, y, z)
+rot = calc_orient_rot(x, y, z)
 q = QuatRotation(rot)
 println("q: ", q)
 roll, pitch, yaw = rad2deg.(quat2euler(q))
