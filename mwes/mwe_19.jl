@@ -19,8 +19,7 @@ function is_right_handed(x, y, z)
     return det([x y z]) ≈ 1
 end
 
-rh = is_right_handed(x, y, z)
-@assert rh == true
+@assert is_right_handed(x, y, z)
 
 """
     rot3d(ax, ay, az, bx, by, bz)
@@ -56,6 +55,7 @@ function calc_orient_quat(x, y, z)
     ax = [0, 1,  0] # in ENU reference frame this is pointing to the north
     ay = [1, 0,  0] # in ENU reference frame this is pointing to the east
     az = [0, 0, -1] # in ENU reference frame this is pointing down
+    @assert is_right_handed(ax, ay, az)
     rot = rot3d(ax, ay, az, x, y, z)
     return rot
     # q = QuatRotation(rotation)
