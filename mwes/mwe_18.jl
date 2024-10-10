@@ -16,13 +16,19 @@ function rot3d(ax, ay, az, bx, by, bz)
     return R_bi * R_ai'
 end
 
+function is_right_handed(x, y, z)
+    return det([x y z]) ≈ 1
+end
+
 ax = [1, 0, 0] 
 ay = [0, 1, 0] 
-az = [0, 0, 1] 
+az = [0, 0, 1]
+@assert is_right_handed(ax, ay, az)
 
 x = [0, 1, 0]
 y = [1, 0, 0]
 z = [0, 0,-1]
+@assert is_right_handed(x, y, z)
 
 rot1 = rot3d(ax, ay, az, x, y, z)
 q1 = QuatRotation(rot1)
