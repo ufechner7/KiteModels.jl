@@ -1,5 +1,5 @@
 # test calculation of the orientation
-using LinearAlgebra, Rotations
+using LinearAlgebra, Rotations, Test
 
 # z-y′-x″ (intrinsic rotations) or x-y-z (extrinsic rotations): 
 # the intrinsic rotations are known as: yaw, pitch and roll
@@ -13,6 +13,11 @@ using LinearAlgebra, Rotations
 x = [ 0, 0, 1]
 y = [ 1, 0, 0]
 z = [ 0, 1, 0]
+
+function is_right_handed_orthonormal(x, y, z)
+    R = [x y z]
+    R*R' ≈ I && det(R) ≈ 1
+end
 
 @assert is_right_handed_orthonormal(x, y, z)
 
@@ -32,16 +37,6 @@ function rot3d(ax, ay, az, bx, by, bz)
     R_ai = hcat(ax, az, ay)
     R_bi = hcat(bx, bz, by)
     return R_bi * R_ai'
-end
-
-function is_right_handed_orthonormal(x, y, z)
-    if !(norm(x) ≈ 1) || !(norm(y) ≈ 1) || !(norm(z) ≈ 1)
-        return false
-    end
-    if !((x ⋅ y) ≈ 0) || !((y ⋅ z) ≈ 0) || !((z ⋅ x) ≈ 0)
-        return false
-    end
-    return det([x y z]) ≈ 1
 end
 
 quat2euler(q::AbstractVector) = quat2euler(QuatRotation(q))
