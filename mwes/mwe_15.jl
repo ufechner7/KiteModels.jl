@@ -15,6 +15,13 @@ x = [0, 1, 0]
 y = [1, 0, 0]
 z = [0, 0,-1]
 
+function is_right_handed(x, y, z)
+    return det([x y z]) ≈ 1
+end
+
+rh = is_right_handed(x, y, z)
+println("is_right_handed: ", rh)
+
 """
     rot3d(ax, ay, az, bx, by, bz)
 
