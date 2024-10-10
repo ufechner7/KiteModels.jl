@@ -1,5 +1,4 @@
 # test calculation of the orientation, kite pointing to the west and is at zenith
-import KiteUtils
 using LinearAlgebra, Rotations, Test
 
 # z-y′-x″ (intrinsic rotations) or x-y-z (extrinsic rotations): 
@@ -26,12 +25,35 @@ function quat2euler(q::QuatRotation)
     return roll, pitch, yaw
 end
 
+function is_right_handed_orthonormal(x, y, z)
+    R = [x y z]
+    R*R' ≈ I && det(R) ≈ 1
+end
+
+"""
+    rot3d(ax, ay, az, bx, by, bz)
+
+Calculate the rotation matrix that needs to be applied on the reference frame (ax, ay, az) to match 
+the reference frame (bx, by, bz).
+All parameters must be 3-element vectors. Both refrence frames must be orthogonal,
+all vectors must already be normalized.
+
+Source: [TRIAD_Algorithm](http://en.wikipedia.org/wiki/User:Snietfeld/TRIAD_Algorithm)
+"""
+function rot3d(ax, ay, az, bx, by, bz)
+    @assert is_right_handed_orthonormal(ax, ay, az)
+    @assert is_right_handed_orthonormal(bx, by, bz)
+    R_ai = hcat(ax, az, ay)
+    R_bi = hcat(bx, bz, by)
+    return R_bi * R_ai'
+end
+
 function calc_orient_rot(x, y, z)
     # reference frame for the orientation: NED
     ax = [0, 1,  0] # in ENU reference frame this is pointing to the north
     ay = [1, 0,  0] # in ENU reference frame this is pointing to the east
     az = [0, 0, -1] # in ENU reference frame this is pointing down
-    rot = KiteUtils.rot3d(x, y, z, ax, ay, az)
+    rot = rot3d(x, y, z, ax, ay, az)
     return rot
 end
 rot = calc_orient_rot(x, y, z)
