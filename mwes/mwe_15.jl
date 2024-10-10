@@ -6,7 +6,7 @@ using LinearAlgebra, Rotations
 # y: to the right looking in flight direction
 # z: down
 
-# If kite (x axis) is pointing to the north, and is at zenith, then:
+# If kite (x axis) is pointing to the north, and is at zenith, then in ENUs reference frame:
 # - x = 0, 1, 0
 # - y = 1, 0, 0
 # - z = 0, 0,-1
