@@ -6,10 +6,10 @@ using LinearAlgebra, Rotations
 # the intrinsic rotations are known as: yaw, pitch and roll
 
 # If x, y and z are given in ENU
-# x = [0, 1, 0] y = [0, 0, 1] z = [1, 0, 0] should give roll 90 degrees
+# x = [0, 1, 0] y = [0, 0, 1] z = [-1, 0, 0] should give roll 90 degrees
 x = [ 0, 1, 0]
 y = [ 0, 0, 1]
-z = [ 1, 0, 0]
+z = [-1, 0, 0]
 quat2euler(q::AbstractVector) = quat2euler(QuatRotation(q))
 function quat2euler(q::QuatRotation)
     # Convert quaternion to RotXYZ
