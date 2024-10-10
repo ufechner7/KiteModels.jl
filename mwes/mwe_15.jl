@@ -1,4 +1,4 @@
-# test calculation of the orientation
+# test calculation of the orientation, kite pointing to the north and is at zenith
 import KiteUtils
 using LinearAlgebra, Rotations
 
@@ -17,8 +17,8 @@ function calc_orient_quat(x, y, z)
     ax = [0,  1, 0] # in ENU reference frame this is pointing to the north
     ay = [1, 0, 0]  # in ENU reference frame this is pointing to the east
     az = [0, 0, -1] # in ENU reference frame this is pointing down
-    rotation = KiteUtils.rot3d(ax, ay, az, x, y, z)
-
+    rot = KiteUtils.rot3d(ax, ay, az, x, y, z)
+    return rot
     # q = QuatRotation(rotation)
     # return Rotations.params(q)
 end
@@ -27,7 +27,8 @@ q = QuatRotation(rot)
 roll, pitch, yaw = rad2deg.(KiteUtils.quat2euler(q))
 println("--> orient_quat:       roll: ", roll, " pitch:  ", pitch, "  yaw: ", yaw)
 
-# q = calc_orient_quat(x, y, z)
-# roll, pitch, yaw = rad2deg.(KiteUtils.quat2euler(q))
-# println("--> orient_quat:       roll: ", roll, " pitch:  ", pitch, "  yaw: ", yaw)
+q = Rotations.params(q)
+roll, pitch, yaw = rad2deg.(KiteUtils.quat2euler(q))
+println("--> orient_quat:       roll: ", roll, " pitch:  ", pitch, "  yaw: ", yaw)
+rot
 
