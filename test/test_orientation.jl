@@ -44,7 +44,7 @@ function calc_orient_rot(x, y, z)
     ax = [0,  1, 0] # in ENU reference frame this is pointing to the north
     ay = [1, 0, 0]  # in ENU reference frame this is pointing to the east
     az = [0, 0, -1] # in ENU reference frame this is pointing down
-    rot = rot3d(ax, ay, az, x, y, z)
+    rot = rot3d(x, y, z, ax, ay, az)
     return rot
 end
 
@@ -72,5 +72,17 @@ end
     @test roll ≈ 0
     @test pitch ≈ 0
     @test yaw ≈ 0
+end
+@testset "test calculation of the orientation, kite pointing to the west and is at zenith " begin
+    x = [-1, 0, 0]
+    y = [ 0, 1, 0]
+    z = [ 0, 0,-1]
+    @assert is_right_handed_orthonormal(x, y, z)
+    rot = calc_orient_rot(x, y, z)
+    q = QuatRotation(rot)
+    roll, pitch, yaw = rad2deg.(quat2euler(q))
+    @test roll ≈ 0
+    @test pitch ≈ 0
+    @test yaw ≈ -90
 end
 nothing
