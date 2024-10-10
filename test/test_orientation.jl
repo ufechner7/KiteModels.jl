@@ -5,12 +5,6 @@ using LinearAlgebra, Rotations, Test
 # y: to the right looking in flight direction
 # z: down
 
-# If kite (x axis) is pointing to the north, and is at zenith, then in ENUs reference frame:
-# - x = 0, 1, 0
-# - y = 1, 0, 0
-# - z = 0, 0,-1
-# This would be the NED reference frame.
-
 function is_right_handed_orthonormal(x, y, z)
     if !(norm(x) ≈ 1) || !(norm(y) ≈ 1) || !(norm(z) ≈ 1)
         return false
@@ -41,9 +35,9 @@ end
 
 function calc_orient_rot(x, y, z)
     # reference frame for the orientation: NED
-    ax = [0,  1, 0] # in ENU reference frame this is pointing to the north
-    ay = [1, 0, 0]  # in ENU reference frame this is pointing to the east
-    az = [0, 0, -1] # in ENU reference frame this is pointing down
+    ax = [0, 1, 0] # in ENU reference frame this is pointing to the north
+    ay = [1, 0, 0] # in ENU reference frame this is pointing to the east
+    az = [0, 0,-1] # in ENU reference frame this is pointing down
     rot = rot3d(x, y, z, ax, ay, az)
     return rot
 end
@@ -62,6 +56,11 @@ function quat2euler(q::QuatRotation)
 end
 
 @testset "test calculation of the orientation, kite pointing to the north and is at zenith" begin
+    # If kite (x axis) is pointing to the north, and is at zenith, then in ENUs reference frame:
+    # - x = 0, 1, 0
+    # - y = 1, 0, 0
+    # - z = 0, 0,-1
+    # This would be the NED reference frame.
     x = [0, 1, 0]
     y = [1, 0, 0]
     z = [0, 0,-1]
