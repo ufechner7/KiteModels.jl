@@ -20,7 +20,7 @@ function is_right_handed(x, y, z)
 end
 
 rh = is_right_handed(x, y, z)
-println("is_right_handed: ", rh)
+@assert rh == true
 
 """
     rot3d(ax, ay, az, bx, by, bz)
@@ -66,6 +66,7 @@ q = QuatRotation(rot)
 println("q: ", q)
 roll, pitch, yaw = rad2deg.(quat2euler(q))
 println("--> orient_quat:       roll: ", roll, " pitch:  ", pitch, "  yaw: ", yaw)
+@test pitch ≈ 90
 
 q = Rotations.params(q)
 roll, pitch, yaw = rad2deg.(quat2euler(q))
