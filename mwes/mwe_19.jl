@@ -14,12 +14,7 @@ x = [ 0, 0, 1]
 y = [ 1, 0, 0]
 z = [ 0, 1, 0]
 
-
-function is_right_handed(x, y, z)
-    return det([x y z]) ≈ 1
-end
-
-@assert is_right_handed(x, y, z)
+@assert is_right_handed_orthonormal(x, y, z)
 
 """
     rot3d(ax, ay, az, bx, by, bz)
@@ -32,9 +27,21 @@ all vectors must already be normalized.
 Source: [TRIAD_Algorithm](http://en.wikipedia.org/wiki/User:Snietfeld/TRIAD_Algorithm)
 """
 function rot3d(ax, ay, az, bx, by, bz)
+    @assert is_right_handed_orthonormal(ax, ay, az)
+    @assert is_right_handed_orthonormal(bx, by, bz)
     R_ai = hcat(ax, az, ay)
     R_bi = hcat(bx, bz, by)
     return R_bi * R_ai'
+end
+
+function is_right_handed_orthonormal(x, y, z)
+    if !(norm(x) ≈ 1) || !(norm(y) ≈ 1) || !(norm(z) ≈ 1)
+        return false
+    end
+    if !((x ⋅ y) ≈ 0) || !((y ⋅ z) ≈ 0) || !((z ⋅ x) ≈ 0)
+        return false
+    end
+    return det([x y z]) ≈ 1
 end
 
 quat2euler(q::AbstractVector) = quat2euler(QuatRotation(q))
@@ -55,7 +62,7 @@ function calc_orient_quat(x, y, z)
     ax = [0, 1,  0] # in ENU reference frame this is pointing to the north
     ay = [1, 0,  0] # in ENU reference frame this is pointing to the east
     az = [0, 0, -1] # in ENU reference frame this is pointing down
-    @assert is_right_handed(ax, ay, az)
+    @assert is_right_handed_orthonormal(ax, ay, az)
     rot = rot3d(ax, ay, az, x, y, z)
     return rot
     # q = QuatRotation(rotation)
