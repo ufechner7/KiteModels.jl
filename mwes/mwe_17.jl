@@ -1,5 +1,4 @@
 # test calculation of the orientation
-import KiteUtils
 using LinearAlgebra, Rotations
 
 # z-y′-x″ (intrinsic rotations) or x-y-z (extrinsic rotations): 
@@ -14,6 +13,23 @@ using LinearAlgebra, Rotations
 x = [ 0, 1, 0] # nose pointing north
 y = [ 0, 0, 1] # right wing pointing upwards
 z = [-1, 0, 0] # z axis pointing to the west
+
+"""
+    rot3d(ax, ay, az, bx, by, bz)
+
+Calculate the rotation matrix that needs to be applied on the reference frame (ax, ay, az) to match 
+the reference frame (bx, by, bz).
+All parameters must be 3-element vectors. Both refrence frames must be orthogonal,
+all vectors must already be normalized.
+
+Source: [TRIAD_Algorithm](http://en.wikipedia.org/wiki/User:Snietfeld/TRIAD_Algorithm)
+"""
+function rot3d(ax, ay, az, bx, by, bz)
+    R_ai = hcat(ax, az, ay)
+    R_bi = hcat(bx, bz, by)
+    return R_bi * R_ai'
+end
+
 quat2euler(q::AbstractVector) = quat2euler(QuatRotation(q))
 function quat2euler(q::QuatRotation)
     # Convert quaternion to RotXYZ
@@ -32,7 +48,7 @@ function calc_orient_quat(x, y, z)
     ax = [0, 1,  0] # in ENU reference frame this is pointing to the north
     ay = [1, 0,  0] # in ENU reference frame this is pointing to the east
     az = [0, 0, -1] # in ENU reference frame this is pointing down
-    rot = KiteUtils.rot3d(x, y, z, ax, ay, az)
+    rot = rot3d(ax, ay, az, x, y, z)
     return rot
     # q = QuatRotation(rotation)
     # return Rotations.params(q)
