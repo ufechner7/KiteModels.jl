@@ -5,11 +5,15 @@ using LinearAlgebra, Rotations
 # z-y′-x″ (intrinsic rotations) or x-y-z (extrinsic rotations): 
 # the intrinsic rotations are known as: yaw, pitch and roll
 
+# x: from trailing edge to leading edge
+# y: to the right looking in flight direction
+# z: down
+
 # If x, y and z are given in ENU
 # x = [0, 1, 0] y = [0, 0, 1] z = [-1, 0, 0] should give roll 90 degrees
-x = [ 0, 1, 0]
-y = [ 0, 0, 1]
-z = [-1, 0, 0]
+x = [ 0, 1, 0] # nose pointing north
+y = [ 0, 0, 1] # right wing pointing upwards
+z = [-1, 0, 0] # z axis pointing to the west
 quat2euler(q::AbstractVector) = quat2euler(QuatRotation(q))
 function quat2euler(q::QuatRotation)
     # Convert quaternion to RotXYZ
