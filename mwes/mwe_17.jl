@@ -9,7 +9,7 @@ using LinearAlgebra, Rotations
 # z: down
 
 # If x, y and z are given in ENU
-# x = [0, 1, 0] y = [0, 0, 1] z = [1, 0, 0] should give -90 degrees pitch
+# x = [0, 1, 0] y = [0, 0, 1] z = [1, 0, 0] should give -90 degrees roll
 x = [ 0, 1, 0]
 y = [ 0, 0, 1]
 z = [ 1, 0, 0]
@@ -20,7 +20,7 @@ function is_right_handed(x, y, z)
 end
 
 rh = is_right_handed(x, y, z)
-println("is_right_handed: ", rh)
+@assert rh == true
 
 """
     rot3d(ax, ay, az, bx, by, bz)
@@ -66,6 +66,7 @@ q = QuatRotation(rot)
 println("q: ", q)
 roll, pitch, yaw = rad2deg.(quat2euler(q))
 println("--> orient_quat:       roll: ", roll, " pitch:  ", pitch, "  yaw: ", yaw)
+@test roll ≈ -90
 
 q = Rotations.params(q)
 roll, pitch, yaw = rad2deg.(quat2euler(q))
