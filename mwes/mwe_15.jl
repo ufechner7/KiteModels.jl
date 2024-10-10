@@ -17,7 +17,7 @@ function calc_orient_quat(x, y, z)
     ax = [0,  1, 0] # in ENU reference frame this is pointing to the north
     ay = [1, 0, 0]  # in ENU reference frame this is pointing to the east
     az = [0, 0, -1] # in ENU reference frame this is pointing down
-    rot = KiteUtils.rot3d(ax, ay, az, x, y, z)
+    rot = KiteUtils.rot3d(x, y, z, ax, ay, az)
     return rot
     # q = QuatRotation(rotation)
     # return Rotations.params(q)
