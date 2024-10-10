@@ -6,13 +6,8 @@ using LinearAlgebra, Rotations, Test
 # z: down
 
 function is_right_handed_orthonormal(x, y, z)
-    if !(norm(x) ≈ 1) || !(norm(y) ≈ 1) || !(norm(z) ≈ 1)
-        return false
-    end
-    if !((x ⋅ y) ≈ 0) || !((y ⋅ z) ≈ 0) || !((z ⋅ x) ≈ 0)
-        return false
-    end
-    return det([x y z]) ≈ 1
+    R = [x y z]
+    R*R' ≈ I && det(R) ≈ 1
 end
 
 """
