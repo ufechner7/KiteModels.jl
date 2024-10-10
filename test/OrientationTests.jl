@@ -207,3 +207,8 @@ end
 @test test_yaw_elevation()
 @test test_azimuth_45_elevation_45()
 @test test_roll_azimuth_elevation()
+@test test_base_orientation()
+@test test_base_orientation_heading_90()
+@test test_wind_dir_45()
+@test test_wind_dir_60()
+@test test_wind_dir_minus_60()
