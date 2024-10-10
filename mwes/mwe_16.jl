@@ -33,8 +33,6 @@ function calc_orient_rot(x, y, z)
     az = [0, 0, -1] # in ENU reference frame this is pointing down
     rot = KiteUtils.rot3d(x, y, z, ax, ay, az)
     return rot
-    # q = QuatRotation(rotation)
-    # return Rotations.params(q)
 end
 rot = calc_orient_rot(x, y, z)
 q = QuatRotation(rot)
