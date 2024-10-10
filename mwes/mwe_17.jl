@@ -9,10 +9,10 @@ using LinearAlgebra, Rotations
 # z: down
 
 # If x, y and z are given in ENU
-# x = [0, 1, 0] y = [0, 0, 1] z = [-1, 0, 0] should give roll 90 degrees
-x = [ 0, 1, 0] # nose pointing north
+# x = [0, 0, 1] y = [0, 0, 1] z = [1, 0, 0] should give roll -90 degrees
+x = [ 0, 0, 1] # nose pointing north
 y = [ 0, 0, 1] # right wing pointing upwards
-z = [-1, 0, 0] # z axis pointing to the west
+z = [ 1, 0, 0] # z axis pointing to the west
 
 """
     rot3d(ax, ay, az, bx, by, bz)
