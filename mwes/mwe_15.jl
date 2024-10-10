@@ -13,17 +13,21 @@ y = [1, 0, 0]
 z = [0, 0,-1]
 
 function calc_orient_quat(x, y, z)
-    # reference frame for the orientation: SWD (south, west, down)
-    ax = [0, -1, 0] # in ENU reference frame this is pointing to the south
-    ay = [-1, 0, 0] # in ENU reference frame this is pointing to the west
+    # reference frame for the orientation: NED
+    ax = [0,  1, 0] # in ENU reference frame this is pointing to the north
+    ay = [1, 0, 0]  # in ENU reference frame this is pointing to the east
     az = [0, 0, -1] # in ENU reference frame this is pointing down
     rotation = KiteUtils.rot3d(ax, ay, az, x, y, z)
 
-    q = QuatRotation(rotation)
-    return Rotations.params(q)
+    # q = QuatRotation(rotation)
+    # return Rotations.params(q)
 end
-
-q = calc_orient_quat(x, y, z)
+rot = calc_orient_quat(x, y, z)
+q = QuatRotation(rot)
 roll, pitch, yaw = rad2deg.(KiteUtils.quat2euler(q))
 println("--> orient_quat:       roll: ", roll, " pitch:  ", pitch, "  yaw: ", yaw)
+
+# q = calc_orient_quat(x, y, z)
+# roll, pitch, yaw = rad2deg.(KiteUtils.quat2euler(q))
+# println("--> orient_quat:       roll: ", roll, " pitch:  ", pitch, "  yaw: ", yaw)
 
