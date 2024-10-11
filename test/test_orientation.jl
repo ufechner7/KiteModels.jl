@@ -1,5 +1,6 @@
 # unit tests for calculation of the orientation
 using LinearAlgebra, Rotations, Test, StaticArrays
+import ReferenceFrameRotations as RFR
 
 # Kite reference frame
 # x: from trailing edge to leading edge
@@ -55,9 +56,12 @@ function quat2euler(q::QuatRotation)
     # roll = rot1.theta2
     # pitch = rot1.theta1
     # yaw = -rot1.theta3
-    yaw   = -atan(rot[2, 1], rot[1, 1])
-    roll = atan(-rot[3, 1], sqrt(rot[3, 2]^2 + rot[3, 3]^2))
-    pitch  = atan(rot[3, 2], rot[3, 3])
+
+    # yaw   = -atan(rot[2, 1], rot[1, 1])
+    # roll = atan(-rot[3, 1], sqrt(rot[3, 2]^2 + rot[3, 3]^2))
+    # pitch  = atan(rot[3, 2], rot[3, 3])
+    D = RFR.DCM(rot)
+    RFR.dcm_to_angle(D, :ZYX)
 
     return roll, pitch, yaw
 end

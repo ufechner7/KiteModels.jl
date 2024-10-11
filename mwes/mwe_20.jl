@@ -1,5 +1,6 @@
 # generate test cases for the calculation of roll, pitch and yaw
 using LinearAlgebra, Rotations
+import ReferenceFrameRotations as RFR
 
 # z-y′-x″ (intrinsic rotations) or x-y-z (extrinsic rotations): 
 # the intrinsic rotations are known as: yaw, pitch and roll
@@ -51,3 +52,18 @@ y4 = R * y
 z4 = R * z
 println("Yaw: ", rad2deg(yaw), ", Pitch: ", rad2deg(pitch), ", Roll: ", rad2deg(roll), "\nx = ", x4, "\ny = ", y4, "\nz = ", z4)
 R
+
+D= RFR.DCM(Yaw)
+euler = RFR.dcm_to_angle(D, :ZYX)
+yaw = euler.a1
+println("yaw: ", rad2deg(yaw))
+
+D= RFR.DCM(Pitch)
+euler = RFR.dcm_to_angle(D, :ZYX)
+pitch = -euler.a3
+println("pitch: ", rad2deg(pitch))
+
+D= RFR.DCM(Roll)
+euler = RFR.dcm_to_angle(D, :ZYX)
+roll = -euler.a2
+println("roll: ", rad2deg(roll))
