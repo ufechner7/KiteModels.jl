@@ -27,6 +27,19 @@ STATISTIC = false
 DEPOWER = 0.47:-0.005:0.355
 # end of user parameter section #
 
+quat2euler(q::AbstractVector) = quat2euler(QuatRotation(q))
+function quat2euler(q::QuatRotation)
+    # Convert quaternion to RotXYZ
+    rot = RotXYZ(q)
+    
+    # Extract roll, pitch, and yaw from RotXYZ
+    roll = rot.theta2
+    pitch = rot.theta1
+    yaw = -rot.theta3
+
+    return roll, pitch, yaw
+end
+
 elev = set.elevation
 i = 1
 set.v_wind = V_WIND # 25
@@ -42,12 +55,12 @@ elev = rad2deg(logger.elevation_vec[end])
 println("Lift: $lift, Drag: $drag, elev: $elev, Iterations: $(kps4.iter)")
 
 q = QuatRotation(calc_orient_quat(kps4; old=false))
-roll, pitch, yaw = rad2deg.(KiteUtils.quat2euler(q))
+roll, pitch, yaw = rad2deg.(quat2euler(q))
 println("--> orient_quat:       roll: ", roll, " pitch:  ", pitch, "  yaw: ", yaw)
 roll, pitch, yaw = rad2deg.(orient_euler(kps4))
 println("--> orient_euler:      roll: ", roll, " pitch: ", pitch, " yaw:  ", yaw)
 q = QuatRotation(calc_orient_quat(kps4; old=true))
-roll, pitch, yaw = rad2deg.(KiteUtils.quat2euler(q))
+roll, pitch, yaw = rad2deg.(quat2euler(q))
 println("--> orient_quat (old): roll: ", roll, " pitch: ", pitch, "   yaw: ", yaw)
 
 println("x:", kps4.x) # from trailing edge to leading edge in ENU reference frame

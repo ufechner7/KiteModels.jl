@@ -268,9 +268,9 @@ function calc_orient_quat(s::AKM; old=false)
         rotation = rot(pos_kite_, pos_before, -x)
     else
         x, y, z = kite_ref_frame(s) # in ENU reference
-        # reference frame for the orientation: SWD (south, west, down)
-        ax = [0, -1, 0] # in ENU reference frame this is pointing to the south
-        ay = [-1, 0, 0] # in ENU reference frame this is pointing to the west
+        # reference frame for the orientation: NED (north, east, down)
+        ax = [0, 1, 0] # in ENU reference frame this is pointing to the south
+        ay = [1, 0, 0] # in ENU reference frame this is pointing to the west
         az = [0, 0, -1] # in ENU reference frame this is pointing down
         rotation = rot3d(ax, ay, az, x, y, z)
     end
