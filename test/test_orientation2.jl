@@ -115,4 +115,31 @@ end
     @test pitch ≈ 90
     @test yaw ≈ 0
 end
+@testset "calc_orientation, all angles positive                        " begin
+    # x, y and z are given in ENU
+    x = [ 0.61237244,  0.61237244,  0.5       ]
+    y = [ 0.65973961, -0.04736717, -0.75      ]
+    z = [-0.43559574,  0.78914913, -0.4330127 ]
+    @assert is_right_handed_orthonormal(x, y, z)
+    rot = calc_orient_rot(x, y, z)
+    q = QuatRotation(rot)
+    roll, pitch, yaw = rad2deg.(quat2euler(q))
+    @test_broken roll ≈ 60
+    @test_broken pitch ≈ 30
+    @test_broken yaw ≈ 45
+    println("roll: $roll, pitch: $pitch, yaw: $yaw")
+end
+@testset "calc_orientation, yaw = 20°                                  " begin
+    # x, y and z are given in ENU
+    x =  [0.34202014332566866, 0.9396926207859083, 0.0]
+    y = [0.9396926207859083, -0.34202014332566866, 0.0]
+    z = [ 0,  0,  -1 ]
+    @assert is_right_handed_orthonormal(x, y, z)
+    rot = calc_orient_rot(x, y, z)
+    q = QuatRotation(rot)
+    roll, pitch, yaw = rad2deg.(quat2euler(q))
+    @test roll  ≈ 0
+    @test pitch ≈ 0
+    @test yaw   ≈ 20
+end
 nothing
