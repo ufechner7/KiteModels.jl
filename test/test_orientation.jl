@@ -102,4 +102,18 @@ end
     @test_broken pitch ≈ 0
     @test yaw ≈ 0
 end
+@testset "calc_orientation, kite pointing upwards, right tip eastwards " begin
+    # If x, y and z are given in ENU
+    # x = [0, 0, 1] y = [1, 0, 0] z = [0, 1, 0] should give 90 degrees pitch
+    x = [ 0, 0, 1]  # nose pointing up
+    y = [ 1, 0, 0]  # right tip pointing east
+    z = [ 0, 1, 0]  # z axis pointing to the north
+    @assert is_right_handed_orthonormal(x, y, z)
+    rot = calc_orient_rot(x, y, z)
+    q = QuatRotation(rot)
+    roll, pitch, yaw = rad2deg.(quat2euler(q))
+    @test_broken roll ≈ 0
+    @test_broken pitch ≈ 90
+    @test yaw ≈ 0
+end
 nothing
