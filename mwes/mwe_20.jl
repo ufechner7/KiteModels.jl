@@ -42,5 +42,11 @@ R = Yaw * Pitch
 x3 = R * x
 y3 = R * y
 z3 = R * z
-println("Yaw: ", rad2deg(yaw), ", Pitch: ", rad2deg(pitch), " x3: ", x3, " y3: ", y3, " z3: ", z3)
-R
+# println("Yaw: ", rad2deg(yaw), ", Pitch: ", rad2deg(pitch), " x3: ", x3, " y3: ", y3, " z3: ", z3)
+roll = deg2rad(40)
+Roll = AngleAxis(roll, x[1], x[2], x[3])
+R = Yaw * Pitch * Roll
+x4 = R * x
+y4 = R * y
+z4 = R * z
+println("Yaw: ", rad2deg(yaw), ", Pitch: ", rad2deg(pitch), ", Roll: ", rad2deg(roll), "\nx = ", x4, "\ny = ", y4, "\nz = ", z4)
