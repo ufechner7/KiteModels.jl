@@ -50,3 +50,4 @@ x4 = R * x
 y4 = R * y
 z4 = R * z
 println("Yaw: ", rad2deg(yaw), ", Pitch: ", rad2deg(pitch), ", Roll: ", rad2deg(roll), "\nx = ", x4, "\ny = ", y4, "\nz = ", z4)
+R

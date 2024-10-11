@@ -146,7 +146,6 @@ end
     @test yaw   ≈ 20
 end
 @testset "calc_orientation, pitch = 30°                                " begin
-    global rot
     # x, y and z are given in ENU
     # x, y and z are given in ENU
     x = [0.0, 0.8660254037844387, 0.49999999999999994]
