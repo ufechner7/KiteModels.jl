@@ -1,5 +1,5 @@
 # unit tests for calculation of the orientation
-using LinearAlgebra, Rotations, Test
+using LinearAlgebra, Rotations, Test, StaticArrays
 
 # Kite reference frame
 # x: from trailing edge to leading edge
@@ -40,9 +40,9 @@ end
 
 function calc_orient_rot(x, y, z)
     # reference frame for the orientation: NED
-    ax = [0, 1, 0] # in ENU reference frame this is pointing to the north
-    ay = [1, 0, 0] # in ENU reference frame this is pointing to the east
-    az = [0, 0,-1] # in ENU reference frame this is pointing down
+    ax = @SVector[0, 1, 0] # in ENU reference frame this is pointing to the north
+    ay = @SVector[1, 0, 0] # in ENU reference frame this is pointing to the east
+    az = @SVector[0, 0,-1] # in ENU reference frame this is pointing down
     rot = rot3d(x, y, z, ax, ay, az)
     return rot
 end
