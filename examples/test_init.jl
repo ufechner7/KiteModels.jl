@@ -2,6 +2,7 @@
 
 using Printf
 using KiteModels, KitePodModels, KiteUtils, LinearAlgebra, Rotations
+import ReferenceFrameRotations as RFR
 
 set = deepcopy(load_settings("system.yaml"))
 
@@ -28,15 +29,12 @@ DEPOWER = 0.47:-0.005:0.355
 # end of user parameter section #
 
 quat2euler(q::AbstractVector) = quat2euler(QuatRotation(q))
-function quat2euler(q::QuatRotation)
-    # Convert quaternion to RotXYZ
-    rot = RotXYZ(q)
-    
-    # Extract roll, pitch, and yaw from RotXYZ
-    roll = rot.theta2
-    pitch = rot.theta1
-    yaw = -rot.theta3
-
+function quat2euler(q::QuatRotation)  
+    D = RFR.DCM(q)
+    euler = RFR.dcm_to_angle(D, :ZYX)
+    yaw = euler.a1
+    pitch = euler.a2
+    roll = euler.a3
     return roll, pitch, yaw
 end
 
