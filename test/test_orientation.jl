@@ -57,11 +57,11 @@ function quat2euler(q::QuatRotation)
     # pitch = rot1.theta1
     # yaw = -rot1.theta3
 
-    # yaw   = -atan(rot[2, 1], rot[1, 1])
-    # roll = atan(-rot[3, 1], sqrt(rot[3, 2]^2 + rot[3, 3]^2))
-    # pitch  = atan(rot[3, 2], rot[3, 3])
-    D = RFR.DCM(rot)
-    RFR.dcm_to_angle(D, :ZYX)
+    yaw   = -atan(rot[2, 1], rot[1, 1])
+    roll = atan(-rot[3, 1], sqrt(rot[3, 2]^2 + rot[3, 3]^2))
+    pitch  = atan(rot[3, 2], rot[3, 3])
+    # D = RFR.DCM(rot)
+    # RFR.dcm_to_angle(D, :ZYX)
 
     return roll, pitch, yaw
 end
@@ -125,9 +125,9 @@ end
 @testset "calc_orientation, all angles positive                        " begin
     global rot
     # x, y and z are given in ENU
-    x = [0.2961981327260238, 0.8137976813493735, 0.49999999999999983]
-    y = [0.829769465589431, 0.04000875654814176, -0.5566703992264191]
-    z = [-0.473021458440361, 0.5797694655894311, -0.6634139481689383]
+    x = [-0.26200263022938497, 0.7038745261528968, -0.6602388001215314]
+    y = [0.7198463103929543, 0.5982095195035507, 0.3520889947001776]
+    z = [0.6427876096865394, -0.38302222155948895, -0.6634139481689386]
     @assert is_right_handed_orthonormal(x, y, z)
     rot = calc_orient_rot(x, y, z)
     q = QuatRotation(rot)

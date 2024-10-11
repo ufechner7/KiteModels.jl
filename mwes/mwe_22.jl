@@ -53,3 +53,7 @@ pitch = euler.a3
 println("pitch: ", rad2deg(pitch))
 roll = euler.a2
 println("roll: ", rad2deg(roll))
+x4 = D * x
+y4 = D * y
+z4 = D * z
+println("Yaw: ", rad2deg(yaw), ", Pitch: ", rad2deg(pitch), ", Roll: ", rad2deg(roll), "\nx = ", x4, "\ny = ", y4, "\nz = ", z4)
