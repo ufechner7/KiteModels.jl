@@ -1,9 +1,19 @@
-# test calculation of the orientation, kite pointing to the north and is at zenith
+# unit tests for calculation of the orientation
 using LinearAlgebra, Rotations, Test
 
+# Kite refernce frame
 # x: from trailing edge to leading edge
 # y: to the right looking in flight direction
 # z: down
+
+# all coordinates are in ENU reference frame
+# the orientation is calculated with respect to the NED reference frame
+
+"""
+    is_right_handed_orthonormal(x, y, z)
+
+"""
+    is_right_handed_orthonormal(x, y, z)
 
 function is_right_handed_orthonormal(x, y, z)
     R = [x y z]
@@ -23,8 +33,8 @@ Source: [TRIAD_Algorithm](http://en.wikipedia.org/wiki/User:Snietfeld/TRIAD_Algo
 function rot3d(ax, ay, az, bx, by, bz)
     @assert is_right_handed_orthonormal(ax, ay, az)
     @assert is_right_handed_orthonormal(bx, by, bz)    
-    R_ai = hcat(ax, az, ay)
-    R_bi = hcat(bx, bz, by)
+    R_ai = [ax az ay]
+    R_bi = [bx bz by]
     return R_bi * R_ai'
 end
 
@@ -55,7 +65,7 @@ end
     # - x = 0, 1, 0
     # - y = 1, 0, 0
     # - z = 0, 0,-1
-    # This would be the NED reference frame.
+    # This would be equal to the NED reference frame.
     x = [0, 1, 0]
     y = [1, 0, 0]
     z = [0, 0,-1]
