@@ -48,24 +48,12 @@ function calc_orient_rot(x, y, z)
 end
 
 quat2euler(q::AbstractVector) = quat2euler(QuatRotation(q))
-function quat2euler(q::QuatRotation)
-    # Convert quaternion to RotXYZ
-    rot = RotXYZ(q)
-    
-    # # Extract roll, pitch, and yaw from RotXYZ
-    # roll = rot1.theta2
-    # pitch = rot1.theta1
-    # yaw = -rot1.theta3
-
-    # yaw   = -atan(rot[2, 1], rot[1, 1])
-    # pitch = -atan(-rot[3, 1], sqrt(rot[3, 2]^2 + rot[3, 3]^2))
-    # roll  = -atan(rot[3, 2], rot[3, 3])
-    D = RFR.DCM(rot)
+function quat2euler(q::QuatRotation)  
+    D = RFR.DCM(q)
     euler = RFR.dcm_to_angle(D, :ZYX)
     yaw = euler.a1
     pitch = euler.a2
     roll = euler.a3
-
     return roll, pitch, yaw
 end
 
