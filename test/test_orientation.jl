@@ -119,6 +119,7 @@ end
     @test yaw ≈ 0
 end
 @testset "calc_orientation, all angles positive                        " begin
+    global rot
     # x, y and z are given in ENU
     x = [0.2961981327260238, 0.8137976813493735, 0.49999999999999983]
     y = [0.829769465589431, 0.04000875654814176, -0.5566703992264191]
@@ -160,7 +161,6 @@ end
     @test yaw   ≈ 0
 end
 @testset "calc_orientation, yaw=20°, pitch = 30°                       " begin
-    global rot
     # x, y and z are given in ENU
     # x, y and z are given in ENU
     x = [0.2961981327260238, 0.8137976813493736, 0.4999999999999999]
