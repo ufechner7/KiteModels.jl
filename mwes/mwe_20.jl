@@ -32,4 +32,15 @@ x1 = Yaw * x
 y1 = Yaw * y
 z1 = Yaw * z
 println("Yaw: ", rad2deg(yaw), " x1: ", x1, " y1: ", y1, " z1: ", z1)
+pitch = deg2rad(30)
+Pitch = AngleAxis(pitch, y1[1], y1[2], y1[3])
+x2 = Pitch * x
+y2 = Pitch * y
+z2 = Pitch * z
+println("Pitch: ", rad2deg(pitch), " x2: ", x2, " y2: ", y2, " z2: ", z2)
+R = Yaw * Pitch
+x3 = R * x
+y3 = R * y
+z3 = R * z
+println("Yaw: ", rad2deg(yaw), ", Pitch: ", rad2deg(pitch), " x3: ", x3, " y3: ", y3, " z3: ", z3)
 
