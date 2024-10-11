@@ -29,32 +29,15 @@ Pitch = RFR.EulerAngleAxis(pitch, y)
 roll = deg2rad(40)
 Roll = RFR.EulerAngleAxis(roll, x)
 
-D= RFR.angleaxis_to_dcm(Yaw)
-euler = RFR.dcm_to_angle(D, :ZYX)
-yaw = -euler.a1
-println("yaw: ", rad2deg(yaw))
-
-D= RFR.angleaxis_to_dcm(Pitch)
-euler = RFR.dcm_to_angle(D, :ZYX)
-pitch = euler.a3
-println("pitch: ", rad2deg(pitch))
-
-D= RFR.angleaxis_to_dcm(Roll)
-euler = RFR.dcm_to_angle(D, :ZYX)
-roll = euler.a2
-println("roll: ", rad2deg(roll))
-
-R = Pitch * Roll * Yaw
-D = RFR.angleaxis_to_dcm(R)
-euler = RFR.dcm_to_angle(D, :ZYX)
-yaw = -euler.a1
-println("yaw: ", rad2deg(yaw))
-pitch = euler.a3
-println("pitch: ", rad2deg(pitch))
-roll = euler.a2
-println("roll: ", rad2deg(roll))
 D1 = RFR.angle_to_dcm(yaw, pitch, roll, :ZYX)
 x4 = D1 * x
 y4 = D1 * y
 z4 = D1 * z
-println("Yaw: ", rad2deg(yaw), ", Pitch: ", rad2deg(pitch), ", Roll: ", rad2deg(roll), "\nx = ", x4, "\ny = ", y4, "\nz = ", z4)
+println("Yaw: ", rad2deg(yaw), ", Pitch: ", rad2deg(pitch), ", Roll: ", rad2deg(roll), 
+        "\nx = ", x4, "\ny = ", y4, "\nz = ", z4)
+
+euler = RFR.dcm_to_angle(D1, :ZYX)
+yaw = euler.a1
+pitch = euler.a2
+roll = euler.a3
+println("Yaw: ", rad2deg(yaw), ", Pitch: ", rad2deg(pitch), ", Roll: ", rad2deg(roll))
