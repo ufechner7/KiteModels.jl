@@ -12,9 +12,8 @@ using LinearAlgebra, Rotations, Test, StaticArrays
 """
     is_right_handed_orthonormal(x, y, z)
 
+Returns `true` if the vectors `x`, `y` and `z` form a right-handed orthonormal basis.
 """
-    is_right_handed_orthonormal(x, y, z)
-
 function is_right_handed_orthonormal(x, y, z)
     R = [x y z]
     R*R' ≈ I && det(R) ≈ 1
