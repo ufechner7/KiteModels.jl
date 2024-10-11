@@ -1,13 +1,13 @@
 # unit tests for calculation of the orientation
 using LinearAlgebra, Rotations, Test
 
-# Kite refernce frame
+# Kite reference frame
 # x: from trailing edge to leading edge
 # y: to the right looking in flight direction
 # z: down
 
-# all coordinates are in ENU reference frame
-# the orientation is calculated with respect to the NED reference frame
+# all coordinates are in ENU (East, North, Up) reference frame
+# the orientation is calculated with respect to the NED (North, East, Down) reference frame
 
 """
     is_right_handed_orthonormal(x, y, z)
