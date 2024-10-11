@@ -9,10 +9,10 @@ using LinearAlgebra, Rotations, Test
 # z: down
 
 # If x, y and z are given in ENU
-# x = [0, 1, 0] y = [0, 0, 1] z = [1, 0, 0] should give 90 degrees pitch
-x = [ 0, 0, 1]
-y = [ 1, 0, 0]
-z = [ 0, 1, 0]
+# x = [0, 0, 1] y = [1, 0, 0] z = [0, 1, 0] should give 90 degrees pitch
+x = [ 0, 0, 1]  # nose pointing up
+y = [ 1, 0, 0]  # right wing pointing east
+z = [ 0, 1, 0]  # z axis pointing to the north
 
 function is_right_handed_orthonormal(x, y, z)
     R = [x y z]
