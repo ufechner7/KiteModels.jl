@@ -1,3 +1,8 @@
+# TODO: add second test case
+# TODO: try to implement calc_orient_rot(x, y, z; old=true) by
+#       - calculating x, y, z from the quaternion
+#       - calling calc_orient_rot(x, y, z; old=true)
+
 using Rotations, KiteUtils, StaticArrays
 import ReferenceFrameRotations as RFR
 
