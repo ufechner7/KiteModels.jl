@@ -1,3 +1,6 @@
+# TODO: calculate the rotation between q and q2
+# - first add the function to calculate the rotation between two quaternions
+
 using Printf
 
 using Pkg, Timers
@@ -9,6 +12,25 @@ end
 using KiteModels, KitePodModels, KiteUtils, Rotations, StaticArrays
 using ControlPlots, KiteViewers
 toc()
+
+function rot3d(ax, ay, az, bx, by, bz) 
+    R_ai = [ax az ay]
+    R_bi = [bx bz by]
+    return R_bi * R_ai'
+end
+
+quat2frame(q::AbstractMatrix) = quat2frame(QuatRotation(q))
+function quat2frame(q::QuatRotation)
+    x = [0,  1.0, 0]
+    y = [1.0,  0, 0]
+    z = [0,    0, -1.0]
+    return q*x, q*y, q*z
+end
+rot3d(qa::QuatRotation, qb::QuatRotation) = rot3d(quat2frame(qa)..., quat2frame(qb)...)
+function quat3d(qa::QuatRotation, qb::QuatRotation)
+    res = rot3d(qa, qb)
+    return Rotations.params(QuatRotation(res))
+end
 
 set = deepcopy(se())
 
@@ -87,10 +109,12 @@ function simulate(integrator, steps, plot=PLOT)
         end
         sys_state = SysState(kps4)
         q = QuatRotation(sys_state.orient)
-        q_old = new2old(q)
-        println("q_old: $q_old")
+        # q_old = new2old(q)
+        # println("q_old: $q_old")
         q2 = QuatRotation(calc_orient_quat(kps4; old=true))
-        println("q2: $q2 \n")
+        # println("q2: $q2 \n")
+        q_diff = quat3d(q, q2)
+        println("q_diff: $q_diff")
         sys_state.orient = calc_orient_quat(kps4; old=true)
         KiteViewers.update_system(viewer, sys_state; scale = 0.08, kite_scale=3)
     end
