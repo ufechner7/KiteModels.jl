@@ -16,13 +16,6 @@ function calc_orient_rot(x, y, z; old=false)
     return rotation
 end
 
-# swap columns i and j of a, in-place
-function swapcols!(a::AbstractMatrix, i, j)
-    for k in axes(a,1)
-        a[k,i],a[k,j] = a[k,j],a[k,i]
-    end
-end
-
 # swap rows i and j of a, in-place
 function swaprows!(A, i, j)
     for k in axes(A, 2)
