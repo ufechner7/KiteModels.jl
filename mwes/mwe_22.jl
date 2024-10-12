@@ -22,7 +22,10 @@ z = [0, 0,-1]
 
 yaw = deg2rad(0)
 pitch = deg2rad(0)
-roll = deg2rad(-90)
+Pitch = RFR.EulerAngleAxis(pitch, y)
+
+roll = deg2rad(10)
+Roll = RFR.EulerAngleAxis(roll, x)
 
 D1 = RFR.angle_to_dcm(yaw, pitch, roll, :ZYX)
 x4 = D1 * x
