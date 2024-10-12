@@ -29,15 +29,10 @@ function swaprows!(A, i, j)
     end
 end
 
-function new2old(rot)
-    x = MArray{Tuple{3,3}}(rot)
-    swaprows!(x, 2, 3)
-    x[1, :] .*= -1
-    return x
-end
 function new2old(q::QuatRotation)
-    rot = RotMatrix(q)
-    return QuatRotation(new2old(rot))
+    x, y, z = quat2frame(q)
+    rot = calc_orient_rot(x, y, z; old=true)
+    return QuatRotation(rot)
 end
 quat2frame(q::AbstractMatrix) = quat2frame(QuatRotation(q))
 function quat2frame(q::QuatRotation)
@@ -70,5 +65,6 @@ x1, y1, z1 = quat2frame(q_old)
 x2, y2, z2 = quat2frame(q2)
 N2 = calc_orient_rot(x2, y2, z2)
 O2 = calc_orient_rot(x2, y2, z2; old=true)
-O22 = new2old(q2)
+O22 = new2old(QuatRotation(N2))
+# O2 should be equal to O22, but it isn't
 

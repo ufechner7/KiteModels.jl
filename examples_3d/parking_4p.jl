@@ -57,24 +57,27 @@ v_speed = zeros(STEPS)
 v_force = zeros(STEPS)
 heading = zeros(STEPS)
 
-# swap rows i and j of a, in-place
-function swaprows!(A, i, j)
-    for k in axes(A, 2)
-        (A[i, k], A[j, k]) = (A[j, k], A[i, k])
+function calc_orient_rot(x, y, z; old=false)
+    if old
+        pos_kite_ = ones(3)
+        pos_before = pos_kite_ .+ z
+    
+        rotation = rot(pos_kite_, pos_before, -x)
+    else
+        # reference frame for the orientation: NED (north, east, down)
+        ax = [0, 1, 0] # in ENU reference frame this is pointing to the south
+        ay = [1, 0, 0] # in ENU reference frame this is pointing to the west
+        az = [0, 0, -1] # in ENU reference frame this is pointing down
+        rotation = rot3d(ax, ay, az, x, y, z)
     end
-end
-
-function new2old(rot)
-    x = MArray(rot)
-    swaprows!(x, 2, 3)
-    x[1, :] .*= -1
-    return x
+    return rotation
 end
 
 function new2old(q::QuatRotation)
-    # rot = RFR.DCM(q)
-    rot = RotMatrix(q)
-    return QuatRotation(new2old(rot))
+    x, y, z = quat2frame(q)
+    rot = calc_orient_rot(x, y, z; old=true)
+    q = QuatRotation(rot)
+    return Rotations.params(q)
 end
 
 function simulate(integrator, steps, plot=PLOT)
@@ -108,14 +111,7 @@ function simulate(integrator, steps, plot=PLOT)
             sleep(0.05)           
         end
         sys_state = SysState(kps4)
-        q = QuatRotation(sys_state.orient)
-        # q_old = new2old(q)
-        # println("q_old: $q_old")
-        q2 = QuatRotation(calc_orient_quat(kps4; old=true))
-        # println("q2: $q2 \n")
-        q_diff = quat3d(q, q2)
-        println("q_diff: $q_diff")
-        sys_state.orient = calc_orient_quat(kps4; old=true)
+        sys_state.orient = new2old(QuatRotation(sys_state.orient))
         KiteViewers.update_system(viewer, sys_state; scale = 0.08, kite_scale=3)
     end
     iter / steps
