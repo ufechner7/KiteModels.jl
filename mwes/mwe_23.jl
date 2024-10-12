@@ -1,4 +1,4 @@
-using Rotations, KiteUtils
+using Rotations, KiteUtils, StaticArrays
 import ReferenceFrameRotations as RFR
 
 function calc_orient_rot(x, y, z; old=false)
@@ -34,11 +34,12 @@ function new2old(q::QuatRotation)
     rot = RotMatrix(q)
     return QuatRotation(new2old(rot))
 end
+quat2frame(q::AbstractMatrix) = quat2frame(QuatRotation(q))
 function quat2frame(q::QuatRotation)
     x = [0,  1.0, 0]
     y = [1.0,  0, 0]
     z = [0,    0, -1.0]
-    return x, y, z
+    return q*x, q*y, q*z
 end
 function euler2quat(;roll=0, pitch=0, yaw=0, deg=true)
     if deg
@@ -58,6 +59,11 @@ O = calc_orient_rot(x, y, z; old=true)
 
 
 # q2 is the correct result
-# q_old: Float32[-0.4354337 0.88402545 -0.16998994; -0.06545633 0.15724015 0.98538876; 0.897838 0.4401984 -0.010602593]
-# q2: [-0.435434583948209 0.16998619895389078 -0.8840256869950432; -0.8978377839922781 -0.010605054960933391 0.44019864430176375; 0.06545255333205324 0.9853893773399851 0.15723783987269374] 
+q_old= Float32[-0.4354337 0.88402545 -0.16998994; -0.06545633 0.15724015 0.98538876; 0.897838 0.4401984 -0.010602593]
+q2= [-0.435434583948209 0.16998619895389078 -0.8840256869950432; -0.8978377839922781 -0.010605054960933391 0.44019864430176375; 0.06545255333205324 0.9853893773399851 0.15723783987269374] 
+x1, y1, z1 = quat2frame(q_old)
+x2, y2, z2 = quat2frame(q2)
+N2 = calc_orient_rot(x2, y2, z2)
+O2 = calc_orient_rot(x2, y2, z2; old=true)
+O22 = new2old(q2)
 
