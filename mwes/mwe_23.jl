@@ -1,4 +1,5 @@
 using Rotations, KiteUtils
+import ReferenceFrameRotations as RFR
 
 function calc_orient_rot(x, y, z; old=false)
     if old
@@ -24,15 +25,29 @@ function swaprows!(A, i, j)
 end
 
 function new2old(rot)
-    x = rot
+    x = MArray{Tuple{3,3}}(rot)
     swaprows!(x, 2, 3)
     x[1, :] .*= -1
     return x
 end
 function new2old(q::QuatRotation)
-    rot = RFR.DCM(q)
+    rot = RotMatrix(q)
     return QuatRotation(new2old(rot))
 end
+function quat2frame(q::QuatRotation)
+    x = [0,  1.0, 0]
+    y = [1.0,  0, 0]
+    z = [0,    0, -1.0]
+    return x, y, z
+end
+function euler2quat(;roll=0, pitch=0, yaw=0, deg=true)
+    if deg
+        roll = deg2rad(roll)
+        pitch = deg2rad(pitch)
+        yaw = deg2rad(yaw)
+    end
+    return QuatRotation(RFR.angle_to_dcm(yaw, pitch, roll, :ZYX))
+end 
 
 x = [0, 1.0, 0]
 y = [1, 0, 0]
@@ -40,6 +55,7 @@ z = [0, 0, -1]
 
 N = calc_orient_rot(x, y, z)
 O = calc_orient_rot(x, y, z; old=true)
+
 
 # q2 is the correct result
 # q_old: Float32[-0.4354337 0.88402545 -0.16998994; -0.06545633 0.15724015 0.98538876; 0.897838 0.4401984 -0.010602593]
