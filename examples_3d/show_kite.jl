@@ -14,6 +14,10 @@ using KiteUtils, Rotations, StaticArrays
 using KiteViewers
 toc()
 
+yaw = deg2rad(0)
+pitch = deg2rad(0)
+roll = deg2rad(0)
+
 viewer::Viewer3D = Viewer3D(true);
 segments=6
 state=demo_state_4p(segments+1, 6)
@@ -94,10 +98,6 @@ y = [1, 0, 0]
 z = [0, 0,-1]
 
 # R = Yaw * Pitch * Roll
-
-yaw = deg2rad(-90)
-pitch = deg2rad(0)
-roll = deg2rad(0)
 
 D1 = RFR.angle_to_dcm(yaw, pitch, roll, :ZYX)
 x4 = D1 * x
