@@ -46,13 +46,35 @@ function rot3d(ax, ay, az, bx, by, bz)
     return R_bi * R_ai'
 end
 
-function calc_orient_rot(x, y, z)
-    # reference frame for the orientation: NED
-    ax = @SVector[0, 1, 0] # in ENU reference frame this is pointing to the north
-    ay = @SVector[1, 0, 0] # in ENU reference frame this is pointing to the east
-    az = @SVector[0, 0,-1] # in ENU reference frame this is pointing down
-    rot = rot3d(ax, ay, az, x, y, z)
-    return rot
+function calc_orient_rot(x, y, z; old=false)
+    if old
+        pos_kite_ = ones(3)
+        pos_before = pos_kite_ .+ z
+    
+        rotation = rot(pos_kite_, pos_before, -x)
+    else
+        # reference frame for the orientation: NED (north, east, down)
+        ax = [0, 1, 0] # in ENU reference frame this is pointing to the south
+        ay = [1, 0, 0] # in ENU reference frame this is pointing to the west
+        az = [0, 0, -1] # in ENU reference frame this is pointing down
+        rotation = rot3d(ax, ay, az, x, y, z)
+    end
+    return rotation
+end
+
+quat2frame(q::AbstractMatrix) = quat2frame(QuatRotation(q))
+function quat2frame(q::QuatRotation)
+    x = [0,  1.0, 0]
+    y = [1.0,  0, 0]
+    z = [0,    0, -1.0]
+    return q*x, q*y, q*z
+end
+
+function new2old(q::QuatRotation)
+    x, y, z = quat2frame(q)
+    rot = calc_orient_rot(x, y, z; old=true)
+    q = QuatRotation(rot)
+    return Rotations.params(q)
 end
 
 # z-y′-x″ (intrinsic rotations) or x-y-z (extrinsic rotations): 
@@ -90,9 +112,8 @@ pitch = euler.a2
 roll = euler.a3
 println("Yaw: ", rad2deg(yaw), ", Pitch: ", rad2deg(pitch), ", Roll: ", rad2deg(roll))
 
-rot = calc_orient_rot(x4, y4, z4)
-q = QuatRotation(rot)
+q = QuatRotation(calc_orient_rot(x4, y4, z4))
 roll, pitch, yaw = rad2deg.(quat2euler(q))
 
-state.orient .= Rotations.params(q)
+state.orient .= new2old(q)
 update_system(viewer, state, kite_scale=0.25)
