@@ -23,20 +23,6 @@ function is_right_handed_orthonormal(x, y, z)
     R*R' ≈ I && det(R) ≈ 1
 end
 
-function enu2ned(vec::AbstractVector)  
-    R = [0 1 0; 1 0 0; 0 0 -1]
-    R*vec
-end
-
-quat2euler2(q::AbstractVector) = quat2euler(QuatRotation(q))
-function quat2euler2(q::QuatRotation)  
-    D = RFR.DCM(q)
-    pitch = asin(−D[3,1])
-    roll  = atan(D[3,2], D[3,3])
-    yaw   = atan(D[2,1], D[1,1])
-    return roll, pitch, yaw
-end
-
 @testset "calc_orientation, kite pointing to the north and is at zenith" begin
     # If kite (x axis) is pointing to the north, and is at zenith, then in ENUs reference frame:
     # - x = 0, 1, 0
@@ -49,7 +35,7 @@ end
     @assert is_right_handed_orthonormal(x, y, z)
     rot = calc_orient_rot(x, y, z)
     q = QuatRotation(rot)
-    roll, pitch, yaw = rad2deg.(quat2euler2(q))
+    roll, pitch, yaw = rad2deg.(quat2euler(q))
     @test roll ≈ 0
     @test pitch ≈ 0
     @test yaw ≈ 0
@@ -61,7 +47,7 @@ end
     @assert is_right_handed_orthonormal(x, y, z)
     rot = calc_orient_rot(x, y, z)
     q = QuatRotation(rot)
-    roll, pitch, yaw = rad2deg.(quat2euler2(q))
+    roll, pitch, yaw = rad2deg.(quat2euler(q))
     @test roll ≈ 0
     @test pitch ≈ 0
     @test yaw ≈ -90
@@ -74,7 +60,7 @@ end
     @assert is_right_handed_orthonormal(x, y, z)
     rot = calc_orient_rot(x, y, z)
     q = QuatRotation(rot)
-    roll, pitch, yaw = rad2deg.(quat2euler2(q))
+    roll, pitch, yaw = rad2deg.(quat2euler(q))
     @test roll ≈ -90
     @test pitch ≈ 0
     @test yaw ≈ 0
@@ -88,7 +74,7 @@ end
     @assert is_right_handed_orthonormal(x, y, z)
     rot = calc_orient_rot(x, y, z)
     q = QuatRotation(rot)
-    roll, pitch, yaw = rad2deg.(quat2euler2(q))
+    roll, pitch, yaw = rad2deg.(quat2euler(q))
     @test roll ≈ 0
     @test pitch ≈ 90
     @test yaw ≈ 0
@@ -101,7 +87,7 @@ end
     @assert is_right_handed_orthonormal(x, y, z)
     rot = calc_orient_rot(x, y, z)
     q = QuatRotation(rot)
-    roll, pitch, yaw = rad2deg.(quat2euler2(q))
+    roll, pitch, yaw = rad2deg.(quat2euler(q))
     @test roll ≈ 40
     @test pitch ≈ 30
     @test yaw ≈ 20
@@ -114,7 +100,7 @@ end
     @assert is_right_handed_orthonormal(x, y, z)
     rot = calc_orient_rot(x, y, z)
     q = QuatRotation(rot)
-    roll, pitch, yaw = rad2deg.(quat2euler2(q))
+    roll, pitch, yaw = rad2deg.(quat2euler(q))
     @test roll  ≈ 0
     @test pitch ≈ 0
     @test yaw   ≈ 20
@@ -127,7 +113,7 @@ end
     @assert is_right_handed_orthonormal(x, y, z)
     rot = calc_orient_rot(x, y, z)
     q = QuatRotation(rot)
-    roll, pitch, yaw = rad2deg.(quat2euler2(q))
+    roll, pitch, yaw = rad2deg.(quat2euler(q))
     @test roll  ≈ 0
     @test pitch ≈ 30.0
     @test yaw   ≈ 0
@@ -141,7 +127,7 @@ end
     @assert is_right_handed_orthonormal(x, y, z)
     rot = calc_orient_rot(x, y, z)
     q = QuatRotation(rot)
-    roll, pitch, yaw = rad2deg.(quat2euler2(q))
+    roll, pitch, yaw = rad2deg.(quat2euler(q))
     @test roll + 1  ≈ 0 + 1
     @test pitch     ≈ 30.0
     @test yaw       ≈ 20.0
@@ -155,7 +141,7 @@ end
     @assert is_right_handed_orthonormal(x, y, z)
     rot = calc_orient_rot(x, y, z)
     q = QuatRotation(rot)
-    roll, pitch, yaw = rad2deg.(quat2euler2(q))
+    roll, pitch, yaw = rad2deg.(quat2euler(q))
     @test roll       ≈ 40
     @test pitch+1    ≈ 0.0+1
     @test yaw+1      ≈ 0.0+1
