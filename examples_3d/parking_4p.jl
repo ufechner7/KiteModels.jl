@@ -7,30 +7,12 @@ using Pkg, Timers
 tic()
 if ! ("KiteViewers" ∈ keys(Pkg.project().dependencies))
     Pkg.activate("examples_3d")
+    pkg"add KiteUtils#main"
     pkg"add KiteModels#main"
 end
 using KiteModels, KitePodModels, KiteUtils, Rotations, StaticArrays
 using ControlPlots, KiteViewers
 toc()
-
-function rot3d(ax, ay, az, bx, by, bz) 
-    R_ai = [ax az ay]
-    R_bi = [bx bz by]
-    return R_bi * R_ai'
-end
-
-quat2frame(q::AbstractMatrix) = quat2frame(QuatRotation(q))
-function quat2frame(q::QuatRotation)
-    x = [0,  1.0, 0]
-    y = [1.0,  0, 0]
-    z = [0,    0, -1.0]
-    return q*x, q*y, q*z
-end
-rot3d(qa::QuatRotation, qb::QuatRotation) = rot3d(quat2frame(qa)..., quat2frame(qb)...)
-function quat3d(qa::QuatRotation, qb::QuatRotation)
-    res = rot3d(qa, qb)
-    return Rotations.params(QuatRotation(res))
-end
 
 set = deepcopy(se())
 
@@ -56,29 +38,6 @@ v_time = zeros(STEPS)
 v_speed = zeros(STEPS)
 v_force = zeros(STEPS)
 heading = zeros(STEPS)
-
-function calc_orient_rot(x, y, z; old=false)
-    if old
-        pos_kite_ = ones(3)
-        pos_before = pos_kite_ .+ z
-    
-        rotation = rot(pos_kite_, pos_before, -x)
-    else
-        # reference frame for the orientation: NED (north, east, down)
-        ax = [0, 1, 0] # in ENU reference frame this is pointing to the south
-        ay = [1, 0, 0] # in ENU reference frame this is pointing to the west
-        az = [0, 0, -1] # in ENU reference frame this is pointing down
-        rotation = rot3d(ax, ay, az, x, y, z)
-    end
-    return rotation
-end
-
-function new2old(q::QuatRotation)
-    x, y, z = quat2frame(q)
-    rot = calc_orient_rot(x, y, z; old=true)
-    q = QuatRotation(rot)
-    return Rotations.params(q)
-end
 
 function simulate(integrator, steps, plot=PLOT)
     iter = 0
@@ -111,7 +70,7 @@ function simulate(integrator, steps, plot=PLOT)
             sleep(0.05)           
         end
         sys_state = SysState(kps4)
-        sys_state.orient = new2old(QuatRotation(sys_state.orient))
+        sys_state.orient = quat2viewer(sys_state.orient)
         KiteViewers.update_system(viewer, sys_state; scale = 0.08, kite_scale=3)
     end
     iter / steps
