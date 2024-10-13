@@ -39,6 +39,23 @@ v_speed = zeros(STEPS)
 v_force = zeros(STEPS)
 heading = zeros(STEPS)
 
+function euler2rot(roll, pitch, yaw)
+    φ      = roll
+    R_x = [1    0       0;
+              0  cos(φ) -sin(φ);
+              0  sin(φ)  cos(φ)]
+    θ      = pitch          
+    R_y = [ cos(θ)  0  sin(θ);
+                 0     1     0;
+              -sin(θ)  0  cos(θ)]
+    ψ      = yaw
+    R_z = [cos(ψ) -sin(ψ) 0;
+              sin(ψ)  cos(ψ) 0;
+                 0       0   1]
+    R   = R_z * R_y * R_x
+    return R
+end
+
 function simulate(integrator, steps, plot=PLOT)
     iter = 0
     for i in 1:steps
@@ -72,7 +89,10 @@ function simulate(integrator, steps, plot=PLOT)
         sys_state = SysState(kps4)
         roll, pitch, yaw = quat2euler(QuatRotation(sys_state.orient))
         println("Yaw: ", rad2deg(yaw), ", Pitch: ", rad2deg(pitch), ", Roll: ", rad2deg(roll))
-        sys_state.orient = quat2viewer(sys_state.orient)
+        correction = QuatRotation(euler2rot(pi/2, 0, 0))
+        q = QuatRotation(sys_state.orient)
+        sys_state.orient = Rotations.params(q*correction)
+        # sys_state.orient = quat2viewer(sys_state.orient)
         KiteViewers.update_system(viewer, sys_state; scale = 0.08, kite_scale=3)
     end
     iter / steps

@@ -15,9 +15,10 @@ using KiteUtils, Rotations, StaticArrays
 using KiteViewers
 toc()
 
-yaw = deg2rad(-90)
-pitch = deg2rad(0)
-roll = deg2rad(0)
+# Yaw: -63.529095, Pitch: 9.046745, Roll: 3.800396
+yaw = deg2rad(-63.529095)
+pitch = deg2rad(9.046745)
+roll = deg2rad(3.800396)
 
 x = enu2ned([0, 1, 0])
 y = enu2ned([1, 0, 0])
@@ -64,12 +65,13 @@ println("Yaw: ", rad2deg(yaw), ", Pitch: ", rad2deg(pitch), ", Roll: ", rad2deg(
 roll, pitch, yaw = quat2euler(QuatRotation(D1))
 println("Yaw: ", rad2deg(yaw), ", Pitch: ", rad2deg(pitch), ", Roll: ", rad2deg(roll))
 
-rot = calc_orient_rot(x4, y4, z4; ENU=true)
+rot = calc_orient_rot(x4, y4, z4; ENU=false)
 q = QuatRotation(rot)
 
 viewer::Viewer3D = Viewer3D(true);
 segments=6
 state=demo_state_4p(segments+1, 12; yaw)
-state.orient .= quat2viewer(q)
+correction = QuatRotation(euler2rot(pi/2, 0, 0))
+state.orient = Rotations.params(q*correction)
 update_system(viewer, state, kite_scale=0.25)
 nothing
