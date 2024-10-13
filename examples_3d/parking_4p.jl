@@ -70,6 +70,8 @@ function simulate(integrator, steps, plot=PLOT)
             sleep(0.05)           
         end
         sys_state = SysState(kps4)
+        roll, pitch, yaw = quat2euler(QuatRotation(sys_state.orient))
+        println("Yaw: ", rad2deg(yaw), ", Pitch: ", rad2deg(pitch), ", Roll: ", rad2deg(roll))
         sys_state.orient = quat2viewer(sys_state.orient)
         KiteViewers.update_system(viewer, sys_state; scale = 0.08, kite_scale=3)
     end
