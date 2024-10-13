@@ -10,8 +10,8 @@ import ReferenceFrameRotations as RFR
 # y: to the right looking in flight direction
 # z: down
 
-yaw = deg2rad(20)
-pitch = deg2rad(30)
+yaw = deg2rad(0)
+pitch = deg2rad(0)
 roll = deg2rad(40)
 
 function enu2ned(vec::AbstractVector)  
