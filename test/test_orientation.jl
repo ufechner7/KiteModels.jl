@@ -1,6 +1,9 @@
 # unit tests for calculation of the orientation
 using LinearAlgebra, Rotations, Test, StaticArrays
 import ReferenceFrameRotations as RFR
+using Pkg
+pkg"add KiteUtils#main"
+using KiteUtils
 
 # Kite reference frame
 # x: from trailing edge to leading edge
@@ -18,43 +21,6 @@ Returns `true` if the vectors `x`, `y` and `z` form a right-handed orthonormal b
 function is_right_handed_orthonormal(x, y, z)
     R = [x y z]
     R*R' ≈ I && det(R) ≈ 1
-end
-
-"""
-    rot3d(ax, ay, az, bx, by, bz)
-
-Calculate the rotation matrix that needs to be applied on the reference frame (ax, ay, az) to match 
-the reference frame (bx, by, bz).
-All parameters must be 3-element vectors. Both refrence frames must be orthogonal,
-all vectors must already be normalized.
-
-Source: [TRIAD_Algorithm](http://en.wikipedia.org/wiki/User:Snietfeld/TRIAD_Algorithm)
-"""
-function rot3d(ax, ay, az, bx, by, bz)
-    @assert is_right_handed_orthonormal(ax, ay, az)
-    @assert is_right_handed_orthonormal(bx, by, bz)    
-    R_ai = [ax az ay]
-    R_bi = [bx bz by]
-    return R_bi * R_ai'
-end
-
-function calc_orient_rot(x, y, z)
-    # reference frame for the orientation: NED
-    ax = @SVector[0, 1, 0] # in ENU reference frame this is pointing to the north
-    ay = @SVector[1, 0, 0] # in ENU reference frame this is pointing to the east
-    az = @SVector[0, 0,-1] # in ENU reference frame this is pointing down
-    rot = rot3d(ax, ay, az, x, y, z)
-    return rot
-end
-
-quat2euler(q::AbstractVector) = quat2euler(QuatRotation(q))
-function quat2euler(q::QuatRotation)  
-    D = RFR.DCM(q)
-    euler = RFR.dcm_to_angle(D, :ZYX)
-    yaw = euler.a1
-    pitch = euler.a2
-    roll = euler.a3
-    return roll, pitch, yaw
 end
 
 @testset "calc_orientation, kite pointing to the north and is at zenith" begin
