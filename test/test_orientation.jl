@@ -31,13 +31,9 @@ end
 quat2euler2(q::AbstractVector) = quat2euler(QuatRotation(q))
 function quat2euler2(q::QuatRotation)  
     D = RFR.DCM(q)
-    # euler = RFR.dcm_to_angle(D, :ZYX)
     pitch = asin(−D[3,1])
     roll  = atan(D[3,2], D[3,3])
     yaw   = atan(D[2,1], D[1,1])
-    # yaw = euler.a1
-    # pitch = euler.a2
-    # roll = euler.a3
     return roll, pitch, yaw
 end
 
@@ -74,9 +70,9 @@ end
     @test yaw ≈ 0
 end
 @testset "calc_orientation, kite pointing to the west and is at zenith " begin
-    x = enu2ned([-1, 0, 0])
-    y = enu2ned([ 0, 1, 0])
-    z = enu2ned([ 0, 0,-1])
+    x = [0.0, -1.0, 0.0] # NED, kite pointing to the west
+    y = [1.0, 0.0, 0.0]  # NED, right tip pointing to the north
+    z = [0.0, 0.0, 1.0]  # NED, z axis pointing down
     @assert is_right_handed_orthonormal(x, y, z)
     rot = calc_orient_rot2(x, y, z)
     q = QuatRotation(rot)
@@ -85,73 +81,72 @@ end
     @test pitch ≈ 0
     @test yaw ≈ -90
 end
-# @testset "calc_orientation, kite pointing to the north, right tip up   " begin
-#     # x = [0, 1, 0] y = [0, 0, 1] z = [1, 0, 0] should give -90 degrees roll
-#     x = [ 0, 1, 0]
-#     y = [ 0, 0, 1]
-#     z = [ 1, 0, 0]
-#     @assert is_right_handed_orthonormal(x, y, z)
-#     rot = calc_orient_rot(x, y, z)
-#     q = QuatRotation(rot)
-#     roll, pitch, yaw = rad2deg.(quat2euler2(q))
-#     @test roll ≈ -90
-#     @test pitch ≈ 0
-#     @test yaw ≈ 0
-# end
-# @testset "calc_orientation, kite pointing upwards, right tip eastwards " begin
-#     # If x, y and z are given in ENU
-#     # x = [0, 0, 1] y = [1, 0, 0] z = [0, 1, 0] should give 90 degrees pitch
-#     x = [ 0, 0, 1]  # nose pointing up
-#     y = [ 1, 0, 0]  # right tip pointing east
-#     z = [ 0, 1, 0]  # z axis pointing to the north
-#     @assert is_right_handed_orthonormal(x, y, z)
-#     rot = calc_orient_rot(x, y, z)
-#     q = QuatRotation(rot)
-#     roll, pitch, yaw = rad2deg.(quat2euler2(q))
-#     @test roll ≈ 0
-#     @test pitch ≈ 90
-#     @test yaw ≈ 0
-# end
-# @testset "calc_orientation, all angles positive                        " begin
-#     # x, y and z are given in ENU
-#     x = [0.2961981327260238, 0.8297694655894312, -0.47302145844036136]
-#     y = [0.8137976813493738, 0.040008756548141844, 0.5797694655894312]
-#     z = [0.49999999999999983, -0.5566703992264195, -0.6634139481689384]
-#     @assert is_right_handed_orthonormal(x, y, z)
-#     rot = calc_orient_rot(x, y, z)
-#     q = QuatRotation(rot)
-#     roll, pitch, yaw = rad2deg.(quat2euler2(q))
-#     @test roll ≈ 40
-#     @test pitch ≈ 30
-#     @test yaw ≈ 20
-#     println("roll: $roll, pitch: $pitch, yaw: $yaw")
-# end
-@testset "calc_orientation, yaw = 20°                                  " begin
-    # x, y and z are given in ENU
-    x = enu2ned([0.34202014332566866, 0.9396926207859083, 0.0])
-    y = enu2ned([0.9396926207859083, -0.34202014332566866, 0.0])
-    z = enu2ned([ 0,  0,  -1 ])
+@testset "calc_orientation, kite pointing to the north, right tip up   " begin
+    # x = [0, 1, 0] y = [0, 0, 1] z = [1, 0, 0] should give -90 degrees roll
+    x = enu2ned([ 0, 1, 0])
+    y = enu2ned([ 0, 0, 1])
+    z = enu2ned([ 1, 0, 0])
     @assert is_right_handed_orthonormal(x, y, z)
     rot = calc_orient_rot2(x, y, z)
     q = QuatRotation(rot)
     roll, pitch, yaw = rad2deg.(quat2euler2(q))
-    @test roll  ≈ 0
+    @test roll ≈ -90
     @test pitch ≈ 0
-    @test yaw   ≈ 20
+    @test yaw ≈ 0
 end
-@testset "calc_orientation, pitch = 30°                                " begin
-    # x, y and z are given in ENU
-    x = enu2ned([0.0, 1.0, 0.0])
-    y = enu2ned([0.8660254037844385, 0.0, 0.5000000000000002])
-    z = enu2ned([0.5000000000000002, 0.0, -0.8660254037844385])
+@testset "calc_orientation, kite pointing upwards, right tip eastwards " begin
+    # If x, y and z are given in ENU
+    # x = [0, 0, 1] y = [1, 0, 0] z = [0, 1, 0] should give 90 degrees pitch
+    x = enu2ned([ 0, 0, 1])  # nose pointing up
+    y = enu2ned([ 1, 0, 0])  # right tip pointing east
+    z = enu2ned([ 0, 1, 0])  # z axis pointing to the north
     @assert is_right_handed_orthonormal(x, y, z)
     rot = calc_orient_rot2(x, y, z)
     q = QuatRotation(rot)
     roll, pitch, yaw = rad2deg.(quat2euler2(q))
-    @test roll  ≈ 0
-    @test pitch ≈ 30.0
-    @test yaw   ≈ 0
+    @test roll ≈ 0
+    @test pitch ≈ 90
+    @test yaw ≈ 0
 end
+@testset "calc_orientation, all angles positive                        " begin
+    # x, y and z are given in ENU
+    x = [0.8137976813493738, 0.29619813272602386, -0.49999999999999994]
+    y = [0.0400087565481419, 0.8297694655894313, 0.5566703992264194]
+    z = [0.5797694655894312, -0.47302145844036114, 0.6634139481689384]
+    @assert is_right_handed_orthonormal(x, y, z)
+    rot = calc_orient_rot2(x, y, z)
+    q = QuatRotation(rot)
+    roll, pitch, yaw = rad2deg.(quat2euler2(q))
+    @test roll ≈ 40
+    @test pitch ≈ 30
+    @test yaw ≈ 20
+end
+# @testset "calc_orientation, yaw = 20°                                  " begin
+#     # x, y and z are given in ENU
+#     x = enu2ned([0.34202014332566866, 0.9396926207859083, 0.0])
+#     y = enu2ned([0.9396926207859083, -0.34202014332566866, 0.0])
+#     z = enu2ned([ 0,  0,  -1 ])
+#     @assert is_right_handed_orthonormal(x, y, z)
+#     rot = calc_orient_rot2(x, y, z)
+#     q = QuatRotation(rot)
+#     roll, pitch, yaw = rad2deg.(quat2euler2(q))
+#     @test roll  ≈ 0
+#     @test pitch ≈ 0
+#     @test yaw   ≈ 20
+# end
+# @testset "calc_orientation, pitch = 30°                                " begin
+#     # x, y and z are given in ENU
+#     x = enu2ned([0.0, 1.0, 0.0])
+#     y = enu2ned([0.8660254037844385, 0.0, 0.5000000000000002])
+#     z = enu2ned([0.5000000000000002, 0.0, -0.8660254037844385])
+#     @assert is_right_handed_orthonormal(x, y, z)
+#     rot = calc_orient_rot2(x, y, z)
+#     q = QuatRotation(rot)
+#     roll, pitch, yaw = rad2deg.(quat2euler2(q))
+#     @test roll  ≈ 0
+#     @test pitch ≈ 30.0
+#     @test yaw   ≈ 0
+# end
 # @testset "calc_orientation, yaw=20°, pitch = 30°                       " begin
 #     # x, y and z are given in ENU
 #     x = [0.29619813272602386, 0.9396926207859083, 0.1710100716628345]

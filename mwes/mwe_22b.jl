@@ -10,6 +10,10 @@ import ReferenceFrameRotations as RFR
 # y: to the right looking in flight direction
 # z: down
 
+yaw = deg2rad(20)
+pitch = deg2rad(30)
+roll = deg2rad(40)
+
 function enu2ned(vec::AbstractVector)  
     R = [0 1 0; 1 0 0; 0 0 -1]
     R*vec
@@ -48,10 +52,6 @@ end
 x = enu2ned([0, 1, 0])
 y = enu2ned([1, 0, 0])
 z = enu2ned([0, 0,-1])
-
-yaw = deg2rad(-90)
-pitch = deg2rad(0)
-roll = deg2rad(0)
 
 # D1 = RFR.angle_to_dcm(yaw, pitch, roll, :ZYX)
 D1 = euler2rot(roll, pitch, yaw)
