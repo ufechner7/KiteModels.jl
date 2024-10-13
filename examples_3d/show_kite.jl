@@ -15,7 +15,7 @@ using KiteUtils, Rotations, StaticArrays
 using KiteViewers
 toc()
 
-yaw = deg2rad(-90)
+yaw = deg2rad(0)
 pitch = deg2rad(0)
 roll = deg2rad(0)
 
@@ -46,26 +46,42 @@ x = [0, 1, 0]
 y = [1, 0, 0]
 z = [0, 0,-1]
 
-# R = Yaw * Pitch * Roll
+function euler2rot(roll, pitch, yaw)
+    φ      = roll
+    R_x = [1    0       0;
+              0  cos(φ) -sin(φ);
+              0  sin(φ)  cos(φ)]
+    θ      = pitch          
+    R_y = [ cos(θ)  0  sin(θ);
+                 0     1     0;
+              -sin(θ)  0  cos(θ)]
+    ψ      = yaw
+    R_z = [cos(ψ) -sin(ψ) 0;
+              sin(ψ)  cos(ψ) 0;
+                 0       0   1]
+    R   = R_z * R_y * R_x
+    return R
+end
 
-D1 = RFR.angle_to_dcm(yaw, pitch, roll, :ZYX)
+D1 = euler2rot(roll, pitch, yaw)
 x4 = D1 * x
 y4 = D1 * y
 z4 = D1 * z
 println("Yaw: ", rad2deg(yaw), ", Pitch: ", rad2deg(pitch), ", Roll: ", rad2deg(roll), 
         "\nx = ", x4, "\ny = ", y4, "\nz = ", z4)
 
-euler = RFR.dcm_to_angle(D1, :ZYX)
-yaw = euler.a1
-pitch = euler.a2
-roll = euler.a3
-println("Yaw: ", rad2deg(yaw), ", Pitch: ", rad2deg(pitch), ", Roll: ", rad2deg(roll))
+# euler = RFR.dcm_to_angle(D1, :ZYX)
+# yaw = euler.a1
+# pitch = euler.a2
+# roll = euler.a3
+# println("Yaw: ", rad2deg(yaw), ", Pitch: ", rad2deg(pitch), ", Roll: ", rad2deg(roll))
 
-q = QuatRotation(calc_orient_rot(x4, y4, z4))
-roll, pitch, yaw = rad2deg.(quat2euler(q))
+# q = QuatRotation(calc_orient_rot(x4, y4, z4))
+# roll, pitch, yaw = rad2deg.(quat2euler(q))
 
 viewer::Viewer3D = Viewer3D(true);
 segments=6
 state=demo_state_4p(segments+1, 12; yaw=deg2rad(yaw))
 state.orient .= quat2viewer(q)
 update_system(viewer, state, kite_scale=0.25)
+nothing
