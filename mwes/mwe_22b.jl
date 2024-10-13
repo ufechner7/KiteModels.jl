@@ -19,6 +19,11 @@ function enu2ned(vec::AbstractVector)
     R*vec
 end
 
+function ned2enu(vec::AbstractVector)  
+    R = [0 1 0; 1 0 0; 0 0 -1]
+    R*vec
+end
+
 function euler2rot(roll, pitch, yaw)
     φ      = roll
     R_x = [1    0       0;
@@ -59,7 +64,7 @@ x4 = D1 * x
 y4 = D1 * y
 z4 = D1 * z
 println("Yaw: ", rad2deg(yaw), ", Pitch: ", rad2deg(pitch), ", Roll: ", rad2deg(roll), 
-        "\nx = ", x4, "\ny = ", y4, "\nz = ", z4)
+        "\nx = ", ned2enu(x4), "\ny = ", ned2enu(y4), "\nz = ", ned2enu(z4))
 
 roll, pitch, yaw = rot2euler(D1)
 println("Yaw: ", rad2deg(yaw), ", Pitch: ", rad2deg(pitch), ", Roll: ", rad2deg(roll))
