@@ -14,7 +14,7 @@ using KiteUtils, Rotations, StaticArrays
 using KiteViewers
 toc()
 
-yaw = deg2rad(0)
+yaw = deg2rad(-90)
 pitch = deg2rad(0)
 roll = deg2rad(0)
 
