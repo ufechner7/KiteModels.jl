@@ -917,11 +917,11 @@ function model!(s::KPS4_3L, pos_, vel_)
     eqs1 = []
     mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
 
-    [eqs1 = vcat(eqs1, D.(pos[:, i]) .~ 0.0) for i in 1:3]
+    [eqs1 = vcat(eqs1, pos[:, i] .~ 0.0) for i in 1:3]
     [eqs1 = vcat(eqs1, D.(pos[:, i]) .~ vel[:, i]) for i in 4:s.num_flap_C-1]
     eqs1 = [eqs1; D(flap_angle)   ~ flap_vel]
     [eqs1 = vcat(eqs1, D.(pos[:, i]) .~ vel[:, i]) for i in s.num_E:s.num_A]
-    [eqs1 = vcat(eqs1, D.(vel[:, i]) .~ 0.0) for i in 1:3]
+    [eqs1 = vcat(eqs1, vel[:, i] .~ 0.0) for i in 1:3]
     [eqs1 = vcat(eqs1, D.(vel[:, i]) .~ acc[:, i]) for i in 4:s.num_flap_C-1]
     eqs1 = [eqs1; D(flap_vel)   ~ flap_acc]
     [eqs1 = vcat(eqs1, D.(vel[:, i]) .~ acc[:, i]) for i in s.num_E:s.num_A]
