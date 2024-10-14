@@ -56,6 +56,18 @@ function euler2rot(roll, pitch, yaw)
     return R
 end
 
+function q2q_old(q::QuatRotation)
+    # 1. get reference frame
+    x, y, z = quat2frame(q)
+    # 2. convert it using the old method
+    ax = [0, 1, 0] # in ENU reference frame this is pointing to the south
+    ay = [1, 0, 0] # in ENU reference frame this is pointing to the west
+    az = [0, 0, -1] # in ENU reference frame this is pointing down
+    rotation = rot3d(ax, ay, az, x, y, z)
+    q_old = QuatRotation(rotation)
+    return q_old
+end
+
 function simulate(integrator, steps, plot=PLOT)
     iter = 0
     for i in 1:steps
@@ -89,6 +101,7 @@ function simulate(integrator, steps, plot=PLOT)
         sys_state = SysState(kps4)
         q = QuatRotation(sys_state.orient)
         q_old = KiteModels.calc_orient_quat_old(kps4)
+        # q_old = q2q_old(q)
         roll, pitch, yaw = quat2euler(q)
         println("Yaw: ", rad2deg(yaw), ", Pitch: ", rad2deg(pitch), ", Roll: ", rad2deg(roll))
         correction = QuatRotation(euler2rot(pi/2, 0, 0))
