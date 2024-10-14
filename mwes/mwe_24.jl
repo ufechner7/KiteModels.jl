@@ -20,11 +20,11 @@ function euler2rot(roll, pitch, yaw)
     return R
 end
 
-function frame2quat(x, y, z)
-    return QuatRotation(rot3d(x, y, z))
-end
+# function frame2quat(x, y, z)
+#     return QuatRotation(rot3d(x, y, z))
+# end
 
-quat2viewer(orient::AbstractVector) = quat2viewer(QuatRotation(orient))
+calc_orient_quat_(orient::AbstractVector) = calc_orient_quat_(QuatRotation(orient))
 function calc_orient_quat_(x, y, z)  
     x = enu2ned(x)
     y = enu2ned(y)
