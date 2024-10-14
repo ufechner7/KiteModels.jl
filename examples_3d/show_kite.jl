@@ -15,10 +15,12 @@ using KiteUtils, Rotations, StaticArrays
 using KiteViewers
 toc()
 
-# Yaw: -63.529095, Pitch: 9.046745, Roll: 3.800396
-yaw = deg2rad(-63.529095)
-pitch = deg2rad(9.046745)
-roll = deg2rad(3.800396)
+# yaw = deg2rad(-63.529095)
+# pitch = deg2rad(9.046745)
+# roll = deg2rad(3.800396)
+yaw = deg2rad(0)
+pitch = deg2rad(0)
+roll = deg2rad(0)
 
 x = enu2ned([0, 1, 0])
 y = enu2ned([1, 0, 0])
