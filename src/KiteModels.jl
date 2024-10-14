@@ -282,6 +282,25 @@ function calc_orient_quat(s::AKM; viewer=false)
     return Rotations.params(q)
 end
 
+function calc_orient_quat_old(s::AKM; viewer=false)
+    if viewer
+        x, _, z = kite_ref_frame(s)
+        pos_kite_ = pos_kite(s)
+        pos_before = pos_kite_ .+ z
+    
+        rotation = rot(pos_kite_, pos_before, -x)
+    else
+        x, y, z = kite_ref_frame(s) # in ENU reference
+            
+        ax = [0, 1, 0] # in ENU reference frame this is pointing to the south
+        ay = [1, 0, 0] # in ENU reference frame this is pointing to the west
+        az = [0, 0, -1] # in ENU reference frame this is pointing down
+        rotation = rot3d(ax, ay, az, x, y, z)
+    end
+    q = QuatRotation(rotation)
+    return Rotations.params(q)
+end
+
 """
     calc_elevation(s::AKM)
 
