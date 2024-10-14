@@ -107,7 +107,7 @@ function simulate(integrator, steps, plot=PLOT)
         correction = QuatRotation(euler2rot(pi/2, 0, 0))
         
         # sys_state.orient = Rotations.params(q*correction)
-        sys_state.orient = quat2viewer(q_old)
+        # sys_state.orient = quat2viewer(q_old)
         KiteViewers.update_system(viewer, sys_state; scale = 0.08, kite_scale=3)
     end
     iter / steps
