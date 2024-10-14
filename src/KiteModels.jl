@@ -259,8 +259,8 @@ function orient_euler(s::AKM)
     SVector(roll, pitch, yaw)
 end
 
-function calc_orient_quat(s::AKM; old=false)
-    if old
+function calc_orient_quat(s::AKM; viewer=false)
+    if viewer
         x, _, z = kite_ref_frame(s)
         pos_kite_ = pos_kite(s)
         pos_before = pos_kite_ .+ z
@@ -268,12 +268,27 @@ function calc_orient_quat(s::AKM; old=false)
         rotation = rot(pos_kite_, pos_before, -x)
     else
         x, y, z = kite_ref_frame(s) # in ENU reference
-        # reference frame for the orientation: SWD (south, west, down)
-        ax = [0, -1, 0] # in ENU reference frame this is pointing to the south
-        ay = [-1, 0, 0] # in ENU reference frame this is pointing to the west
-        az = [0, 0, -1] # in ENU reference frame this is pointing down
+        x = enu2ned(x)
+        y = enu2ned(y)
+        z = enu2ned(z)
+            
+        # reference frame for the orientation: NED (north, east, down)
+        ax = @SVector [1, 0, 0]
+        ay = @SVector [0, 1, 0]
+        az = @SVector [0, 0, 1]
         rotation = rot3d(ax, ay, az, x, y, z)
     end
+    q = QuatRotation(rotation)
+    return Rotations.params(q)
+end
+
+function calc_orient_quat_old(s::AKM)
+    x, y, z = kite_ref_frame(s) # in ENU reference
+        
+    ax = [0, 1, 0] # in ENU reference frame this is pointing to the south
+    ay = [1, 0, 0] # in ENU reference frame this is pointing to the west
+    az = [0, 0, -1] # in ENU reference frame this is pointing down
+    rotation = rot3d(ax, ay, az, x, y, z)
     q = QuatRotation(rotation)
     return Rotations.params(q)
 end
