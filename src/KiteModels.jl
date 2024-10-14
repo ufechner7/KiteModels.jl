@@ -59,7 +59,7 @@ export clear!, find_steady_state!, residual!                                    
 export init_sim!, reset_sim!, next_step!, init_pos_vel, init_pos, model!                                 # high level workers
 export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, calc_orient_quat  # getters
 export winch_force, lift_drag, cl_cd, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
-export kite_ref_frame, orient_euler, spring_forces
+export kite_ref_frame, orient_euler, spring_forces, upwind_dir
 import LinearAlgebra: norm
 
 set_zero_subnormals(true)       # required to avoid drastic slow down on Intel CPUs when numbers become very small
@@ -212,9 +212,17 @@ function set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind, wind_dir=0.
     end
     s.v_wind .= v_wind_gnd * calc_wind_factor(s.am, height) .* [cos(wind_dir), sin(wind_dir), 0]
     s.v_wind_gnd .= [v_wind_gnd * cos(wind_dir), v_wind_gnd * sin(wind_dir), 0.0]
-    s.v_wind_tether .= v_wind_gnd * calc_wind_factor(s.am, height / 2.0) .* [cos(wind_dir), sin(wind_dir), 0]
+    s.v_wind_tether .= v_wind_gnd * calc_wind_factor(s.am, height / 2.0) # .* [cos(wind_dir), sin(wind_dir), 0]
     s.rho = calc_rho(s.am, height)
     nothing
+end
+
+function upwind_dir(s::AKM)
+    if s.v_wind_gnd[1] == 0.0 && s.v_wind_gnd[2] == 0.0
+        return NaN
+    end
+    wind_dir = atan(s.v_wind_gnd[2], s.v_wind_gnd[1])
+    -(wind_dir + π/2)
 end
 
 """
@@ -251,13 +259,21 @@ function orient_euler(s::AKM)
     SVector(roll, pitch, yaw)
 end
 
-function calc_orient_quat(s::AKM)
-    x, y, z = kite_ref_frame(s)
-    # reference: NED
-    ax = [0, 1, 0]
-    ay = [1, 0, 0]
-    az = [0, 0, -1]
-    rotation = rot3d(ax, ay, az, x, y, z)
+function calc_orient_quat(s::AKM; old=false)
+    if old
+        x, _, z = kite_ref_frame(s)
+        pos_kite_ = pos_kite(s)
+        pos_before = pos_kite_ .+ z
+    
+        rotation = rot(pos_kite_, pos_before, -x)
+    else
+        x, y, z = kite_ref_frame(s) # in ENU reference
+        # reference frame for the orientation: NED (north, east, down)
+        ax = [0, 1, 0] # in ENU reference frame this is pointing to the south
+        ay = [1, 0, 0] # in ENU reference frame this is pointing to the west
+        az = [0, 0, -1] # in ENU reference frame this is pointing down
+        rotation = rot3d(ax, ay, az, x, y, z)
+    end
     q = QuatRotation(rotation)
     return Rotations.params(q)
 end
@@ -285,11 +301,11 @@ end
 
 Determine the heading angle of the kite in radian.
 """
-function calc_heading(s::AKM)
+function calc_heading(s::AKM; upwind_dir_=upwind_dir(s))
     orientation = orient_euler(s)
     elevation = calc_elevation(s)
     azimuth = calc_azimuth(s)
-    KiteUtils.calc_heading(orientation, elevation, azimuth)
+    KiteUtils.calc_heading(orientation, elevation, azimuth; upwind_dir=upwind_dir_)
 end
 
 """
