@@ -908,6 +908,7 @@ function model!(s::KPS4_3L, pos_, vel_)
         e_te_D(t)[1:3]
         force(t)[1:3, 1:s.num_A]
         rho_kite(t)
+        winch_force(t)[1:3] # normalized winch forces
     end
     # Collect the arrays into variables
     pos = collect(pos)
@@ -963,6 +964,7 @@ function model!(s::KPS4_3L, pos_, vel_)
         E_C     ~ pos[:, s.num_E] + e_z * (-s.set.bridle_center_distance + s.set.radius) 
         rho_kite ~ calc_rho(s.am, pos[3,s.num_A])
         damping_coeff ~ max(1.0 - t/2, 0.0) * s.damping_coeff
+        winch_force ~ [norm(force[i, 1:3]) for i in 1:3]
     ]
 
     eqs2, force_eqs = calc_aero_forces_mtk!(s, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, E_C, rho_kite, v_wind, flap_angle)
