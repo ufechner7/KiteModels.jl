@@ -1,5 +1,5 @@
 # find the reverse function of the given function
-using Rotations, StaticArrays, Pkg, Test
+using Rotations, StaticArrays, Pkg, Test, LinearAlgebra
 pkg"add KiteUtils#main"
 using KiteUtils
 
@@ -20,9 +20,18 @@ function euler2rot(roll, pitch, yaw)
     return R
 end
 
-# function frame2quat(x, y, z)
-#     return QuatRotation(rot3d(x, y, z))
-# end
+function frame2quat(x, y, z)
+    @assert is_right_handed_orthonormal(x, y, z)
+    R = [x y z]
+    return (QuatRotation(R))
+end
+pure_quat2frame(q::AbstractVector) = pure_quat2frame(QuatRotation(q))
+function pure_quat2frame(q::QuatRotation)
+    x = enu2ned(q[1,:]) .* [1, 1, -1]
+    y = enu2ned(q[2,:])
+    z = enu2ned(q[3,:]) .* [1, -1, 1]
+    return x, y, z
+end
 
 calc_orient_quat_(orient::AbstractVector) = calc_orient_quat_(QuatRotation(orient))
 function calc_orient_quat_(x, y, z)  
@@ -47,7 +56,7 @@ function quat2frame_(q::QuatRotation)
 end
 
 @testset "Testing quat2frame_ ...." begin
-    global q
+    global x1, y1, z1, q, rotation
     x = [1, 0, 0]
     y = [0, 1, 0]
     z = [0, 0, 1]
@@ -56,5 +65,25 @@ end
     @test x1 ≈ x
     @test y1 ≈ y
     @test z1 ≈ z
+    # test with a different orientation
+    rotation = euler2rot(1, 0, 0)
+    q1 = QuatRotation(rotation)
+    q = frame2quat(x, y, z)
+    x2, y2, z2 = quat2frame_(q*q1)
+    q = calc_orient_quat_(x2, y2, z2)
+    x3, y3, z3 = pure_quat2frame(q)
+    @test x3 ≈ x2
+    @test y3 ≈ y2
+    @test z3 ≈ z2
+end
+function test(roll=0)
+    rotation = euler2rot(roll, 0, 0)
+    ax = @SVector [1, 0, 0]
+    ay = @SVector [0, 1, 0]
+    az = @SVector [0, 0, 1]
+    @assert is_right_handed_orthonormal(ax, ay, az)
+    q = frame2quat(ax, ay, az)
+    q1 = QuatRotation(rotation)
+    return q*q1
 end
 nothing
