@@ -1,5 +1,6 @@
 using Pkg
 
+pkg"add KiteUtils#main"
 using KiteUtils
 using KiteModels
 using KitePodModels
@@ -41,7 +42,13 @@ function create_kite_model(x, y, z, pos, wind)
 end  
 
 function obtain_results(s)
-    roll, pitch, yaw = orient_euler(s)
+    # New Method
+    rot = calc_orient_rot(x, y, z)
+    q = QuatRotation(rot)
+    roll, pitch, yaw = rad2deg.(quat2euler(q))
+    # Old Method
+    # roll, pitch, yaw = orient_euler(s)
+
     elevation = calc_elevation(s)
     azimuth = calc_azimuth(s)
     heading = calc_heading(s)
