@@ -257,7 +257,7 @@ end
     
     print_results("test wind 45", roll, pitch, yaw, elevation, azimuth, heading)
 
-    @test isapprox(azimuth,     -90,    atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth,     -135,    atol=1e-4, rtol=1e-4)
     @test isapprox(elevation,   0,      atol=1e-4, rtol=1e-4)
     @test isapprox(heading,     0,      atol=1e-4, rtol=1e-4)
 end
@@ -271,7 +271,7 @@ end
     
     print_results("test wind 60", roll, pitch, yaw, elevation, azimuth, heading)
 
-    @test isapprox(azimuth,     -90,    atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth,     -150,    atol=1e-4, rtol=1e-4)
     @test isapprox(elevation,   0,      atol=1e-4, rtol=1e-4)
     @test isapprox(heading,     0,      atol=1e-4, rtol=1e-4)
 end
@@ -285,7 +285,7 @@ end
     
     print_results("test wind -60", roll, pitch, yaw, elevation, azimuth, heading)
 
-    @test isapprox(azimuth,     -90,    atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth,     -30,    atol=1e-4, rtol=1e-4)
     @test isapprox(elevation,   0,      atol=1e-4, rtol=1e-4)
     @test isapprox(heading,     0,      atol=1e-4, rtol=1e-4)
 end
