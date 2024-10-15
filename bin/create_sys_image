@@ -16,6 +16,8 @@ if [[ $(basename $(pwd)) == "bin" ]]; then
     cd ..
 fi
 
+export JULIA_PKG_SERVER_REGISTRY_PREFERENCE="eager"
+
 if ! command -v juliaup &> /dev/null; then
     echo "Please install the Julia installer 'juliaup'!"
     echo "See: https://github.com/JuliaLang/juliaup"
