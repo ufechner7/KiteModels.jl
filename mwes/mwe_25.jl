@@ -1,6 +1,5 @@
 using Pkg
 
-pkg"add KiteUtils#main"
 using KiteUtils
 using KiteModels
 using KitePodModels
@@ -43,11 +42,11 @@ end
 
 function obtain_results(s)
     # New Method
-    rot = calc_orient_rot(x, y, z)
-    q = QuatRotation(rot)
-    roll, pitch, yaw = rad2deg.(quat2euler(q))
+    # rot = calc_orient_rot(x, y, z)
+    # q = QuatRotation(rot)
+    # roll, pitch, yaw = rad2deg.(quat2euler(q))
     # Old Method
-    # roll, pitch, yaw = orient_euler(s)
+    roll, pitch, yaw = orient_euler(s)
 
     elevation = calc_elevation(s)
     azimuth = calc_azimuth(s)
@@ -73,7 +72,7 @@ end
     @test isapprox(roll,        0,      atol=1e-4, rtol=1e-4)
     @test isapprox(pitch,       0,      atol=1e-4, rtol=1e-4)
     @test isapprox(yaw,         0,      atol=1e-4, rtol=1e-4)
-    @test isapprox(azimuth,     0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth,     -90,    atol=1e-4, rtol=1e-4)
     @test isapprox(elevation,   45,     atol=1e-4, rtol=1e-4)
     @test isapprox(heading,     180,    atol=1e-4, rtol=1e-4)
 end
@@ -89,7 +88,7 @@ end
     @test isapprox(roll,        0,      atol=1e-4, rtol=1e-4)
     @test isapprox(pitch,       0,      atol=1e-4, rtol=1e-4)
     @test isapprox(yaw,         0,      atol=1e-4, rtol=1e-4)
-    @test isapprox(azimuth,     0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth,     -90,    atol=1e-4, rtol=1e-4)
     @test isapprox(elevation,   60,     atol=1e-4, rtol=1e-4)
     @test isapprox(heading,     180,    atol=1e-4, rtol=1e-4)
 end
@@ -105,7 +104,7 @@ end
     @test isapprox(roll,        0,      atol=1e-4, rtol=1e-4)
     @test isapprox(pitch,       0,      atol=1e-4, rtol=1e-4)
     @test isapprox(yaw,         0,      atol=1e-4, rtol=1e-4)
-    @test isapprox(azimuth,     0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth,     -90,    atol=1e-4, rtol=1e-4)
     @test isapprox(elevation,   -60,    atol=1e-4, rtol=1e-4)
     @test isapprox(heading,     0,      atol=1e-4, rtol=1e-4)
 end
@@ -121,7 +120,7 @@ end
     @test isapprox(roll,        0,      atol=1e-4, rtol=1e-4)
     @test isapprox(pitch,       0,      atol=1e-4, rtol=1e-4)
     @test isapprox(yaw,         0,      atol=1e-4, rtol=1e-4)
-    @test isapprox(azimuth,     45,     atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth,     -135,   atol=1e-4, rtol=1e-4)
     @test isapprox(elevation,   0,      atol=1e-4, rtol=1e-4)
     @test isapprox(heading,     270,    atol=1e-4, rtol=1e-4)
 end
@@ -137,7 +136,7 @@ end
     @test isapprox(roll,        0,      atol=1e-4, rtol=1e-4)
     @test isapprox(pitch,       0,      atol=1e-4, rtol=1e-4)
     @test isapprox(yaw,         0,      atol=1e-4, rtol=1e-4)
-    @test isapprox(azimuth,     60,     atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth,     -150,   atol=1e-4, rtol=1e-4)
     @test isapprox(elevation,   0,      atol=1e-4, rtol=1e-4)
     @test isapprox(heading,     270,    atol=1e-4, rtol=1e-4)
 end
@@ -154,9 +153,9 @@ end
     @test isapprox(roll,        0,      atol=1e-4, rtol=1e-4)
     @test isapprox(pitch,       0,      atol=1e-4, rtol=1e-4)
     @test isapprox(yaw,         0,      atol=1e-4, rtol=1e-4)
-    @test isapprox(azimuth,     -60,    atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth,     -30,    atol=1e-4, rtol=1e-4)
     @test isapprox(elevation,   0,      atol=1e-4, rtol=1e-4)
-    @test isapprox(heading,     90,    atol=1e-4, rtol=1e-4)
+    @test isapprox(heading,     90,     atol=1e-4, rtol=1e-4)
 end
 
 # Kite at an azimuth of 60 degrees and with 45 degrees pitch, 0 roll yaw and elevation. Heading is then 315 degrees"
@@ -170,7 +169,7 @@ end
     @test isapprox(roll,        0,      atol=1e-4, rtol=1e-4)
     @test isapprox(pitch,       45,     atol=1e-4, rtol=1e-4)
     @test isapprox(yaw,         0,      atol=1e-4, rtol=1e-4)
-    @test isapprox(azimuth,     60,     atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth,     -150,   atol=1e-4, rtol=1e-4)
     @test isapprox(elevation,   0,      atol=1e-4, rtol=1e-4)
     @test isapprox(heading,     315,    atol=1e-4, rtol=1e-4)
 end
@@ -186,7 +185,7 @@ end
     @test isapprox(roll,        0,      atol=1e-4, rtol=1e-4)
     @test isapprox(pitch,       0,      atol=1e-4, rtol=1e-4)
     @test isapprox(yaw,         45,     atol=1e-4, rtol=1e-4)
-    @test isapprox(azimuth,     0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth,     -90,    atol=1e-4, rtol=1e-4)
     @test isapprox(elevation,   60,     atol=1e-4, rtol=1e-4)
     @test isapprox(heading,     135,    atol=1e-4, rtol=1e-4)
 end
@@ -202,7 +201,7 @@ end
     @test isapprox(roll,        0,      atol=1e-4, rtol=1e-4)
     @test isapprox(pitch,       0,      atol=1e-4, rtol=1e-4)
     @test isapprox(yaw,         0,      atol=1e-4, rtol=1e-4)
-    @test isapprox(azimuth,     45,     atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth,     -135,   atol=1e-4, rtol=1e-4)
     @test isapprox(elevation,   45,     atol=1e-4, rtol=1e-4)
     @test isapprox(heading,     225,    atol=1e-4, rtol=1e-4)
 end
@@ -218,7 +217,7 @@ end
     @test isapprox(roll,        90,     atol=1e-4, rtol=1e-4)
     @test isapprox(pitch,       0,      atol=1e-4, rtol=1e-4)
     @test isapprox(yaw,         0,      atol=1e-4, rtol=1e-4)
-    @test isapprox(azimuth,     45,     atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth,     -135,   atol=1e-4, rtol=1e-4)
     @test isapprox(elevation,   45,     atol=1e-4, rtol=1e-4)
     @test isapprox(heading,     225,    atol=1e-4, rtol=1e-4)
 end
@@ -231,7 +230,7 @@ end
     
     print_results("test base orientation", roll, pitch, yaw, elevation, azimuth, heading)
 
-    @test isapprox(azimuth,     0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth,     -90,    atol=1e-4, rtol=1e-4)
     @test isapprox(elevation,   0,      atol=1e-4, rtol=1e-4)
     @test isapprox(heading,     0,      atol=1e-4, rtol=1e-4)
 end
@@ -244,7 +243,7 @@ end
     
     print_results("test orientation heading 90", roll, pitch, yaw, elevation, azimuth, heading)
 
-    @test isapprox(azimuth,     0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth,     -90,    atol=1e-4, rtol=1e-4)
     @test isapprox(elevation,   0,      atol=1e-4, rtol=1e-4)
     @test isapprox(heading,     0,      atol=1e-4, rtol=1e-4)
 end
@@ -258,7 +257,7 @@ end
     
     print_results("test wind 45", roll, pitch, yaw, elevation, azimuth, heading)
 
-    @test isapprox(azimuth,     -45,    atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth,     -90,    atol=1e-4, rtol=1e-4)
     @test isapprox(elevation,   0,      atol=1e-4, rtol=1e-4)
     @test isapprox(heading,     0,      atol=1e-4, rtol=1e-4)
 end
@@ -272,7 +271,7 @@ end
     
     print_results("test wind 60", roll, pitch, yaw, elevation, azimuth, heading)
 
-    @test isapprox(azimuth,     -60,    atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth,     -90,    atol=1e-4, rtol=1e-4)
     @test isapprox(elevation,   0,      atol=1e-4, rtol=1e-4)
     @test isapprox(heading,     0,      atol=1e-4, rtol=1e-4)
 end
@@ -286,8 +285,8 @@ end
     
     print_results("test wind -60", roll, pitch, yaw, elevation, azimuth, heading)
 
-    @test isapprox(azimuth,     60,      atol=1e-4, rtol=1e-4)
-    @test isapprox(elevation,   0,     atol=1e-4, rtol=1e-4)
-    @test isapprox(heading,     0,    atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth,     -90,    atol=1e-4, rtol=1e-4)
+    @test isapprox(elevation,   0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(heading,     0,      atol=1e-4, rtol=1e-4)
 end
     
