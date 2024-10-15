@@ -1,8 +1,9 @@
 # plot the lift and drag coefficients as function of angle of attack
 
 using Printf
+using Pkg
+pkg"add KiteUtils#main"
 using KiteModels, KitePodModels, KiteUtils, LinearAlgebra, Rotations
-import ReferenceFrameRotations as RFR
 
 set = deepcopy(load_settings("system.yaml"))
 
@@ -28,16 +29,6 @@ STATISTIC = false
 DEPOWER = 0.47:-0.005:0.355
 # end of user parameter section #
 
-quat2euler(q::AbstractVector) = quat2euler(QuatRotation(q))
-function quat2euler(q::QuatRotation)  
-    D = RFR.DCM(q)
-    euler = RFR.dcm_to_angle(D, :ZYX)
-    yaw = euler.a1
-    pitch = euler.a2
-    roll = euler.a3
-    return roll, pitch, yaw
-end
-
 elev = set.elevation
 i = 1
 set.v_wind = V_WIND # 25
@@ -52,14 +43,14 @@ log!(logger, sys_state)
 elev = rad2deg(logger.elevation_vec[end])
 println("Lift: $lift, Drag: $drag, elev: $elev, Iterations: $(kps4.iter)")
 
-q = QuatRotation(calc_orient_quat(kps4; old=false))
+q = QuatRotation(calc_orient_quat(kps4; viewer=false))
 roll, pitch, yaw = rad2deg.(quat2euler(q))
 println("--> orient_quat:       roll: ", roll, " pitch:  ", pitch, "  yaw: ", yaw)
 roll, pitch, yaw = rad2deg.(orient_euler(kps4))
 println("--> orient_euler:      roll: ", roll, " pitch: ", pitch, " yaw:  ", yaw)
-q = QuatRotation(calc_orient_quat(kps4; old=true))
+q = QuatRotation(calc_orient_quat(kps4; viewer=true))
 roll, pitch, yaw = rad2deg.(quat2euler(q))
-println("--> orient_quat (old): roll: ", roll, " pitch: ", pitch, "   yaw: ", yaw)
+println("--> orient_quat (viewer): roll: ", roll, " pitch: ", pitch, "   yaw: ", yaw)
 
 println("x:", kps4.x) # from trailing edge to leading edge in ENU reference frame
 println("y:", kps4.y) # to the right looking in flight direction
