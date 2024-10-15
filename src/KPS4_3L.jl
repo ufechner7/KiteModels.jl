@@ -406,6 +406,7 @@ function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false,
         defaults = vcat([vcat([s.simple_sys.pos[j, i] => pos[j, i] for i in 1:s.num_flap_C-1 for j in 1:3]), 
                         vcat([s.simple_sys.pos[j, i] => pos[j, i] for i in s.num_flap_D+1:s.num_A for j in 1:3]),
                         s.simple_sys.tether_length => s.tether_lengths]...)
+        @show defaults
         s.prob = ODEProblem(s.simple_sys, defaults, tspan)
         OrdinaryDiffEqCore.reinit!(s.integrator, s.prob.u0)
         next_step!(s; set_values=zeros(3), dt=1.0) # step to get stable state
