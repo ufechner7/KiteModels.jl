@@ -375,7 +375,7 @@ Returns:
 Nothing.
 """
 function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false, 
-                   torque_control=true) # TODO: add sysstate init ability
+                   torque_control=s.torque_control) # TODO: add sysstate init ability
     clear!(s)
     change_control_mode = s.torque_control != torque_control
     s.torque_control = torque_control
@@ -403,10 +403,11 @@ function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false,
         if prn; println("initializing with last model and new pos"); end
         pos, vel = init_pos_vel(s)
         pos, vel = convert_pos_vel(s, pos, vel)
-        defaults = vcat([vcat([s.simple_sys.pos[j, i] => pos[j, i] for i in 1:s.num_flap_C-1 for j in 1:3]), 
-                        vcat([s.simple_sys.pos[j, i] => pos[j, i] for i in s.num_flap_D+1:s.num_A for j in 1:3]),
-                        s.simple_sys.tether_length => s.tether_lengths]...)
-        @show defaults
+        defaults = vcat(
+                    vcat([s.simple_sys.pos[j, i] => pos[j, i] for i in 1:s.num_flap_C-1 for j in 1:3]), 
+                    vcat([s.simple_sys.pos[j, i] => pos[j, i] for i in s.num_flap_D+1:s.num_A for j in 1:3]),
+                    vcat([s.simple_sys.tether_length[i] => s.tether_lengths[i] for i in 1:3])
+                        )
         s.prob = ODEProblem(s.simple_sys, defaults, tspan)
         OrdinaryDiffEqCore.reinit!(s.integrator, s.prob.u0)
         next_step!(s; set_values=zeros(3), dt=1.0) # step to get stable state
@@ -536,7 +537,7 @@ function winch_force(s::KPS4_3L) norm.(s.winch_forces) end
 
 
 function calc_acc_speed(motor::AsyncMachine, tether_vel, norm_, set_speed)
-    calc_acceleration(motor, tether_vel, norm_; set_speed, set_torque=nothing, use_brake=true)
+    calc_acceleration(motor, tether_vel, norm_; set_speed, set_torque=nothing, use_brake=false) # TODO: add brake setting
 end
 @register_symbolic calc_acc_speed(motor::AsyncMachine, tether_vel, norm_, set_speed)
 
