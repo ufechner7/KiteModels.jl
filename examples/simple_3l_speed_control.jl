@@ -58,6 +58,7 @@ for i in 1:steps
     sys_state.var_09 =  norm(s.D_D)
     sys_state.var_10 =  (s.integrator[s.simple_sys.vel[:, s.num_E-3]]) ⋅ s.e_z
     sys_state.var_11 =  norm(s.integrator[s.simple_sys.vel[:, s.num_E-3]] .- (s.integrator[s.simple_sys.vel[:, s.num_E-3]]) ⋅ s.e_z)
+    sys_state.var_12 = s.integrator[s.simple_sys.heading]
 
     step_time = @elapsed next_step!(s; set_values=steering, dt=dt)
     if time > total_time/2
@@ -77,7 +78,7 @@ println("times realtime MTK model: ", times_reltime)
 p=plotx(logger.time_vec, 
             [logger.var_01_vec,  logger.var_02_vec], 
             [logger.var_03_vec,  logger.var_04_vec], 
-            rad2deg.(logger.heading_vec), 
+            rad2deg.(logger.var_12_vec), 
             [logger.var_06_vec, logger.var_07_vec], 
             [logger.var_08_vec, logger.var_09_vec],
             [logger.var_10_vec, logger.var_11_vec]; 

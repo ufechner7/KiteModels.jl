@@ -191,6 +191,7 @@ $(TYPEDFIELDS)
     get_L_D::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_D_C::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_D_D::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
+    get_heading::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     integrator::Union{Sundials.CVODEIntegrator, OrdinaryDiffEqCore.ODEIntegrator, Nothing} = nothing
     u0:: Vector{SimFloat} = [0.0]
 end
@@ -313,7 +314,7 @@ function update_sys_state!(ss::SysState, s::KPS4_3L, zoom=1.0)
     ss.elevation = calc_elevation(s)
     ss.azimuth = calc_azimuth(s)
     ss.force = winch_force(s)[3]
-    ss.heading = calc_heading(s.e_x)
+    ss.heading = calc_heading(s.e_x, s.pos[s.num_E])
     ss.course = calc_course(s)
     ss.v_app = norm(s.v_apparent)
     ss.l_tether = s.tether_lengths[3]
@@ -340,7 +341,7 @@ function SysState(s::KPS4_3L, zoom=1.0)
     elevation = calc_elevation(s)
     azimuth = calc_azimuth(s)
     forces = winch_force(s)
-    heading = calc_heading(s.e_x)
+    heading = calc_heading(s.e_x, s.pos[s.num_E])
     course = calc_course(s)
     v_app_norm = norm(s.v_apparent)
     t_sim = 0
@@ -353,13 +354,13 @@ function SysState(s::KPS4_3L, zoom=1.0)
 end
 
 
-function calc_heading(e_x)
+function calc_heading(e_x, pos_kite)
     # turn s.e_x by -azimuth around global z-axis and then by elevation around global y-axis
-    vec = rotate_in_xz(rotate_in_yx(e_x, -calc_azimuth(s)), -calc_elevation(s))
+    vec = rotate_in_xz(rotate_in_yx(e_x, -KiteUtils.azimuth_east(pos_kite)), -KiteUtils.calc_elevation(pos_kite))
     heading = atan(-vec[2], vec[3])
     return heading
 end
-@register_symbolic calc_heading(e_x)
+@register_symbolic calc_heading(e_x, pos_kite)
 
 """
     init_sim!(s; damping_coeff=1.0, prn=false, torque_control=true)
@@ -446,6 +447,7 @@ function next_step!(s::KPS4_3L; set_values=zeros(KVec3), v_wind_gnd=s.set.v_wind
         s.get_D_D = getu(s.integrator.sol, s.simple_sys.D_D)
         s.get_tether_lengths = getu(s.integrator.sol, s.simple_sys.tether_length)
         s.get_tether_vels = getu(s.integrator.sol, s.simple_sys.tether_vel)
+        s.get_heading = getu(s.integrator.sol, s.simple_sys.heading)
     end
     s.set_values .= set_values
     s.set_set_values(s.integrator, s.set_values)
@@ -969,7 +971,7 @@ function model!(s::KPS4_3L, pos_, vel_)
         rho_kite ~ calc_rho(s.am, pos[3,s.num_A])
         damping_coeff ~ max(1.0 - t/2, 0.0) * s.damping_coeff
         winch_force ~ [norm(force[i, 1:3]) for i in 1:3]
-        heading ~ calc_heading(e_x)
+        heading ~ calc_heading(e_x, pos[:, s.num_E])
     ]
 
     eqs2, force_eqs = calc_aero_forces_mtk!(s, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, E_C, rho_kite, v_wind, flap_angle)

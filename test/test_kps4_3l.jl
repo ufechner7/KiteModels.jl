@@ -189,6 +189,7 @@ end
         @test isapprox(normalize(k3l.L_C) ⋅ normalize(k3l.v_wind), 0.0, atol=0.02)
         @test isapprox(k3l.reel_out_speeds, [0.0, 0.0, 0.0], atol=0.2)
         @test isapprox(k3l.L_C[2], -k3l.L_D[2], atol=1e-1)
+        @test isapprox(k3l.integrator[k3l.simple_sys.heading], 0.0, atol=tol)
     end
     
     # TODO Add testcase with varying reelout speed 
