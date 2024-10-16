@@ -39,23 +39,6 @@ v_speed = zeros(STEPS)
 v_force = zeros(STEPS)
 heading = zeros(STEPS)
 
-function euler2rot(roll, pitch, yaw)
-    φ      = roll
-    R_x = [1    0       0;
-              0  cos(φ) -sin(φ);
-              0  sin(φ)  cos(φ)]
-    θ      = pitch          
-    R_y = [ cos(θ)  0  sin(θ);
-                 0     1     0;
-              -sin(θ)  0  cos(θ)]
-    ψ      = yaw
-    R_z = [cos(ψ) -sin(ψ) 0;
-              sin(ψ)  cos(ψ) 0;
-                 0       0   1]
-    R   = R_z * R_y * R_x
-    return R
-end
-
 function simulate(integrator, steps, plot=PLOT)
     iter = 0
     for i in 1:steps
