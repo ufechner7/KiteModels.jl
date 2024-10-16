@@ -158,10 +158,10 @@ end
 end
 
 function simulate(steps)
-    av_L_C = zeros(typeof(k3l.L_C))
+    av_L_C = zeros(typeof(k3l.get_L_C(k3l.integrator)))
     for i in 1:steps
         KiteModels.next_step!(k3l; set_values=[0.0, 0.0, 0.0])
-        av_L_C .+= k3l.L_C
+        av_L_C .+= k3l.get_L_C(k3l.integrator)
     end
     av_L_C ./= steps
     return k3l.integrator.iter/steps, av_L_C
@@ -182,13 +182,13 @@ end
     end
   
     if prn
-        @show k3l.L_C
+        @show k3l.get_L_C(k3l.integrator)
         @show k3l.reel_out_speeds
     else
         @test isapprox(av_L_C, [3.7598115885688594, 103.27063836565347, 217.29572737706243], atol=1.0)
-        @test isapprox(normalize(k3l.L_C) ⋅ normalize(k3l.v_wind), 0.0, atol=0.02)
+        @test isapprox(normalize(k3l.get_L_C(k3l.integrator)) ⋅ normalize(k3l.v_wind), 0.0, atol=0.02)
         @test isapprox(k3l.reel_out_speeds, [0.0, 0.0, 0.0], atol=0.2)
-        @test isapprox(k3l.L_C[2], -k3l.L_D[2], atol=1e-1)
+        @test isapprox(k3l.get_L_C(k3l.integrator)[2], -k3l.L_D[2], atol=1e-1)
         @test isapprox(k3l.integrator[k3l.simple_sys.heading], 0.0, atol=tol)
     end
     

@@ -47,8 +47,8 @@ for i in 1:steps
     steering[1] += sign * dt * amount
     steering[2] -= sign * dt * amount
 
-    sys_state.var_01 =  rad2deg(s.flap_angle[1]) - 10
-    sys_state.var_02 =  rad2deg(s.flap_angle[2]) - 10
+    sys_state.var_01 =  rad2deg(s.get_flap_angle(s.integrator)[1]) - 10
+    sys_state.var_02 =  rad2deg(s.get_flap_angle(s.integrator)[2]) - 10
     sys_state.var_03 =  s.tether_lengths[1]
     sys_state.var_04 =  s.tether_lengths[2]
     sys_state.var_05 =  s.tether_lengths[3]

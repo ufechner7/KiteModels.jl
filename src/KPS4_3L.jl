@@ -93,8 +93,6 @@ $(TYPEDFIELDS)
     v_wind_tether::T =    zeros(S, 3)
     "apparent wind vector at the kite"
     v_apparent::T =       zeros(S, 3)
-    "last winch force"
-    winch_forces::SVector{3,T} = [zeros(S, 3) for _ in 1:3]
     "a copy of the residual one (pos,vel) for debugging and unit tests"    
     res1::SVector{P, T} = zeros(SVector{P, T})
     "a copy of the residual two (vel,acc) for debugging and unit tests"
@@ -102,22 +100,14 @@ $(TYPEDFIELDS)
     "a copy of the actual positions as output for the user"
     pos::SVector{P, T} = zeros(SVector{P, T})
     vel::SVector{P, T} = zeros(SVector{P, T})
-    veld::SVector{P, T} = zeros(SVector{P, T})
-    flap_acc::MVector{2, S} = zeros(MVector{2, S})
-    "velocity vector of the kite"
-    vel_kite::T =          zeros(S, 3)
     "unstressed segment lengths of the three tethers [m]"
     segment_lengths::T =           zeros(S, 3)
     "azimuth angle in radian; inital value is zero"
     psi::S =              zero(S)
     "relative start time of the current time interval"
     t_0::S =               0.0
-    "reel out speed of the winch"
-    reel_out_speeds::T =        zeros(S, 3)
     "unstretched tether length"
     tether_lengths::T =          zeros(S, 3)
-    "lengths of the connections of the steering tethers to the kite"
-    flap_angle::MVector{2, S} =      zeros(S, 2)
     "air density at the height of the kite"
     rho::S =               0.0
     "multiplier for the damping of all movement"
@@ -130,10 +120,6 @@ $(TYPEDFIELDS)
     c_spring::S = zero(S)
     "unit damping coefficient"
     damping::S = zero(S)
-    "vector of the forces, acting on the particles"
-    forces::SVector{P, T} = zeros(SVector{P, T})
-    "synchronous speed or torque of the motor/ generator"
-    set_values::KVec3  = zeros(KVec3)
     "whether or not to use torque control instead of speed control"
     torque_control::Bool = false
     "x vector of kite reference frame"
@@ -162,14 +148,6 @@ $(TYPEDFIELDS)
     α_C::S =     0.0
     "Kite length at point C"
     kite_length_C::S =     0.0
-    "Lift of point C"
-    L_C::T = zeros(S, 3)
-    "Lift of point D"
-    L_D::T = zeros(S, 3)
-    "Drag of point C"
-    D_C::T = zeros(S, 3)
-    "Drag of point D"
-    D_D::T = zeros(S, 3)
     "Solution of the steady state problem"
     steady_sol::Union{SciMLBase.NonlinearSolution, Nothing} = nothing
     "Simplified system of the mtk model"
@@ -204,24 +182,15 @@ Initialize the kite power model.
 function clear!(s::KPS4_3L)
     s.iter = 0
     s.t_0 = 0.0                              # relative start time of the current time interval
-    s.reel_out_speeds = zeros(3)
     # s.last_reel_out_speeds = zeros(3)
     s.v_wind_gnd    .= [s.set.v_wind, 0.0, 0.0]    # wind vector at reference height
     s.v_wind_tether .= [s.set.v_wind, 0.0, 0.0]
     s.v_apparent    .= [s.set.v_wind, 0.0, 0.0]
     height = sin(deg2rad(s.set.elevation)) * (s.set.l_tether)
     s.v_wind .= s.v_wind_gnd * calc_wind_factor(s.am, height)
-    s.L_C .= 0.0
-    s.L_D .= 0.0
-    s.D_C .= 0.0
-    s.D_D .= 0.0
     s.e_x .= 0.0
     s.e_y .= 0.0
     s.e_z .= 0.0
-    s.set_values .= 0.0
-    s.flap_angle .= 0.0
-    s.vel_kite .= 0.0
-    [s.winch_forces[i] .= 0.0 for i in 1:3]
     s.tether_lengths .= [s.set.l_tether for _ in 1:3]
     s.α_l = π/2 - s.set.min_steering_line_distance/(2*s.set.radius)
     s.α_r = π/2 + s.set.min_steering_line_distance/(2*s.set.radius)
@@ -232,10 +201,6 @@ function clear!(s::KPS4_3L)
     s.num_C = s.set.segments*3+3+1
     s.num_D = s.set.segments*3+3+2
     s.num_A = s.set.segments*3+3+3
-    for i in 1:s.num_A
-        s.forces[i] .= 0.0
-        s.veld[i] .= 0.0
-    end
     s.rho = s.set.rho_0
     s.c_spring = s.set.e_tether * (s.set.d_tether/2000.0)^2 * pi
     s.damping = (s.set.damping / s.set.c_spring) * s.c_spring
@@ -318,10 +283,10 @@ function update_sys_state!(ss::SysState, s::KPS4_3L, zoom=1.0)
     ss.course = calc_course(s)
     ss.v_app = norm(s.v_apparent)
     ss.l_tether = s.tether_lengths[3]
-    ss.v_reelout = s.reel_out_speeds[3]
-    ss.depower = rad2deg(s.flap_angle[1] + s.flap_angle[2])
-    ss.steering = rad2deg(s.flap_angle[2] - s.flap_angle[1])
-    ss.vel_kite .= s.vel_kite
+    ss.v_reelout = s.get_tether_vels(s.integrator)[3]
+    ss.depower = rad2deg(s.get_flap_angle(s.integrator)[1] + s.get_flap_angle(s.integrator)[2])
+    ss.steering = rad2deg(s.get_flap_angle(s.integrator)[2] - s.get_flap_angle(s.integrator)[1])
+    ss.vel_kite .= s.get_kite_vel(s.integrator)
     nothing
 end
 
@@ -345,10 +310,10 @@ function SysState(s::KPS4_3L, zoom=1.0)
     course = calc_course(s)
     v_app_norm = norm(s.v_apparent)
     t_sim = 0
-    depower = rad2deg(s.flap_angle[1] + s.flap_angle[2])
-    steering = rad2deg(s.flap_angle[2] - s.flap_angle[1])
-    KiteUtils.SysState{P}(s.t_0, t_sim, 0, 0, orient, elevation, azimuth, s.tether_lengths[3], s.reel_out_speeds[3], forces[3], depower, steering, 
-                          heading, course, v_app_norm, s.vel_kite, X, Y, Z, 
+    depower = rad2deg(s.get_flap_angle(s.integrator)[1] + s.get_flap_angle(s.integrator)[2])
+    steering = rad2deg(s.get_flap_angle(s.integrator)[2] - s.get_flap_angle(s.integrator)[1])
+    KiteUtils.SysState{P}(s.t_0, t_sim, 0, 0, orient, elevation, azimuth, s.tether_lengths[3], s.get_tether_vels(s.integrator)[3], forces[3], depower, steering, 
+                          heading, course, v_app_norm, s.get_kite_vel(s.integrator), X, Y, Z, 
                           0, 0, 0, 0, 
                           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 end
@@ -440,7 +405,7 @@ function next_step!(s::KPS4_3L; set_values=zeros(KVec3), v_wind_gnd=s.set.v_wind
         s.get_flap_angle = getu(s.integrator.sol, s.simple_sys.flap_angle)
         s.get_flap_acc = getu(s.integrator.sol, s.simple_sys.flap_acc)
         s.get_kite_vel = getu(s.integrator.sol, s.simple_sys.vel[:,s.num_A])
-        s.get_winch_forces = getu(s.integrator.sol, s.simple_sys.force[:,1:3])
+        s.get_winch_forces = getu(s.integrator.sol, s.simple_sys.winch_force)
         s.get_L_C = getu(s.integrator.sol, s.simple_sys.L_C)
         s.get_L_D = getu(s.integrator.sol, s.simple_sys.L_D)
         s.get_D_C = getu(s.integrator.sol, s.simple_sys.D_C)
@@ -449,8 +414,7 @@ function next_step!(s::KPS4_3L; set_values=zeros(KVec3), v_wind_gnd=s.set.v_wind
         s.get_tether_vels = getu(s.integrator.sol, s.simple_sys.tether_vel)
         s.get_heading = getu(s.integrator.sol, s.simple_sys.heading)
     end
-    s.set_values .= set_values
-    s.set_set_values(s.integrator, s.set_values)
+    s.set_set_values(s.integrator, set_values)
     s.integrator.p[s.v_wind_gnd_idx] .= s.v_wind_gnd
     s.integrator.p[s.v_wind_idx] .= s.v_wind
     s.t_0 = s.integrator.t
@@ -532,7 +496,7 @@ end
 
 Return the absolute value of the force at the winch as calculated during the last timestep. 
 """
-function winch_force(s::KPS4_3L) norm.(s.winch_forces) end
+function winch_force(s::KPS4_3L) s.get_winch_forces(s.integrator) end
 
 
 # ==================== mtk model functions ================================================
@@ -849,18 +813,8 @@ end
 
 function update_pos!(s)
     pos = s.get_pos(s.integrator)
-    s.flap_angle       .= s.get_flap_angle(s.integrator)
-    s.flap_acc         .= s.get_flap_acc(s.integrator)
     [s.pos[i]          .= pos[:, i] for i in 1:s.num_A]
-    s.vel_kite         .= s.get_kite_vel(s.integrator)
-    winch_forces        = s.get_winch_forces(s.integrator)
-    [s.winch_forces[i] .= (winch_forces[:, i]) for i in 1:3]
     s.tether_lengths   .= s.get_tether_lengths(s.integrator)
-    s.reel_out_speeds  .= s.get_tether_vels(s.integrator)
-    s.L_C               = s.get_L_C(s.integrator)
-    s.L_D               = s.get_L_D(s.integrator)
-    s.D_C               = s.get_D_C(s.integrator)
-    s.D_D               = s.get_D_D(s.integrator)
     calc_kite_ref_frame!(s, s.pos[s.num_E], s.pos[s.num_C], s.pos[s.num_D])
     # @assert all(abs.(s.flap_angle) .<= deg2rad(90))
     nothing
@@ -888,7 +842,7 @@ function model!(s::KPS4_3L, pos_, vel_)
         v_wind[1:3] = s.v_wind
     end
     @variables begin
-        set_values(t)[1:3] = s.set_values
+        set_values(t)[1:3] = zeros(3)
         pos(t)[1:3, 1:s.num_A] = pos_
         vel(t)[1:3, 1:s.num_A] = vel_
         acc(t)[1:3, 1:s.num_A]
