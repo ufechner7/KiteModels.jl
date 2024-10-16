@@ -56,8 +56,18 @@ function euler2rot(roll, pitch, yaw)
     return R
 end
 
+"""
+    quat2viewer(q::QuatRotation)
+    quat2viewer(rot::AbstractMatrix)
+    quat2viewer(orient::AbstractVector)
 
-function q2q_old(q::QuatRotation)
+Convert the quaternion q to the viewer reference frame. It can also be passed
+as a rotation matrix or as 4-element vector [w,i,j,k], where w is the real part
+and i, j, k are the imaginary parts of the quaternion.
+"""
+quat2viewer_(rot::AbstractMatrix) = quat2viewer(QuatRotation(rot))
+quat2viewer_(orient::AbstractVector) = quat2viewer(QuatRotation(orient))
+function quat2viewer_(q::QuatRotation)
     # 1. get reference frame
     rot = inv(RotMatrix{3}(q))
     x = enu2ned(rot[1,:])
@@ -69,7 +79,13 @@ function q2q_old(q::QuatRotation)
     az = [0, 0, -1] # in ENU reference frame this is pointing down
     rotation = rot3d(ax, ay, az, x, y, z)
     q_old = QuatRotation(rotation)
-    return q_old
+    x = [0,  1.0, 0]
+    y = [1.0,  0, 0]
+    z = [0,    0, -1.0]
+    x, y, z = q_old*x, q_old*y, q_old*z
+    rot = calc_orient_rot(x, y, z; viewer=true, ENU=false)
+    q = QuatRotation(rot)
+    return Rotations.params(q)
 end
 
 function simulate(integrator, steps, plot=PLOT)
@@ -107,7 +123,7 @@ function simulate(integrator, steps, plot=PLOT)
         # roll, pitch, yaw = quat2euler(q)
         # println("Yaw: ", rad2deg(yaw), ", Pitch: ", rad2deg(pitch), ", Roll: ", rad2deg(roll))
 
-        sys_state.orient = quat2viewer(q2q_old(q))
+        sys_state.orient = quat2viewer_(q)
         KiteViewers.update_system(viewer, sys_state; scale = 0.08, kite_scale=3)
     end
     iter / steps
