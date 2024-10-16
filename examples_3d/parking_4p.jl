@@ -107,11 +107,12 @@ function simulate(integrator, steps, plot=PLOT)
             sleep(0.05)           
         end
         sys_state = SysState(kps4)
+        println("x: $(round(kps4.x[1], digits=3)), $(round(kps4.x[2], digits=3)), $(round(kps4.x[3], digits=3))")
         q = QuatRotation(sys_state.orient)
         # q_old = KiteModels.calc_orient_quat_old(kps4)
         q_old = q2q_old(q)
         roll, pitch, yaw = quat2euler(q)
-        println("Yaw: ", rad2deg(yaw), ", Pitch: ", rad2deg(pitch), ", Roll: ", rad2deg(roll))
+        # println("Yaw: ", rad2deg(yaw), ", Pitch: ", rad2deg(pitch), ", Roll: ", rad2deg(roll))
         correction = QuatRotation(euler2rot(pi/2, 0, 0))
         
         # sys_state.orient = Rotations.params(q*correction)
@@ -129,16 +130,16 @@ if PLOT
     p = plotx(v_time[1:STEPS-100], v_speed[1:STEPS-100], v_force[1:STEPS-100]; ylabels=["v_reelout  [m/s]","tether_force [N]"], fig="winch")
     # display(p)
 end
-lift, drag = KiteModels.lift_drag(kps4)
-println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
+# lift, drag = KiteModels.lift_drag(kps4)
+# println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
 
-println("v_wind: $(kps4.v_wind)")
-println("UPWIND_DIR2: $(rad2deg(UPWIND_DIR2))°")
-pos = pos_kite(kps4)
-println("pos_y: $(round(pos[2], digits=2))")
-# for an  UPWIND_DIR2 of -80°, pos_y must be negative, also v_wind[2] must be negative
-# this is OK
+# println("v_wind: $(kps4.v_wind)")
+# println("UPWIND_DIR2: $(rad2deg(UPWIND_DIR2))°")
+# pos = pos_kite(kps4)
+# println("pos_y: $(round(pos[2], digits=2))")
+# # for an  UPWIND_DIR2 of -80°, pos_y must be negative, also v_wind[2] must be negative
+# # this is OK
 
-# print heading
-println("heading: $(round(heading[STEPS], digits=2))°")
-plot(v_time, heading; xlabel="time [s]", ylabel="heading [°]", fig="heading")
+# # print heading
+# println("heading: $(round(heading[STEPS], digits=2))°")
+# plot(v_time, heading; xlabel="time [s]", ylabel="heading [°]", fig="heading")
