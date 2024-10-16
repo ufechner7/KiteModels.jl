@@ -43,7 +43,6 @@ using Reexport, Pkg
 @reexport using AtmosphericModels
 import Base.zero
 import KiteUtils.calc_elevation
-import KiteUtils.calc_azimuth
 import KiteUtils.calc_heading
 import KiteUtils.calc_course
 import KiteUtils.SysState
@@ -319,6 +318,7 @@ Determine the heading angle of the kite in radian.
 function calc_heading(s::AKM; upwind_dir_=upwind_dir(s))
     orientation = orient_euler(s)
     elevation = calc_elevation(s)
+    # FIXME is this the right azimuth for calculating the heading?
     azimuth = calc_azimuth(s)
     KiteUtils.calc_heading(orientation, elevation, azimuth; upwind_dir=upwind_dir_)
 end
@@ -331,6 +331,7 @@ Undefined if the velocity of the kite is near zero.
 """
 function calc_course(s::AKM)
     elevation = calc_elevation(s)
+    # TODO: FIXME this is the wrong azimuth for calculating the course
     azimuth = calc_azimuth(s)
     KiteUtils.calc_course(s.vel_kite, elevation, azimuth)
 end
