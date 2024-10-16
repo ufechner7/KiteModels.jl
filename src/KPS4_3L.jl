@@ -313,7 +313,7 @@ function update_sys_state!(ss::SysState, s::KPS4_3L, zoom=1.0)
     ss.elevation = calc_elevation(s)
     ss.azimuth = calc_azimuth(s)
     ss.force = winch_force(s)[3]
-    ss.heading = calc_heading(s)
+    ss.heading = calc_heading(s.e_x)
     ss.course = calc_course(s)
     ss.v_app = norm(s.v_apparent)
     ss.l_tether = s.tether_lengths[3]
@@ -340,7 +340,7 @@ function SysState(s::KPS4_3L, zoom=1.0)
     elevation = calc_elevation(s)
     azimuth = calc_azimuth(s)
     forces = winch_force(s)
-    heading = calc_heading(s)
+    heading = calc_heading(s.e_x)
     course = calc_course(s)
     v_app_norm = norm(s.v_apparent)
     t_sim = 0
@@ -353,12 +353,13 @@ function SysState(s::KPS4_3L, zoom=1.0)
 end
 
 
-function calc_heading(s::KPS4_3L)
+function calc_heading(e_x)
     # turn s.e_x by -azimuth around global z-axis and then by elevation around global y-axis
-    vec = rotate_in_xz(rotate_in_yx(s.e_x, -calc_azimuth(s)), -calc_elevation(s))
+    vec = rotate_in_xz(rotate_in_yx(e_x, -calc_azimuth(s)), -calc_elevation(s))
     heading = atan(-vec[2], vec[3])
     return heading
 end
+@register_symbolic calc_heading(e_x)
 
 """
     init_sim!(s; damping_coeff=1.0, prn=false, torque_control=true)
@@ -406,7 +407,7 @@ function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false,
         defaults = vcat(
                     vcat([s.simple_sys.pos[j, i] => pos[j, i] for i in 1:s.num_flap_C-1 for j in 1:3]), 
                     vcat([s.simple_sys.pos[j, i] => pos[j, i] for i in s.num_flap_D+1:s.num_A for j in 1:3]),
-                    vcat([s.simple_sys.tether_length[i] => s.tether_lengths[i] for i in 1:3])
+                    vcat([s.simple_sys.tether_length[i] => s.tether_lengths[i] for i in 1:3]),
                         )
         s.prob = ODEProblem(s.simple_sys, defaults, tspan)
         OrdinaryDiffEqCore.reinit!(s.integrator, s.prob.u0)
@@ -911,6 +912,7 @@ function model!(s::KPS4_3L, pos_, vel_)
         force(t)[1:3, 1:s.num_A]
         rho_kite(t)
         winch_force(t)[1:3] # normalized winch forces
+        heading(t)
     end
     # Collect the arrays into variables
     pos = collect(pos)
@@ -967,6 +969,7 @@ function model!(s::KPS4_3L, pos_, vel_)
         rho_kite ~ calc_rho(s.am, pos[3,s.num_A])
         damping_coeff ~ max(1.0 - t/2, 0.0) * s.damping_coeff
         winch_force ~ [norm(force[i, 1:3]) for i in 1:3]
+        heading ~ calc_heading(e_x)
     ]
 
     eqs2, force_eqs = calc_aero_forces_mtk!(s, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, E_C, rho_kite, v_wind, flap_angle)
