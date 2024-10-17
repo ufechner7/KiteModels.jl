@@ -241,12 +241,12 @@ end
 
 
 """
-    orient_euler(s::AKM)
+    orient_euler_old(s::AKM)
 
 Calculate and return the orientation of the kite in euler angles (roll, pitch, yaw)
-as SVector. 
+as SVector. Does not give the correct result, use orient_euler instead.
 """
-function orient_euler(s::AKM)
+function orient_euler_old(s::AKM)
     x, y, z = kite_ref_frame(s)
     roll = atan(y[3], z[3]) - π/2
     if roll < -π/2
@@ -257,6 +257,18 @@ function orient_euler(s::AKM)
     if yaw < -π/2
         yaw += 2π
     end
+    SVector(roll, pitch, yaw)
+end
+
+"""
+    orient_euler(s::AKM)
+
+Calculate and return the orientation of the kite in euler angles (roll, pitch, yaw)
+as SVector.
+"""
+function orient_euler(s::AKM)
+    q = QuatRotation(calc_orient_quat(s))
+    roll, pitch, yaw = quat2euler(q)
     SVector(roll, pitch, yaw)
 end
 
@@ -327,7 +339,7 @@ end
 Determine the heading angle of the kite in radian.
 """
 function calc_heading(s::AKM; upwind_dir_=upwind_dir(s))
-    orientation = orient_euler(s)
+    orientation = orient_euler_old(s)
     elevation = calc_elevation(s)
     # FIXME is this the right azimuth for calculating the heading?
     azimuth = calc_azimuth(s)
