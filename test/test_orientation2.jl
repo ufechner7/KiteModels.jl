@@ -7,7 +7,6 @@ using KitePodModels
 using LinearAlgebra
 using StaticArrays
 using Test
-using Printf
 
 """
     create_kite_model(x, y, z, pos)
@@ -70,12 +69,6 @@ function obtain_results(s)
     return rad2deg(roll), rad2deg(pitch), rad2deg(yaw), rad2deg(azimuth_north), rad2deg(elevation), rad2deg(heading)
 end
 
-function print_results(test, roll, pitch, yaw, elevation, azimuth, heading)
-    print(test, "\n")
-    @printf("Roll: %0.2f, Pitch: %0.2f, Yaw: %0.2f\n", rad2deg(roll), rad2deg(pitch), rad2deg(yaw))
-    @printf("Elevation: %0.2f, Azimuth: %0.2f, Heading: %0.2f\n", rad2deg(elevation), rad2deg(azimuth), rad2deg(heading))
-    
-end
 @testset verbose=true "test_orientation2" begin
 
 # Kite at an elevation of 45 degrees and with 0 roll pitch yaw and azimuth. Heading is then 180 degrees"
