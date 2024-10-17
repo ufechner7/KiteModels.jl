@@ -82,19 +82,19 @@ end
     @test isapprox(heading,     180,    atol=1e-4, rtol=1e-4)
 end
 
-# # Kite at an elevation of 60 degrees and with 0 roll pitch yaw and azimuth. Heading is then 180 degrees"
-# @testset "elevation 60" begin
-#     s = create_kite_model((0, 1, 0), (1, 0, 0), (0, 0, -1), # Orientation
-#                           (0, 0.5, sqrt(3)/2))              # Pos
-#     roll, pitch, yaw, azimuth, elevation, heading = obtain_results(s)
+# Kite at an elevation of 60 degrees and with 0 roll pitch yaw and azimuth. Heading is then 180 degrees"
+@testset "elevation 60" begin
+    s = create_kite_model((0, 1, 0), (1, 0, 0), (0, 0, -1), # Orientation
+                          (0, 0.5, sqrt(3)/2))              # Pos ENU
+    roll, pitch, yaw, azimuth_north, elevation, heading = obtain_results(s)
 
-#     @test isapprox(roll,        0,      atol=1e-4, rtol=1e-4)
-#     @test isapprox(pitch,       0,      atol=1e-4, rtol=1e-4)
-#     @test isapprox(yaw,         0,      atol=1e-4, rtol=1e-4)
-#     @test isapprox(azimuth,     -90,    atol=1e-4, rtol=1e-4)
-#     @test isapprox(elevation,   60,     atol=1e-4, rtol=1e-4)
-#     @test isapprox(heading,     180,    atol=1e-4, rtol=1e-4)
-# end
+    @test isapprox(roll,        0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(pitch,       0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(yaw,         0,      atol=1e-4, rtol=1e-4)
+    @test_broken isapprox(azimuth_north,     -90,    atol=1e-4, rtol=1e-4)
+    @test isapprox(elevation,   60,     atol=1e-4, rtol=1e-4)
+    @test isapprox(heading,     180,    atol=1e-4, rtol=1e-4)
+end
 
 # # Kite at an elevation of -60 degrees and with 0 roll pitch yaw and azimuth. Heading is then 0 degrees"
 # @testset "elevation -60" begin
