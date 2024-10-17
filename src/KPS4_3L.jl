@@ -425,9 +425,9 @@ function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false,
 end
 
 
-function next_step!(s::KPS4_3L; set_values=zeros(KVec3), v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
+function next_step!(s::KPS4_3L; set_values=zeros(KVec3), v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2, dt=1/s.set.sample_freq)
     s.iter = 0
-    set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
+    set_v_wind_ground!(s, calc_height(s), v_wind_gnd, upwind_dir)
     if isnothing(s.get_pos)
         s.v_wind_gnd_idx = parameter_index(s.integrator.f, :v_wind_gnd)
         s.v_wind_idx = parameter_index(s.integrator.f, :v_wind)
