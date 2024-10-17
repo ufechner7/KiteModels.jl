@@ -199,16 +199,17 @@ Return the vector of the wind speed at the height of the kite.
 function v_wind_kite(s::AKM) s.v_wind end
 
 """
-    set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind, wind_dir=0.0)
+    set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind, upwind_dir=0.0)
 
 Set the vector of the wind-velocity at the height of the kite. As parameter the height,
-the ground wind speed [m/s] and the wind direction [radians] are needed.
-Must be called every at each timestep.
+the ground wind speed [m/s] and the upwind direction [radians] are needed.
+Is called by the function next_step!.
 """
-function set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind, wind_dir=0.0)
+function set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2)
     if height < 6.0
         height = 6.0
     end
+    wind_dir = -upwind_dir - pi/2
     s.v_wind .= v_wind_gnd * calc_wind_factor(s.am, height) .* [cos(wind_dir), sin(wind_dir), 0]
     s.v_wind_gnd .= [v_wind_gnd * cos(wind_dir), v_wind_gnd * sin(wind_dir), 0.0]
     s.v_wind_tether .= v_wind_gnd * calc_wind_factor(s.am, height / 2.0) # .* [cos(wind_dir), sin(wind_dir), 0]
@@ -508,7 +509,7 @@ end
 
 
 """
-    next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, v_wind_gnd=s.set.v_wind, wind_dir=0.0, 
+    next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, v_wind_gnd=s.set.v_wind, upwind_dir=0.0, 
                dt=1/s.set.sample_freq)
 
 Calculates the next simulation step.
@@ -530,13 +531,12 @@ The end time of the time step in seconds.
 """
 function next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2, 
                     dt=1/s.set.sample_freq)
-    wind_dir = -upwind_dir - pi/2
     KitePodModels.on_timer(s.kcu)
     KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
     s.sync_speed = set_speed
     s.set_torque = set_torque
     s.t_0 = integrator.t
-    set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
+    set_v_wind_ground!(s, calc_height(s), v_wind_gnd, upwind_dir)
     s.iter = 0
     if s.set.solver == "IDA"
         Sundials.step!(integrator, dt, true)
