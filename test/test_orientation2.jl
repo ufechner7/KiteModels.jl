@@ -24,13 +24,13 @@ function create_kite_model(x, y, z, pos)
 end  
 
 """
-    create_kite_model(x, y, z, pos, upwind_dir)
+    create_kite_model(x, y, z, pos, upwind_dir_deg)
 
 x, y, z:    Kite reference frame in ENU coordinates
 pos:        Kite position in ENU coordinates
 upwind_dir: upwind direction in degrees
 """
-function create_kite_model(x, y, z, pos, upwind_dir)
+function create_kite_model(x, y, z, pos, upwind_dir_deg)
     kcu::KCU = KCU(se())
     s::KPS4 = KPS4(kcu)
 
@@ -38,7 +38,7 @@ function create_kite_model(x, y, z, pos, upwind_dir)
     s.y = y
     s.z = z
 
-    set_v_wind_ground!(s, pos[begin+2], wind_dir=deg2rad(upwind_dir))
+    set_v_wind_ground!(s, pos[begin+2], upwind_dir=deg2rad(upwind_dir_deg))
 
     s.pos[end-2][begin] = pos[begin]
     s.pos[end-2][begin+1] = pos[begin+1]
