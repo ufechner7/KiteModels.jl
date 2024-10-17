@@ -53,8 +53,7 @@ function create_kite_model(x, y, z, pos, upwind_dir_deg)
 
     s.pos[end-2][begin] = pos[begin]
     s.pos[end-2][begin+1] = pos[begin+1]
-    s.pos[end-2][begin+2] = pos[begin+2]
-    
+    s.pos[end-2][begin+2] = pos[begin+2] 
     s
 end  
 
