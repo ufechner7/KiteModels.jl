@@ -236,7 +236,7 @@ end
 @testset "upwind_dir dir 45" begin
     s = create_kite_model((0, 0, 1), (-1, 0, 0), (0, -1, 0), # Orientation
                           (0, 1, 0),                         # Pos
-                          45+180)                                # Wind dir  
+                          45+180)                            # upwind_dir  
     roll, pitch, yaw, azimuth_north, elevation, heading = obtain_results(s)
 
     @test_broken isapprox(azimuth_north,   -45,    atol=1e-4, rtol=1e-4)
@@ -248,7 +248,7 @@ end
 @testset "upwind_dir dir 60" begin
     s = create_kite_model((0, 0, 1), (-1, 0, 0), (0, -1, 0), # Orientation
                           (0, 1, 0),                         # Pos
-                          60+180)                                 # Wind dir  
+                          60+180)                            # upwind_dir  
     roll, pitch, yaw, azimuth_north, elevation, heading = obtain_results(s)
 
     @test_broken isapprox(azimuth_north,   -60,    atol=1e-4, rtol=1e-4)
@@ -260,7 +260,7 @@ end
 @testset "upwind_dir dir -60" begin
     s = create_kite_model((0, 0, 1), (-1, 0, 0), (0, -1, 0), # Orientation
                           (0, 1, 0),                         # Pos
-                          -60+180)                           # Wind dir  
+                          -60+180)                           # upwind_dir  
     roll, pitch, yaw, azimuth_north, elevation, heading = obtain_results(s)
     
     @test_broken isapprox(azimuth_north,   60,    atol=1e-4, rtol=1e-4)
