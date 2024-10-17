@@ -9,6 +9,14 @@ using StaticArrays
 using Test
 using Printf
 
+"""
+    create_kite_model(x, y, z, pos)
+
+Create a kite model with a given kite reference frame and kite position.
+
+x, y, z:    Kite reference frame in ENU coordinates
+pos:        Kite position in ENU coordinates
+"""
 function create_kite_model(x, y, z, pos)
     kcu::KCU = KCU(se())
     s::KPS4 = KPS4(kcu)
@@ -25,6 +33,9 @@ end
 
 """
     create_kite_model(x, y, z, pos, upwind_dir_deg)
+
+Create a kite model with a given kite reference frame, kite position and
+upwind direction.
 
 x, y, z:    Kite reference frame in ENU coordinates
 pos:        Kite position in ENU coordinates
