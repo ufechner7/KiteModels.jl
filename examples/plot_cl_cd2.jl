@@ -139,7 +139,7 @@ for depower in DEPOWER
     end
 
     aoa = kps4.alpha_2
-    orient_vec = orient_euler(kps4)
+    orient_vec = orient_euler_old(kps4)
     alpha_depower = rad2deg(kps4.alpha_depower)
     pitch = rad2deg(orient_vec[2]) + alpha_depower
     v_app = norm(kps4.v_apparent)
