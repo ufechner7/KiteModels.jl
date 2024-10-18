@@ -9,7 +9,8 @@ using Test
  """
      fromW2SE(vector, elevation, azimuth)
 
- Transform a (velocity-) vector (x,y,z) from Wind to Small Earth reference frame .
+ Transform a (velocity-) vector (x,y,z) from Wind to Small Earth reference frame,
+ azimuth in wind reference frame.
  """
 function fromW2SE2(vector, elevation, azimuth)
     rotate_first_step = @SMatrix[0  0  1;
