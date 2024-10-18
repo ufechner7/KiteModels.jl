@@ -67,7 +67,7 @@ function obtain_results(s)
     return rad2deg(roll), rad2deg(pitch), rad2deg(yaw), rad2deg(azimuth_north), rad2deg(elevation), rad2deg(heading)
 end
 
-@testset verbose=true "test_orientation" begin
+@testset verbose=true "Test roll, pitch, yaw, azimuth, elevation and heading..." begin
 
 # Kite at an elevation of 45 degrees and with 0 roll pitch yaw and azimuth. Heading is then 180 degrees"
 @testset "elevation 45" begin

@@ -2,7 +2,7 @@ using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils
 using KiteModels, KitePodModels
 
 old_path = get_data_path()
-@show old_path
+# @show old_path
 set_data_path(joinpath(dirname(dirname(pathof(KiteModels))), "data"))
 kcu_3l::KCU = KCU(se("system_3l.yaml"))
 kcu_3l.set.winch_model = "AsyncMachine"
@@ -10,7 +10,7 @@ k3l::KPS4_3L = KPS4_3L(kcu_3l)
 
 pos, vel = nothing, nothing
 
-@testset verbose = true "s tests...." begin
+@testset verbose = true "KPS4_3l tests..." begin
 
 tol::Float32 = 1e-5
 prn::Bool = false
@@ -59,7 +59,7 @@ global initial_pos
     # initial init
     k3l.set.mass = 0.9
     k3l.set.l_tether = 50.0
-    KiteModels.init_sim!(k3l; prn=true, torque_control=false)
+    KiteModels.init_sim!(k3l; prn=false, torque_control=false)
     initial_pos = deepcopy(k3l.pos)
     prn && println("initial_pos")
     for i in 1:3
@@ -83,7 +83,7 @@ global initial_pos
         # init after changing settings
         k3l.set.mass = 1.0
         k3l.set.l_tether = 51.0
-        KiteModels.init_sim!(k3l; prn=true, torque_control=false)
+        KiteModels.init_sim!(k3l; prn=false, torque_control=false)
         pos2 = deepcopy(k3l.pos)
         @test isapprox(k3l.tether_lengths[3], 51.0, atol=0.1)
         for i in 4:k3l.num_A
@@ -93,7 +93,7 @@ global initial_pos
         # init after changing settings back
         k3l.set.mass = 0.9
         k3l.set.l_tether = 50.0
-        KiteModels.init_sim!(k3l; prn=true, torque_control=false)
+        KiteModels.init_sim!(k3l; prn=false, torque_control=false)
         pos3 = deepcopy(k3l.pos)
         for i in eachindex(initial_pos)
             @test isapprox(pos3[i], initial_pos[i], atol=tol, rtol=tol)
@@ -101,7 +101,7 @@ global initial_pos
 
         # init after changing only initial conditions
         k3l.set.elevation = 84.0
-        KiteModels.init_sim!(k3l; prn=true, torque_control=false)
+        KiteModels.init_sim!(k3l; prn=false, torque_control=false)
         pos4 = deepcopy(k3l.pos)
         @test isapprox(rad2deg(calc_elevation(k3l)), 84.0, atol=2.0)
         for i in 4:k3l.num_A
@@ -110,7 +110,7 @@ global initial_pos
 
         # init after just stepping
         KiteModels.next_step!(k3l)
-        KiteModels.init_sim!(k3l; prn=true, torque_control=false)
+        KiteModels.init_sim!(k3l; prn=false, torque_control=false)
         pos5 = deepcopy(k3l.pos)
         for i in eachindex(initial_pos)
             @test isapprox(pos5[i], pos4[i], atol=tol, rtol=tol)
@@ -122,7 +122,7 @@ end
 
 @testset "test_step         " begin
     set_defaults()
-    KiteModels.init_sim!(k3l; prn=true, torque_control=false)
+    KiteModels.init_sim!(k3l; prn=false, torque_control=false)
 
     KiteModels.next_step!(k3l)
     # pos2 = [
@@ -170,16 +170,18 @@ end
 
 @testset "test_simulate     " begin
     STEPS = 10
-    KiteModels.init_sim!(k3l; prn=true, torque_control=false)
+    KiteModels.init_sim!(k3l; prn=false, torque_control=false)
     # println("\nStarting simulation...")
     av_steps, av_L_C = simulate(STEPS)
     prn && println(av_steps)
     if Sys.isapple()
-        println("isapple $av_steps")
-        prn || @test av_steps < 100
+        result = av_steps < 100
+        !result && println("isapple, KPS4_3L, steps: $av_steps")
+        prn || @test result
     else
-        println("not apple $av_steps")
-        prn || @test av_steps < 100
+        result = av_steps < 100
+        !result && println("not apple, KPS4_3L, steps: $av_steps")
+        prn || @test result
     end
   
     if prn
