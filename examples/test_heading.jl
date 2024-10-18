@@ -90,5 +90,12 @@ end
     heading = rad2deg(calc_heading(s))
     @test isapprox(heading,         270,    atol=1e-4, rtol=1e-4)
 end
+# Kite at an azimuth of -60 degrees and with 0 roll pitch yaw and elevation. Heading is then 90 degrees"
+@testset "azimuth -60" begin
+    s = create_kite_model((0, 1, 0), (1, 0, 0), (0, 0, -1), # Orientation
+                           (sqrt(3)/2, 1/2, 0))             # Pos
+    heading = rad2deg(calc_heading(s))
+    @test isapprox(heading,         90,     atol=1e-4, rtol=1e-4)
+end
 end
 nothing
