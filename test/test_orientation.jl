@@ -112,7 +112,7 @@ end
 end
 
 # Kite at an azimuth of 45 degrees and with 0 roll pitch yaw and elevation. Heading is then 270 degrees"
-@testset "azimuth 45" begin
+@testset "azimuth_north 45" begin
     s = create_kite_model((0, 1, 0), (1, 0, 0), (0, 0, -1), # Orientation
                           (-sqrt(2)/2, sqrt(2)/2, 0))       # Pos
     roll, pitch, yaw, azimuth_north, elevation, heading = obtain_results(s)
@@ -126,7 +126,7 @@ end
 end
 
 # Kite at an azimuth of 60 degrees and with 0 roll pitch yaw and elevation. Heading is then 270 degrees"
-@testset "azimuth 60" begin
+@testset "azimuth_north 60" begin
     s = create_kite_model((0, 1, 0), (1, 0, 0), (0, 0, -1), # Orientation
                           (-sqrt(3)/2, 1/2, 0))             # Pos
     roll, pitch, yaw, azimuth_north, elevation, heading = obtain_results(s)
@@ -141,7 +141,7 @@ end
 
 
 # Kite at an azimuth of -60 degrees and with 0 roll pitch yaw and elevation. Heading is then 90 degrees"
-@testset "azimuth -60" begin
+@testset "azimuth_north -60" begin
     s = create_kite_model((0, 1, 0), (1, 0, 0), (0, 0, -1), # Orientation
                            (sqrt(3)/2, 1/2, 0))             # Pos
     roll, pitch, yaw, azimuth_north, elevation, heading = obtain_results(s)
@@ -155,7 +155,7 @@ end
 end
 
 # Kite at an azimuth of 60 degrees and with 45 degrees pitch, 0 roll yaw and elevation. Heading is then 315 degrees"
-@testset "pitch azimuth" begin
+@testset "pitch 45 azimuth_north 60" begin
     s = create_kite_model((0, sqrt(2)/2, sqrt(2)/2), (1, 0, 0), (0, sqrt(2)/2, -sqrt(2)/2),   # Orientation
                           (-sqrt(3)/2, 1/2, 0))                                                 # Pos
     roll, pitch, yaw, azimuth_north, elevation, heading = obtain_results(s)
