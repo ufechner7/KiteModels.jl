@@ -354,7 +354,7 @@ function calc_heading(s::AKM; upwind_dir_=upwind_dir(s))
     elevation = calc_elevation(s)
     # use azimuth in wind reference frame
     azimuth = calc_azimuth(s)
-    calc_heading(orientation, elevation, azimuth; upwind_dir=upwind_dir_)
+    calc_heading(orientation, elevation, -azimuth; upwind_dir=upwind_dir_)
 end
 
 """
