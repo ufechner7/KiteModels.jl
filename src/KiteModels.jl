@@ -589,13 +589,15 @@ function copy_examples()
     copy_files("examples", readdir(src_path))
 end
 
-function install_examples()
+function install_examples(add_packages=true)
     copy_examples()
     copy_settings()
-    Pkg.add("KiteUtils")
-    Pkg.add("KitePodModels")
-    Pkg.add("WinchModels")
-    Pkg.add("ControlPlots")
+    if add_packages
+        Pkg.add("KiteUtils")
+        Pkg.add("KitePodModels")
+        Pkg.add("WinchModels")
+        Pkg.add("ControlPlots")
+    end
 end
 
 function copy_files(relpath, files)
