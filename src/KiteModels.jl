@@ -318,9 +318,20 @@ end
 """
     calc_azimuth(s::AKM)
 
-Determine the azimuth angle of the kite in radian.
+Determine the azimuth angle of the kite in wind reference frame in radian.
+Positive anti-clockwise when seen from above.
 """
 function calc_azimuth(s::AKM)
+    azn = KiteUtils.azimuth_north(pos_kite(s))
+    azn2azw(azn; up_wind_direction = upwind_dir(s))
+end
+
+"""
+    calc_azimuth_east(s::AKM)
+
+Determine the azimuth_east angle of the kite in radian.
+"""
+function calc_azimuth_east(s::AKM)
     KiteUtils.azimuth_east(pos_kite(s))
 end
 
