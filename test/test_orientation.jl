@@ -220,6 +220,9 @@ end
 
     @test isapprox(azimuth_north,   0,      atol=1e-4, rtol=1e-4)
     @test isapprox(elevation,       0,      atol=1e-4, rtol=1e-4)
+    if heading > 359
+        heading -= 360
+    end
     @test isapprox(heading,         0,      atol=1e-4, rtol=1e-4)
 end
 
