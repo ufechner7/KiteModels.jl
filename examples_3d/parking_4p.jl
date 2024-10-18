@@ -98,6 +98,6 @@ end
 # # for an  UPWIND_DIR2 of -80°, pos_y must be negative, also v_wind[2] must be negative
 # # this is OK
 
-# # print heading
-# println("heading: $(round(heading[STEPS], digits=2))°")
-# plot(v_time, heading; xlabel="time [s]", ylabel="heading [°]", fig="heading")
+# print heading
+println("heading: $(round(heading[STEPS], digits=2))°")
+plot(v_time, heading; xlabel="time [s]", ylabel="heading [°]", fig="heading")
