@@ -6,52 +6,12 @@ using LinearAlgebra
 using StaticArrays
 using Test
 
- """
-     fromW2SE(vector, elevation, azimuth)
-
- Transform a (velocity-) vector (x,y,z) from Wind to Small Earth reference frame,
- azimuth in wind reference frame.
- """
-function fromW2SE2(vector, elevation, azimuth)
-    rotate_first_step = @SMatrix[0  0  1;
-                                 0  1  0;
-                                -1  0  0]
-    rotate_elevation = @SMatrix[cos(elevation) 0 sin(elevation);
-                                0              1         0;
-                             -sin(elevation)   0   cos(elevation)]
-    rotate_azimuth = @SMatrix[1         0       0;
-                              0  cos(-azimuth)   -sin(-azimuth);
-                              0  sin(-azimuth)    cos(-azimuth)]
-    rotate_elevation * rotate_azimuth * rotate_first_step * vector
-end
-
-function calc_heading_w2(orientation, down_wind_direction = pi/2.0)
-    # create a unit heading vector in the xsense reference frame
-    heading_sensor =  SVector(1, 0, 0)
-    # rotate headingSensor to the Earth Xsens reference frame
-    headingEX = fromKS2EX(heading_sensor, orientation)
-    # rotate headingEX to earth groundstation reference frame
-    headingEG = fromEX2EG(headingEX)
-    # rotate headingEG to headingW and convert to 2d HeadingW vector
-    fromEG2W(headingEG, down_wind_direction)
-end
-
-function calc_heading2(orientation, elevation, azimuth; upwind_dir=-pi/2, respos=true)
-    down_wind_direction = wrap2pi(upwind_dir + π)
-    headingSE = fromW2SE2(calc_heading_w2(orientation, down_wind_direction), elevation, azimuth)
-    angle = atan(headingSE.y, headingSE.x)
-    if angle < 0 && respos
-        angle += 2π
-    end
-    angle
-end
-
 function calc_heading2(s::KiteModels.AKM; upwind_dir_=upwind_dir(s))
     orientation = orient_euler(s)
     elevation = calc_elevation(s)
     # use azimuth in wind reference frame
     azimuth = calc_azimuth(s)
-    calc_heading2(orientation, elevation, azimuth; upwind_dir=upwind_dir_)
+    calc_heading(orientation, elevation, azimuth; upwind_dir=upwind_dir_)
 end
 
 
