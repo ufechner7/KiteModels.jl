@@ -170,13 +170,13 @@ end
 
 # Kite at an elevation of 60 degrees and with 45 degrees yaw, 0 roll pitch and elevation. Heading is then 225 degrees"
 @testset "yaw elevation" begin
-    s = create_kite_model((sqrt(2)/2, sqrt(2)/2, 0), (sqrt(2)/2, sqrt(2)/2, 0), (0, 0, -1),    # Orientation
+    s = create_kite_model((sqrt(2)/2, sqrt(2)/2, 0), (sqrt(2)/2, -sqrt(2)/2, 0), (0, 0, -1),    # Orientation
                           (0, 1/2, sqrt(3)/2))                                                  # Pos
     roll, pitch, yaw, azimuth_north, elevation, heading = obtain_results(s)
 
     @test isapprox(roll,            0,      atol=1e-4, rtol=1e-4)
     @test isapprox(pitch,           0,      atol=1e-4, rtol=1e-4)
-    @test_broken isapprox(yaw,             45,     atol=1e-4, rtol=1e-4)
+    @test isapprox(yaw,             45,     atol=1e-4, rtol=1e-4)
     @test isapprox(azimuth_north,   0,      atol=1e-4, rtol=1e-4)
     @test isapprox(elevation,       60,     atol=1e-4, rtol=1e-4)
     @test_broken isapprox(heading,         135,    atol=1e-4, rtol=1e-4)
@@ -239,7 +239,7 @@ end
                           45+180)                            # upwind_dir  
     roll, pitch, yaw, azimuth_north, elevation, heading = obtain_results(s)
 
-    @test_broken isapprox(azimuth_north,   -45,    atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth_north,   0,      atol=1e-4, rtol=1e-4)
     @test isapprox(elevation,       0,      atol=1e-4, rtol=1e-4)
     @test isapprox(heading,         0,      atol=1e-4, rtol=1e-4)
 end
@@ -251,7 +251,7 @@ end
                           60+180)                            # upwind_dir  
     roll, pitch, yaw, azimuth_north, elevation, heading = obtain_results(s)
 
-    @test_broken isapprox(azimuth_north,   -60,    atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth_north,   0,      atol=1e-4, rtol=1e-4)
     @test isapprox(elevation,       0,      atol=1e-4, rtol=1e-4)
     @test isapprox(heading,         0,      atol=1e-4, rtol=1e-4)
 end
@@ -263,7 +263,7 @@ end
                           -60+180)                           # upwind_dir  
     roll, pitch, yaw, azimuth_north, elevation, heading = obtain_results(s)
     
-    @test_broken isapprox(azimuth_north,   60,    atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth_north,   0,      atol=1e-4, rtol=1e-4)
     @test isapprox(elevation,       0,      atol=1e-4, rtol=1e-4)
     @test isapprox(heading,         0,      atol=1e-4, rtol=1e-4)
 end
