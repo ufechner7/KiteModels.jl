@@ -323,7 +323,7 @@ Positive anti-clockwise when seen from above.
 """
 function calc_azimuth(s::AKM)
     azn = KiteUtils.azimuth_north(pos_kite(s))
-    azn2azw(azn; up_wind_direction = upwind_dir(s))
+    azn2azw(azn; upwind_dir = upwind_dir(s))
 end
 
 """
@@ -350,11 +350,11 @@ end
 Determine the heading angle of the kite in radian.
 """
 function calc_heading(s::AKM; upwind_dir_=upwind_dir(s))
-    orientation = orient_euler_old(s)
+    orientation = orient_euler(s)
     elevation = calc_elevation(s)
-    # FIXME is this the right azimuth for calculating the heading?
+    # use azimuth in wind reference frame
     azimuth = calc_azimuth(s)
-    KiteUtils.calc_heading(orientation, elevation, azimuth; upwind_dir=upwind_dir_)
+    calc_heading(orientation, elevation, azimuth; upwind_dir=upwind_dir_)
 end
 
 """
