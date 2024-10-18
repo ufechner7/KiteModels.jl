@@ -63,5 +63,11 @@ end
     heading = rad2deg(calc_heading(s))
     @test isapprox(heading,         180,    atol=1e-4, rtol=1e-4)
 end
+@testset "elevation 60" begin
+    s = create_kite_model((0, 1, 0), (1, 0, 0), (0, 0, -1), # Orientation
+                          (0, 0.5, sqrt(3)/2))              # Pos ENU
+    heading = rad2deg(calc_heading(s))
+    @test isapprox(heading,         180,    atol=1e-4, rtol=1e-4)
+end
 end
 nothing
