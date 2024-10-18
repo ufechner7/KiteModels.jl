@@ -48,7 +48,7 @@ end
 function calc_heading2(s::KiteModels.AKM; upwind_dir_=upwind_dir(s))
     orientation = orient_euler(s)
     elevation = calc_elevation(s)
-    # FIXME is this the right azimuth for calculating the heading?
+    # use azimuth in wind reference frame
     azimuth = calc_azimuth(s)
     calc_heading2(orientation, elevation, azimuth; upwind_dir=upwind_dir_)
 end
