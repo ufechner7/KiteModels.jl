@@ -34,9 +34,9 @@ end
 Create a kite model with a given kite reference frame, kite position and
 upwind direction.
 
-x, y, z:    Kite reference frame in ENU coordinates
-pos:        Kite position in ENU coordinates
-upwind_dir: upwind direction in degrees
+x, y, z:        Kite reference frame in ENU coordinates
+pos:            Kite position in ENU coordinates
+upwind_dir_deg: upwind direction in degrees
 """
 function create_kite_model(x, y, z, pos, upwind_dir_deg)
     kcu::KCU = KCU(se())
