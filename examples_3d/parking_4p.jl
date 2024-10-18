@@ -8,7 +8,7 @@ tic()
 if ! ("KiteViewers" ∈ keys(Pkg.project().dependencies))
     Pkg.activate("examples_3d")
     pkg"add KiteUtils#main"
-    pkg"add KiteModels#main"
+    pkg"add KiteModels#azimuth"
 end
 using KiteModels, KitePodModels, KiteUtils, Rotations, StaticArrays
 using ControlPlots, KiteViewers
@@ -20,7 +20,7 @@ set = deepcopy(se())
 dt = 0.05
 set.solver="DFBDF"              # IDA or DFBDF
 set.linear_solver="GMRES"       # GMRES, LapackDense or Dense
-STEPS = 352
+STEPS = 328
 PRINT = false
 STATISTIC = false
 PLOT=false
