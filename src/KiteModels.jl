@@ -57,7 +57,7 @@ export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!              
 export clear!, find_steady_state!, residual!                                                  # low level workers
 export init_sim!, reset_sim!, next_step!, init_pos_vel, init_pos, model!                                 # high level workers
 export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, calc_orient_quat  # getters
-export calc_azimuth_north
+export calc_azimuth_north, calc_azimuth_east
 export winch_force, lift_drag, cl_cd, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
 export kite_ref_frame, orient_euler, spring_forces, upwind_dir
 import LinearAlgebra: norm
