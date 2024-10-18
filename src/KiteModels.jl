@@ -57,7 +57,7 @@ export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!              
 export clear!, find_steady_state!, residual!                                                  # low level workers
 export init_sim!, reset_sim!, next_step!, init_pos_vel, init_pos, model!                                 # high level workers
 export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, calc_orient_quat  # getters
-export calc_azimuth_north
+export calc_azimuth_north, calc_azimuth_east
 export winch_force, lift_drag, cl_cd, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
 export kite_ref_frame, orient_euler, spring_forces, upwind_dir
 import LinearAlgebra: norm
@@ -318,9 +318,20 @@ end
 """
     calc_azimuth(s::AKM)
 
-Determine the azimuth angle of the kite in radian.
+Determine the azimuth angle of the kite in wind reference frame in radian.
+Positive anti-clockwise when seen from above.
 """
 function calc_azimuth(s::AKM)
+    azn = KiteUtils.azimuth_north(pos_kite(s))
+    azn2azw(azn; upwind_dir = upwind_dir(s))
+end
+
+"""
+    calc_azimuth_east(s::AKM)
+
+Determine the azimuth_east angle of the kite in radian.
+"""
+function calc_azimuth_east(s::AKM)
     KiteUtils.azimuth_east(pos_kite(s))
 end
 
@@ -339,11 +350,11 @@ end
 Determine the heading angle of the kite in radian.
 """
 function calc_heading(s::AKM; upwind_dir_=upwind_dir(s))
-    orientation = orient_euler_old(s)
+    orientation = orient_euler(s)
     elevation = calc_elevation(s)
-    # FIXME is this the right azimuth for calculating the heading?
+    # use azimuth in wind reference frame
     azimuth = calc_azimuth(s)
-    KiteUtils.calc_heading(orientation, elevation, azimuth; upwind_dir=upwind_dir_)
+    calc_heading(orientation, elevation, -azimuth; upwind_dir=upwind_dir_)
 end
 
 """
