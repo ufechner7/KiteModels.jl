@@ -345,7 +345,7 @@ function calc_azimuth_north(s::AKM)
 end
 
 """
-    calc_heading(s::AKM)
+    calc_heading(s::AKM; upwind_dir_=upwind_dir(s), neg_azimuth=false)
 
 Determine the heading angle of the kite in radian.
 """
