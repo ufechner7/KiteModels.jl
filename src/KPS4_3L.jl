@@ -152,6 +152,8 @@ $(TYPEDFIELDS)
     steady_sol::Union{SciMLBase.NonlinearSolution, Nothing} = nothing
     "Simplified system of the mtk model"
     simple_sys::Union{ModelingToolkit.ODESystem, Nothing} = nothing
+    "Velocity of the kite"
+    vel_kite::T =       zeros(S, 3)
 
     # set_values_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
     v_wind_gnd_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
@@ -161,7 +163,7 @@ $(TYPEDFIELDS)
     get_pos::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_flap_angle::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_flap_acc::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
-    get_kite_vel::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
+    get_vel_kite::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_winch_forces::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_tether_lengths::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_tether_vels::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
@@ -286,7 +288,7 @@ function update_sys_state!(ss::SysState, s::KPS4_3L, zoom=1.0)
     ss.v_reelout = s.get_tether_vels(s.integrator)[3]
     ss.depower = rad2deg(s.get_flap_angle(s.integrator)[1] + s.get_flap_angle(s.integrator)[2])
     ss.steering = rad2deg(s.get_flap_angle(s.integrator)[2] - s.get_flap_angle(s.integrator)[1])
-    ss.vel_kite .= s.get_kite_vel(s.integrator)
+    ss.vel_kite .= s.vel_kite
     nothing
 end
 
@@ -313,7 +315,7 @@ function SysState(s::KPS4_3L, zoom=1.0)
     depower = rad2deg(s.get_flap_angle(s.integrator)[1] + s.get_flap_angle(s.integrator)[2])
     steering = rad2deg(s.get_flap_angle(s.integrator)[2] - s.get_flap_angle(s.integrator)[1])
     KiteUtils.SysState{P}(s.t_0, t_sim, 0, 0, orient, elevation, azimuth, s.tether_lengths[3], s.get_tether_vels(s.integrator)[3], forces[3], depower, steering, 
-                          heading, course, v_app_norm, s.get_kite_vel(s.integrator), X, Y, Z, 
+                          heading, course, v_app_norm, s.vel_kite, X, Y, Z, 
                           0, 0, 0, 0, 
                           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 end
@@ -326,6 +328,11 @@ function calc_heading(e_x, pos_kite)
     return heading
 end
 @register_symbolic calc_heading(e_x, pos_kite)
+
+function calc_heading_y(e_x)
+    return atan(-e_x[2]/-e_x[1])
+end
+@register_symbolic calc_heading_y(e_x)
 
 """
     init_sim!(s; damping_coeff=1.0, prn=false, torque_control=true)
@@ -342,7 +349,7 @@ Returns:
 Nothing.
 """
 function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false, 
-                   torque_control=s.torque_control) # TODO: add sysstate init ability
+                   torque_control=s.torque_control)
     clear!(s)
     change_control_mode = s.torque_control != torque_control
     s.torque_control = torque_control
@@ -389,7 +396,7 @@ function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false,
     s.last_init_elevation = s.set.elevation
     s.last_init_tether_length = s.set.l_tether
     s.last_set_hash = s.set_hash
-    update_pos!(s)
+    update_state!(s)
     return nothing
 end
 
@@ -404,7 +411,7 @@ function next_step!(s::KPS4_3L; set_values=zeros(KVec3), v_wind_gnd=s.set.v_wind
         s.get_pos = getu(s.integrator.sol, s.simple_sys.pos[:,:])
         s.get_flap_angle = getu(s.integrator.sol, s.simple_sys.flap_angle)
         s.get_flap_acc = getu(s.integrator.sol, s.simple_sys.flap_acc)
-        s.get_kite_vel = getu(s.integrator.sol, s.simple_sys.vel[:,s.num_A])
+        s.get_vel_kite = getu(s.integrator.sol, s.simple_sys.vel[:,s.num_A])
         s.get_winch_forces = getu(s.integrator.sol, s.simple_sys.winch_force)
         s.get_L_C = getu(s.integrator.sol, s.simple_sys.L_C)
         s.get_L_D = getu(s.integrator.sol, s.simple_sys.L_D)
@@ -423,7 +430,7 @@ function next_step!(s::KPS4_3L; set_values=zeros(KVec3), v_wind_gnd=s.set.v_wind
         println("Return code for solution: ", s.integrator.sol.retcode)
     end
     @assert successful_retcode(s.integrator.sol)
-    update_pos!(s)
+    update_state!(s)
     s.integrator.t
 end
 
@@ -811,10 +818,11 @@ Output:length
     return eqs2, force_eqs
 end
 
-function update_pos!(s)
+function update_state!(s)
     pos = s.get_pos(s.integrator)
     [s.pos[i]          .= pos[:, i] for i in 1:s.num_A]
     s.tether_lengths   .= s.get_tether_lengths(s.integrator)
+    s.vel_kite         .= s.get_vel_kite(s.integrator)
     calc_kite_ref_frame!(s, s.pos[s.num_E], s.pos[s.num_C], s.pos[s.num_D])
     # @assert all(abs.(s.flap_angle) .<= deg2rad(90))
     nothing
@@ -869,6 +877,7 @@ function model!(s::KPS4_3L, pos_, vel_)
         rho_kite(t)
         winch_force(t)[1:3] # normalized winch forces
         heading(t)
+        heading_y(t)
     end
     # Collect the arrays into variables
     pos = collect(pos)
@@ -926,6 +935,7 @@ function model!(s::KPS4_3L, pos_, vel_)
         damping_coeff ~ max(1.0 - t/2, 0.0) * s.damping_coeff
         winch_force ~ [norm(force[i, 1:3]) for i in 1:3]
         heading ~ calc_heading(e_x, pos[:, s.num_E])
+        heading_y ~ calc_heading_y(e_x)
     ]
 
     eqs2, force_eqs = calc_aero_forces_mtk!(s, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, E_C, rho_kite, v_wind, flap_angle)

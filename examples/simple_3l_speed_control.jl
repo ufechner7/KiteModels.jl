@@ -54,11 +54,12 @@ for i in 1:steps
     sys_state.var_05 =  s.tether_lengths[3]
     sys_state.var_06 =  rad2deg(s.integrator[s.simple_sys.seg_flap_angle[div(s.set.aero_surfaces, 2)]] - s.integrator[s.simple_sys.aoa[div(s.set.aero_surfaces, 2)]])
     sys_state.var_07 =  rad2deg(s.integrator[s.simple_sys.flap_vel[1]])
-    sys_state.var_08 =  norm(s.D_C)
-    sys_state.var_09 =  norm(s.D_D)
+    sys_state.var_08 =  norm(s.get_D_C(s.integrator))
+    sys_state.var_09 =  norm(s.get_D_C(s.integrator))
     sys_state.var_10 =  (s.integrator[s.simple_sys.vel[:, s.num_E-3]]) ⋅ s.e_z
     sys_state.var_11 =  norm(s.integrator[s.simple_sys.vel[:, s.num_E-3]] .- (s.integrator[s.simple_sys.vel[:, s.num_E-3]]) ⋅ s.e_z)
     sys_state.var_12 = s.integrator[s.simple_sys.heading]
+    sys_state.var_13 = s.integrator[s.simple_sys.heading_y]
 
     step_time = @elapsed next_step!(s; set_values=steering, dt=dt)
     if time > total_time/2
@@ -78,7 +79,7 @@ println("times realtime MTK model: ", times_reltime)
 p=plotx(logger.time_vec, 
             [logger.var_01_vec,  logger.var_02_vec], 
             [logger.var_03_vec,  logger.var_04_vec], 
-            rad2deg.(logger.var_12_vec), 
+            [rad2deg.(logger.var_12_vec), rad2deg.(logger.var_13_vec)], 
             [logger.var_06_vec, logger.var_07_vec], 
             [logger.var_08_vec, logger.var_09_vec],
             [logger.var_10_vec, logger.var_11_vec]; 
@@ -86,7 +87,7 @@ p=plotx(logger.time_vec,
         labels=[
             ["Steering Pos C", "Steering Pos D"], 
             ["Left tether", "Right tether"], 
-            "heading",
+            ["heading", "heading_y"],
             ["Flap angle", "Flap vel"] ,
             ["Drag C", "Drag D"],
             ["Vel par", "Vel perp"]],
