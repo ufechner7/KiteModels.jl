@@ -266,13 +266,13 @@ end
 Calculate and return the orientation of the kite in euler angles (roll, pitch, yaw)
 as SVector.
 """
-function orient_euler(s::AKM)
+function orient_euler(s::AKM; one_point=false)
     q = QuatRotation(calc_orient_quat(s))
     roll, pitch, yaw = quat2euler(q)
     SVector(roll, pitch, yaw)
 end
 
-function calc_orient_quat(s::AKM; viewer=false)
+function calc_orient_quat(s::AKM; viewer=false, one_point=false)
     if viewer
         x, _, z = kite_ref_frame(s)
         pos_kite_ = pos_kite(s)
@@ -280,7 +280,7 @@ function calc_orient_quat(s::AKM; viewer=false)
     
         rotation = rot(pos_kite_, pos_before, -x)
     else
-        x, y, z = kite_ref_frame(s) # in ENU reference
+        x, y, z = kite_ref_frame(s; one_point) # in ENU reference
         x = enu2ned(x)
         y = enu2ned(y)
         z = enu2ned(z)
@@ -345,12 +345,12 @@ function calc_azimuth_north(s::AKM)
 end
 
 """
-    calc_heading(s::AKM; upwind_dir_=upwind_dir(s), neg_azimuth=false)
+    calc_heading(s::AKM; upwind_dir_=upwind_dir(s), neg_azimuth=false, one_point=false)
 
 Determine the heading angle of the kite in radian.
 """
-function calc_heading(s::AKM; upwind_dir_=upwind_dir(s), neg_azimuth=false)
-    orientation = orient_euler(s)
+function calc_heading(s::AKM; upwind_dir_=upwind_dir(s), neg_azimuth=false, one_point=false)
+    orientation = orient_euler(s; one_point)
     elevation = calc_elevation(s)
     # use azimuth in wind reference frame
     if neg_azimuth 
