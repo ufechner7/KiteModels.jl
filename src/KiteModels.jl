@@ -349,12 +349,16 @@ end
 
 Determine the heading angle of the kite in radian.
 """
-function calc_heading(s::AKM; upwind_dir_=upwind_dir(s))
+function calc_heading(s::AKM; upwind_dir_=upwind_dir(s), neg_azimuth=false)
     orientation = orient_euler(s)
     elevation = calc_elevation(s)
     # use azimuth in wind reference frame
-    azimuth = calc_azimuth(s)
-    calc_heading(orientation, elevation, -azimuth; upwind_dir=upwind_dir_)
+    if neg_azimuth 
+        azimuth = -calc_azimuth(s)
+    else
+        azimuth = calc_azimuth(s)
+    end
+    calc_heading(orientation, elevation, azimuth; upwind_dir=upwind_dir_)
 end
 
 """
