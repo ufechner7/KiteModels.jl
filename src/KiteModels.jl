@@ -267,7 +267,7 @@ Calculate and return the orientation of the kite in euler angles (roll, pitch, y
 as SVector.
 """
 function orient_euler(s::AKM; one_point=false)
-    q = QuatRotation(calc_orient_quat(s))
+    q = QuatRotation(calc_orient_quat(s; one_point))
     roll, pitch, yaw = quat2euler(q)
     SVector(roll, pitch, yaw)
 end
