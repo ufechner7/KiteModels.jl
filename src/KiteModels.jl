@@ -336,9 +336,9 @@ function calc_azimuth_east(s::AKM)
 end
 
 """
-    calc_azimuth(s::AKM)
+    calc_azimuth_north(s::AKM)
 
-Determine the azimuth angle of the kite in radian.
+Determine the azimuth_north angle of the kite in radian.
 """
 function calc_azimuth_north(s::AKM)
     KiteUtils.azimuth_north(pos_kite(s))
@@ -367,10 +367,13 @@ end
 Determine the course angle of the kite in radian.
 Undefined if the velocity of the kite is near zero.
 """
-function calc_course(s::AKM)
+function calc_course(s::AKM, neg_azimuth=false)
     elevation = calc_elevation(s)
-    # TODO: FIXME this is the wrong azimuth for calculating the course
-    azimuth = calc_azimuth(s)
+    if neg_azimuth 
+        azimuth = -calc_azimuth(s)
+    else    
+        azimuth = calc_azimuth(s)
+    end
     KiteUtils.calc_course(s.vel_kite, elevation, azimuth)
 end
 
