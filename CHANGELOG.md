@@ -1,9 +1,19 @@
 # Changelog
-### Unreleased
+### KiteModels v0.6.7 - 2024-10-20
+#### Changed
+- renamed test_init.jl to test_init_4p.jl
+- by default, `azimuth` in wind reference frame is now used
+- the method `calc_heading` has two new, optional parameters: neg_azimuth=false, one_point=false
+- the definition of heading and azimuth has changed, which will require adaptions in the controller
 #### Added
 - example `plot_side_cl.jl`
 - example `plot_cl_cd_plate.jl`
 - example `steering_test.jl`
+- example `test_init_1p.jl`
+- the test script `test_orientation.jl`; currently, some of these tests still fail (error of about 2%)
+#### Fixed
+- many of the examples
+- the orientation is now represented in NED reference frame
 
 ### KiteModels v0.6.6 - 2024-09-03
 #### Changed
