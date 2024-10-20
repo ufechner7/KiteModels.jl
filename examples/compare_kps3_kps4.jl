@@ -11,7 +11,7 @@ ALPHA_ZERO = 8.8            # for KPS4
 STEPS = round(0.5*600/dt*0.05)
 PLOT = true
 FRONT_VIEW = false
-ZOOM = false
+ZOOM = true
 PRINT = false
 STATISTIC = false
 # end of user parameter section #
@@ -46,7 +46,7 @@ function simulate(s, integrator, steps, plot=false; fig="")
         if plot
             reltime = i*dt-dt
             if mod(i, 5) == 1
-                plot2d(s.pos, reltime; zoom=ZOOM, xlim=(0,100), front=FRONT_VIEW, fig)          
+                plot2d(s.pos, reltime; zoom=ZOOM, xlim=(35,55), front=FRONT_VIEW, fig)          
             end
         end
     end
