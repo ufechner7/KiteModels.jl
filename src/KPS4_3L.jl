@@ -514,11 +514,12 @@ function pos_kite(s::KPS4_3L)
 end
 
 """
-    kite_ref_frame(s::KPS4_3L)
+    kite_ref_frame(s::KPS4_3L; one_point=false)
 
 Returns a tuple of the x, y, and z vectors of the kite reference frame.
+The parameter one_point is not used in this model.
 """
-function kite_ref_frame(s::KPS4_3L)
+function kite_ref_frame(s::KPS4_3L; one_point=false)
     s.e_x, s.e_y, s.e_z
 end
 
