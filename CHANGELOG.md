@@ -11,7 +11,7 @@
 - example `plot_cl_cd_plate.jl`
 - example `steering_test.jl`
 - example `test_init_1p.jl`
-- the test script `test_orientation.jl`; currently, some of these tests are still broken (error of about 2%)
+- the test script `test_orientation.jl` was contributed by Daan van Wolffelaar; currently, some of these tests are still broken (error of about 2%)
 #### Fixed
 - many of the examples; all examples of `menu.jl` now work
 
