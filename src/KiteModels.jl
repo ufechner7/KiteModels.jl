@@ -549,7 +549,7 @@ end
 
 
 """
-    next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, v_wind_gnd=s.set.v_wind, upwind_dir=0.0, 
+    next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2, 
                dt=1/s.set.sample_freq)
 
 Calculates the next simulation step.
