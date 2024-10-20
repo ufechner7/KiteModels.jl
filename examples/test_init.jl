@@ -2,7 +2,6 @@
 
 using Printf
 using Pkg
-pkg"add KiteUtils#main"
 using KiteModels, KitePodModels, KiteUtils, LinearAlgebra, Rotations
 
 set = deepcopy(load_settings("system.yaml"))
