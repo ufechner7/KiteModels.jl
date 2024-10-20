@@ -1,6 +1,5 @@
 # generate test cases for the calculation of roll, pitch and yaw
 using LinearAlgebra
-import ReferenceFrameRotations as RFR
 
 using Printf
 
