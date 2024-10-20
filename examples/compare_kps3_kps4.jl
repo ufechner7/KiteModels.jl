@@ -2,13 +2,15 @@ using Printf
 using KiteModels, KitePodModels, KiteUtils
 
 set = deepcopy(load_settings("system.yaml"))
+set.abs_tol=0.00006
+set.rel_tol=0.000001
 
 # the following values can be changed to match your interest
 dt = 0.05
 ALPHA_ZERO = 8.8            # for KPS4
-STEPS = round(0.3*600/dt*0.05)
+STEPS = round(0.5*600/dt*0.05)
 PLOT = true
-FRONT_VIEW = true
+FRONT_VIEW = false
 ZOOM = false
 PRINT = false
 STATISTIC = false
@@ -60,15 +62,15 @@ println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
 println("winch_force [N]: $(round(winch_force(kps3), digits=2))")
 println("Average number of callbacks per time step: $(round(av_steps, digits=2))")
 
-# kps4.set.alpha_zero = ALPHA_ZERO
-# integrator = KiteModels.init_sim!(kps4; delta=0, stiffness_factor=1, prn=STATISTIC)
-# av_steps = simulate(kps4, integrator, STEPS, true; fig="kps4")
+kps4.set.alpha_zero = ALPHA_ZERO
+integrator = KiteModels.init_sim!(kps4; delta=0.001, stiffness_factor=1, prn=STATISTIC)
+av_steps = simulate(kps4, integrator, STEPS, true; fig="kps4")
 
-# lift, drag = KiteModels.lift_drag(kps4)
-# println("KPS4")
-# println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
-# println("winch_force [N]: $(round(winch_force(kps4), digits=2))")
-# println("Average number of callbacks per time step: $(round(av_steps, digits=2))")
+lift, drag = KiteModels.lift_drag(kps4)
+println("KPS4")
+println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
+println("winch_force [N]: $(round(winch_force(kps4), digits=2))")
+println("Average number of callbacks per time step: $(round(av_steps, digits=2))")
 
 # # KPS3
 # # lift, drag  [N]: 730.25, 157.31
