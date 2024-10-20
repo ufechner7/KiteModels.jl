@@ -349,7 +349,7 @@ Returns:
 Nothing.
 """
 function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false, 
-                   torque_control=s.torque_control)
+                   torque_control=s.torque_control, init_set_values=zeros(3))
     clear!(s)
     change_control_mode = s.torque_control != torque_control
     s.torque_control = torque_control
@@ -370,7 +370,7 @@ function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false,
         (s.simple_sys, _) = structural_simplify(sys, (inputs, []); simplify=true)
         s.prob = ODEProblem(s.simple_sys, nothing, tspan; fully_determined=true)
         s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
-        next_step!(s; set_values=zeros(3), dt=1.0) # step to get stable state
+        next_step!(s; set_values=init_set_values, dt=1.0) # step to get stable state
         s.u0 = deepcopy(s.integrator.u)
         OrdinaryDiffEqCore.reinit!(s.integrator, s.u0)
     elseif init_new_pos
@@ -384,7 +384,7 @@ function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false,
                         )
         s.prob = ODEProblem(s.simple_sys, defaults, tspan)
         OrdinaryDiffEqCore.reinit!(s.integrator, s.prob.u0)
-        next_step!(s; set_values=zeros(3), dt=1.0) # step to get stable state
+        next_step!(s; set_values=init_set_values, dt=1.0) # step to get stable state
         s.u0 = deepcopy(s.integrator.u)
         OrdinaryDiffEqCore.reinit!(s.integrator, s.u0)
     else
