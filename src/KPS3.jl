@@ -243,7 +243,7 @@ end
 
 Returns a tuple of the x, y, and z vectors of the kite reference frame.
 """
-function kite_ref_frame(s::KPS3)
+function kite_ref_frame(s::KPS3; one_point=true)
     pos_kite = s.pos[end]
     delta = pos_kite - s.pos[end - 1]
     c = -delta

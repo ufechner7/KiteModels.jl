@@ -57,7 +57,7 @@ export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!              
 export clear!, find_steady_state!, residual!                                                  # low level workers
 export init_sim!, reset_sim!, next_step!, init_pos_vel, init_pos, model!                                 # high level workers
 export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, calc_orient_quat  # getters
-export calc_azimuth_north
+export calc_azimuth_north, calc_azimuth_east
 export winch_force, lift_drag, cl_cd, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
 export kite_ref_frame, orient_euler, spring_forces, upwind_dir
 import LinearAlgebra: norm
@@ -266,13 +266,13 @@ end
 Calculate and return the orientation of the kite in euler angles (roll, pitch, yaw)
 as SVector.
 """
-function orient_euler(s::AKM)
-    q = QuatRotation(calc_orient_quat(s))
+function orient_euler(s::AKM; one_point=false)
+    q = QuatRotation(calc_orient_quat(s; one_point))
     roll, pitch, yaw = quat2euler(q)
     SVector(roll, pitch, yaw)
 end
 
-function calc_orient_quat(s::AKM; viewer=false)
+function calc_orient_quat(s::AKM; viewer=false, one_point=false)
     if viewer
         x, _, z = kite_ref_frame(s)
         pos_kite_ = pos_kite(s)
@@ -280,7 +280,7 @@ function calc_orient_quat(s::AKM; viewer=false)
     
         rotation = rot(pos_kite_, pos_before, -x)
     else
-        x, y, z = kite_ref_frame(s) # in ENU reference
+        x, y, z = kite_ref_frame(s; one_point) # in ENU reference
         x = enu2ned(x)
         y = enu2ned(y)
         z = enu2ned(z)
@@ -318,32 +318,47 @@ end
 """
     calc_azimuth(s::AKM)
 
-Determine the azimuth angle of the kite in radian.
+Determine the azimuth angle of the kite in wind reference frame in radian.
+Positive anti-clockwise when seen from above.
 """
 function calc_azimuth(s::AKM)
+    azn = KiteUtils.azimuth_north(pos_kite(s))
+    azn2azw(azn; upwind_dir = upwind_dir(s))
+end
+
+"""
+    calc_azimuth_east(s::AKM)
+
+Determine the azimuth_east angle of the kite in radian.
+"""
+function calc_azimuth_east(s::AKM)
     KiteUtils.azimuth_east(pos_kite(s))
 end
 
 """
-    calc_azimuth(s::AKM)
+    calc_azimuth_north(s::AKM)
 
-Determine the azimuth angle of the kite in radian.
+Determine the azimuth_north angle of the kite in radian.
 """
 function calc_azimuth_north(s::AKM)
     KiteUtils.azimuth_north(pos_kite(s))
 end
 
 """
-    calc_heading(s::AKM)
+    calc_heading(s::AKM; upwind_dir_=upwind_dir(s), neg_azimuth=false, one_point=false)
 
 Determine the heading angle of the kite in radian.
 """
-function calc_heading(s::AKM; upwind_dir_=upwind_dir(s))
-    orientation = orient_euler_old(s)
+function calc_heading(s::AKM; upwind_dir_=upwind_dir(s), neg_azimuth=false, one_point=false)
+    orientation = orient_euler(s; one_point)
     elevation = calc_elevation(s)
-    # FIXME is this the right azimuth for calculating the heading?
-    azimuth = calc_azimuth(s)
-    KiteUtils.calc_heading(orientation, elevation, azimuth; upwind_dir=upwind_dir_)
+    # use azimuth in wind reference frame
+    if neg_azimuth 
+        azimuth = -calc_azimuth(s)
+    else
+        azimuth = calc_azimuth(s)
+    end
+    calc_heading(orientation, elevation, azimuth; upwind_dir=upwind_dir_)
 end
 
 """
@@ -352,10 +367,13 @@ end
 Determine the course angle of the kite in radian.
 Undefined if the velocity of the kite is near zero.
 """
-function calc_course(s::AKM)
+function calc_course(s::AKM, neg_azimuth=false)
     elevation = calc_elevation(s)
-    # TODO: FIXME this is the wrong azimuth for calculating the course
-    azimuth = calc_azimuth(s)
+    if neg_azimuth 
+        azimuth = -calc_azimuth(s)
+    else    
+        azimuth = calc_azimuth(s)
+    end
     KiteUtils.calc_course(s.vel_kite, elevation, azimuth)
 end
 

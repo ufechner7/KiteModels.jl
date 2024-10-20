@@ -456,8 +456,8 @@ end
     @test all(KiteModels.orient_euler_old(kps4) .≈ [1.5707963267948966, -0.5235987756571836, 1.5707963267948966])
     @test all(pos_kite(kps4) .≈ [78.56500000036361, 0.0, 136.07857169877312])
     @test calc_elevation(kps4) ≈ 1.0471975512013534 # 60 degrees
-    @test calc_azimuth(kps4) ≈ 0
-    @test_broken calc_heading(kps4) ≈ 0 atol=1e-2
+    @test calc_azimuth(kps4) ≈ 0.0 atol=0.02
+    @test_broken calc_heading(kps4) ≈ 0.0 atol=1e-2
     calc_course(kps4) # the course for vel_kite = zero is undefined
 end
 

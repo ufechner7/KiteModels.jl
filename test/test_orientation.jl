@@ -22,6 +22,8 @@ function create_kite_model(x, y, z, pos)
     s.y = y
     s.z = z
 
+    KiteModels.set_v_wind_ground!(s, pos[begin+2], deg2rad(-90))
+
     s.pos[end-2][begin] = pos[begin]
     s.pos[end-2][begin+1] = pos[begin+1]
     s.pos[end-2][begin+2] = pos[begin+2]
@@ -218,6 +220,9 @@ end
 
     @test isapprox(azimuth_north,   0,      atol=1e-4, rtol=1e-4)
     @test isapprox(elevation,       0,      atol=1e-4, rtol=1e-4)
+    if heading > 359
+        heading -= 360
+    end
     @test isapprox(heading,         0,      atol=1e-4, rtol=1e-4)
 end
 

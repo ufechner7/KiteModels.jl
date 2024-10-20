@@ -8,7 +8,7 @@ tic()
 if ! ("KiteViewers" ∈ keys(Pkg.project().dependencies))
     Pkg.activate("examples_3d")
     pkg"add KiteUtils#main"
-    pkg"add KiteModels#main"
+    pkg"add KiteModels#azimuth"
 end
 using KiteModels, KitePodModels, KiteUtils, Rotations, StaticArrays
 using ControlPlots, KiteViewers
@@ -20,7 +20,7 @@ set = deepcopy(se())
 dt = 0.05
 set.solver="DFBDF"              # IDA or DFBDF
 set.linear_solver="GMRES"       # GMRES, LapackDense or Dense
-STEPS = 352
+STEPS = 328
 PRINT = false
 STATISTIC = false
 PLOT=false
@@ -98,6 +98,6 @@ end
 # # for an  UPWIND_DIR2 of -80°, pos_y must be negative, also v_wind[2] must be negative
 # # this is OK
 
-# # print heading
-# println("heading: $(round(heading[STEPS], digits=2))°")
-# plot(v_time, heading; xlabel="time [s]", ylabel="heading [°]", fig="heading")
+# print heading
+println("heading: $(round(heading[STEPS], digits=2))°")
+plot(v_time, heading; xlabel="time [s]", ylabel="heading [°]", fig="heading")

@@ -532,12 +532,19 @@ function pos_kite(s::KPS4)
 end
 
 """
-    kite_ref_frame(s::KPS4)
+    kite_ref_frame(s::KPS4; one_point=false)
 
 Returns a tuple of the x, y, and z vectors of the kite reference frame.
 """
-function kite_ref_frame(s::KPS4)
-    s.x, s.y, s.z
+function kite_ref_frame(s::KPS4; one_point=false)
+    if one_point
+        c = s.z
+        y = normalize(s.v_apparent × c)
+        x = normalize(y × c)
+        return x, y, c
+    else
+        return s.x, s.y, s.z
+    end
 end
 
 """
