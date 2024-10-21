@@ -153,7 +153,9 @@ $(TYPEDFIELDS)
     "Simplified system of the mtk model"
     simple_sys::Union{ModelingToolkit.ODESystem, Nothing} = nothing
     "Velocity of the kite"
-    vel_kite::T =       zeros(S, 3)
+    vel_kite::T =           zeros(S, 3)
+    "Initial torque or speed set values"
+    init_set_values::T =    zeros(S, 3)
 
     # set_values_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
     v_wind_gnd_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
@@ -292,7 +294,7 @@ function update_sys_state!(ss::SysState, s::KPS4_3L, zoom=1.0)
     nothing
 end
 
-function SysState(s::KPS4_3L, zoom=1.0)
+function SysState(s::KPS4_3L, zoom=1.0) # TODO: add left and right lines, stop using getters and setters
     pos = s.pos
     P = length(pos)
     X = zeros(MVector{P, MyFloat})
@@ -351,15 +353,17 @@ Nothing.
 function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false, 
                    torque_control=s.torque_control, init_set_values=zeros(3))
     clear!(s)
-    change_control_mode = s.torque_control != torque_control
-    s.torque_control = torque_control
-
+    
     dt = 1/s.set.sample_freq*2
     tspan   = (0.0, dt) 
     solver = QNDF(autodiff=false) # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
     s.damping_coeff = damping_coeff
-    new_inital_conditions = (s.last_init_elevation != s.set.elevation || s.last_init_tether_length != s.set.l_tether)
+    new_inital_conditions =     (s.last_init_elevation != s.set.elevation || 
+                                s.last_init_tether_length != s.set.l_tether) || 
+                                !all(s.init_set_values .== init_set_values)
     s.set_hash = settings_hash(s.set)
+    change_control_mode = s.torque_control != torque_control
+    s.torque_control = torque_control
     init_new_model = isnothing(s.prob) || change_control_mode || s.last_set_hash != s.set_hash
     init_new_pos = new_inital_conditions && !isnothing(s.get_pos)
 
@@ -396,6 +400,7 @@ function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false,
     s.last_init_elevation = s.set.elevation
     s.last_init_tether_length = s.set.l_tether
     s.last_set_hash = s.set_hash
+    s.init_set_values .= init_set_values
     update_state!(s)
     return nothing
 end
@@ -854,7 +859,7 @@ function model!(s::KPS4_3L, pos_, vel_)
         pos(t)[1:3, 1:s.num_A] = pos_
         vel(t)[1:3, 1:s.num_A] = vel_
         acc(t)[1:3, 1:s.num_A]
-        flap_angle(t)[1:2]   = zeros(2) # angle
+        flap_angle(t)[1:2]   = deg2rad(s.set.alpha_zero) # angle
         flap_vel(t)[1:2]     = zeros(2) # angular vel
         flap_acc(t)[1:2]                # angular acc
         tether_length(t)[1:3]  = s.tether_lengths
@@ -878,6 +883,7 @@ function model!(s::KPS4_3L, pos_, vel_)
         winch_force(t)[1:3] # normalized winch forces
         heading(t)
         heading_y(t)
+        depower(t)
     end
     # Collect the arrays into variables
     pos = collect(pos)
@@ -936,6 +942,7 @@ function model!(s::KPS4_3L, pos_, vel_)
         winch_force ~ [norm(force[i, 1:3]) for i in 1:3]
         heading ~ calc_heading(e_x, pos[:, s.num_E])
         heading_y ~ calc_heading_y(e_x)
+        depower ~ (flap_angle[1] + flap_angle[2]) / 2
     ]
 
     eqs2, force_eqs = calc_aero_forces_mtk!(s, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, E_C, rho_kite, v_wind, flap_angle)
