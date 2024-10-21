@@ -938,7 +938,7 @@ function model!(s::KPS4_3L, pos_, vel_)
         # E_C is the center of the circle shape of the front view of the kite
         E_C     ~ pos[:, s.num_E] + e_z * (-s.set.bridle_center_distance + s.set.radius) 
         rho_kite ~ calc_rho(s.am, pos[3,s.num_A])
-        damping_coeff ~ max(1.0 - t/2, 0.0) * s.damping_coeff
+        damping_coeff ~ max(1.0 - t, 0.0) * s.damping_coeff
         winch_force ~ [norm(force[i, 1:3]) for i in 1:3]
         heading ~ calc_heading(e_x, pos[:, s.num_E])
         heading_y ~ calc_heading_y(e_x)
