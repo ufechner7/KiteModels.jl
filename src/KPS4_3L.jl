@@ -354,7 +354,7 @@ function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false,
                    torque_control=s.torque_control, init_set_values=zeros(3))
     clear!(s)
     
-    dt = 1/s.set.sample_freq*2
+    dt = 1/s.set.sample_freq
     tspan   = (0.0, dt) 
     solver = QNDF(autodiff=false) # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
     s.damping_coeff = damping_coeff
@@ -367,6 +367,7 @@ function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false,
     init_new_model = isnothing(s.prob) || change_control_mode || s.last_set_hash != s.set_hash
     init_new_pos = new_inital_conditions && !isnothing(s.get_pos)
 
+    dt0 = 1.0
     if init_new_model
         if prn; println("initializing with new model and new pos"); end
         pos, vel = init_pos_vel(s)
@@ -374,9 +375,9 @@ function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false,
         (s.simple_sys, _) = structural_simplify(sys, (inputs, []); simplify=true)
         s.prob = ODEProblem(s.simple_sys, nothing, tspan; fully_determined=true)
         s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
-        next_step!(s; set_values=init_set_values, dt=1.0) # step to get stable state
+        next_step!(s; set_values=init_set_values, dt=dt0) # step to get stable state
         s.u0 = deepcopy(s.integrator.u)
-        OrdinaryDiffEqCore.reinit!(s.integrator, s.u0)
+        OrdinaryDiffEqCore.reinit!(s.integrator, s.u0; t0=dt0, tf=dt0+dt)
     elseif init_new_pos
         if prn; println("initializing with last model and new pos"); end
         pos, vel = init_pos_vel(s)
@@ -388,12 +389,12 @@ function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false,
                         )
         s.prob = ODEProblem(s.simple_sys, defaults, tspan)
         OrdinaryDiffEqCore.reinit!(s.integrator, s.prob.u0)
-        next_step!(s; set_values=init_set_values, dt=1.0) # step to get stable state
+        next_step!(s; set_values=init_set_values, dt=dt0) # step to get stable state
         s.u0 = deepcopy(s.integrator.u)
-        OrdinaryDiffEqCore.reinit!(s.integrator, s.u0)
+        OrdinaryDiffEqCore.reinit!(s.integrator, s.u0; t0=dt0, tf=dt0+dt)
     else
         if prn; println("initializing with last model and last pos"); end
-        OrdinaryDiffEqCore.reinit!(s.integrator, s.u0)
+        OrdinaryDiffEqCore.reinit!(s.integrator, s.u0; t0=dt0, tf=dt0+dt)
         # s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
     end
 

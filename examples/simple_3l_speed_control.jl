@@ -24,7 +24,7 @@ s.set.l_tether = 50.0
 # s.set.damping = 473
 # s.set.elevation = 85
 println("init sim")
-@time KiteModels.init_sim!(s; prn=true, torque_control=false)
+@time KiteModels.init_sim!(s; prn=true, torque_control=false, init_set_values=zeros(3))
 # @time next_step!(s; set_values=[0.0, 0.0, 0.0], dt=2.0)
 println("vel ", mean(norm.(s.integrator[s.simple_sys.force])))
 sys_state = KiteModels.SysState(s)
@@ -47,8 +47,16 @@ for i in 1:steps
     steering[1] += sign * dt * amount
     steering[2] -= sign * dt * amount
 
-    sys_state.var_01 =  rad2deg(s.get_flap_angle(s.integrator)[1]) - 10
-    sys_state.var_02 =  rad2deg(s.get_flap_angle(s.integrator)[2]) - 10
+    # if time < 1.0
+    #     steering[1] = 0.6
+    #     steering[2] = -0.6
+    # else
+    #     steering .= 0.0
+    # end
+
+    sys_state.var_01 =  rad2deg(s.get_flap_angle(s.integrator)[1])
+    sys_state.var_02 =  rad2deg(s.get_flap_angle(s.integrator)[2])
+    sys_state.var_14 =  rad2deg(s.integrator[s.simple_sys.depower])
     sys_state.var_03 =  s.tether_lengths[1]
     sys_state.var_04 =  s.tether_lengths[2]
     sys_state.var_05 =  s.tether_lengths[3]
@@ -77,7 +85,7 @@ println("times realtime MTK model: ", times_reltime)
 # println("avg steptime MTK model:   ", total_step_time/steps)
 
 p=plotx(logger.time_vec, 
-            [logger.var_01_vec,  logger.var_02_vec], 
+            [logger.var_01_vec,  logger.var_02_vec, logger.var_14_vec], 
             [logger.var_03_vec,  logger.var_04_vec], 
             [rad2deg.(logger.var_12_vec), rad2deg.(logger.var_13_vec)], 
             [logger.var_06_vec, logger.var_07_vec], 
@@ -85,7 +93,7 @@ p=plotx(logger.time_vec,
             [logger.var_10_vec, logger.var_11_vec]; 
         ylabels=["Steering", "Length", "heading [deg]", "Angle / Force", "Force", "Vel"], 
         labels=[
-            ["Steering Pos C", "Steering Pos D"], 
+            ["Steering Pos C", "Steering Pos D", "Power angle"], 
             ["Left tether", "Right tether"], 
             ["heading", "heading_y"],
             ["Flap angle", "Flap vel"] ,
