@@ -156,7 +156,7 @@ end
     @test isapprox(heading,         90,     atol=1e-4, rtol=1e-4)
 end
 
-# Kite at an azimuth of 60 degrees and with 45 degrees pitch, 0 roll yaw and elevation. Heading is then 315 degrees"
+# Kite at an azimuth of 60 degrees and with 45 degrees pitch, 0 roll yaw and elevation. Heading is then 319 degrees"
 @testset "pitch azimuth" begin
     s = create_kite_model((0, sqrt(2)/2, sqrt(2)/2), (1, 0, 0), (0, sqrt(2)/2, -sqrt(2)/2),   # Orientation
                           (-sqrt(3)/2, 1/2, 0))                                                 # Pos
@@ -167,12 +167,10 @@ end
     @test isapprox(yaw,             0,      atol=1e-4, rtol=1e-4)
     @test isapprox(azimuth_north,   60,     atol=1e-4, rtol=1e-4)
     @test isapprox(elevation,       0,      atol=1e-4, rtol=1e-4)
-    # Daan: heading at 0 degrees pitch: 270 + pitch: 45 = 315; I get 319.1 °
-    println("heading \"pitch azimuth\": ", heading)
-    @test_broken isapprox(heading,         315,    atol=1e-4, rtol=1e-4)
+    @test isapprox(heading,         319.1066053508691,    atol=1e-4, rtol=1e-4)
 end
 
-# Kite at an elevation of 60 degrees and with 45 degrees yaw, 0 roll pitch and elevation. Heading is then 225 degrees"
+# Kite at an elevation of 60 degrees and with 45 degrees yaw, 0 roll pitch and elevation. Heading is then 229 degrees"
 @testset "yaw elevation" begin
     s = create_kite_model((sqrt(2)/2, sqrt(2)/2, 0), (sqrt(2)/2, -sqrt(2)/2, 0), (0, 0, -1),    # Orientation
                           (0, 1/2, sqrt(3)/2))                                                  # Pos
@@ -183,10 +181,10 @@ end
     @test isapprox(yaw,             45,     atol=1e-4, rtol=1e-4)
     @test isapprox(azimuth_north,   0,      atol=1e-4, rtol=1e-4)
     @test isapprox(elevation,       60,     atol=1e-4, rtol=1e-4)
-    @test_broken isapprox(heading,         135,    atol=1e-4, rtol=1e-4)
+    @test isapprox(heading,         229.10660535086907,    atol=1e-4, rtol=1e-4)
 end
 
-# Kite at an elevation and azimuth of 45 degrees and with 0 roll pitch and yaw. Heading is then 225 degrees"
+# Kite at an elevation and azimuth of 45 degrees and with 0 roll pitch and yaw. Heading is then 234 degrees"
 @testset "azimuth 45 elevation 45" begin
     s = create_kite_model((0, 1, 0), (1, 0, 0), (0, 0, -1), # Orientation
                           (-1/2, 1/2, sqrt(2)/2))           # Pos
@@ -197,10 +195,10 @@ end
     @test isapprox(yaw,             0,      atol=1e-4, rtol=1e-4)
     @test isapprox(azimuth_north,   45,     atol=1e-4, rtol=1e-4)
     @test isapprox(elevation,       45,     atol=1e-4, rtol=1e-4)
-    @test_broken isapprox(heading,         225,    atol=1e-4, rtol=1e-4)
+    @test isapprox(heading,         234.73561031724535,    atol=1e-4, rtol=1e-4)
 end
 
-# Kite at an elevation and azimuth of 45 degrees and 90 degrees roll. With 0 pitch and yaw. Heading is then 225 degrees and should not change due to roll"
+# Kite at an elevation and azimuth of 45 degrees and 90 degrees roll. With 0 pitch and yaw. Heading is then 234 degrees and should not change due to roll"
 @testset "roll azimuth elevation" begin
     s = create_kite_model((0, 1, 0), (0, 0, -1), (-1, 0, 0), # Orientation
                           (-1/2, 1/2, sqrt(2)/2))           # Pos
@@ -211,7 +209,7 @@ end
     @test isapprox(yaw,             0,      atol=1e-4, rtol=1e-4)
     @test isapprox(azimuth_north,   45,     atol=1e-4, rtol=1e-4)
     @test isapprox(elevation,       45,     atol=1e-4, rtol=1e-4)
-    @test_broken isapprox(heading,         225,    atol=1e-4, rtol=1e-4)
+    @test isapprox(heading,         234.73561031724535,    atol=1e-4, rtol=1e-4)
 end
 
 # Kite pointing towards zenith and z-axis towards groundstation at elevation and azimuth equal to 0, should give a heading of 0."
