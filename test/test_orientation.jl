@@ -167,6 +167,8 @@ end
     @test isapprox(yaw,             0,      atol=1e-4, rtol=1e-4)
     @test isapprox(azimuth_north,   60,     atol=1e-4, rtol=1e-4)
     @test isapprox(elevation,       0,      atol=1e-4, rtol=1e-4)
+    # Daan: heading at 0 degrees pitch: 270 + pitch: 45 = 315; I get 319.1 °
+    println("heading \"pitch azimuth\": ", heading)
     @test_broken isapprox(heading,         315,    atol=1e-4, rtol=1e-4)
 end
 
