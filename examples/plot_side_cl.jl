@@ -54,7 +54,7 @@ function simulate(integrator, steps, steering; plot=false)
         end
     end
     set_depower_steering(kps4.kcu, kps4.depower, steering)
-    for i in 1:3
+    for i in 1:5
         KiteModels.next_step!(kps4, integrator; set_speed=0, dt)
         iter += kps4.iter
     end
@@ -65,13 +65,13 @@ SIDE_CL = zeros(length(STEERING))
 for (i, steering) in pairs(STEERING)
     local side_cl, integrator
     integrator = KiteModels.init_sim!(kps4;  delta=0.0, stiffness_factor=1, prn=STATISTIC)
-    side_cl = simulate(integrator, STEPS, steering*.8, plot=false)
+    side_cl = simulate(integrator, STEPS, steering, plot=false)
     SIDE_CL[i] = side_cl
     println("steering: $steering, side_cl: $side_cl")
 end
 p = plot(STEERING, SIDE_CL; xlabel="rel_steering [-]", 
          ylabel="side lift coefficient [-]", fig="Side lift coefficient vs steering")
-p2 = plot(STEERING, SIDE_CL*(set.rel_side_area/200); xlabel="rel_steering [-]", 
+p2 = plot(STEERING, SIDE_CL*(set.rel_side_area/100); xlabel="rel_steering [-]", 
          ylabel="side force coefficient [-]", fig="Side force coefficient vs steering")
 display(p)
 display(p2)
