@@ -339,8 +339,8 @@ Updates the vector s.forces of the first parameter.
     s.alpha_4b = rad2deg(π/2 + asin2(normalize(va_xy4) ⋅ x))
     if s.set.version == 3
         alpha_2 = rad2deg(π/2 + asin2(normalize(va_xz2) ⋅ x) - alpha_depower)     + s.set.alpha_zero
-        alpha_3 = rad2deg(π/2 + asin2(normalize(va_xy3) ⋅ x) - rel_steering * s.ks) + s.set.alpha_ztip
-        alpha_4 = rad2deg(π/2 + asin2(normalize(va_xy4) ⋅ x) + rel_steering * s.ks) + s.set.alpha_ztip
+        alpha_3 = rad2deg(π/2 + asin2(normalize(va_xy3) ⋅ x) - rel_steering * s.ks * s.set.cs_4p) + s.set.alpha_ztip
+        alpha_4 = rad2deg(π/2 + asin2(normalize(va_xy4) ⋅ x) + rel_steering * s.ks * s.set.cs_4p) + s.set.alpha_ztip
         drag_corr = 1.0
     else
         drag_corr = DRAG_CORR
