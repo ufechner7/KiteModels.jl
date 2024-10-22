@@ -266,7 +266,7 @@ end
     rho = 1.25
     kps4.v_wind .= KVec3(8.0, 0.2, 0.0)
     alpha_depower = 0.1
-    rel_steering = -0.1
+    rel_steering = +0.1
     kps4.set.alpha_zero = 5.0
     for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1 
         kps4.forces[i] .= zeros(3)
