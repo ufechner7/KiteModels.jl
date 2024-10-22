@@ -68,7 +68,8 @@ of the time step. The formulas are based on basic physics and aerodynamics and c
 ## Reference frames and control inputs
 - a positive `set_torque` will accelerate the reel-out, a negative `set_torque` counteract the pulling force of the kite. The unit is [N/m] as seen at the motor/generator axis.
 - the `depower` settings are dimensionless and can be between zero and one. A value equal to $\mathrm{depower\_zero}/100$ from the `settings.yaml` file means that the kite is fully powered. 
-- the `heading` angle, the direction the nose of the kite is pointing to is positive in clockwise direction when seen from the ground.
+- the `heading` angle, the direction the nose of the kite is pointing to is positive in clockwise direction when seen from above.
+- the `steering` input, dimensionless and in the range of -1.0 .. 1.0. A positive steering input causes a positive turn rate (derivative of the heading).
 
 A definition of the reference frames can be found [here](https://ufechner7.github.io/KiteUtils.jl/dev/reference_frames/) .
 
