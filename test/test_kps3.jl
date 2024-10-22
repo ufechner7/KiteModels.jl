@@ -81,7 +81,7 @@ end
     pos_kite = KVec3(30.0, 5.0, 100.0)
     v_kite = KVec3(3.0, 5.0, 2.0)
     rho = SimFloat(calc_rho(kps.am, 10.0))
-    rel_steering = 0.1
+    rel_steering = -0.1
     kps.beta = 0.1
     kps.psi = 0.2
     kps.param_cl = 0.2
