@@ -54,7 +54,7 @@ function simulate(integrator, steps; plot=false)
     for i in 1:steps
         reltime = i*dt-dt
         if reltime >= 10.0 && reltime < 10.05
-            set_depower_steering(kps4.kcu, kps4.depower, steering)
+            set_depower_steering(kps4.kcu, kps4.depower, -steering)
         end
         last_heading = heading
         if reltime > 10.05
@@ -65,9 +65,9 @@ function simulate(integrator, steps; plot=false)
             end
 
             if rad2deg(heading) < -OFFSET
-                set_depower_steering(kps4.kcu, kps4.depower, -steering)
-            elseif rad2deg(heading) > OFFSET
                 set_depower_steering(kps4.kcu, kps4.depower, steering)
+            elseif rad2deg(heading) > OFFSET
+                set_depower_steering(kps4.kcu, kps4.depower, -steering)
                 if rad2deg(last_heading) <= OFFSET
                     if steering == 0.5
                         break
@@ -124,10 +124,10 @@ function plot_steering_vs_turn_rate()
     psi = rad2deg.(wrap2pi.(sl.heading))
 
     # p2=plot(sl.time, sl.v_app; ylabel="v_app [m/s]", fig="v_app")
-    delta = delay(sl.var_16, -sl.var_15./sl.v_app)
+    delta = delay(sl.var_16, sl.var_15./sl.v_app)
     println("delay of turnrate: $(delta*dt) s")
     delayed_steering = shift_vector(sl.var_16, delta)    
-    G = -sl.var_15./sl.v_app./delayed_steering
+    G = sl.var_15./sl.v_app./delayed_steering
     for (i, g) in enumerate(G)
         if abs(delayed_steering[i]) < 0.1
             G[i] = NaN
@@ -136,8 +136,8 @@ function plot_steering_vs_turn_rate()
     G_mean = mean(filter(!isnan, G))
     G_std = std(filter(!isnan, G))
     println("mean turnrate_law factor: $(G_mean) ± $(G_std/G_mean*100) %")
-    p1 = plot(sl.time, -delayed_steering, sl.var_15./sl.v_app; 
-              ylabels=["- delayed_steering", "turnrate/v_app [°/m]"],
+    p1 = plot(sl.time, delayed_steering, sl.var_15./sl.v_app; 
+              ylabels=["delayed_steering", "turnrate/v_app [°/m]"],
               ylims=[(-0.6, 0.6), (-G_mean*0.6, G_mean*0.6)],
               fig="steering vs turnrate")
     p2 = plot(sl.time, G/G_mean; ylabel="G/G_mean [-]", fig="turnrate_law")
