@@ -12,7 +12,8 @@ options = ["bench = include(\"bench.jl\")",
            "reel_out_4p_torque_control = include(\"reel_out_4p_torque_control.jl\")",
            "simulate_simple = include(\"simulate_simple.jl\")",
            "simulate_steering = include(\"simulate_steering.jl\")",
-           "steering_test = include(\"steering_test.jl\")",
+           "steering_test_1p = include(\"steering_test_1p.jl\")",
+           "steering_test_4p = include(\"steering_test_4p.jl\")",
            "simple_3l_speed_control = include(\"simple_3l_speed_control.jl\")",
            "quit"]
 
