@@ -2,7 +2,7 @@
 using Printf
 using KiteModels, KitePodModels, KiteUtils, Pkg
 
-set = deepcopy(load_settings("system.yaml"))
+set = deepcopy(load_settings("system_v9.yaml"))
 
 set.abs_tol=0.00006
 set.rel_tol=0.000001
