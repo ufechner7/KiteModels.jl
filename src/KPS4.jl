@@ -329,15 +329,13 @@ Updates the vector s.forces of the first parameter.
     va_xy3 = va_3 - (va_3 ⋅ z) * z
     va_xy4 = va_4 - (va_4 ⋅ z) * z
 
+    alpha_2 = rad2deg(π - acos2(normalize(va_xz2) ⋅ x) - alpha_depower)     + s.set.alpha_zero
+    alpha_3 = rad2deg(π - acos2(normalize(va_xy3) ⋅ x) + rel_steering * s.ks) + s.set.alpha_ztip
+    alpha_4 = rad2deg(π - acos2(normalize(va_xy4) ⋅ x) - rel_steering * s.ks) + s.set.alpha_ztip
+
     if s.set.version == 3
-        alpha_2 = rad2deg(π/2 + asin2(normalize(va_xz2) ⋅ x) - alpha_depower)     + s.set.alpha_zero
-        alpha_3 = rad2deg(π/2 + asin2(normalize(va_xy3) ⋅ x) + rel_steering * s.ks) + s.set.alpha_ztip
-        alpha_4 = rad2deg(π/2 + asin2(normalize(va_xy4) ⋅ x) - rel_steering * s.ks) + s.set.alpha_ztip
         drag_corr = 1.0
     else
-        alpha_2 = rad2deg(π - acos2(normalize(va_xz2) ⋅ x) - alpha_depower)     + s.set.alpha_zero
-        alpha_3 = rad2deg(π - acos2(normalize(va_xy3) ⋅ x) + rel_steering * s.ks) + s.set.alpha_ztip
-        alpha_4 = rad2deg(π - acos2(normalize(va_xy4) ⋅ x) - rel_steering * s.ks) + s.set.alpha_ztip
         drag_corr = DRAG_CORR
     end
 
