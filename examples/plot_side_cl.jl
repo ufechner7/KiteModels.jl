@@ -9,9 +9,10 @@ set.rel_tol=0.00001
 set.elevation = 69.4
 set.v_steering = 0.2*6
 set.steering_gain = 10.0
+set.sample_freq = 50
 
 # the following values can be changed to match your interest
-dt = 0.05
+dt = 0.02
 set.solver="DFBDF" # IDA or DFBDF
 STEPS = 100
 PLOT = true
@@ -54,7 +55,7 @@ function simulate(integrator, steps, steering; plot=false)
         end
     end
     set_depower_steering(kps4.kcu, kps4.depower, steering)
-    for i in 1:5
+    for i in 1:50
         KiteModels.next_step!(kps4, integrator; set_speed=0, dt)
         iter += kps4.iter
     end
