@@ -8,7 +8,7 @@ set.abs_tol=0.0006
 set.rel_tol=0.00001
 set.elevation = 69.4
 set.v_steering = 0.2*6
-# set.steering_gain = 10.0
+set.steering_gain = 10.0
 
 # the following values can be changed to match your interest
 dt = 0.05
@@ -58,7 +58,7 @@ function simulate(integrator, steps, steering; plot=false)
         KiteModels.next_step!(kps4, integrator; set_speed=0, dt)
         iter += kps4.iter
     end
-    kps4.side_cl, steering
+    kps4.side_cl, kps4.steering
 end
 SET_STEERING = -0.7:0.02:0.7
 STEERING = zeros(length(SET_STEERING))
@@ -75,7 +75,7 @@ end
 #          ylabel="side lift coefficient [-]", fig="Side lift coefficient vs steering")
 # display(p)
 p2 = plot(SET_STEERING, SIDE_CL*(set.rel_side_area/100); xlabel="set_steering [-]", 
-         ylabel="side force coefficient [-]", fig="Side force coefficient vs steering")
+         ylabel="side force coefficient [-]", fig="Side force coefficient vs set_steering")
 display(p2)
 p3 = plot(STEERING, SIDE_CL*(set.rel_side_area/100); xlabel="steering [-]", 
          ylabel="side force coefficient [-]", fig="Side force coefficient vs steering")
