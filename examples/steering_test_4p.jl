@@ -135,7 +135,7 @@ function plot_steering_vs_turn_rate()
     end
     G_mean = mean(filter(!isnan, G))
     G_std = std(filter(!isnan, G))
-    println("mean turnrate_law factor: $(G_mean) ± $(G_std/G_mean*100) %")
+    println("mean turnrate_law factor: $(round(G_mean, digits=3)) ± $(round(G_std/G_mean*100, digits=2)) %")
     p1 = plot(sl.time, delayed_steering, sl.var_15./sl.v_app; 
               ylabels=["delayed_steering", "turnrate/v_app [°/m]"],
               ylims=[(-0.6, 0.6), (-G_mean*0.6, G_mean*0.6)],
