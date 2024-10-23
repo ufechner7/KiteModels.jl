@@ -1,5 +1,5 @@
 # Changelog
-### KiteModels v0.6.8
+### KiteModels v0.6.8 - 2024-10-23
 #### Changed
 - the sign of the steering signal was changed. Now, a positive steering signal causes a positive turn rate.
   The turn rate is the derivative of the heading angle.
