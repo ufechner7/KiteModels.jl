@@ -9,6 +9,7 @@ set.rel_tol=0.000001
 set.v_wind = 12
 set.elevation = 69.4
 set.l_tether = 200
+set.depower = 38 # 38%, fully powered kite
 # set.kcu_mass = 8.4
 # set.v_steering = 0.2*6
 # set.steering_gain = 10.0
@@ -80,7 +81,6 @@ function simulate(integrator, steps; plot=false)
         KiteModels.next_step!(kps4, integrator; set_speed=0, dt)
         iter += kps4.iter
         sys_state = SysState(kps4)
-        sys_state.var_16 = get_steering(kps4.kcu)/kps4.set.cs_4p
         sys_state.var_15 = rad2deg(heading - last_heading) / dt
         log!(logger, sys_state)
         
@@ -124,9 +124,9 @@ function plot_steering_vs_turn_rate()
     psi = rad2deg.(wrap2pi.(sl.heading))
 
     # p2=plot(sl.time, sl.v_app; ylabel="v_app [m/s]", fig="v_app")
-    delta = delay(sl.var_16, sl.var_15./sl.v_app)
+    delta = delay(sl.steering, sl.var_15./sl.v_app)
     println("delay of turnrate: $(delta*dt) s")
-    delayed_steering = shift_vector(sl.var_16, delta)    
+    delayed_steering = shift_vector(sl.steering, delta)    
     G = sl.var_15./sl.v_app./delayed_steering
     for (i, g) in enumerate(G)
         if abs(delayed_steering[i]) < 0.1
