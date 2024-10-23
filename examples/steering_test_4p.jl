@@ -80,7 +80,7 @@ function simulate(integrator, steps; plot=false)
         KiteModels.next_step!(kps4, integrator; set_speed=0, dt)
         iter += kps4.iter
         sys_state = SysState(kps4)
-        sys_state.var_16 = get_steering(kps4.kcu)
+        sys_state.var_16 = get_steering(kps4.kcu)/kps4.set.cs_4p
         sys_state.var_15 = rad2deg(heading - last_heading) / dt
         log!(logger, sys_state)
         

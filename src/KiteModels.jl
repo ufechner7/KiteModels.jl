@@ -438,7 +438,7 @@ function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
     ss.l_tether = s.l_tether
     ss.v_reelout = s.v_reel_out
     ss.depower = s.depower
-    ss.steering = s.steering
+    ss.steering = s.steering/s.set.cs_4p
     ss.vel_kite .= s.vel_kite
     nothing
 end
@@ -472,7 +472,7 @@ function SysState(s::AKM, zoom=1.0)
     course = calc_course(s)
     v_app_norm = norm(s.v_apparent)
     t_sim = 0
-    KiteUtils.SysState{P}(s.t_0, t_sim, 0, 0, orient, elevation, azimuth, s.l_tether, s.v_reel_out, force, s.depower, s.steering, 
+    KiteUtils.SysState{P}(s.t_0, t_sim, 0, 0, orient, elevation, azimuth, s.l_tether, s.v_reel_out, force, s.depower, s.steering/s.set.cs_4p, 
                           heading, course, v_app_norm, s.vel_kite, X, Y, Z, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 end
 
