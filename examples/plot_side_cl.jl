@@ -10,6 +10,7 @@ set.elevation = 69.4
 set.v_steering = 0.2*6
 set.steering_gain = 10.0
 set.sample_freq = 50
+set.depower = 38.0
 
 # the following values can be changed to match your interest
 dt = 0.02
