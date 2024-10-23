@@ -5,6 +5,8 @@
   The turn rate is the derivative of the heading angle.
 - all orientation tests pass now (calculation of roll, pitch, yaw, azimuth_north, elevation, heading)
 - add example `steering_test_1p.jl`
+- improve `steering_test_4p.jl`, use fully powered kite now
+- the logged steering signal is now divided by `set.cs_4p`, because the new version of KitePodModels.jl multiplies the steering value with this constant
 - update documentation regarding `steering` and `heading`
 
 ### KiteModels v0.6.7 - 2024-10-20
