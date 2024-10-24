@@ -127,7 +127,7 @@ function plot_steering_vs_turn_rate()
     delta = delay(sl.steering, sl.var_15./sl.v_app)
     println("delay of turnrate: $(delta*dt) s")
     delayed_steering = shift_vector(sl.steering, delta)    
-    G = sl.var_15./sl.v_app./delayed_steering
+    G = sl.var_15./sl.v_app./delayed_steering # °/s / m/s = °/m
     for (i, g) in enumerate(G)
         if abs(delayed_steering[i]) < 0.1
             G[i] = NaN
