@@ -272,6 +272,44 @@ end
     @test isapprox(elevation,       0,      atol=1e-4, rtol=1e-4)
     @test isapprox(heading,         0,      atol=1e-4, rtol=1e-4)
 end
+
+# Kite is same place and orientation as base orientation, rotate the windframe x axis 45 degrees to the west"
+@testset "upwind_dir dir 45 azimuth wind" begin
+    s = create_kite_model((0, 0, 1), (-1, 0, 0), (0, -1, 0), # Orientation
+                          (0, 1, 0),                         # Pos
+                          45+180)                            # upwind_dir  
+    azimuth = rad2deg(calc_azimuth(s))
+    azimuth_north = rad2deg(calc_azimuth_north(s))
+
+    @test isapprox(azimuth,         45,      atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth_north,   0,      atol=1e-4, rtol=1e-4)
+end
+
+# Kite is same place and orientation as base orientation, rotate the windframe x axis 60 degrees to the west"
+@testset "upwind_dir dir 60 azimuth wind" begin
+    s = create_kite_model((0, 0, 1), (-1, 0, 0), (0, -1, 0), # Orientation
+                          (0, 1, 0),                         # Pos
+                          60+180)                            # upwind_dir  
+    azimuth = rad2deg(calc_azimuth(s))
+    azimuth_north = rad2deg(calc_azimuth_north(s))
+
+    @test isapprox(azimuth,         60,      atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth_north,   0,      atol=1e-4, rtol=1e-4)
+end
+
+# Kite is same place and orientation as base orientation, rotate the windframe x axis 60 degrees to the east"
+@testset "upwind_dir dir -60 azimuth wind" begin
+    s = create_kite_model((0, 0, 1), (-1, 0, 0), (0, -1, 0), # Orientation
+                          (0, 1, 0),                         # Pos
+                          -60+180)                           # upwind_dir  
+    azimuth = rad2deg(calc_azimuth(s))
+    azimuth_north = rad2deg(calc_azimuth_north(s))
+
+    @test isapprox(azimuth,         -60,      atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth_north,   0,      atol=1e-4, rtol=1e-4)
+
+end
 end
 nothing
     
+calc_azimuth
