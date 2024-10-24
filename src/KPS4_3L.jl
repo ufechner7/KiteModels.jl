@@ -647,7 +647,7 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
 
 
             e_te[:, i] ~ e_x * sin(seg_flap_angle[i]) + e_r[:, i] * cos(seg_flap_angle[i])
-            ram_force[i] ~ smooth_sign(deg2rad(s.set.alpha_zero) - seg_flap_angle[i]) *
+            ram_force[i] ~ smooth_sign_ϵ(deg2rad(s.set.alpha_zero) - seg_flap_angle[i]) *
                         rho * norm(v_a[:, i])^2 * seg_flap_height * s.set.radius * dα * (seg_flap_height/2) / (kite_length/4)
             te_force[i] ~ 0.5 * rho * (norm(v_a_xr[:, i]))^2 * s.set.radius * dα * kite_length * 
                                 sym_interp(s.c_te_interp, aoa[i], seg_flap_angle[i])
@@ -732,8 +732,8 @@ function calc_particle_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos1, pos
             eqs2 = [
                 eqs2
                 spring_force[j] ~ 
-                    (k  * (l_0 - norm1) - c1 * spring_vel) * unit_vector[j] * (1 + smooth_sign(norm1 - l_0)) / 2 +
-                    (k1 * (l_0 - norm1) -  c * spring_vel) * unit_vector[j] * (1 - smooth_sign(norm1 - l_0)) / 2
+                    (k  * (l_0 - norm1) - c1 * spring_vel) * unit_vector[j] * (1 + smooth_sign_ϵ(norm1 - l_0)) / 2 +
+                    (k1 * (l_0 - norm1) -  c * spring_vel) * unit_vector[j] * (1 - smooth_sign_ϵ(norm1 - l_0)) / 2
             ]
         end
     else
@@ -741,8 +741,8 @@ function calc_particle_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos1, pos
             eqs2 = [
                 eqs2
                 spring_force[j] ~
-                    ((k  * (l_0 - norm1) - c * spring_vel) * unit_vector[j] - c2 * perp_vel[j]) * (1 + smooth_sign(norm1 - l_0)) / 2 +
-                    ((k2 * (l_0 - norm1) - c * spring_vel) * unit_vector[j] - c2 * perp_vel[j]) * (1 - smooth_sign(norm1 - l_0)) / 2
+                    ((k  * (l_0 - norm1) - c * spring_vel) * unit_vector[j] - c2 * perp_vel[j]) * (1 + smooth_sign_ϵ(norm1 - l_0)) / 2 +
+                    ((k2 * (l_0 - norm1) - c * spring_vel) * unit_vector[j] - c2 * perp_vel[j]) * (1 - smooth_sign_ϵ(norm1 - l_0)) / 2
             ]
         end
     end
@@ -994,10 +994,10 @@ end
 
 # ====================== helper functions ====================================
 
-function smooth_sign(x; ϵ = 1e-3)
+function smooth_sign_ϵ(x; ϵ = 1e-3)
     return x / √(x^2 + ϵ^2)
 end
-@register_symbolic smooth_sign(x)
+@register_symbolic smooth_sign_ϵ(x)
 
 function settings_hash(st)
     fields = fieldnames(typeof(st))
