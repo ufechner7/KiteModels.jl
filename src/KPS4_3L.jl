@@ -156,6 +156,8 @@ $(TYPEDFIELDS)
     vel_kite::T =           zeros(S, 3)
     "Initial torque or speed set values"
     init_set_values::T =    zeros(S, 3)
+    "Smooth sign constant"
+    ϵ::S =      0.0
 
     # set_values_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
     v_wind_gnd_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
@@ -351,20 +353,24 @@ Returns:
 Nothing.
 """
 function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false, 
-                   torque_control=s.torque_control, init_set_values=zeros(3))
+                   torque_control=s.torque_control, init_set_values=zeros(3), ϵ=1e-3)
     clear!(s)
     
     dt = 1/s.set.sample_freq
     tspan   = (0.0, dt) 
     solver = QNDF(autodiff=false) # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
-    s.damping_coeff = damping_coeff
     new_inital_conditions =     (s.last_init_elevation != s.set.elevation || 
                                 s.last_init_tether_length != s.set.l_tether) || 
                                 !all(s.init_set_values .== init_set_values)
     s.set_hash = settings_hash(s.set)
-    change_control_mode = s.torque_control != torque_control
+    init_new_model = isnothing(s.prob) || 
+                    s.torque_control != torque_control || 
+                    s.last_set_hash != s.set_hash ||
+                    s.damping_coeff != damping_coeff ||
+                    s.ϵ != ϵ
     s.torque_control = torque_control
-    init_new_model = isnothing(s.prob) || change_control_mode || s.last_set_hash != s.set_hash
+    s.damping_coeff = damping_coeff
+    s.ϵ = ϵ
     init_new_pos = new_inital_conditions && !isnothing(s.get_pos)
 
     dt0 = 1.0
@@ -647,7 +653,7 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
 
 
             e_te[:, i] ~ e_x * sin(seg_flap_angle[i]) + e_r[:, i] * cos(seg_flap_angle[i])
-            ram_force[i] ~ smooth_sign_ϵ(deg2rad(s.set.alpha_zero) - seg_flap_angle[i]) *
+            ram_force[i] ~ smooth_sign_ϵ(deg2rad(s.set.alpha_zero) - seg_flap_angle[i]; s.ϵ) *
                         rho * norm(v_a[:, i])^2 * seg_flap_height * s.set.radius * dα * (seg_flap_height/2) / (kite_length/4)
             te_force[i] ~ 0.5 * rho * (norm(v_a_xr[:, i]))^2 * s.set.radius * dα * kite_length * 
                                 sym_interp(s.c_te_interp, aoa[i], seg_flap_angle[i])
@@ -732,8 +738,8 @@ function calc_particle_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos1, pos
             eqs2 = [
                 eqs2
                 spring_force[j] ~ 
-                    (k  * (l_0 - norm1) - c1 * spring_vel) * unit_vector[j] * (1 + smooth_sign_ϵ(norm1 - l_0)) / 2 +
-                    (k1 * (l_0 - norm1) -  c * spring_vel) * unit_vector[j] * (1 - smooth_sign_ϵ(norm1 - l_0)) / 2
+                    (k  * (l_0 - norm1) - c1 * spring_vel) * unit_vector[j] * (1 + smooth_sign_ϵ(norm1 - l_0; s.ϵ)) / 2 +
+                    (k1 * (l_0 - norm1) -  c * spring_vel) * unit_vector[j] * (1 - smooth_sign_ϵ(norm1 - l_0; s.ϵ)) / 2
             ]
         end
     else
@@ -741,8 +747,8 @@ function calc_particle_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos1, pos
             eqs2 = [
                 eqs2
                 spring_force[j] ~
-                    ((k  * (l_0 - norm1) - c * spring_vel) * unit_vector[j] - c2 * perp_vel[j]) * (1 + smooth_sign_ϵ(norm1 - l_0)) / 2 +
-                    ((k2 * (l_0 - norm1) - c * spring_vel) * unit_vector[j] - c2 * perp_vel[j]) * (1 - smooth_sign_ϵ(norm1 - l_0)) / 2
+                    ((k  * (l_0 - norm1) - c * spring_vel) * unit_vector[j] - c2 * perp_vel[j]) * (1 + smooth_sign_ϵ(norm1 - l_0; s.ϵ)) / 2 +
+                    ((k2 * (l_0 - norm1) - c * spring_vel) * unit_vector[j] - c2 * perp_vel[j]) * (1 - smooth_sign_ϵ(norm1 - l_0; s.ϵ)) / 2
             ]
         end
     end

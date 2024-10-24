@@ -24,7 +24,7 @@ s.set.l_tether = 50.0
 # s.set.damping = 473
 # s.set.elevation = 85
 println("init sim")
-@time KiteModels.init_sim!(s; prn=true, torque_control=false, init_set_values=zeros(3))
+@time KiteModels.init_sim!(s; prn=true, torque_control=false, init_set_values=zeros(3), ϵ=10.0)
 # @time next_step!(s; set_values=[0.0, 0.0, 0.0], dt=2.0)
 println("vel ", mean(norm.(s.integrator[s.simple_sys.force])))
 sys_state = KiteModels.SysState(s)
