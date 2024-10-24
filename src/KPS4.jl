@@ -332,6 +332,9 @@ Updates the vector s.forces of the first parameter.
     alpha_2 = rad2deg(π - acos2(normalize(va_xz2) ⋅ x) - alpha_depower)     + s.set.alpha_zero
     alpha_3 = rad2deg(π - acos2(normalize(va_xy3) ⋅ x) + rel_steering * s.ks) + s.set.alpha_ztip
     alpha_4 = rad2deg(π - acos2(normalize(va_xy4) ⋅ x) - rel_steering * s.ks) + s.set.alpha_ztip
+    s.alpha_2 = alpha_2
+    s.alpha_3 = alpha_3
+    s.alpha_4 = alpha_4
 
     if s.set.version == 3
         drag_corr = 1.0
