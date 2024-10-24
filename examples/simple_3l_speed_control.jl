@@ -8,6 +8,8 @@ if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
 end
 using ControlPlots
 
+# TODO: sometimes very bad sim
+
 set = deepcopy(load_settings("system_3l.yaml"))
 # set.elevation = 71
 dt = 0.05
@@ -24,7 +26,7 @@ s.set.l_tether = 50.0
 # s.set.damping = 473
 # s.set.elevation = 85
 println("init sim")
-@time KiteModels.init_sim!(s; prn=true, torque_control=false, init_set_values=zeros(3), ϵ=10.0)
+@time KiteModels.init_sim!(s; prn=true, torque_control=false, init_set_values=zeros(3), ϵ=0.1)
 # @time next_step!(s; set_values=[0.0, 0.0, 0.0], dt=2.0)
 println("vel ", mean(norm.(s.integrator[s.simple_sys.force])))
 sys_state = KiteModels.SysState(s)

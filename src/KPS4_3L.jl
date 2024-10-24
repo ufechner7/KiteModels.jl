@@ -829,7 +829,7 @@ Output:length
             eqs2
             height[i]           ~ max(0.0, 0.5 * (pos[:, p1][3] + pos[:, p2][3]))
             rho[i]              ~ calc_rho(s.am, height[i])
-            v_wind_tether[:, i] ~ calc_wind_factor(s.am, height[i]) * v_wind_gnd
+            v_wind_tether[:, i] ~ AtmosphericModels.calc_wind_factor(s.am, height[i], s.set.profile_law) * v_wind_gnd # TODO: go back to calc_wind_factor
         ]
 
         eqs2, force_eqs = calc_particle_forces_mtk!(s, eqs2, force_eqs, force, pos[:, p1], pos[:, p2], vel[:, p1], 
