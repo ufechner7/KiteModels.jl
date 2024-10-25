@@ -122,12 +122,13 @@ function plot_steering_vs_turn_rate()
     lg = load_log("tmp")
     sl = lg.syslog
     psi = rad2deg.(wrap2pi.(sl.heading))
+    psi_dot = sl.var_15 # deg/s
 
     # p2=plot(sl.time, sl.v_app; ylabel="v_app [m/s]", fig="v_app")
-    delta = delay(sl.steering, sl.var_15./sl.v_app)
+    delta = delay(sl.steering, psi_dot ./ sl.v_app)
     println("delay of turnrate: $(delta*dt) s")
     delayed_steering = shift_vector(sl.steering, delta)    
-    G = sl.var_15./sl.v_app./delayed_steering # °/s / m/s = °/m
+    G = psi_dot ./ sl.v_app ./ delayed_steering # °/s / m/s = °/m
     for (i, g) in enumerate(G)
         if abs(delayed_steering[i]) < 0.1
             G[i] = NaN
@@ -135,7 +136,8 @@ function plot_steering_vs_turn_rate()
     end
     G_mean = mean(filter(!isnan, G))
     G_std = std(filter(!isnan, G))
-    println("mean turnrate_law factor: $(round(G_mean, digits=3)) ± $(round(G_std/G_mean*100, digits=2)) %")
+    println("mean turnrate_law factor: $(round(G_mean, digits=3)) °/m ± $(round(G_std/G_mean*100, digits=2)) %")
+    println("mean turnrate_law factor: $(round(deg2rad(G_mean), digits=4)) rad/m ± $(round(G_std/G_mean*100, digits=2)) %")
     p1 = plot(sl.time, delayed_steering, sl.var_15./sl.v_app; 
               ylabels=["delayed_steering", "turnrate/v_app [°/m]"],
               ylims=[(-0.6, 0.6), (-G_mean*0.6, G_mean*0.6)],
@@ -148,3 +150,8 @@ save_log(logger, "tmp")
 if PLOT
     plot_steering_vs_turn_rate()
 end
+
+# delay of turnrate: 0.72 s
+# mean turnrate_law factor: 1.4 °/m ± 20.4 %
+# mean turnrate_law factor: 0.0244 rad/m ± 20.4 %
+# according to Antonio: 0.048 rad/m
