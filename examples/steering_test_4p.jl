@@ -144,14 +144,40 @@ function plot_steering_vs_turn_rate()
               fig="steering vs turnrate")
     p2 = plot(sl.time, G/G_mean; ylabel="G/G_mean [-]", fig="turnrate_law")
     display(p1); display(p2)
+    return sl.time, sl.v_app, deg2rad.(psi), sl.elevation, deg2rad.(psi_dot), delayed_steering
+end
+
+function calc_c1_c2(v_app, psi, beta, psi_dot, steering)
+    # c1 * v_app * u_s + c2/v_app * sin(psi) * cos(beta) - psi_dot = 0
+    # Ac=b where c=[c1,c2] is a vector of the unknown coefficients.
+    # A is a n×2 matrix whose columns are v_app*u_s and sin(ψ)cos(β)/vapp, and b is the vector psi_dot.
+    col1 = v_app .* steering
+    col2 = sin.(psi) .* cos.(beta) ./ v_app
+    A = [col1 col2]
+    # Then solve with c = A\b. That’ll get you a least-squares solution to the problem, 
+    # the one that minimizes sum res^2, using QR decomposition.
+    c = A \ psi_dot
+    return c[1], c[2]
+end
+
+function plot_turnrate_law(c1, c2, time, v_app, psi, beta, psi_dot, steering)
+    est_steering = psi_dot ./ (v_app * c1) .- c2 ./ (c1 .* v_app.^2) .* sin.(psi) .* cos.(beta)
+    p1 = plot(time, steering, est_steering; ylabels=["delayed_steering", "est_steering"], 
+              ylims=[(-0.6, 0.6), (-0.6, 0.6)],
+              fig="steering vs est_steering")
+    display(p1)
 end
 
 save_log(logger, "tmp")
-if PLOT
-    plot_steering_vs_turn_rate()
-end
+time, v_app, psi, beta, psi_dot, steering = plot_steering_vs_turn_rate()
+c1, c2 = calc_c1_c2(v_app, psi, beta, psi_dot, steering)
+println("Result: c1 = $(round(c1, digits=4)) c2 = $(round(c2, digits=3))")
+plot_turnrate_law(c1, c2, time, v_app, psi, beta, psi_dot, steering)
 
 # delay of turnrate: 0.72 s
 # mean turnrate_law factor: 1.4 °/m ± 20.4 %
 # mean turnrate_law factor: 0.0244 rad/m ± 20.4 %
 # according to Antonio: 0.048 rad/m
+# according to Oriol: c1 = -0.0481175408 c2 = 1.83900976
+
+
