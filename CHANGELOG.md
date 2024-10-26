@@ -1,4 +1,9 @@
 # Changelog
+### Unreleased
+- added tests for calc_azimuth(s::AKM), the azimuth in wind reference frame
+- re-enable logging of the angles of attack of the three plates
+- `steering_test_4p.jl` now calculates both `c1` and `c2` of the turn-rate law
+
 ### KiteModels v0.6.8 - 2024-10-23
 #### Changed
 - the sign of the steering signal was changed. Now, a positive steering signal causes a positive turn rate.
