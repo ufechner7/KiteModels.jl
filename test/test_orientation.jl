@@ -246,7 +246,7 @@ end
 
     @test isapprox(azimuth_north,   0,      atol=1e-4, rtol=1e-4)
     @test isapprox(elevation,       0,      atol=1e-4, rtol=1e-4)
-    @test_broken isapprox(heading,         0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(heading,         0,      atol=1e-4, rtol=1e-4) || isapprox(heading, 360, atol=1e-4, rtol=1e-4)
 end
 
 # Kite is same place and orientation as base orientation, rotate the windframe x axis 60 degrees to the west"
