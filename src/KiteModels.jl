@@ -197,13 +197,13 @@ Return the vector of the wind speed at the height of the kite.
 function v_wind_kite(s::AKM) s.v_wind end
 
 """
-    set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind, upwind_dir=0.0)
+    set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind; upwind_dir=0.0)
 
 Set the vector of the wind-velocity at the height of the kite. As parameter the height,
 the ground wind speed [m/s] and the upwind direction [radians] are needed.
 Is called by the function next_step!.
 """
-function set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2)
+function set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind; upwind_dir=-pi/2)
     if height < 6.0
         height = 6.0
     end
@@ -573,7 +573,7 @@ function next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing,
     s.sync_speed = set_speed
     s.set_torque = set_torque
     s.t_0 = integrator.t
-    set_v_wind_ground!(s, calc_height(s), v_wind_gnd, upwind_dir)
+    set_v_wind_ground!(s, calc_height(s), v_wind_gnd; upwind_dir)
     s.iter = 0
     if s.set.solver == "IDA"
         Sundials.step!(integrator, dt, true)
