@@ -902,6 +902,7 @@ function model!(s::KPS4_3L, pos_, vel_)
         winch_force(t)[1:3] # normalized winch forces
         heading(t)
         heading_y(t)
+        turn_rate_y(t)
         depower(t)
     end
     # Collect the arrays into variables
@@ -961,6 +962,7 @@ function model!(s::KPS4_3L, pos_, vel_)
         winch_force ~ [norm(force[i, 1:3]) for i in 1:3]
         heading ~ calc_heading(e_x, pos[:, s.num_E])
         heading_y ~ calc_heading_y(e_x)
+        turn_rate_y ~ D(heading_y) 
         depower ~ (flap_angle[1] + flap_angle[2]) / 2
     ]
 
