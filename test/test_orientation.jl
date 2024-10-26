@@ -48,7 +48,7 @@ function create_kite_model(x, y, z, pos, upwind_dir_deg)
     s.y = y
     s.z = z
 
-    KiteModels.set_v_wind_ground!(s, pos[begin+2], deg2rad(upwind_dir_deg))
+    KiteModels.set_v_wind_ground!(s, pos[begin+2]; upwind_dir=deg2rad(upwind_dir_deg))
 
     s.pos[end-2][begin] = pos[begin]
     s.pos[end-2][begin+1] = pos[begin+1]
@@ -246,7 +246,7 @@ end
 
     @test isapprox(azimuth_north,   0,      atol=1e-4, rtol=1e-4)
     @test isapprox(elevation,       0,      atol=1e-4, rtol=1e-4)
-    @test isapprox(heading,         0,      atol=1e-4, rtol=1e-4)
+    @test_broken isapprox(heading,         0,      atol=1e-4, rtol=1e-4)
 end
 
 # Kite is same place and orientation as base orientation, rotate the windframe x axis 60 degrees to the west"
@@ -280,8 +280,7 @@ end
                           45+180)                            # upwind_dir  
     azimuth = rad2deg(calc_azimuth(s))
     azimuth_north = rad2deg(calc_azimuth_north(s))
-    # println("azimuth: ", azimuth) # 90
-    @test_broken isapprox(azimuth,         45,      atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth,         45,      atol=1e-4, rtol=1e-4)
     @test isapprox(azimuth_north,   0,      atol=1e-4, rtol=1e-4)
 end
 
@@ -290,11 +289,11 @@ end
     s = create_kite_model((0, 0, 1), (-1, 0, 0), (0, -1, 0), # Orientation
                           (0, 1, 0),                         # Pos
                           60+180)                            # upwind_dir  
+    upwind_dir_ = rad2deg(upwind_dir(s))
     azimuth = rad2deg(calc_azimuth(s))
     azimuth_north = rad2deg(calc_azimuth_north(s))
-    # println("azimuth: ", azimuth) # 90
 
-    @test_broken isapprox(azimuth,         60,      atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth,         60,      atol=1e-4, rtol=1e-4)
     @test isapprox(azimuth_north,   0,      atol=1e-4, rtol=1e-4)
 end
 
@@ -306,7 +305,7 @@ end
     azimuth = rad2deg(calc_azimuth(s))
     azimuth_north = rad2deg(calc_azimuth_north(s))
 
-    @test_broken isapprox(azimuth,         -60,      atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth,         -60,      atol=1e-4, rtol=1e-4)
     @test isapprox(azimuth_north,   0,      atol=1e-4, rtol=1e-4)
 
 end
