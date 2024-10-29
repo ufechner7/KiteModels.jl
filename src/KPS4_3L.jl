@@ -829,7 +829,7 @@ Output:length
             eqs2
             height[i]           ~ max(0.0, 0.5 * (pos[:, p1][3] + pos[:, p2][3]))
             rho[i]              ~ calc_rho(s.am, height[i])
-            v_wind_tether[:, i] ~ AtmosphericModels.calc_wind_factor(s.am, height[i], s.set.profile_law) * v_wind_gnd # TODO: go back to calc_wind_factor
+            v_wind_tether[:, i] ~ AtmosphericModels.calc_wind_factor(s.am, height[i], s.set.profile_law) * v_wind_gnd
         ]
 
         eqs2, force_eqs = calc_particle_forces_mtk!(s, eqs2, force_eqs, force, pos[:, p1], pos[:, p2], vel[:, p1], 
@@ -904,6 +904,7 @@ function model!(s::KPS4_3L, pos_, vel_)
         heading_y(t)
         turn_rate_y(t)
         depower(t)
+        depower_vel(t)
     end
     # Collect the arrays into variables
     pos = collect(pos)
@@ -964,6 +965,7 @@ function model!(s::KPS4_3L, pos_, vel_)
         heading_y ~ calc_heading_y(e_x)
         turn_rate_y ~ D(heading_y) 
         depower ~ (flap_angle[1] + flap_angle[2]) / 2
+        depower_vel ~ D(depower)
     ]
 
     eqs2, force_eqs = calc_aero_forces_mtk!(s, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, E_C, rho_kite, v_wind, flap_angle)
