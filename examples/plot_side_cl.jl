@@ -56,7 +56,7 @@ function simulate(integrator, steps, steering; plot=false)
         end
     end
     set_depower_steering(kps4.kcu, kps4.depower, steering)
-    for i in 1:50
+    for i in 1:70
         KiteModels.next_step!(kps4, integrator; set_speed=0, dt)
         iter += kps4.iter
     end
@@ -67,7 +67,7 @@ STEERING = zeros(length(SET_STEERING))
 SIDE_CL  = zeros(length(SET_STEERING))
 for (i, set_steering) in pairs(SET_STEERING)
     local side_cl, integrator
-    integrator = KiteModels.init_sim!(kps4;  delta=0.0, stiffness_factor=1, prn=STATISTIC)
+    integrator = KiteModels.init_sim!(kps4;  delta=0.0, stiffness_factor=0.6, prn=STATISTIC)
     side_cl, steering = simulate(integrator, STEPS, set_steering, plot=false)
     SIDE_CL[i] = side_cl
     STEERING[i] = steering
