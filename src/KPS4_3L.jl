@@ -111,7 +111,7 @@ $(TYPEDFIELDS)
     "air density at the height of the kite"
     rho::S =               0.0
     "multiplier for the damping of all movement"
-    damping_coeff::S =  0.0
+    damping_coeff::S =  50.0
     "current masses, depending on the total tether length"
     masses::MVector{P, S}         = zeros(P)
     "vector of the springs, defined as struct"
@@ -157,7 +157,9 @@ $(TYPEDFIELDS)
     "Initial torque or speed set values"
     init_set_values::T =    zeros(S, 3)
     "Smooth sign constant"
-    ϵ::S =      0.0
+    ϵ::S =      1e-3
+    "Relative damping for flaps"
+    flap_damping::S     = 0.75
 
     # set_values_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
     v_wind_gnd_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
@@ -352,8 +354,8 @@ Parameters:
 Returns:
 Nothing.
 """
-function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false, 
-                   torque_control=s.torque_control, init_set_values=zeros(3), ϵ=1e-3)
+function init_sim!(s::KPS4_3L; damping_coeff=s.damping_coeff, prn=false, 
+                   torque_control=s.torque_control, init_set_values=s.init_set_values, ϵ=s.ϵ, flap_damping=s.flap_damping)
     clear!(s)
     
     dt = 1/s.set.sample_freq
@@ -367,10 +369,12 @@ function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false,
                     s.torque_control != torque_control || 
                     s.last_set_hash != s.set_hash ||
                     s.damping_coeff != damping_coeff ||
-                    s.ϵ != ϵ
+                    s.ϵ != ϵ ||
+                    s.flap_damping != flap_damping
     s.torque_control = torque_control
     s.damping_coeff = damping_coeff
     s.ϵ = ϵ
+    s.flap_damping = flap_damping
     init_new_pos = new_inital_conditions && !isnothing(s.get_pos)
 
     dt0 = 1.0
@@ -996,9 +1000,9 @@ function model!(s::KPS4_3L, pos_, vel_)
         eqs2
         vcat(force_eqs[:, s.num_flap_C])
         vcat(force_eqs[:, s.num_flap_D])
-        flap_acc[1] ~ ((force[:, s.num_flap_C] + [0.0, 0.0, -G_EARTH]) ⋅ e_te_C - s.damping * 0.25 * flap_vel[1]) * # TODO: add turning drag instead of damping
+        flap_acc[1] ~ ((force[:, s.num_flap_C] + [0.0, 0.0, -G_EARTH]) ⋅ e_te_C - s.damping * s.flap_damping * flap_vel[1]) * # TODO: add turning drag instead of damping
                     flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - (damping_coeff*200) * flap_vel[1]
-        flap_acc[2] ~ ((force[:, s.num_flap_D] + [0.0, 0.0, -G_EARTH]) ⋅ e_te_D - s.damping * 0.25 * flap_vel[2]) * 
+        flap_acc[2] ~ ((force[:, s.num_flap_D] + [0.0, 0.0, -G_EARTH]) ⋅ e_te_D - s.damping * s.flap_damping * flap_vel[2]) * 
                     flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - (damping_coeff*200) * flap_vel[2]
     ]
 
