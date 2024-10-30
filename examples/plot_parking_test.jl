@@ -33,7 +33,7 @@ set.rel_tol=0.00001
 # the following values can be changed to match your interest
 dt = 0.05
 set.solver="DFBDF" # IDA or DFBDF
-STEPS = 740
+STEPS = 600# 740
 PLOT = true
 PRINT = true
 STATISTIC = false
@@ -106,7 +106,7 @@ for depower in DEPOWER
 
     kcu::KCU = KCU(set)
     kps4::KPS4 = KPS4(kcu)
-    set.v_wind = V_WIND_200[i] / 1.348881340489221 # * calc_wind_factor(kps4.am, HEIGHT[i])/1.348881340489221
+    set.v_wind = V_WIND_200[i] / 1.348881340489221 * calc_wind_factor(kps4.am, HEIGHT[i])/1.348881340489221
     integrator = KiteModels.init_sim!(kps4; delta=0.001*0, stiffness_factor=1, prn=STATISTIC)
     if ! isnothing(integrator)
         try
