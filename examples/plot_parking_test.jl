@@ -33,12 +33,10 @@ set.rel_tol=0.00001
 # the following values can be changed to match your interest
 dt = 0.05
 set.solver="DFBDF" # IDA or DFBDF
-STEPS = 680
+STEPS = 740
 PLOT = true
 PRINT = true
 STATISTIC = false
-
-# DEPOWER = [0.236, 0.28, 0.32, 0.36] # for hyra20 kite
 # end of user parameter section #
 
 bridle_length = KiteModels.bridle_length(set)
@@ -104,11 +102,11 @@ for depower in DEPOWER
     DEP[i] = depower
     set.depower = 100*depower
     
-    # set.depower_gain = 5
+    set.depower_gain = 5
 
     kcu::KCU = KCU(set)
     kps4::KPS4 = KPS4(kcu)
-    set.v_wind = V_WIND_200[i] / 1.348881340489221 * calc_wind_factor(kps4.am, HEIGHT[i])/1.348881340489221
+    set.v_wind = V_WIND_200[i] / 1.348881340489221 # * calc_wind_factor(kps4.am, HEIGHT[i])/1.348881340489221
     integrator = KiteModels.init_sim!(kps4; delta=0.001*0, stiffness_factor=1, prn=STATISTIC)
     if ! isnothing(integrator)
         try
