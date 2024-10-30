@@ -180,6 +180,8 @@ end
 
 # display(plot(AOA, [CL, cl], xlabel="AOA [deg]", ylabel="CL", labels=["CL","cl"], fig="CL vs AOA"))
 # display(plot(AOA, [CD, cd], xlabel="AOA [deg]", ylabel="CD", labels=["CD","cd"], fig="CD vs AOA"))
-# display(plot(DEP, AOA, xlabel="Depower", ylabel="AOA [deg]", fig="AOA vs Depower"))
-display(plot(DEP,[ELEV, ELEV_MEASURED]; xlabel="depower", ylabel="elevation [°]", scatter=true, labels=["simulated", "measured"], fig="elevation vs depower"))
+display(plot(DEP, AOA, xlabel="Depower", ylabel="AOA [deg]", fig="AOA vs Depower"))
+display(plot(DEP,[(ELEV, nothing), (ELEV_MEASURED, 2*STD_ELEVATION)]; 
+        xlabel="depower", ylabel="elevation [°]", scatter=true, 
+        labels=["simulated", "measured ±2σ"], fig="elevation vs depower"))
 # display(plot(DEP,[AOA, 1.5*25.5 .- 2PITCH]; xlabel="depower", ylabel="aoa/pitch [°]", scatter=true, labels=["aoa", "38.25°-2pitch"], fig="pitch and aoa vs depower"))
