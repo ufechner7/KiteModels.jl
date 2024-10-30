@@ -874,15 +874,16 @@ function model!(s::KPS4_3L, pos_, vel_)
         v_wind[1:3] = s.v_wind
     end
     @variables begin
-        set_values(t)[1:3] = zeros(3)
-        pos(t)[1:3, 1:s.num_A] = pos_
+        set_values(t)[1:3] = zeros(3) # left right middle
+        pos(t)[1:3, 1:s.num_A] = pos_ # left right middle
         vel(t)[1:3, 1:s.num_A] = vel_
         acc(t)[1:3, 1:s.num_A]
-        flap_angle(t)[1:2]   = deg2rad(s.set.alpha_zero) # angle
+        flap_angle(t)[1:2]   = deg2rad(s.set.alpha_zero) # angle left right / C D
         flap_vel(t)[1:2]     = zeros(2) # angular vel
         flap_acc(t)[1:2]                # angular acc
         tether_length(t)[1:3]  = s.tether_lengths
         tether_vel(t)[1:3] = zeros(3)
+        tether_acc(t)[1:3]
         segment_length(t)[1:3]
         mass_tether_particle(t)[1:3]
         damping(t)[1:3]
@@ -922,15 +923,8 @@ function model!(s::KPS4_3L, pos_, vel_)
     [eqs1 = vcat(eqs1, D.(vel[:, i]) .~ acc[:, i]) for i in 4:s.num_flap_C-1]
     eqs1 = [eqs1; D(flap_vel)   ~ flap_acc]
     [eqs1 = vcat(eqs1, D.(vel[:, i]) .~ acc[:, i]) for i in s.num_E:s.num_A]
-
     eqs1 = vcat(eqs1, D.(tether_length) .~ tether_vel)
-    if s.torque_control
-        eqs1 = vcat(eqs1, D.(tether_vel) .~ [calc_acc_torque(s.motors[i], tether_vel[i], norm(force[:, (i-1) % 3 + 1]),
-                                                               set_values[i]) for i in 1:3])
-    else
-        eqs1 = vcat(eqs1, D.(tether_vel) .~ [calc_acc_speed(s.motors[i], tether_vel[i], norm(force[:,(i-1) % 3 + 1]), 
-                                                               set_values[i]) for i in 1:3])
-    end
+    eqs1 = vcat(eqs1, D.(tether_vel) .~ tether_acc)
 
     # Compute the masses and forces
     force_eqs = SizedArray{Tuple{3, s.num_A}, Symbolics.Equation}(undef)
@@ -960,7 +954,7 @@ function model!(s::KPS4_3L, pos_, vel_)
         E_C     ~ pos[:, s.num_E] + e_z * (-s.set.bridle_center_distance + s.set.radius) 
         rho_kite ~ calc_rho(s.am, pos[3,s.num_A])
         damping_coeff ~ max(1.0 - t, 0.0) * s.damping_coeff
-        winch_force ~ [norm(force[i, 1:3]) for i in 1:3]
+        winch_force ~ [norm(force[:, i]) for i in 1:3]
         heading ~ calc_heading(e_x, pos[:, s.num_E])
         heading_y ~ calc_heading_y(e_x)
         turn_rate_y ~ D(heading_y) 
@@ -969,9 +963,15 @@ function model!(s::KPS4_3L, pos_, vel_)
     ]
 
     eqs2, force_eqs = calc_aero_forces_mtk!(s, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, E_C, rho_kite, v_wind, flap_angle)
-    eqs2, force_eqs = inner_loop_mtk!(s, eqs2, force_eqs, t, force, pos, vel, segment_length, c_spring, damping, 
-                                      v_wind_gnd)
+    eqs2, force_eqs = inner_loop_mtk!(s, eqs2, force_eqs, t, force, pos, vel, segment_length, c_spring, damping, v_wind_gnd)
     
+    if s.torque_control
+        eqs2 = vcat(eqs2, tether_acc .~ [calc_acc_torque(s.motors[i], tether_vel[i], norm(force[:, (i-1)%3+1]),
+            set_values[i]) for i in 1:3])
+    else
+        eqs2 = vcat(eqs2, tether_acc .~ [calc_acc_speed(s.motors[i], tether_vel[i], norm(force[:, (i-1)%3+1]),
+            set_values[i]) for i in 1:3])
+    end
     for i in 1:3
         eqs2 = vcat(eqs2, vcat(force_eqs[:, i]))
         eqs2 = vcat(eqs2, acc[:, i] .~ 0)

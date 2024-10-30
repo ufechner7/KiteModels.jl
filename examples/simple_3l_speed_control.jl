@@ -13,7 +13,7 @@ using ControlPlots
 set = deepcopy(load_settings("system_3l.yaml"))
 # set.elevation = 71
 dt = 0.05
-total_time = 9.0
+total_time = 10.0
 
 steps = Int(round(total_time / dt))
 logger = Logger(3*set.segments + 6, steps)
@@ -26,7 +26,7 @@ s.set.l_tether = 50.0
 # s.set.damping = 473
 # s.set.elevation = 85
 println("init sim")
-@time KiteModels.init_sim!(s; prn=true, torque_control=false, init_set_values=zeros(3), ϵ=0.1)
+@time KiteModels.init_sim!(s; prn=true, torque_control=false, init_set_values=zeros(3))
 # @time next_step!(s; set_values=[0.0, 0.0, 0.0], dt=2.0)
 println("vel ", mean(norm.(s.integrator[s.simple_sys.force])))
 sys_state = KiteModels.SysState(s)
@@ -35,7 +35,7 @@ println("stepping")
 total_step_time = 0.0
 toc()
 steering = [0.0, 0.0, 0.0]
-amount = 0.6
+amount = 0.3
 sign = 1
 for i in 1:steps
     time = (i-1) * dt
@@ -58,18 +58,16 @@ for i in 1:steps
 
     sys_state.var_01 =  rad2deg(s.get_flap_angle(s.integrator)[1])
     sys_state.var_02 =  rad2deg(s.get_flap_angle(s.integrator)[2])
-    sys_state.var_14 =  rad2deg(s.integrator[s.simple_sys.depower])
-    sys_state.var_03 =  s.tether_lengths[1]
-    sys_state.var_04 =  s.tether_lengths[2]
-    sys_state.var_05 =  s.tether_lengths[3]
-    sys_state.var_06 =  rad2deg(s.integrator[s.simple_sys.seg_flap_angle[div(s.set.aero_surfaces, 2)]] - s.integrator[s.simple_sys.aoa[div(s.set.aero_surfaces, 2)]])
-    sys_state.var_07 =  rad2deg(s.integrator[s.simple_sys.flap_vel[1]])
-    sys_state.var_08 =  norm(s.get_D_C(s.integrator))
-    sys_state.var_09 =  norm(s.get_D_D(s.integrator))
-    sys_state.var_10 =  (s.integrator[s.simple_sys.vel[:, s.num_E-3]]) ⋅ s.e_z
-    sys_state.var_11 =  norm(s.integrator[s.simple_sys.vel[:, s.num_E-3]] .- (s.integrator[s.simple_sys.vel[:, s.num_E-3]]) ⋅ s.e_z)
-    sys_state.var_12 = s.integrator[s.simple_sys.turn_rate_y]
-    sys_state.var_13 = s.integrator[s.simple_sys.heading_y]
+    sys_state.var_03 =  rad2deg(s.integrator[s.simple_sys.depower])
+    sys_state.var_04 =  s.tether_lengths[1]
+    sys_state.var_05 =  s.tether_lengths[2]
+    sys_state.var_06 =  winch_force(s)[1]
+    sys_state.var_07 =  winch_force(s)[2]
+    sys_state.var_08 =  s.integrator[s.simple_sys.tether_vel[1]]
+    sys_state.var_09 =  s.integrator[s.simple_sys.tether_vel[2]]
+    sys_state.var_10 =  s.integrator[s.simple_sys.force[:, s.num_flap_C]] ⋅ s.integrator[s.simple_sys.e_te_C]
+    sys_state.var_12 =  s.integrator[s.simple_sys.turn_rate_y]
+    sys_state.var_13 =  s.integrator[s.simple_sys.heading_y]
 
     step_time = @elapsed next_step!(s; set_values=steering, dt=dt)
     if time > total_time/2
@@ -87,19 +85,19 @@ println("times realtime MTK model: ", times_reltime)
 # println("avg steptime MTK model:   ", total_step_time/steps)
 
 p=plotx(logger.time_vec, 
-            [logger.var_01_vec,  logger.var_02_vec, logger.var_14_vec], 
-            [logger.var_03_vec,  logger.var_04_vec], 
+            [logger.var_01_vec,  logger.var_02_vec, logger.var_03_vec], 
+            [logger.var_04_vec,  logger.var_05_vec], 
             [rad2deg.(logger.var_12_vec), rad2deg.(logger.var_13_vec)], 
             [logger.var_06_vec, logger.var_07_vec], 
             [logger.var_08_vec, logger.var_09_vec],
-            [logger.var_10_vec, logger.var_11_vec]; 
-        ylabels=["Steering", "Length", "heading [deg]", "Angle / Force", "Force", "Vel"], 
+            [logger.var_10_vec]; 
+        ylabels=["steering", "length", "heading [deg]", "force", "vel", "force"], 
         labels=[
-            ["Steering Pos C", "Steering Pos D", "Power angle"], 
-            ["Left tether", "Right tether"], 
+            ["steering pos C", "steering pos D", "power angle"], 
+            ["left tether", "right tether"], 
             ["turn_rate_y", "heading_y"],
-            ["Flap angle", "Flap vel"] ,
-            ["Drag C", "Drag D"],
-            ["Vel par", "Vel perp"]],
+            ["winch force left", "winch force right"] ,
+            ["tether vel left", "tether vel right"],
+            ["flap force"]],
         fig="Steering and heading MTK model")
 display(p)
