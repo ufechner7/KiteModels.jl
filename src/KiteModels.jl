@@ -548,7 +548,7 @@ end
     next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2, 
                dt=1/s.set.sample_freq)
 
-Calculates the next simulation step.
+Calculates the next simulation step. Either `set_speed` or `set_torque` must be provided.
 
 Parameters:
 - s:            an instance of an abstract kite model
@@ -559,8 +559,6 @@ Parameters:
 - `upwind_dir`: upwind direction in radians, the direction the wind is coming from. Zero is at north; 
                 clockwise positive. Default: -pi/2, wind from west.
 - dt:           time step in seconds
-
-Either a value for `set_speed` or for `set_torque` required.
 
 Returns:
 The end time of the time step in seconds.
