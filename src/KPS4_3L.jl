@@ -563,7 +563,7 @@ Parameters:
 
 Updates the vector s.forces of the first parameter.
 """
-function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, E_C, rho, v_wind, flap_angle)
+function calc_aero_forces!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, E_C, rho, v_wind, flap_angle)
     n = s.set.aero_surfaces
     @variables begin
         v_cx(t)[1:3]
@@ -723,7 +723,7 @@ Calculate the drag force and spring force of the tether segment, defined by the 
 and distribute it equally on the two particles, that are attached to the segment.
 The result is stored in the array s.forces. 
 """
-function calc_particle_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos1, pos2, vel1, vel2, length, c_spring, 
+function calc_particle_forces!(s::KPS4_3L, eqs2, force_eqs, force, pos1, pos2, vel1, vel2, length, c_spring, 
     damping, rho, i, l_0, k, c, segment, rel_vel, av_vel, norm1, unit_vector, k1, k2, c1, c2, spring_vel, perp_vel,
             spring_force, v_apparent, v_wind_tether, area, v_app_perp, half_drag_force)
     d_tether = s.set.d_tether/1000.0
@@ -788,7 +788,7 @@ end
 
 
 """
-    inner_loop_mtk!(s::KPS4_3L, eqs2, force_eqs, t, force, pos, vel, length, c_spring, damping, v_wind_gnd)
+    inner_loop!(s::KPS4_3L, eqs2, force_eqs, t, force, pos, vel, length, c_spring, damping, v_wind_gnd)
 
 Calculate the forces, acting on all particles.
 
@@ -796,7 +796,7 @@ Output:length
 - s.forces
 - s.v_wind_tether
 """
-@inline function inner_loop_mtk!(s::KPS4_3L, eqs2, force_eqs, t, force, pos, vel, length, c_spring, damping, v_wind_gnd)
+@inline function inner_loop!(s::KPS4_3L, eqs2, force_eqs, t, force, pos, vel, length, c_spring, damping, v_wind_gnd)
     @variables begin
         height(t)[eachindex(s.springs)]
         rho(t)[eachindex(s.springs)]
@@ -833,7 +833,7 @@ Output:length
             v_wind_tether[:, i] ~ calc_wind_factor(s.am, height[i]) * v_wind_gnd
         ]
 
-        eqs2, force_eqs = calc_particle_forces_mtk!(s, eqs2, force_eqs, force, pos[:, p1], pos[:, p2], vel[:, p1], 
+        eqs2, force_eqs = calc_particle_forces!(s, eqs2, force_eqs, force, pos[:, p1], pos[:, p2], vel[:, p1], 
                           vel[:, p2], length, c_spring, damping, rho[i], i, l_0[i], k[i], c[i], segment[:, i], 
                           rel_vel[:, i], av_vel[:, i], norm1[i], unit_vector[:, i], k1[i], k2[i], c1[i], c2[i], spring_vel[i],
                           perp_vel[:, i], spring_force[:, i], v_apparent[:, i], v_wind_tether[:, i], area[i], v_app_perp[:, i], 
@@ -966,8 +966,8 @@ function model!(s::KPS4_3L, pos_, vel_)
         damping_coeff ~ max(1.0 - t/2, 0.0) * s.damping_coeff
     ]
 
-    eqs2, force_eqs = calc_aero_forces_mtk!(s, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, E_C, rho_kite, v_wind, flap_angle)
-    eqs2, force_eqs = inner_loop_mtk!(s, eqs2, force_eqs, t, force, pos, vel, segment_length, c_spring, damping, 
+    eqs2, force_eqs = calc_aero_forces!(s, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, E_C, rho_kite, v_wind, flap_angle)
+    eqs2, force_eqs = inner_loop!(s, eqs2, force_eqs, t, force, pos, vel, segment_length, c_spring, damping, 
                                       v_wind_gnd)
     
     for i in 1:3
