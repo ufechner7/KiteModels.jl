@@ -102,10 +102,11 @@ for depower in DEPOWER
     DEP[i] = depower
     set.depower = 100*depower
     
-    set.depower_gain = 5
+    # set.depower_gain = 5
 
     kcu::KCU = KCU(set)
     kps4::KPS4 = KPS4(kcu)
+    set.elevation += 5
     set.v_wind = V_WIND_200[i] / 1.348881340489221 * calc_wind_factor(kps4.am, HEIGHT[i])/1.348881340489221
     integrator = KiteModels.init_sim!(kps4; delta=0.001*0, stiffness_factor=1, prn=STATISTIC)
     if ! isnothing(integrator)
@@ -129,7 +130,7 @@ for depower in DEPOWER
     elev = rad2deg(logger.elevation_vec[end])
     ELEV[i] = elev
     V_WIND_KITE[i] = norm(kps4.v_wind)
-
+    set.elevation -= 5
     if elev > 70
         set.elevation = elev - 4
     else
