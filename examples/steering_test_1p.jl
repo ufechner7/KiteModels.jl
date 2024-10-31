@@ -6,6 +6,7 @@ set = deepcopy(load_settings("system.yaml"))
 
 set.abs_tol=0.00006
 set.rel_tol=0.000001
+set.cs_4p = 1.0
 set.v_wind = 12
 set.elevation = 69.4
 set.l_tether = 200
