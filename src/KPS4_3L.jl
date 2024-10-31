@@ -916,7 +916,10 @@ function model!(s::KPS4_3L, pos_, vel_)
         heading_y(t)
         turn_rate_y(t)
         depower(t)
-        depower_vel(t)
+        flap_diff(t)
+        tether_diff(t)
+        flap_diff_vel(t)
+        tether_diff_vel(t)
     end
     # Collect the arrays into variables
     pos = collect(pos)
@@ -959,18 +962,20 @@ function model!(s::KPS4_3L, pos_, vel_)
         e_x     ~ cross(e_y, e_z)
         e_r_C   ~ (E_C - pos[:, s.num_C]) / norm(E_C - pos[:, s.num_C])
         e_r_D   ~ (E_C - pos[:, s.num_D]) / norm(E_C - pos[:, s.num_D])
-        e_te_C ~ e_x * sin(flap_angle[1]) + e_r_C * cos(flap_angle[1])
-        e_te_D ~ e_x * sin(flap_angle[2]) + e_r_D * cos(flap_angle[2])
-        # E_C is the center of the circle shape of the front view of the kite
-        E_C     ~ pos[:, s.num_E] + e_z * (-s.set.bridle_center_distance + s.set.radius) 
-        rho_kite ~ calc_rho(s.am, pos[3,s.num_A])
-        damping_coeff ~ max(1.0 - t, 0.0) * s.damping_coeff
-        winch_force ~ [norm(force[:, i]) for i in 1:3]
-        heading ~ calc_heading(e_x, pos[:, s.num_E])
-        heading_y ~ calc_heading_y(e_x)
-        turn_rate_y ~ D(heading_y) 
-        depower ~ (flap_angle[1] + flap_angle[2]) / 2
-        depower_vel ~ D(depower)
+        e_te_C  ~ e_x * sin(flap_angle[1]) + e_r_C * cos(flap_angle[1])
+        e_te_D  ~ e_x * sin(flap_angle[2]) + e_r_D * cos(flap_angle[2])
+        E_C     ~ pos[:, s.num_E] + e_z * (-s.set.bridle_center_distance + s.set.radius) # E_C is the center of the circle shape of the front view of the kite
+        rho_kite        ~ calc_rho(s.am, pos[3,s.num_A])
+        damping_coeff   ~ max(1.0 - t, 0.0) * s.damping_coeff
+        winch_force     ~ [norm(force[:, i]) for i in 1:3]
+        heading         ~ calc_heading(e_x, pos[:, s.num_E])
+        heading_y       ~ calc_heading_y(e_x)
+        turn_rate_y     ~ D(heading_y) 
+        depower             ~ (flap_angle[1] + flap_angle[2]) / 2
+        flap_diff           ~ flap_angle[2] - flap_angle[1]
+        flap_diff_vel       ~ flap_vel[2] - flap_vel[1]
+        tether_diff         ~ tether_length[2] - tether_length[1]
+        tether_diff_vel     ~ tether_vel[2] - tether_vel[1]
     ]
 
     eqs2, force_eqs = calc_aero_forces_mtk!(s, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, E_C, rho_kite, v_wind, flap_angle)

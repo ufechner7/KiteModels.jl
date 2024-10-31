@@ -22,7 +22,7 @@ if !@isdefined s; s = KPS4_3L(KCU(set)); end
 s.set = update_settings()
 s.set.abs_tol = 0.0006
 s.set.rel_tol = 0.001
-s.set.l_tether = 20.0
+s.set.l_tether = 21.0
 # s.set.damping = 473
 s.set.elevation = 87
 init_set_values = [-0.1, -0.1, -120.0]
@@ -45,11 +45,12 @@ for i in 1:steps
     # if time > 1.0 steering = [-1, -20, -200.0] end
     # if time > 5.0 steering = [-10, -1, -200.0] end
     steering .= -winch_force(s)*0.11
-    steering[3] -= 15.0
-    if (1.0 > time > 0.0)  steering[2] += 5.0 end
-    if (1.0 > time > 0.0)  steering[1] -= 5.0 end
-    if (10.0 > time > 1.0)  steering[2] -= 1.0 end
-    if (10.0 > time > 1.0)  steering[1] += 1.0 end
+    if (2.0 > time > 0.0)  steering[2] += 5.0 end
+    if (2.0 > time > 0.0)  steering[1] -= 5.0 end
+    if (4.0 > time > 2.0)  steering[2] -= 1.0 end
+    if (4.0 > time > 2.0)  steering[1] += 1.0 end
+    if (10.0 > time > 4.0)  steering[2] -= 2.0 end
+    if (10.0 > time > 4.0)  steering[1] += 2.0 end
 
     # if time < 1.0
     #     steering[1] = 0.6
@@ -63,13 +64,13 @@ for i in 1:steps
     sys_state.var_03 =  rad2deg(s.integrator[s.simple_sys.depower])
     sys_state.var_04 =  s.tether_lengths[1]
     sys_state.var_05 =  s.tether_lengths[2]
-    sys_state.var_06 =  s.tether_lengths[2]
+    sys_state.var_06 =  s.tether_lengths[3]
     sys_state.var_07 =  s.integrator[s.simple_sys.turn_rate_y]
     sys_state.var_08 =  s.integrator[s.simple_sys.heading_y]
     sys_state.var_09 =  s.integrator[s.simple_sys.turn_rate_y] / (s.get_flap_angle(s.integrator)[2] - s.get_flap_angle(s.integrator)[1])
     sys_state.var_10 =  (s.integrator[s.simple_sys.flap_vel][2] - s.integrator[s.simple_sys.flap_vel][1])
-    sys_state.var_11 =  clamp((s.integrator[s.simple_sys.flap_vel][2] - s.integrator[s.simple_sys.flap_vel][1]) /
-                            (s.get_tether_vels(s.integrator)[2] - s.get_tether_vels(s.integrator)[1]) * 100, -10, 10)
+    sys_state.var_11 =  clamp((s.integrator[s.simple_sys.flap_vel][1] - s.integrator[s.simple_sys.flap_vel][2]) /
+                            (s.get_tether_vels(s.integrator)[1] - s.get_tether_vels(s.integrator)[2]) * 100, -20, 10)
 
     @show sys_state.var_11
 
