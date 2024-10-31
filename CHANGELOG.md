@@ -3,6 +3,9 @@
 - added tests for calc_azimuth(s::AKM), the azimuth in wind reference frame
 - re-enable logging of the angles of attack of the three plates
 - `steering_test_4p.jl` now calculates both `c1` and `c2` of the turn-rate law
+- the environment variable `NO_MTK` disables the pre-compilation of the `KPS4_3L` model
+  to save time during development
+- the script `menu2.jl` for model verification was added
 
 ### KiteModels v0.6.8 - 2024-10-23
 #### Changed
