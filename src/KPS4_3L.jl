@@ -361,7 +361,7 @@ function calc_heading(s::KPS4_3L)
 end
 
 """
-    init_sim!(s; damping_coeff=1.0, prn=false, torque_control=true)
+    init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false, torque_control=true)
 
 Initialises the integrator of the model.
 

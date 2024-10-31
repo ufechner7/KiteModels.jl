@@ -490,7 +490,7 @@ function calc_pre_tension(s::AKM)
 end
 
 """
-    init_sim!(s; t_end=1.0, stiffness_factor=0.035, delta=0.01, prn=false)
+    init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, delta=0.01, prn=false)
 
 Initialises the integrator of the model.
 
