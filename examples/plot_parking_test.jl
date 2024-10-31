@@ -33,7 +33,7 @@ set.rel_tol=0.00001
 # the following values can be changed to match your interest
 dt = 0.05
 set.solver="DFBDF" # IDA or DFBDF
-STEPS = 600# 740
+STEPS = 550# 740
 PLOT = true
 PRINT = true
 STATISTIC = false
@@ -96,7 +96,7 @@ elev = set.elevation
 i = 1
 for depower in DEPOWER
     global elev, i, kps4
-    local cl, cd, aoa, kcu
+    local cl, cd, aoa, kcu, integrator, logger, v_app
 
     logger = Logger(set.segments + 5, STEPS)
     DEP[i] = depower
