@@ -13,7 +13,7 @@ using ControlPlots
 set = deepcopy(load_settings("system_3l.yaml"))
 # set.elevation = 71
 dt = 0.05
-total_time = 6.0
+total_time = 10.0
 
 steps = Int(round(total_time / dt))
 logger = Logger(3*set.segments + 6, steps)
@@ -26,7 +26,7 @@ s.set.l_tether = 20.0
 # s.set.damping = 473
 s.set.elevation = 87
 init_set_values = [-0.1, -0.1, -120.0]
-@time KiteModels.init_sim!(s; prn=true, torque_control=true, init_set_values, ϵ=10.0, flap_damping=0.1)
+@time KiteModels.init_sim!(s; prn=true, torque_control=true, init_set_values, ϵ=1e-3, flap_damping=0.1)
 # @time next_step!(s; set_values=[0.0, 0.0, 0.0], dt=2.0)
 println("vel ", mean(norm.(s.integrator[s.simple_sys.force])))
 sys_state = KiteModels.SysState(s)
@@ -45,8 +45,12 @@ for i in 1:steps
     # if time > 1.0 steering = [-1, -20, -200.0] end
     # if time > 5.0 steering = [-10, -1, -200.0] end
     steering .= -winch_force(s)*0.11
-    steering[2] += 5.0
-    steering[1] -= 5.0
+    steering[3] -= 15.0
+    if (1.0 > time > 0.0)  steering[2] += 5.0 end
+    if (1.0 > time > 0.0)  steering[1] -= 5.0 end
+    if (10.0 > time > 1.0)  steering[2] -= 1.0 end
+    if (10.0 > time > 1.0)  steering[1] += 1.0 end
+
     # if time < 1.0
     #     steering[1] = 0.6
     #     steering[2] = -0.6
@@ -59,14 +63,15 @@ for i in 1:steps
     sys_state.var_03 =  rad2deg(s.integrator[s.simple_sys.depower])
     sys_state.var_04 =  s.tether_lengths[1]
     sys_state.var_05 =  s.tether_lengths[2]
-    sys_state.var_11 =  s.tether_lengths[3]
-    sys_state.var_06 =  winch_force(s)[1]
-    sys_state.var_07 =  winch_force(s)[2]
-    sys_state.var_08 =  s.integrator[s.simple_sys.tether_vel[1]]
-    sys_state.var_09 =  s.integrator[s.simple_sys.tether_vel[2]]
-    sys_state.var_10 =  s.integrator[s.simple_sys.flap_acc[1]]
-    sys_state.var_12 =  s.integrator[s.simple_sys.turn_rate_y]
-    sys_state.var_13 =  s.integrator[s.simple_sys.heading_y]
+    sys_state.var_06 =  s.tether_lengths[2]
+    sys_state.var_07 =  s.integrator[s.simple_sys.turn_rate_y]
+    sys_state.var_08 =  s.integrator[s.simple_sys.heading_y]
+    sys_state.var_09 =  s.integrator[s.simple_sys.turn_rate_y] / (s.get_flap_angle(s.integrator)[2] - s.get_flap_angle(s.integrator)[1])
+    sys_state.var_10 =  (s.integrator[s.simple_sys.flap_vel][2] - s.integrator[s.simple_sys.flap_vel][1])
+    sys_state.var_11 =  clamp((s.integrator[s.simple_sys.flap_vel][2] - s.integrator[s.simple_sys.flap_vel][1]) /
+                            (s.get_tether_vels(s.integrator)[2] - s.get_tether_vels(s.integrator)[1]) * 100, -10, 10)
+
+    @show sys_state.var_11
 
     step_time = @elapsed next_step!(s; set_values=steering, dt=dt)
     if time > total_time/2
@@ -85,18 +90,16 @@ println("times realtime MTK model: ", times_reltime)
 
 p=plotx(logger.time_vec, 
             [logger.var_01_vec,  logger.var_02_vec, logger.var_03_vec], 
-            [logger.var_04_vec,  logger.var_05_vec, logger.var_11_vec], 
-            [rad2deg.(logger.var_12_vec), rad2deg.(logger.var_13_vec)], 
-            [logger.var_06_vec, logger.var_07_vec], 
-            [logger.var_08_vec, logger.var_09_vec],
+            [logger.var_04_vec,  logger.var_05_vec, logger.var_06_vec], 
+            [rad2deg.(logger.var_07_vec), rad2deg.(logger.var_08_vec)], 
+            [logger.var_09_vec, logger.var_11_vec],
             [logger.var_10_vec]; 
-        ylabels=["steering", "length", "heading [deg]", "force", "vel", "force"], 
+        ylabels=["steering", "length", "heading [deg]", "ratio", "distance"], 
         labels=[
             ["steering pos C", "steering pos D", "power angle"], 
             ["left tether", "right tether", "middle tether"], 
             ["turn_rate_y", "heading_y"],
-            ["winch force left", "winch force right"] ,
-            ["tether vel left", "tether vel right"],
-            ["flap vel"]],
+            ["turn_rate / flap difference", "diff' / tether_diff'"],
+            ["flap difference"]],
         fig="Steering and heading MTK model")
 display(p)

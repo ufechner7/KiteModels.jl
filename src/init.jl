@@ -134,7 +134,7 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
 end
 
 
-function init_pos_vel_acc(s::KPS4_3L; delta = 0.0, α = 30.0)
+function init_pos_vel_acc(s::KPS4_3L; delta = 0.0, α = 45.0)
     pos = zeros(SVector{s.num_A, KVec3})
     vel = zeros(SVector{s.num_A, KVec3})
     acc = zeros(SVector{s.num_A, KVec3})

@@ -379,9 +379,8 @@ function init_sim!(s::KPS4_3L; damping_coeff=s.damping_coeff, prn=false,
 
     dt0 = 1.0
     function stabilize_kite(s::KPS4_3L)
-        set_values = init_set_values
+        set_values = copy(init_set_values)
         for _ in 0:dt:dt0
-            @show set_values
             next_step!(s; set_values, dt) # step to get stable state
             torque_control && set_values .= -winch_force(s) * s.set.drum_radius
         end
