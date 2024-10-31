@@ -34,4 +34,7 @@ end
 ALPHA = -10:0.1:20
 plot_cl_cd(ALPHA)
 
-
+cl1 = kps4.calc_cl(-5)
+cl2 = kps4.calc_cl(12)
+dcl_over_dalpha= (cl2-cl1)/deg2rad(12+5)
+println("dCL/dalpha = ", round(dcl_over_dalpha, digits=3))
