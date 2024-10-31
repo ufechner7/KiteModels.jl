@@ -378,6 +378,14 @@ function init_sim!(s::KPS4_3L; damping_coeff=s.damping_coeff, prn=false,
     init_new_pos = new_inital_conditions && !isnothing(s.get_pos)
 
     dt0 = 1.0
+    function stabilize_kite(s::KPS4_3L)
+        set_values = init_set_values
+        for _ in 0:dt:dt0
+            @show set_values
+            next_step!(s; set_values, dt) # step to get stable state
+            torque_control && set_values .= -winch_force(s) * s.set.drum_radius
+        end
+    end
     if init_new_model
         if prn; println("initializing with new model and new pos"); end
         pos, vel = init_pos_vel(s)
@@ -385,7 +393,7 @@ function init_sim!(s::KPS4_3L; damping_coeff=s.damping_coeff, prn=false,
         (s.simple_sys, _) = structural_simplify(sys, (inputs, []); simplify=true)
         s.prob = ODEProblem(s.simple_sys, nothing, tspan; fully_determined=true)
         s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
-        next_step!(s; set_values=init_set_values, dt=dt0) # step to get stable state
+        stabilize_kite(s)
         s.u0 = deepcopy(s.integrator.u)
         OrdinaryDiffEqCore.reinit!(s.integrator, s.u0; t0=dt0, tf=dt0+dt)
     elseif init_new_pos
@@ -399,7 +407,7 @@ function init_sim!(s::KPS4_3L; damping_coeff=s.damping_coeff, prn=false,
                         )
         s.prob = ODEProblem(s.simple_sys, defaults, tspan)
         OrdinaryDiffEqCore.reinit!(s.integrator, s.prob.u0)
-        next_step!(s; set_values=init_set_values, dt=dt0) # step to get stable state
+        stabilize_kite(s)
         s.u0 = deepcopy(s.integrator.u)
         OrdinaryDiffEqCore.reinit!(s.integrator, s.u0; t0=dt0, tf=dt0+dt)
     else
@@ -712,8 +720,8 @@ function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, 
     # TODO: check if the right forces are added
     force_eqs[:,s.num_C]   .= (force[:,s.num_C]   .~ L_C + D_C) 
     force_eqs[:,s.num_D]   .= (force[:,s.num_D]   .~ L_D + D_D)
-    force_eqs[:,s.num_flap_C] .= (force[:,s.num_flap_C] .~ F_te_C)
-    force_eqs[:,s.num_flap_D] .= (force[:,s.num_flap_D] .~ F_te_D)
+    force_eqs[:,s.num_flap_C] .= (force[:,s.num_flap_C] .~ F_te_C + [0.0, 0.0, -G_EARTH*(s.set.mass/8)])
+    force_eqs[:,s.num_flap_D] .= (force[:,s.num_flap_D] .~ F_te_D + [0.0, 0.0, -G_EARTH*(s.set.mass/8)])
     return eqs2, force_eqs
 end
 
@@ -1000,9 +1008,9 @@ function model!(s::KPS4_3L, pos_, vel_)
         eqs2
         vcat(force_eqs[:, s.num_flap_C])
         vcat(force_eqs[:, s.num_flap_D])
-        flap_acc[1] ~ ((force[:, s.num_flap_C] + [0.0, 0.0, -G_EARTH]) ⋅ e_te_C - s.damping * s.flap_damping * flap_vel[1]) * # TODO: add turning drag instead of damping
+        flap_acc[1] ~ ((force[:, s.num_flap_C]) ⋅ e_te_C - s.damping * s.flap_damping * flap_vel[1]) * # TODO: add turning drag instead of damping
                     flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - (damping_coeff*200) * flap_vel[1]
-        flap_acc[2] ~ ((force[:, s.num_flap_D] + [0.0, 0.0, -G_EARTH]) ⋅ e_te_D - s.damping * s.flap_damping * flap_vel[2]) * 
+        flap_acc[2] ~ ((force[:, s.num_flap_D]) ⋅ e_te_D - s.damping * s.flap_damping * flap_vel[2]) * 
                     flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - (damping_coeff*200) * flap_vel[2]
     ]
 
