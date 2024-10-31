@@ -490,7 +490,7 @@ function calc_pre_tension(s::AKM)
 end
 
 """
-    init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, delta=0.01, prn=false)
+    init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.5, delta=0.001, prn=false)
 
 Initialises the integrator of the model.
 
@@ -500,12 +500,11 @@ Parameters:
 - stiffness_factor: factor applied to the tether stiffness during initialisation
 - delta: initial stretch of the tether during the steady state calculation
 - prn: if set to true, print the detailed solver results
-- steady_state_history: an instance of SteadyStateHistory containing old pairs of AKM objects and integrators
 
 Returns:
 An instance of a DAE integrator.
 """
-function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, delta=0.01, prn=false)
+function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.5, delta=0.001, prn=false)
     clear!(s)
     s.stiffness_factor = stiffness_factor
     
