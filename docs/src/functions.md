@@ -30,6 +30,8 @@ pos_kite
 calc_height
 calc_elevation
 calc_azimuth
+calc_azimuth_east
+calc_azimuth_north
 calc_heading
 calc_course
 cl_cd
