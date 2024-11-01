@@ -48,6 +48,10 @@ mkdir test
 cd test
 julia --project="."
 ```
+On Linux, make sure that Python3 and Matplotlib are installed:
+```
+sudo apt install python3-matplotlib
+```
 Then add KiteModels from  Julia's package manager, by typing:
 ```julia
 using Pkg
