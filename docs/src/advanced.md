@@ -3,11 +3,9 @@ CurrentModule = KiteModels
 ```
 # Advanced usage
 For advanced users it is suggested to install git, bash and vscode or vscodium in addition to Julia. vscode and vscodium both have a very good plugin for Julia support, see [https://www.julia-vscode.org](https://www.julia-vscode.org/).
-For Windows users, you can find some installation instructions here: [Julia on Windows](https://github.com/ufechner7/KiteViewer/blob/main/doc/Windows.md) .
+Installation instructions: [Julia and VSCode](https://ufechner7.github.io/2024/08/09/installing-julia-with-juliaup.html) .
 
 Whe using vscode, I do NOT use the Julia terminal provided by vscode, but the normal bash terminal which is also available in vscode by selecting **Terminal->New Terminal** From this terminal I start Julia with ```julia --project``` or a different command as explained below. This makes it easier to understand what happens and is also faster when you need to restart.
-
-For Ubuntu Linux I use the following ppa to install vscode and to keep it up-to-date: [https://www.ubuntuupdates.org/ppa/vscode](https://www.ubuntuupdates.org/ppa/vscode) .
 
 ## Creating a custom system image
 To reduce the startup time it is suggested to use a custom system image that contains all the packages you use on a daily base in compiled form.
@@ -104,29 +102,29 @@ Now leave Julia with the command ```exit()``` and then type:
 cd bin
 ./create_sys_image --update
 ```
-This will take about 6 min on a  i7-10510U CPU. You should now see a new file in the bin folder:
+This will take about 6 min on a  Ryzen 7950X CPU. You should now see a new file in the bin folder:
 ```
 ~/repos/test/bin$ ls -lah kps*
--rwxrwxr-x 1 ufechner ufechner 344M apr 18 18:23 kps-image-1.7.so
+-rwxrwxr-x 1 ufechner ufechner 723M apr 18 18:23 kps-image-1.10-main.so
 ```
 You can launch julia such that it makes use of this system image with the commands:
 ```bash
 cd ..
 ./bin/run_julia
 ```
-If you now run any of the examples the time-to-first-plot (TTFP) should be less than 25s:
+If you now run any of the examples the time-to-first-plot (TTFP) should be less than 10s:
 ```julia
 julia> @time include("examples/simulate_simple.jl")
-lift, drag  [N]: 597.61, 129.33
-Average number of callbacks per time step: 481.845
- 23.901076 seconds (63.42 M allocations: 12.686 GiB, 5.67% gc time, 70.62% compilation time)
+lift, drag  [N]: 597.47, 129.29
+Average number of callbacks per time step: 83.8866
+  9.370429 seconds (17.95 M allocations: 1.359 GiB, 4.26% gc time, 50.76% compilation time: 26% of which was recompilation)
 
 julia> 
 ```
-A second run of this command needs about 5.5 s which means the startup time (load and compilation time of the package and the libraries) has been reduced to about 18.4s.
+A second run of this command needs about 3.6 s which means the startup time (load and compilation time of the package and the libraries) has been reduced to about 5.77s.
 
-Without a system image the first time execution of the script "simulate_simple.jl" on the same computer is about 71 seconds
-while the time for the second execution is the same (5.5s). So now about 47s of time are saved after each restart.
+Without a system image the first time execution of the script "simulate_simple.jl" on the same computer is about 16.4 seconds
+while the time for the second execution is the same (3.6s). So now about 7s of time are saved after each restart.
 
 ## Hints for Developers
 ### Coding style
