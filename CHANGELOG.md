@@ -1,4 +1,10 @@
 # Changelog
+### KiteModels v0.6.10 2024-11-01
+- fixed the installation of the examples
+- updated the documentation
+- the package Rotations is now re-exported by KiteModels
+- reduce number of dependencies of the examples
+
 ### KiteModels v0.6.9 2024-11-01
 - added tests for calc_azimuth(s::AKM), the azimuth in wind reference frame
 - re-enable logging of the angles of attack of the three plates
