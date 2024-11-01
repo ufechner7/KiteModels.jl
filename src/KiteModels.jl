@@ -60,7 +60,7 @@ export init_sim!, reset_sim!, next_step!, init_pos_vel, init_pos, model!        
 export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, calc_orient_quat  # getters
 export calc_azimuth_north, calc_azimuth_east
 export winch_force, lift_drag, cl_cd, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
-export kite_ref_frame, orient_euler, spring_forces, upwind_dir
+export kite_ref_frame, orient_euler, spring_forces, upwind_dir, copy_model_settings
 import LinearAlgebra: norm
 
 set_zero_subnormals(true)       # required to avoid drastic slow down on Intel CPUs when numbers become very small
@@ -604,9 +604,31 @@ function copy_examples()
     copy_files("examples", readdir(src_path))
 end
 
+function copy_model_settings()
+    src_path = abspath(joinpath(dirname(pathof(KiteModels)), "..", "data"))
+    if src_path == abspath(DATA_PATH[1])
+        DATA_PATH[1] = joinpath(pwd(), "data")
+    end
+    cp(joinpath(src_path, "settings.yaml"), joinpath(DATA_PATH[1], "settings.yaml"), force=true)
+    cp(joinpath(src_path, "MH82.dat"), joinpath(DATA_PATH[1], "MH82.dat"), force=true)
+    cp(joinpath(src_path, "polars.bin"), joinpath(DATA_PATH[1], "polars.bin"), force=true)
+    cp(joinpath(src_path, "system.yaml"), joinpath(DATA_PATH[1], "system.yaml"), force=true)
+    cp(joinpath(src_path, "settings.yaml"), joinpath(DATA_PATH[1], "settings_3l.yaml"), force=true)
+    cp(joinpath(src_path, "system.yaml"), joinpath(DATA_PATH[1], "system_3l.yaml"), force=true)
+    chmod(joinpath(DATA_PATH[1], "settings.yaml"), 0o664)
+    chmod(joinpath(DATA_PATH[1], "MH82.dat"), 0o664)
+    chmod(joinpath(DATA_PATH[1], "polars.bin"), 0o664)
+    chmod(joinpath(DATA_PATH[1], "system.yaml"), 0o664)
+    chmod(joinpath(DATA_PATH[1], "settings_3l.yaml"), 0o664)
+    chmod(joinpath(DATA_PATH[1], "system_3l.yaml"), 0o664)
+    set_data_path(joinpath(pwd(), "data"))
+    println("Copied 5 files to $(DATA_PATH[1]) !")
+end
+
 function install_examples(add_packages=true)
     copy_examples()
     copy_settings()
+    copy_model_settings()
     if add_packages
         Pkg.add("KiteUtils")
         Pkg.add("KitePodModels")
