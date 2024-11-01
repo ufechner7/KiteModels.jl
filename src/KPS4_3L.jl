@@ -245,6 +245,7 @@ end
 # include(joinpath(@__DIR__, "CreatePolars.jl"))
 function KPS4_3L(kcu::KCU)
     set = kcu.set
+    @assert set.foil_file != "" "No foil file specified in settings."
     open(joinpath(dirname(get_data_path()), set.foil_file), "r") do f
         lines = readlines(f)
         if !endswith(chomp(lines[1]), "polars created")
