@@ -612,6 +612,8 @@ function install_examples(add_packages=true)
         Pkg.add("KitePodModels")
         Pkg.add("WinchModels")
         Pkg.add("ControlPlots")
+        Pkg.add("LaTeXStrings")
+        Pkg.add("StatsBase")
     end
 end
 
