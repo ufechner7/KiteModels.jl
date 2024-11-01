@@ -31,6 +31,7 @@ steering:
     k_ds:     1.5          # influence of the depower angle on the steering sensitivity
     delta_st: 0.02         # steering increment (when pressing RIGHT)
     max_steering: 16.834   # max. steering angle of the side planes for four point model [degrees]
+    cs_4p:  1.0            # correction factor for the steering coefficient of the four point model
 
 depower:
     alpha_d_max:    31.0   # max depower angle                            [deg]
