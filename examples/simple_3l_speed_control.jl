@@ -1,6 +1,5 @@
-using KiteModels, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK, LinearAlgebra, Timers, Statistics
+using KiteModels, LinearAlgebra, StatsBase
 using Base: summarysize
-tic()
 
 using Pkg
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
@@ -31,7 +30,6 @@ sys_state = KiteModels.SysState(s)
 
 println("stepping")
 total_step_time = 0.0
-toc()
 steering = [0.0, 0.0, 0.0]
 amount = 0.6
 sign = 1
