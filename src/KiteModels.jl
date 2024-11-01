@@ -620,7 +620,7 @@ function copy_model_settings()
     chmod(joinpath(dst_path, "settings_3l.yaml"), 0o664)
     chmod(joinpath(dst_path, "system_3l.yaml"), 0o664)
     set_data_path(joinpath(pwd(), "data"))
-    println("Copied 5 files to $(dst_path) !")
+    println("Copied 6 files to $(dst_path) !")
 end
 
 function install_examples(add_packages=true)
