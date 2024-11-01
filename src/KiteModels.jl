@@ -34,13 +34,14 @@ Scientific background: http://arxiv.org/abs/1406.6218 =#
 module KiteModels
 
 using PrecompileTools: @setup_workload, @compile_workload 
-using Dierckx, Interpolations, Serialization, StaticArrays, Rotations, LinearAlgebra, Parameters, NLsolve, 
+using Dierckx, Interpolations, Serialization, StaticArrays, LinearAlgebra, Parameters, NLsolve, 
       DocStringExtensions, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK
 import Sundials
 using Reexport, Pkg
 @reexport using KitePodModels
 @reexport using WinchModels
 @reexport using AtmosphericModels
+@reexport using Rotations
 import Base.zero
 import KiteUtils.calc_elevation
 import KiteUtils.calc_heading
@@ -607,7 +608,6 @@ function install_examples(add_packages=true)
     copy_examples()
     copy_settings()
     if add_packages
-        Pkg.add("Rotations")
         Pkg.add("KiteUtils")
         Pkg.add("KitePodModels")
         Pkg.add("WinchModels")
