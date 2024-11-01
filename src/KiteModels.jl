@@ -676,7 +676,9 @@ end
     # Putting some things in `@setup_workload` instead of `@compile_workload` can reduce the size of the
     # precompile file and potentially make loading faster.
     # list = [OtherType("hello"), OtherType("world!")]
-    # set_data_path("data")
+    println("path: ", dirname(pathof(@__MODULE__)))
+    path = dirname(pathof(@__MODULE__))
+    set_data_path(joinpath(path, "..", "data"))
 
     set = se("system.yaml")
     set.kcu_diameter = 0
