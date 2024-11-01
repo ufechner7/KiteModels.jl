@@ -1,5 +1,5 @@
 # Changelog
-### Unreleased
+### KiteModels v0.6.9 2024-11-01
 - added tests for calc_azimuth(s::AKM), the azimuth in wind reference frame
 - re-enable logging of the angles of attack of the three plates
 - `steering_test_4p.jl` now calculates both `c1` and `c2` of the turn-rate law
