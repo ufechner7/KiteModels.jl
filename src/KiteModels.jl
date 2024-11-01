@@ -606,9 +606,6 @@ end
 
 function copy_model_settings()
     src_path = abspath(joinpath(dirname(pathof(KiteModels)), "..", "data"))
-    if src_path == abspath(DATA_PATH[1])
-        DATA_PATH[1] = joinpath(pwd(), "data")
-    end
     cp(joinpath(src_path, "settings.yaml"), joinpath(DATA_PATH[1], "settings.yaml"), force=true)
     cp(joinpath(src_path, "MH82.dat"), joinpath(DATA_PATH[1], "MH82.dat"), force=true)
     cp(joinpath(src_path, "polars.bin"), joinpath(DATA_PATH[1], "polars.bin"), force=true)

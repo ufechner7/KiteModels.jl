@@ -7,6 +7,6 @@ cd /tmp/test
 export JULIA_DEPOT_PATH=/tmp/testdepot 
 mkdir test 
 cd test
-julia --project="." -e 'using Pkg; pkg"add KiteModels#main"')'
+julia --project="." -e 'using Pkg; pkg"add KiteModels#main"'
 julia --project -e 'using KiteModels; KiteModels.install_examples()'
 julia --project -e 'using KiteModels; include("examples/simple_3l_speed_control.jl")'
