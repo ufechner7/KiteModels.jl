@@ -2,7 +2,7 @@
 
 using Printf
 using Pkg
-using KiteModels, KitePodModels, KiteUtils, LinearAlgebra, Rotations
+using KiteModels, KitePodModels, KiteUtils, LinearAlgebra
 
 set = deepcopy(load_settings("system.yaml"))
 

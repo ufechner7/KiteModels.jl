@@ -1,6 +1,6 @@
 using Printf
 
-using KiteModels, KitePodModels, KiteUtils, Rotations
+using KiteModels, KitePodModels, KiteUtils
 
 set = deepcopy(load_settings("system.yaml"))
 
