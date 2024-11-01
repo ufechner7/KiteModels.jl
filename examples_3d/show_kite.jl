@@ -1,5 +1,5 @@
 # show a static kite for verification of roll, pitch and yaw
-# to run this script, use the following commands:
+# To run this script, use the following commands:
 # julia --project
 # include("examples_3d/show_kite.jl")
 using LinearAlgebra
