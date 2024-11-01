@@ -607,6 +607,7 @@ function install_examples(add_packages=true)
     copy_examples()
     copy_settings()
     if add_packages
+        Pkg.add("Rotations")
         Pkg.add("KiteUtils")
         Pkg.add("KitePodModels")
         Pkg.add("WinchModels")
