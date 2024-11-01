@@ -1,11 +1,11 @@
-using KiteModels, LinearAlgebra, StatsBase
+using KiteModels, LinearAlgebra
 using Base: summarysize
 
 using Pkg
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
     using TestEnv; TestEnv.activate()
 end
-using ControlPlots
+using ControlPlots, StatsBase
 
 set = deepcopy(load_settings("system_3l.yaml"))
 # set.elevation = 71
@@ -15,7 +15,7 @@ total_time = 9.0
 steps = Int(round(total_time / dt))
 logger = Logger(3*set.segments + 6, steps)
 
-if !@isdefined s; s = KPS4_3L(KCU(set)); end
+s::KPS4_3L = KPS4_3L(KCU(set))
 s.set = update_settings()
 s.set.abs_tol = 0.0006
 s.set.rel_tol = 0.001
