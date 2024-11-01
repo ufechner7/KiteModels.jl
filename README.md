@@ -16,6 +16,13 @@ This package is part of Julia Kite Power Tools, which consists of the following 
 <p align="center"><img src="./docs/src/kite_power_tools.png" width="500" /></p>
 
 ## News
+#### October 2024
+- the orientation is now represented with respect to the NED reference frame
+- azimuth is now calculated in wind reference frame. This allows it to handle changes of the wind direction
+  during flight correctly.
+- many unit tests added by a new contributor
+- many tests for model verification added; they can be accessed using the `menu2.jl` script
+- the documentation was improved
 #### August 2024
 - a new kite model, KPS3_3L was contributed. It uses three lines to the ground and three winches for steering a ram-air foil kite.
 - a first [ModelingToolkit](https://docs.sciml.ai/ModelingToolkit/stable/) based model was added, which shows a much better performance and easier to read code
