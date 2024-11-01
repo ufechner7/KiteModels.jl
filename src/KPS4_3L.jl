@@ -920,6 +920,7 @@ function model!(s::KPS4_3L, pos_, vel_)
         tether_diff(t)
         flap_diff_vel(t)
         tether_diff_vel(t)
+        set_diff(t)
     end
     # Collect the arrays into variables
     pos = collect(pos)
@@ -976,6 +977,7 @@ function model!(s::KPS4_3L, pos_, vel_)
         flap_diff_vel       ~ flap_vel[2] - flap_vel[1]
         tether_diff         ~ tether_length[2] - tether_length[1]
         tether_diff_vel     ~ tether_vel[2] - tether_vel[1]
+        set_diff            ~ set_values[2] - set_values[1]
     ]
 
     eqs2, force_eqs = calc_aero_forces_mtk!(s, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, E_C, rho_kite, v_wind, flap_angle)
