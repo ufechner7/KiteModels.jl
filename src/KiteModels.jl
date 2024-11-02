@@ -605,22 +605,12 @@ function copy_examples()
 end
 
 function copy_model_settings()
-    src_path = abspath(joinpath(dirname(pathof(KiteModels)), "..", "data"))
+    files = ["settings.yaml", "MH82.dat", "polars.bin", "system.yaml", "settings_3l.yaml", 
+             "system_3l.yaml"]
     dst_path = abspath(joinpath(pwd(), "data"))
-    cp(joinpath(src_path, "settings.yaml"), joinpath(dst_path, "settings.yaml"), force=true)
-    cp(joinpath(src_path, "MH82.dat"), joinpath(dst_path, "MH82.dat"), force=true)
-    cp(joinpath(src_path, "polars.bin"), joinpath(dst_path, "polars.bin"), force=true)
-    cp(joinpath(src_path, "system.yaml"), joinpath(dst_path, "system.yaml"), force=true)
-    cp(joinpath(src_path, "settings_3l.yaml"), joinpath(dst_path, "settings_3l.yaml"), force=true)
-    cp(joinpath(src_path, "system_3l.yaml"), joinpath(dst_path, "system_3l.yaml"), force=true)
-    chmod(joinpath(dst_path, "settings.yaml"), 0o664)
-    chmod(joinpath(dst_path, "MH82.dat"), 0o664)
-    chmod(joinpath(dst_path, "polars.bin"), 0o664)
-    chmod(joinpath(dst_path, "system.yaml"), 0o664)
-    chmod(joinpath(dst_path, "settings_3l.yaml"), 0o664)
-    chmod(joinpath(dst_path, "system_3l.yaml"), 0o664)
+    copy_files("data", files)
     set_data_path(joinpath(pwd(), "data"))
-    println("Copied 6 files to $(dst_path) !")
+    println("Copied $(length(files)) files to $(dst_path) !")
 end
 
 function install_examples(add_packages=true)
