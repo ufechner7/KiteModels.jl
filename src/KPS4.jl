@@ -579,7 +579,7 @@ function spring_forces(s::KPS4; prn=true)
     forces = zeros(SimFloat, s.set.segments+KITE_SPRINGS)
     for i in 1:s.set.segments
         forces[i] =  s.springs[i].c_spring * (norm(s.pos[i+1] - s.pos[i]) - s.segment_length) * s.stiffness_factor
-        if forces[i] > 4000.0 && prn
+        if forces[i] > s.set.max_force && prn
             println("Tether raptures for segment $i !")
         end
     end
