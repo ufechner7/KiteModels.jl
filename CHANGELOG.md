@@ -1,4 +1,8 @@
 # Changelog
+### Unreleased
+- fixed bug in spring_forces(), it used 4000N hardcoded max force
+- add example test_steady_state.jl
+
 ### KiteModels v0.6.10 2024-11-01
 - fixed the installation of the examples
 - updated the documentation
