@@ -916,6 +916,7 @@ function model!(s::KPS4_3L, pos_, vel_)
         heading_y(t)
         turn_rate_y(t)
         power_angle(t)
+        power_vel(t)
         flap_diff(t)
         tether_diff(t)
         flap_diff_vel(t)
@@ -973,6 +974,7 @@ function model!(s::KPS4_3L, pos_, vel_)
         heading_y       ~ calc_heading_y(e_x)
         turn_rate_y     ~ D(heading_y) 
         power_angle         ~ (flap_angle[1] + flap_angle[2]) / 2
+        power_vel           ~ (flap_vel[1] + flap_vel[2]) / 2
         flap_diff           ~ flap_angle[2] - flap_angle[1]
         flap_diff_vel       ~ flap_vel[2] - flap_vel[1]
         tether_diff         ~ tether_length[2] - tether_length[1]
