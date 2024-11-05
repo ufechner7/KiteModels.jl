@@ -61,7 +61,7 @@ for i in 1:steps
 
     sys_state.var_01 =  rad2deg(s.get_flap_angle(s.integrator)[1])
     sys_state.var_02 =  rad2deg(s.get_flap_angle(s.integrator)[2])
-    sys_state.var_03 =  rad2deg(s.integrator[s.simple_sys.depower])
+    sys_state.var_03 =  rad2deg(s.integrator[s.simple_sys.power_angle])
     sys_state.var_04 =  s.tether_lengths[1]
     sys_state.var_05 =  s.tether_lengths[2]
     sys_state.var_06 =  s.tether_lengths[3]
