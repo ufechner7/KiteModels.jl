@@ -443,6 +443,7 @@ function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
     ss.depower = s.depower
     ss.steering = s.steering/s.set.cs_4p
     ss.vel_kite .= s.vel_kite
+    ss.t_sim = 0.0
     nothing
 end
 
@@ -455,28 +456,9 @@ system state in a viewer. Optionally the position arrays can be zoomed
 according to the requirements of the viewer.
 """
 function SysState(s::AKM, zoom=1.0)
-    pos = s.pos
-    P = length(pos)
-    X = zeros(MVector{P, MyFloat})
-    Y = zeros(MVector{P, MyFloat})
-    Z = zeros(MVector{P, MyFloat})
-    for i in 1:P
-        X[i] = pos[i][1] * zoom
-        Y[i] = pos[i][2] * zoom
-        Z[i] = pos[i][3] * zoom
-    end
-    
-    orient = calc_orient_quat(s)
-
-    elevation = calc_elevation(s)
-    azimuth = calc_azimuth(s)
-    force = winch_force(s)
-    heading = calc_heading(s)
-    course = calc_course(s)
-    v_app_norm = norm(s.v_apparent)
-    t_sim = 0
-    KiteUtils.SysState{P}(s.t_0, t_sim, 0, 0, orient, elevation, azimuth, s.l_tether, s.v_reel_out, force, s.depower, s.steering/s.set.cs_4p, 
-                          heading, course, v_app_norm, s.vel_kite, X, Y, Z, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+    ss = SysState{length(s.pos)}()
+    update_sys_state!(ss, s, zoom)
+    ss
 end
 
 function calc_pre_tension(s::AKM)
