@@ -347,10 +347,25 @@ function SysState(s::KPS4_3L, zoom=1.0)
     t_sim = 0
     depower = rad2deg(s.flap_angle[1] + s.flap_angle[2])
     steering = rad2deg(s.flap_angle[2] - s.flap_angle[1])
-    KiteUtils.SysState{P}(s.t_0, t_sim, 0, 0, orient, elevation, azimuth, s.tether_lengths[3], s.reel_out_speeds[3], forces[3], depower, steering, 
-                          heading, course, v_app_norm, s.vel_kite, X, Y, Z, 
-                          0, 0, 0, 0, 
-                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+    ss = SysState{P}()
+    ss.time = s.t_0
+    ss.t_sim = t_sim
+    ss.orient .= orient
+    ss.elevation = elevation
+    ss.azimuth = azimuth
+    ss.l_tether = s.tether_lengths[3]
+    ss.v_reelout = s.reel_out_speeds[3]
+    ss.force = forces[3]
+    ss.depower = depower
+    ss.steering = steering
+    ss.heading = heading
+    ss.course = course
+    ss.v_app = v_app_norm
+    ss.vel_kite .= s.vel_kite
+    ss.X = X
+    ss.Y = Y
+    ss.Z = Z
+    ss
 end
 
 
