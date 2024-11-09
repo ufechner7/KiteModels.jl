@@ -347,6 +347,14 @@ function calc_set_cl_cd!(s::KPS3, vec_c, v_app)
     alpha = calc_alpha(v_app, s.vec_z) - s.alpha_depower
     set_cl_cd!(s, alpha)
 end
+"""
+    cl_cd(s::KPS3)
+
+Calculate the lift and drag coefficients of the kite, based on the current angles of attack.
+"""
+function cl_cd(s::KPS3)
+    CL2, CD2 = s.calc_cl(s.alpha_2), s.calc_cd(s.alpha_2)
+end
 
 """
     residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S

@@ -64,6 +64,7 @@ println("heading: ", round(rad2deg(calc_heading(kps3)), digits = 2), "°")
 
 ss = SysState(kps3)
 println("AoA: ", rad2deg(ss.AoA), "°")
+println("CL2: ", ss.CL2, " CD2: ", ss.CD2)
 
 # output on main branch
 # Lift: 1047.1795339611076, Drag: 281.39765463928745, elev: 72.77014, Iterations: 1552

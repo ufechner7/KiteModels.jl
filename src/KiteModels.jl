@@ -446,6 +446,9 @@ function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
     ss.vel_kite .= s.vel_kite
     ss.t_sim = 0.0
     ss.AoA = deg2rad(s.alpha_2)
+    cl, cd = cl_cd(s)
+    ss.CL2 = cl
+    ss.CD2 = cd
     nothing
 end
 
