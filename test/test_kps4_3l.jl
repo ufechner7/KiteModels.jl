@@ -193,6 +193,9 @@ end
         @test isapprox(k3l.reel_out_speeds, [0.0, 0.0, 0.0], atol=tol)
         @test isapprox(k3l.L_C[2], -k3l.L_D[2], atol=1e-1)
     end
+
+    ss = SysState(k3l)
+    @test isapprox(ss.v_reelout, 0, atol=1e-5)
     
     # TODO Add testcase with varying reelout speed 
 end
