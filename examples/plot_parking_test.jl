@@ -155,7 +155,7 @@ for depower in DEPOWER
     pitch = rad2deg(orient_vec[2]) + alpha_depower
     v_app = norm(kps4.v_apparent)
     # v_200 = calc_wind_factor(kps4.am, 200) * V_WIND
-    height = logger.z_vec[end][end-2]
+    height = logger.Z_vec[end][end-2]
     CL[i] = cl
     CD[i] = cd
     AOA[i] = aoa
