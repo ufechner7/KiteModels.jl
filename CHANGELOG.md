@@ -1,6 +1,11 @@
-# Changelog
-### Unreleased
+### KiteModels v0.6.11 2024-11-09
+#### Fixed
 - fixed bug in spring_forces(), it used 4000N hardcoded max force
+#### Changed
+- bump KiteUtils to 0.9.0
+- the fields AoA, CL2, CD2 and the vectors v_wind_gnd, v_wind_200m and v_wind_kite are now updated 
+  when converting KPS3 or KPS4 to SysState
+#### Added
 - add example test_steady_state.jl
 
 ### KiteModels v0.6.10 2024-11-01
