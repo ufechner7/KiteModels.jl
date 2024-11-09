@@ -68,6 +68,7 @@ ss = SysState(kps4)
 println("AoA: ", rad2deg(ss.AoA), "°")
 println("CL2: ", ss.CL2, " CD2: ", ss.CD2)
 println("v_wind_gnd: ", ss.v_wind_gnd)
+println("v_wind_200m: ", ss.v_wind_200m)
 println("v_wind_kite: ", ss.v_wind_kite)
 
 # output on main branch

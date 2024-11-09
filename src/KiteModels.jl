@@ -212,7 +212,7 @@ function set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind; upwind_dir=
     wind_dir = -upwind_dir - pi/2
     s.v_wind .= v_wind_gnd * calc_wind_factor(s.am, height) .* [cos(wind_dir), sin(wind_dir), 0]
     s.v_wind_gnd .= [v_wind_gnd * cos(wind_dir), v_wind_gnd * sin(wind_dir), 0.0]
-    s.v_wind_tether .= s.v_wind_gnd * calc_wind_factor(s.am, height / 2.0) # .* [cos(wind_dir), sin(wind_dir), 0]
+    s.v_wind_tether .= s.v_wind_gnd * calc_wind_factor(s.am, height / 2.0)
     s.rho = calc_rho(s.am, height)
     nothing
 end
@@ -449,7 +449,8 @@ function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
     cl, cd = cl_cd(s)
     ss.CL2 = cl
     ss.CD2 = cd
-    ss.v_wind_gnd .= s.v_wind_gnd
+    ss.v_wind_gnd  .= s.v_wind_gnd
+    ss.v_wind_200m .= s.v_wind_gnd * calc_wind_factor(s.am, 200.0)
     ss.v_wind_kite .= s.v_wind
     nothing
 end
