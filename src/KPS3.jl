@@ -70,6 +70,8 @@ $(TYPEDFIELDS)
     v_apparent::T =       zeros(S, 3)
     "vector, perpendicular to v_apparent; output of calc_drag"
     v_app_perp::T =       zeros(S, 3)
+    "angle of attack of the kite; output of set_cl_cd!"
+    alpha_2::S =          0.0
     "drag force of kite and bridle; output of calc_aero_forces"
     drag_force::T =       zeros(S, 3)
     "lift force of the kite; output of calc_aero_forces"

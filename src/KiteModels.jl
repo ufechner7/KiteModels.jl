@@ -120,8 +120,9 @@ include("KPS3.jl") # include code, specific for the one point kite model
 include("init.jl") # functions to calculate the inital state vector, the inital masses and initial springs
 
 # Calculate the lift and drag coefficient as a function of the angle of attack alpha.
-function set_cl_cd!(s::AKM, alpha)   
-    angle =  alpha * 180.0 / π
+function set_cl_cd!(s::AKM, alpha)
+    angle =  rad2deg(alpha)
+    s.alpha_2 = angle
     if angle > 180.0
         angle -= 360.0
     end
@@ -444,6 +445,7 @@ function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
     ss.steering = s.steering/s.set.cs_4p
     ss.vel_kite .= s.vel_kite
     ss.t_sim = 0.0
+    ss.AoA = deg2rad(s.alpha_2)
     nothing
 end
 
