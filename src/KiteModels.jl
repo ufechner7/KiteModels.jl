@@ -449,6 +449,7 @@ function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
     cl, cd = cl_cd(s)
     ss.CL2 = cl
     ss.CD2 = cd
+    ss.v_wind_gnd .= s.v_wind_gnd
     nothing
 end
 
