@@ -120,8 +120,9 @@ include("KPS3.jl") # include code, specific for the one point kite model
 include("init.jl") # functions to calculate the inital state vector, the inital masses and initial springs
 
 # Calculate the lift and drag coefficient as a function of the angle of attack alpha.
-function set_cl_cd!(s::AKM, alpha)   
-    angle =  alpha * 180.0 / π
+function set_cl_cd!(s::AKM, alpha)
+    angle =  rad2deg(alpha)
+    s.alpha_2 = angle
     if angle > 180.0
         angle -= 360.0
     end
@@ -211,7 +212,7 @@ function set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind; upwind_dir=
     wind_dir = -upwind_dir - pi/2
     s.v_wind .= v_wind_gnd * calc_wind_factor(s.am, height) .* [cos(wind_dir), sin(wind_dir), 0]
     s.v_wind_gnd .= [v_wind_gnd * cos(wind_dir), v_wind_gnd * sin(wind_dir), 0.0]
-    s.v_wind_tether .= s.v_wind_gnd * calc_wind_factor(s.am, height / 2.0) # .* [cos(wind_dir), sin(wind_dir), 0]
+    s.v_wind_tether .= s.v_wind_gnd * calc_wind_factor(s.am, height / 2.0)
     s.rho = calc_rho(s.am, height)
     nothing
 end
@@ -443,6 +444,14 @@ function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
     ss.depower = s.depower
     ss.steering = s.steering/s.set.cs_4p
     ss.vel_kite .= s.vel_kite
+    ss.t_sim = 0.0
+    ss.AoA = deg2rad(s.alpha_2)
+    cl, cd = cl_cd(s)
+    ss.CL2 = cl
+    ss.CD2 = cd
+    ss.v_wind_gnd  .= s.v_wind_gnd
+    ss.v_wind_200m .= s.v_wind_gnd * calc_wind_factor(s.am, 200.0)
+    ss.v_wind_kite .= s.v_wind
     nothing
 end
 
@@ -455,28 +464,9 @@ system state in a viewer. Optionally the position arrays can be zoomed
 according to the requirements of the viewer.
 """
 function SysState(s::AKM, zoom=1.0)
-    pos = s.pos
-    P = length(pos)
-    X = zeros(MVector{P, MyFloat})
-    Y = zeros(MVector{P, MyFloat})
-    Z = zeros(MVector{P, MyFloat})
-    for i in 1:P
-        X[i] = pos[i][1] * zoom
-        Y[i] = pos[i][2] * zoom
-        Z[i] = pos[i][3] * zoom
-    end
-    
-    orient = calc_orient_quat(s)
-
-    elevation = calc_elevation(s)
-    azimuth = calc_azimuth(s)
-    force = winch_force(s)
-    heading = calc_heading(s)
-    course = calc_course(s)
-    v_app_norm = norm(s.v_apparent)
-    t_sim = 0
-    KiteUtils.SysState{P}(s.t_0, t_sim, 0, 0, orient, elevation, azimuth, s.l_tether, s.v_reel_out, force, s.depower, s.steering/s.set.cs_4p, 
-                          heading, course, v_app_norm, s.vel_kite, X, Y, Z, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+    ss = SysState{length(s.pos)}()
+    update_sys_state!(ss, s, zoom)
+    ss
 end
 
 function calc_pre_tension(s::AKM)

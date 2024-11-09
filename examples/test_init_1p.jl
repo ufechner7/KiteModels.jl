@@ -62,6 +62,13 @@ println("azimuth: ", round(rad2deg(azimuth), digits = 2), "°")
 # println("alpha2, alpha3, alpha4: ", kps3.alpha_2, " ", kps3.alpha_3, " ", kps3.alpha_4)
 println("heading: ", round(rad2deg(calc_heading(kps3)), digits = 2), "°")
 
+ss = SysState(kps3)
+println("AoA: ", rad2deg(ss.AoA), "°")
+println("CL2: ", ss.CL2, " CD2: ", ss.CD2)
+println("v_wind_gnd: ", ss.v_wind_gnd)
+println("v_wind_200m: ", ss.v_wind_200m)
+println("v_wind_kite: ", ss.v_wind_kite)
+
 # output on main branch
 # Lift: 1047.1795339611076, Drag: 281.39765463928745, elev: 72.77014, Iterations: 1552
 # roll: -0.0 pitch: 5.755691707832273 yaw: 90.00000250447816
