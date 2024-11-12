@@ -8,7 +8,7 @@ tic()
 if ! ("KiteViewers" ∈ keys(Pkg.project().dependencies))
     Pkg.activate("examples_3d")
     pkg"add KiteUtils#main"
-    pkg"add KiteModels#main"
+    pkg"add KiteModels#azimuth"
 end
 using KiteModels, KitePodModels, KiteUtils, Rotations, StaticArrays
 using ControlPlots, KiteViewers
@@ -20,7 +20,7 @@ set = deepcopy(se())
 dt = 0.05
 set.solver="DFBDF"              # IDA or DFBDF
 set.linear_solver="GMRES"       # GMRES, LapackDense or Dense
-STEPS = 352
+STEPS = 328
 PRINT = false
 STATISTIC = false
 PLOT=false
@@ -38,43 +38,6 @@ v_time = zeros(STEPS)
 v_speed = zeros(STEPS)
 v_force = zeros(STEPS)
 heading = zeros(STEPS)
-
-function euler2rot(roll, pitch, yaw)
-    φ      = roll
-    R_x = [1    0       0;
-              0  cos(φ) -sin(φ);
-              0  sin(φ)  cos(φ)]
-    θ      = pitch          
-    R_y = [ cos(θ)  0  sin(θ);
-                 0     1     0;
-              -sin(θ)  0  cos(θ)]
-    ψ      = yaw
-    R_z = [cos(ψ) -sin(ψ) 0;
-              sin(ψ)  cos(ψ) 0;
-                 0       0   1]
-    R   = R_z * R_y * R_x
-    return R
-end
-
-pure_quat2frame(q::AbstractVector) = pure_quat2frame(QuatRotation(q))
-function pure_quat2frame(q::QuatRotation)
-    x = enu2ned(q[1,:]) .* [1, 1, -1]
-    y = enu2ned(q[2,:])
-    z = enu2ned(q[3,:]) .* [1, -1, 1]
-    return x, y, z
-end
-
-function q2q_old(q::QuatRotation)
-    # 1. get reference frame
-    x, y, z = pure_quat2frame(q)
-    # 2. convert it using the old method
-    ax = [0, 1, 0] # in ENU reference frame this is pointing to the south
-    ay = [1, 0, 0] # in ENU reference frame this is pointing to the west
-    az = [0, 0, -1] # in ENU reference frame this is pointing down
-    rotation = rot3d(ax, ay, az, x, y, z)
-    q_old = QuatRotation(rotation)
-    return q_old
-end
 
 function simulate(integrator, steps, plot=PLOT)
     iter = 0
@@ -108,14 +71,10 @@ function simulate(integrator, steps, plot=PLOT)
         end
         sys_state = SysState(kps4)
         q = QuatRotation(sys_state.orient)
-        # q_old = KiteModels.calc_orient_quat_old(kps4)
-        q_old = q2q_old(q)
-        roll, pitch, yaw = quat2euler(q)
-        println("Yaw: ", rad2deg(yaw), ", Pitch: ", rad2deg(pitch), ", Roll: ", rad2deg(roll))
-        correction = QuatRotation(euler2rot(pi/2, 0, 0))
-        
-        # sys_state.orient = Rotations.params(q*correction)
-        sys_state.orient = quat2viewer(q_old)
+        # roll, pitch, yaw = quat2euler(q)
+        # println("Yaw: ", rad2deg(yaw), ", Pitch: ", rad2deg(pitch), ", Roll: ", rad2deg(roll))
+
+        sys_state.orient = quat2viewer(q)
         KiteViewers.update_system(viewer, sys_state; scale = 0.08, kite_scale=3)
     end
     iter / steps
@@ -129,15 +88,15 @@ if PLOT
     p = plotx(v_time[1:STEPS-100], v_speed[1:STEPS-100], v_force[1:STEPS-100]; ylabels=["v_reelout  [m/s]","tether_force [N]"], fig="winch")
     # display(p)
 end
-lift, drag = KiteModels.lift_drag(kps4)
-println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
+# lift, drag = KiteModels.lift_drag(kps4)
+# println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
 
-println("v_wind: $(kps4.v_wind)")
-println("UPWIND_DIR2: $(rad2deg(UPWIND_DIR2))°")
-pos = pos_kite(kps4)
-println("pos_y: $(round(pos[2], digits=2))")
-# for an  UPWIND_DIR2 of -80°, pos_y must be negative, also v_wind[2] must be negative
-# this is OK
+# println("v_wind: $(kps4.v_wind)")
+# println("UPWIND_DIR2: $(rad2deg(UPWIND_DIR2))°")
+# pos = pos_kite(kps4)
+# println("pos_y: $(round(pos[2], digits=2))")
+# # for an  UPWIND_DIR2 of -80°, pos_y must be negative, also v_wind[2] must be negative
+# # this is OK
 
 # print heading
 println("heading: $(round(heading[STEPS], digits=2))°")

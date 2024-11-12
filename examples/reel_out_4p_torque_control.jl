@@ -59,7 +59,7 @@ function simulate(integrator, steps, plot=false)
         if plot
             reltime = i*dt-dt
             if mod(i, 5) == 1
-                plot2d(kps4.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, 
+                plot2d(kps4.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, xlim=(37, 78), 
                                         segments=set.segments, fig="side_view")            
             end
         end
@@ -86,7 +86,8 @@ println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
 println("Average number of callbacks per time step: $(round(av_steps, digits=2))")
 
 if PLOT
-    p = plotx(v_time, v_speed, v_force; ylabels=["v_reelout  [m/s]","tether_force [N]"], fig="winch")
+    p = plotx(v_time, v_speed, v_force; 
+    ylabels=["v_reelout  [m/s]","tether_force [N]"], fig="winch")
     display(p)
 end
 # savefig("docs/src/reelout_force_4p.png")

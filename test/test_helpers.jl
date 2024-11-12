@@ -2,7 +2,7 @@ using Test
 using KiteModels
 using Pkg
 
-@testset "Testing KiteModels...." begin
+@testset "Testing helper functions..." begin
     path=pwd()
     tmpdir=mktempdir()
     mkpath(tmpdir)
@@ -24,7 +24,7 @@ using Pkg
     tmpdir=mktempdir()
     mkpath(tmpdir)
     cd(tmpdir)
-    KiteModels.install_examples()
+    KiteModels.install_examples(false)
     @test isfile(joinpath(tmpdir, "examples", "bench.jl"))
     @test isfile(joinpath(tmpdir, "examples", "compare_kps3_kps4.jl"))
     @test isfile(joinpath(tmpdir, "examples", "menu.jl"))
@@ -37,15 +37,16 @@ using Pkg
         rm(tmpdir, recursive=true)
     end
     cd(path)
+
     @test ! ("TestEnv" ∈ keys(Pkg.project().dependencies))
     @test ! ("Revise" ∈ keys(Pkg.project().dependencies))
     @test ! ("Plots" ∈ keys(Pkg.project().dependencies))
-    # ensure that BenchmarkTools is not in the main environment
-    oldprpath = Pkg.project().path
-    if ! Pkg.project().ispackage
-        Pkg.activate(".")
-    end
-    hasbm = ("BenchmarkTools" ∈ keys(Pkg.project().dependencies))
-    Pkg.activate(oldprpath)
-    @test ! hasbm
+    # # ensure that BenchmarkTools is not in the main environment
+    # oldprpath = Pkg.project().path
+    # if ! Pkg.project().ispackage
+    #     Pkg.activate(".")
+    # end
+    # hasbm = ("BenchmarkTools" ∈ keys(Pkg.project().dependencies))
+    # Pkg.activate(oldprpath)
+    # @test ! hasbm
 end

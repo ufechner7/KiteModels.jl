@@ -21,18 +21,6 @@ STATISTIC = false
 kcu::KCU = KCU(set)
 kps4::KPS4 = KPS4(kcu)
 
-function quat2euler(q)
-    # Convert quaternion to RotXYZ
-    rot = RotXYZ(q)
-    
-    # Extract roll, pitch, and yaw from RotXYZ
-    roll = rot.theta1
-    pitch = rot.theta2
-    yaw = rot.theta3
-
-    return roll, pitch, yaw
-end
-
 if PLOT
     using Pkg
     if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))

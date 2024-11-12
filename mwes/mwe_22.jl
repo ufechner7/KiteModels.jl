@@ -1,7 +1,6 @@
 # generate test cases for the calculation of roll, pitch and yaw
 # convert all vectors to NED reference frame first
 using LinearAlgebra
-import ReferenceFrameRotations as RFR
 
 # z-y′-x″ (intrinsic rotations) or x-y-z (extrinsic rotations): 
 # the intrinsic rotations are known as: yaw, pitch and roll

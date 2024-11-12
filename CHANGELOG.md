@@ -1,9 +1,37 @@
 # Changelog
 ### Unreleased
+- added tests for calc_azimuth(s::AKM), the azimuth in wind reference frame
+- re-enable logging of the angles of attack of the three plates
+- `steering_test_4p.jl` now calculates both `c1` and `c2` of the turn-rate law
+- the environment variable `NO_MTK` disables the pre-compilation of the `KPS4_3L` model
+  to save time during development
+- the script `menu2.jl` for model verification was added
+
+### KiteModels v0.6.8 - 2024-10-23
+#### Changed
+- the sign of the steering signal was changed. Now, a positive steering signal causes a positive turn rate.
+  The turn rate is the derivative of the heading angle.
+- all orientation tests pass now (calculation of roll, pitch, yaw, azimuth_north, elevation, heading)
+- add example `steering_test_1p.jl`
+- improve `steering_test_4p.jl`, use fully powered kite now
+- the logged steering signal is now divided by `set.cs_4p`, because the new version of KitePodModels.jl multiplies the steering value with this constant
+- update documentation regarding `steering` and `heading`
+
+### KiteModels v0.6.7 - 2024-10-20
+#### Changed
+- renamed test_init.jl to test_init_4p.jl
+- by default, `azimuth` in wind reference frame is now used
+- the orientation is now represented in NED reference frame
+- the method `calc_heading` has two new, optional parameters: neg_azimuth=false, one_point=false
+- the definition of heading and azimuth has changed, which will require adaptions in the controller
 #### Added
 - example `plot_side_cl.jl`
 - example `plot_cl_cd_plate.jl`
 - example `steering_test.jl`
+- example `test_init_1p.jl`
+- the test script `test_orientation.jl` was contributed by Daan van Wolffelaar; currently, some of these tests are still broken (error of about 2%)
+#### Fixed
+- many of the examples; all examples of `menu.jl` now work
 
 ### KiteModels v0.6.6 - 2024-09-03
 #### Changed

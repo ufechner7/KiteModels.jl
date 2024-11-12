@@ -19,8 +19,10 @@ else
 fi
 
 if [[ $julia_major == "1.10" ]]; then
-    if [[ $HOSTNAME == "ufryzen" || $HOSTNAME == "TUD262682" ]]; then
+    if [[ $HOSTNAME == "ufryzen" || $HOSTNAME == "framework" ]]; then
         GCT="--gcthreads=8,1"
+        export NO_MTK=true
+        export USE_V9=true
     else
         GCT="--gcthreads=4,1"
     fi

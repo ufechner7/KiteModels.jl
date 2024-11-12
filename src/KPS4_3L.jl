@@ -341,7 +341,7 @@ end
 @register_symbolic calc_heading_y(e_x)
 
 """
-    init_sim!(s; damping_coeff=1.0, prn=false, torque_control=true)
+    init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false, torque_control=true)
 
 Initialises the integrator of the model.
 
@@ -424,9 +424,9 @@ function init_sim!(s::KPS4_3L; damping_coeff=s.damping_coeff, prn=false,
 end
 
 
-function next_step!(s::KPS4_3L; set_values=zeros(KVec3), v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
+function next_step!(s::KPS4_3L; set_values=zeros(KVec3), v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2, dt=1/s.set.sample_freq)
     s.iter = 0
-    set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
+    set_v_wind_ground!(s, calc_height(s), v_wind_gnd; upwind_dir)
     if isnothing(s.get_pos)
         s.v_wind_gnd_idx = parameter_index(s.integrator.f, :v_wind_gnd)
         s.v_wind_idx = parameter_index(s.integrator.f, :v_wind)
@@ -513,11 +513,12 @@ function pos_kite(s::KPS4_3L)
 end
 
 """
-    kite_ref_frame(s::KPS4_3L)
+    kite_ref_frame(s::KPS4_3L; one_point=false)
 
 Returns a tuple of the x, y, and z vectors of the kite reference frame.
+The parameter one_point is not used in this model.
 """
-function kite_ref_frame(s::KPS4_3L)
+function kite_ref_frame(s::KPS4_3L; one_point=false)
     s.e_x, s.e_y, s.e_z
 end
 
@@ -573,7 +574,7 @@ Parameters:
 
 Updates the vector s.forces of the first parameter.
 """
-function calc_aero_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, E_C, rho, v_wind, flap_angle)
+function calc_aero_forces!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, E_C, rho, v_wind, flap_angle)
     n = s.set.aero_surfaces
     @variables begin
         v_cx(t)[1:3]
@@ -733,7 +734,7 @@ Calculate the drag force and spring force of the tether segment, defined by the 
 and distribute it equally on the two particles, that are attached to the segment.
 The result is stored in the array s.forces. 
 """
-function calc_particle_forces_mtk!(s::KPS4_3L, eqs2, force_eqs, force, pos1, pos2, vel1, vel2, length, c_spring, 
+function calc_particle_forces!(s::KPS4_3L, eqs2, force_eqs, force, pos1, pos2, vel1, vel2, length, c_spring, 
     damping, rho, i, l_0, k, c, segment, rel_vel, av_vel, norm1, unit_vector, k1, k2, c1, c2, spring_vel, perp_vel,
             spring_force, v_apparent, v_wind_tether, area, v_app_perp, half_drag_force)
     d_tether = s.set.d_tether/1000.0
@@ -798,7 +799,7 @@ end
 
 
 """
-    inner_loop_mtk!(s::KPS4_3L, eqs2, force_eqs, t, force, pos, vel, length, c_spring, damping, v_wind_gnd)
+    inner_loop!(s::KPS4_3L, eqs2, force_eqs, t, force, pos, vel, length, c_spring, damping, v_wind_gnd)
 
 Calculate the forces, acting on all particles.
 
@@ -806,7 +807,7 @@ Output:length
 - s.forces
 - s.v_wind_tether
 """
-@inline function inner_loop_mtk!(s::KPS4_3L, eqs2, force_eqs, t, force, pos, vel, length, c_spring, damping, v_wind_gnd)
+@inline function inner_loop!(s::KPS4_3L, eqs2, force_eqs, t, force, pos, vel, length, c_spring, damping, v_wind_gnd)
     @variables begin
         height(t)[eachindex(s.springs)]
         rho(t)[eachindex(s.springs)]
@@ -843,7 +844,7 @@ Output:length
             v_wind_tether[:, i] ~ AtmosphericModels.calc_wind_factor(s.am, height[i], s.set.profile_law) * v_wind_gnd
         ]
 
-        eqs2, force_eqs = calc_particle_forces_mtk!(s, eqs2, force_eqs, force, pos[:, p1], pos[:, p2], vel[:, p1], 
+        eqs2, force_eqs = calc_particle_forces!(s, eqs2, force_eqs, force, pos[:, p1], pos[:, p2], vel[:, p1], 
                           vel[:, p2], length, c_spring, damping, rho[i], i, l_0[i], k[i], c[i], segment[:, i], 
                           rel_vel[:, i], av_vel[:, i], norm1[i], unit_vector[:, i], k1[i], k2[i], c1[i], c2[i], spring_vel[i],
                           perp_vel[:, i], spring_force[:, i], v_apparent[:, i], v_wind_tether[:, i], area[i], v_app_perp[:, i], 

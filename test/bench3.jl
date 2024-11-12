@@ -16,7 +16,7 @@ if ! @isdefined res3
 end
 
 msg=""
-@testset verbose = true "KPS3 benchmarking....   " begin
+@testset verbose = true "KPS3 benchmarking....    " begin
 
 function set_defaults()
     KiteModels.clear!(kps)
@@ -85,7 +85,8 @@ t = @benchmark residual!(res, yd, y, p, t) setup = (res1 = zeros(SVector{SEGMENT
 global msg = "Mean time residual! one point model: $(round(mean(t.times), digits=1)) ns"
 
 end
-println(msg)
+printstyled("Benchmark results for KPS3:\n"; bold = true)
+println(msg, "\n")
 
 # julia> include("test/bench.jl")
 # Test Summary:         |

@@ -2,16 +2,22 @@
 using Printf
 using KiteModels, KitePodModels, KiteUtils
 
-set = deepcopy(load_settings("system_v9.yaml"))
+if haskey(ENV, "USE_V9")
+    set = deepcopy(load_settings("system_v9.yaml"))
+else
+    set = deepcopy(load_settings("system.yaml"))
+end
 
 set.abs_tol=0.0006
 set.rel_tol=0.00001
 set.elevation = 69.4
 set.v_steering = 0.2*6
-# set.steering_gain = 10.0
+set.steering_gain = 10.0
+set.sample_freq = 50
+set.depower = 38.0
 
 # the following values can be changed to match your interest
-dt = 0.05
+dt = 0.02
 set.solver="DFBDF" # IDA or DFBDF
 STEPS = 100
 PLOT = true
@@ -54,23 +60,35 @@ function simulate(integrator, steps, steering; plot=false)
         end
     end
     set_depower_steering(kps4.kcu, kps4.depower, steering)
-    for i in 1:3
+    for i in 1:70
         KiteModels.next_step!(kps4, integrator; set_speed=0, dt)
         iter += kps4.iter
     end
-    kps4.side_cl
+    kps4.side_cl, kps4.steering/kps4.set.cs_4p
 end
-STEERING = -0.5:0.01:0.5
-SIDE_CL = zeros(length(STEERING))
-for (i, steering) in pairs(STEERING)
+SET_STEERING = -0.7:0.02:0.7
+STEERING = zeros(length(SET_STEERING))
+SIDE_CL  = zeros(length(SET_STEERING))
+for (i, set_steering) in pairs(SET_STEERING)
     local side_cl, integrator
-    integrator = KiteModels.init_sim!(kps4;  delta=0.0, stiffness_factor=1, prn=STATISTIC)
-    side_cl = simulate(integrator, STEPS, steering, plot=false)
+    integrator = KiteModels.init_sim!(kps4;  delta=0.0, stiffness_factor=0.5, prn=STATISTIC)
+    side_cl, steering = simulate(integrator, STEPS, set_steering, plot=false)
+    if side_cl == 0.0
+        integrator = KiteModels.init_sim!(kps4;  delta=0.0, stiffness_factor=0.51, prn=STATISTIC)
+        side_cl, steering = simulate(integrator, STEPS, set_steering, plot=false)
+    end
     SIDE_CL[i] = side_cl
-    println("steering: $steering, side_cl: $side_cl")
+    STEERING[i] = steering
+    println("steering: $set_steering, side_cl: $side_cl")
 end
-p = plot(STEERING, SIDE_CL; xlabel="rel_steering [-]", 
-         ylabel="side lift coefficient [-]", fig="Side lift coefficient vs steering")
-display(p)
+# p = plot(SET_STEERING, SIDE_CL; xlabel="rel_steering [-]", 
+#          ylabel="side lift coefficient [-]", fig="Side lift coefficient vs steering")
+# display(p)
+p2 = plot(SET_STEERING, SIDE_CL*(set.rel_side_area/100); xlabel="set_steering [-]", 
+         ylabel="side force coefficient [-]", fig="Side force coefficient vs set_steering")
+display(p2)
+p3 = plot(STEERING, SIDE_CL*(set.rel_side_area/100); xlabel="steering [-]", 
+         ylabel="side force coefficient [-]", fig="Side force coefficient vs steering")
+display(p3)
 
 

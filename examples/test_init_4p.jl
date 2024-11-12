@@ -2,7 +2,6 @@
 
 using Printf
 using Pkg
-pkg"add KiteUtils#main"
 using KiteModels, KitePodModels, KiteUtils, LinearAlgebra, Rotations
 
 set = deepcopy(load_settings("system.yaml"))
@@ -45,7 +44,7 @@ println("Lift: $lift, Drag: $drag, elev: $elev, Iterations: $(kps4.iter)")
 
 q = QuatRotation(calc_orient_quat(kps4; viewer=false))
 roll, pitch, yaw = rad2deg.(quat2euler(q))
-println("--> orient_quat:       roll: ", roll, " pitch:  ", pitch, "  yaw: ", yaw)
+println("--> orient_quat:       roll: ", roll, " pitch: ", pitch, "  yaw: ", yaw)
 roll, pitch, yaw = rad2deg.(orient_euler(kps4))
 println("--> orient_euler:      roll: ", roll, " pitch: ", pitch, " yaw:  ", yaw)
 q = QuatRotation(calc_orient_quat(kps4; viewer=true))

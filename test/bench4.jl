@@ -9,7 +9,7 @@ if ! @isdefined kps4
 end
 
 msg = String[]
-@testset verbose = true "KPS4 benchmarking...." begin
+@testset verbose = true "KPS4 benchmarking...     " begin
 
 function set_defaults()
     KiteModels.clear!(kps4)
@@ -131,7 +131,9 @@ push!(msg, ("Mean time residual!:           $(round(mean(t.times), digits=1)) ns
 # Julia 1.10 on Laptop on battery: 1047ns
 # Julia 1.11 on Laptop on battery: 1035ns
 end
+printstyled("Benchmark results for KPS4:\n"; bold = true)
 for i in eachindex(msg)
     println(msg[i])
 end
+println()
 

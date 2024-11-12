@@ -81,7 +81,7 @@ end
     pos_kite = KVec3(30.0, 5.0, 100.0)
     v_kite = KVec3(3.0, 5.0, 2.0)
     rho = SimFloat(calc_rho(kps.am, 10.0))
-    rel_steering = 0.1
+    rel_steering = -0.1
     kps.beta = 0.1
     kps.psi = 0.2
     kps.param_cl = 0.2
@@ -282,11 +282,11 @@ end
     @test all(x .≈ [-0.9070010101306292, 0.0, 0.4211284455151642])
     @test all(y .≈ [0.0, 1.0, 0.0])
     @test all(z .≈ [-0.4211284455151642, -0.0, -0.9070010101306292])
-    @test all(orient_euler(kps) .≈ [1.5707963267948966, -0.4346891114736793, 1.5707963267948966])
+    @test all(KiteModels.orient_euler_old(kps) .≈ [1.5707963267948966, -0.4346891114736793, 1.5707963267948966])
     @test all(pos_kite(kps) .≈ [134.97402018366216, 0.0, 366.8418273480761])
     @test calc_elevation(kps) .≈ 1.2182337959242815 # 69.8 deg
     @test calc_azimuth(kps) ≈ 0
-    @test calc_heading(kps) ≈ 0
+    @test calc_heading(kps) ≈ 0 || calc_heading(kps) ≈ 2π
     calc_course(kps) # the course for vel_kite=zero is undefined, so we cannot test it
 end
 

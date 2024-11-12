@@ -43,7 +43,6 @@ using Reexport, Pkg
 @reexport using AtmosphericModels
 import Base.zero
 import KiteUtils.calc_elevation
-import KiteUtils.calc_azimuth
 import KiteUtils.calc_heading
 import KiteUtils.calc_course
 import KiteUtils.SysState
@@ -58,6 +57,7 @@ export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!              
 export clear!, find_steady_state!, residual!                                                  # low level workers
 export init_sim!, reset_sim!, next_step!, init_pos_vel, init_pos, model!                                 # high level workers
 export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, calc_orient_quat  # getters
+export calc_azimuth_north, calc_azimuth_east
 export winch_force, lift_drag, cl_cd, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
 export kite_ref_frame, orient_euler, spring_forces, upwind_dir
 import LinearAlgebra: norm
@@ -91,9 +91,6 @@ const KVec3    = MVector{3, SimFloat}
 Basic 3-dimensional vector, stack allocated, immutable.
 """
 const SVec3    = SVector{3, SimFloat}  
-
-# const rad_cl_mtk = CubicSpline(se().cl_list, deg2rad.(se().alpha_cl); extrapolate=true) 
-# const rad_cd_mtk = CubicSpline(se().cd_list, deg2rad.(se().alpha_cd); extrapolate=true) 
 
 """
     abstract type AbstractKiteModel
@@ -200,19 +197,20 @@ Return the vector of the wind speed at the height of the kite.
 function v_wind_kite(s::AKM) s.v_wind end
 
 """
-    set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind, wind_dir=0.0)
+    set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind; upwind_dir=0.0)
 
 Set the vector of the wind-velocity at the height of the kite. As parameter the height,
-the ground wind speed [m/s] and the wind direction [radians] are needed.
-Must be called every at each timestep.
+the ground wind speed [m/s] and the upwind direction [radians] are needed.
+Is called by the function next_step!.
 """
-function set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind, wind_dir=0.0)
+function set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind; upwind_dir=-pi/2)
     if height < 6.0
         height = 6.0
     end
+    wind_dir = -upwind_dir - pi/2
     s.v_wind .= v_wind_gnd * calc_wind_factor(s.am, height) .* [cos(wind_dir), sin(wind_dir), 0]
     s.v_wind_gnd .= [v_wind_gnd * cos(wind_dir), v_wind_gnd * sin(wind_dir), 0.0]
-    s.v_wind_tether .= v_wind_gnd * calc_wind_factor(s.am, height / 2.0) # .* [cos(wind_dir), sin(wind_dir), 0]
+    s.v_wind_tether .= s.v_wind_gnd * calc_wind_factor(s.am, height / 2.0) # .* [cos(wind_dir), sin(wind_dir), 0]
     s.rho = calc_rho(s.am, height)
     nothing
 end
@@ -240,12 +238,12 @@ end
 
 
 """
-    orient_euler(s::AKM)
+    orient_euler_old(s::AKM)
 
 Calculate and return the orientation of the kite in euler angles (roll, pitch, yaw)
-as SVector. 
+as SVector. Does not give the correct result, use orient_euler instead.
 """
-function orient_euler(s::AKM)
+function orient_euler_old(s::AKM)
     x, y, z = kite_ref_frame(s)
     roll = atan(y[3], z[3]) - π/2
     if roll < -π/2
@@ -259,7 +257,19 @@ function orient_euler(s::AKM)
     SVector(roll, pitch, yaw)
 end
 
-function calc_orient_quat(s::AKM; viewer=false)
+"""
+    orient_euler(s::AKM)
+
+Calculate and return the orientation of the kite in euler angles (roll, pitch, yaw)
+as SVector.
+"""
+function orient_euler(s::AKM; one_point=false)
+    q = QuatRotation(calc_orient_quat(s; one_point))
+    roll, pitch, yaw = quat2euler(q)
+    SVector(roll, pitch, yaw)
+end
+
+function calc_orient_quat(s::AKM; viewer=false, one_point=false)
     if viewer
         x, _, z = kite_ref_frame(s)
         pos_kite_ = pos_kite(s)
@@ -267,7 +277,7 @@ function calc_orient_quat(s::AKM; viewer=false)
     
         rotation = rot(pos_kite_, pos_before, -x)
     else
-        x, y, z = kite_ref_frame(s) # in ENU reference
+        x, y, z = kite_ref_frame(s; one_point) # in ENU reference
         x = enu2ned(x)
         y = enu2ned(y)
         z = enu2ned(z)
@@ -305,22 +315,47 @@ end
 """
     calc_azimuth(s::AKM)
 
-Determine the azimuth angle of the kite in radian.
+Determine the azimuth angle of the kite in wind reference frame in radian.
+Positive anti-clockwise when seen from above.
 """
 function calc_azimuth(s::AKM)
+    azn = KiteUtils.azimuth_north(pos_kite(s))
+    azn2azw(azn; upwind_dir = upwind_dir(s))
+end
+
+"""
+    calc_azimuth_east(s::AKM)
+
+Determine the azimuth_east angle of the kite in radian.
+"""
+function calc_azimuth_east(s::AKM)
     KiteUtils.azimuth_east(pos_kite(s))
 end
 
 """
-    calc_heading(s::AKM)
+    calc_azimuth_north(s::AKM)
+
+Determine the azimuth_north angle of the kite in radian.
+"""
+function calc_azimuth_north(s::AKM)
+    KiteUtils.azimuth_north(pos_kite(s))
+end
+
+"""
+    calc_heading(s::AKM; upwind_dir_=upwind_dir(s), neg_azimuth=false, one_point=false)
 
 Determine the heading angle of the kite in radian.
 """
-function calc_heading(s::AKM; upwind_dir_=upwind_dir(s))
-    orientation = orient_euler(s)
+function calc_heading(s::AKM; upwind_dir_=upwind_dir(s), neg_azimuth=false, one_point=false)
+    orientation = orient_euler(s; one_point)
     elevation = calc_elevation(s)
-    azimuth = calc_azimuth(s)
-    KiteUtils.calc_heading(orientation, elevation, azimuth; upwind_dir=upwind_dir_)
+    # use azimuth in wind reference frame
+    if neg_azimuth 
+        azimuth = -calc_azimuth(s)
+    else
+        azimuth = calc_azimuth(s)
+    end
+    calc_heading(orientation, elevation, azimuth; upwind_dir=upwind_dir_)
 end
 
 """
@@ -329,9 +364,13 @@ end
 Determine the course angle of the kite in radian.
 Undefined if the velocity of the kite is near zero.
 """
-function calc_course(s::AKM)
+function calc_course(s::AKM, neg_azimuth=false)
     elevation = calc_elevation(s)
-    azimuth = calc_azimuth(s)
+    if neg_azimuth 
+        azimuth = -calc_azimuth(s)
+    else    
+        azimuth = calc_azimuth(s)
+    end
     KiteUtils.calc_course(s.vel_kite, elevation, azimuth)
 end
 
@@ -399,7 +438,7 @@ function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
     ss.l_tether = s.l_tether
     ss.v_reelout = s.v_reel_out
     ss.depower = s.depower
-    ss.steering = s.steering
+    ss.steering = s.steering/s.set.cs_4p
     ss.vel_kite .= s.vel_kite
     nothing
 end
@@ -433,7 +472,7 @@ function SysState(s::AKM, zoom=1.0)
     course = calc_course(s)
     v_app_norm = norm(s.v_apparent)
     t_sim = 0
-    KiteUtils.SysState{P}(s.t_0, t_sim, 0, 0, orient, elevation, azimuth, s.l_tether, s.v_reel_out, force, s.depower, s.steering, 
+    KiteUtils.SysState{P}(s.t_0, t_sim, 0, 0, orient, elevation, azimuth, s.l_tether, s.v_reel_out, force, s.depower, s.steering/s.set.cs_4p, 
                           heading, course, v_app_norm, s.vel_kite, X, Y, Z, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 end
 
@@ -451,7 +490,7 @@ function calc_pre_tension(s::AKM)
 end
 
 """
-    init_sim!(s; t_end=1.0, stiffness_factor=0.035, delta=0.01, prn=false)
+    init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.5, delta=0.001, prn=false)
 
 Initialises the integrator of the model.
 
@@ -461,12 +500,11 @@ Parameters:
 - stiffness_factor: factor applied to the tether stiffness during initialisation
 - delta: initial stretch of the tether during the steady state calculation
 - prn: if set to true, print the detailed solver results
-- steady_state_history: an instance of SteadyStateHistory containing old pairs of AKM objects and integrators
 
 Returns:
 An instance of a DAE integrator.
 """
-function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, delta=0.01, prn=false)
+function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.5, delta=0.001, prn=false)
     clear!(s)
     s.stiffness_factor = stiffness_factor
     
@@ -507,10 +545,10 @@ end
 
 
 """
-    next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, v_wind_gnd=s.set.v_wind, wind_dir=0.0, 
+    next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2, 
                dt=1/s.set.sample_freq)
 
-Calculates the next simulation step.
+Calculates the next simulation step. Either `set_speed` or `set_torque` must be provided.
 
 Parameters:
 - s:            an instance of an abstract kite model
@@ -522,20 +560,17 @@ Parameters:
                 clockwise positive. Default: -pi/2, wind from west.
 - dt:           time step in seconds
 
-Either a value for `set_speed` or for `set_torque` required.
-
 Returns:
 The end time of the time step in seconds.
 """
 function next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2, 
                     dt=1/s.set.sample_freq)
-    wind_dir = -upwind_dir - pi/2
     KitePodModels.on_timer(s.kcu)
     KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
     s.sync_speed = set_speed
     s.set_torque = set_torque
     s.t_0 = integrator.t
-    set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
+    set_v_wind_ground!(s, calc_height(s), v_wind_gnd; upwind_dir)
     s.iter = 0
     if s.set.solver == "IDA"
         Sundials.step!(integrator, dt, true)
@@ -566,13 +601,15 @@ function copy_examples()
     copy_files("examples", readdir(src_path))
 end
 
-function install_examples()
+function install_examples(add_packages=true)
     copy_examples()
     copy_settings()
-    Pkg.add("KiteUtils")
-    Pkg.add("KitePodModels")
-    Pkg.add("WinchModels")
-    Pkg.add("ControlPlots")
+    if add_packages
+        Pkg.add("KiteUtils")
+        Pkg.add("KitePodModels")
+        Pkg.add("WinchModels")
+        Pkg.add("ControlPlots")
+    end
 end
 
 function copy_files(relpath, files)
@@ -637,20 +674,24 @@ end
     # Putting some things in `@setup_workload` instead of `@compile_workload` can reduce the size of the
     # precompile file and potentially make loading faster.
     # list = [OtherType("hello"), OtherType("world!")]
-    set_data_path()
+    set_data_path("data")
 
     set = se("system.yaml")
     set.kcu_diameter = 0
     kps4_::KPS4 = KPS4(KCU(set))
     kps3_::KPS3 = KPS3(KCU(se("system.yaml")))
-    # kps4_3l_::KPS4_3L = KPS4_3L(KCU(se(SYS_3L))) # TODO: add back
+    if ! haskey(ENV, "NO_MTK")    
+        kps4_3l_::KPS4_3L = KPS4_3L(KCU(se(SYS_3L)))
+    end
     @assert ! isnothing(kps4_.wm)
     @compile_workload begin
         # all calls in this block will be precompiled, regardless of whether
         # they belong to your package or not (on Julia 1.8 and higher)
         integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
-        integrator = KiteModels.init_sim!(kps4_; delta=0.03, stiffness_factor=0.05, prn=false)     
-        # integrator = KiteModels.init_sim!(kps4_3l_)   
+        integrator = KiteModels.init_sim!(kps4_; delta=0.03, stiffness_factor=0.05, prn=false) 
+        if ! haskey(ENV, "NO_MTK")
+            integrator = KiteModels.init_sim!(kps4_3l_)
+        end   
         nothing
     end
 end

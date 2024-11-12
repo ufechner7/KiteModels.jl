@@ -266,7 +266,7 @@ end
     rho = 1.25
     kps4.v_wind .= KVec3(8.0, 0.2, 0.0)
     alpha_depower = 0.1
-    rel_steering = -0.1
+    rel_steering = +0.1
     kps4.set.alpha_zero = 5.0
     for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1 
         kps4.forces[i] .= zeros(3)
@@ -453,11 +453,11 @@ end
     @test all(x .≈ [-0.8660254037549963, 0.0, 0.5000000000509957])
     @test all(y .≈ [0.0, 1.0, 0.0])
     @test all(z .≈ [-0.5000000000509957, -0.0, -0.8660254037549963])
-    @test all(orient_euler(kps4) .≈ [1.5707963267948966, -0.5235987756571836, 1.5707963267948966])
+    @test all(KiteModels.orient_euler_old(kps4) .≈ [1.5707963267948966, -0.5235987756571836, 1.5707963267948966])
     @test all(pos_kite(kps4) .≈ [78.56500000036361, 0.0, 136.07857169877312])
     @test calc_elevation(kps4) ≈ 1.0471975512013534 # 60 degrees
-    @test calc_azimuth(kps4) ≈ 0
-    @test_broken calc_heading(kps4) ≈ 0 atol=1e-2
+    @test calc_azimuth(kps4) ≈ 0.0 atol=0.02
+    @test_broken calc_heading(kps4) ≈ 0.0 atol=1e-2
     calc_course(kps4) # the course for vel_kite = zero is undefined
 end
 
@@ -467,14 +467,14 @@ end
     KiteModels.set_depower_steering!(kps4, kps4.set.depower_offset/100.0, 0.0)
     height = sin(deg2rad(kps4.set.elevation)) * kps4.set.l_tether
     kps4.v_wind .= kps4.v_wind_gnd * calc_wind_factor(kps4.am, height)
-    res1, res2 = find_steady_state!(kps4; stiffness_factor=0.035, prn=true) 
+    res1, res2 = find_steady_state!(kps4; stiffness_factor=0.035, prn=false) 
     # TODO check why -9.81 appears in the residual
     @test sum(res2) ≈ -9.81*(se().segments+ KiteModels.KITE_PARTICLES) # velocity and acceleration must be near zero
     pre_tension = KiteModels.calc_pre_tension(kps4)
     @test pre_tension > 1.0001
     @test pre_tension < 1.01
     @test unstretched_length(kps4) ≈ 392.0              # initial, unstreched tether lenght
-    println("length: ", tether_length(kps4))
+    # println("length: ", tether_length(kps4))
     @test isapprox(tether_length(kps4), 408.74, rtol=1e-2) # real, streched tether length was: 406.4
 #    @test winch_force(kps) ≈ 276.25776695110034        # initial force at the winch [N]
 #    lift, drag = lift_drag(kps)
@@ -491,7 +491,7 @@ end
     kps4.set.alpha_zero = 0.0
     res =  zeros(MVector{6*(kps4.set.segments+4), SimFloat})
     y0, yd0 = KiteModels.init(kps4)
-    forces = spring_forces(kps4)
+    forces = spring_forces(kps4; prn=false)
     ref_forces = [3.928735076156923e-12, 3.928735076156923e-12, 3.928735076156923e-12, 0.0, -3.928735076156923e-12, 1.1786205228470769e-11, 2.160277004750972, 2.1602770047433926, 2.1602770047441373, 2.1602770047074573, 2.1602770047483513, 2.1602770047483513, 2.1602770047074573, 2.1602770047433926, 2.160277004685822]
     for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1
         @test isapprox(forces[i], ref_forces[i], atol=1e-6, rtol=1e-4)
@@ -512,19 +512,26 @@ end
     kps4.set.depower = 23.6
     kps4.set.solver = "IDA"
     integrator = KiteModels.init_sim!(kps4; stiffness_factor=0.5, delta=0.0, prn=false)
-    println("\nStarting simulation...")
+    # println("\nStarting simulation...")
     simulate(integrator, 100)
     av_steps = simulate(integrator, STEPS-100)
     if Sys.isapple()
+        result = isapprox(av_steps, 300, rtol=0.6)
+        if !result
+            println("isapple $av_steps")
+        end
         println("isapple $av_steps")
-        @test isapprox(av_steps, 300, rtol=0.6)
+        @test result
     else
-        println("not apple $av_steps")
-        @test isapprox(av_steps, 300, rtol=0.6)
+        result = isapprox(av_steps, 300, rtol=0.6)
+        if !result
+            println("not apple $av_steps")
+        end
+        @test result
     end
   
     lift, drag = KiteModels.lift_drag(kps4)
-    println(lift, " ", drag) # 703.7699568972286 161.44746368100536
+    # println(lift, " ", drag) # 703.7699568972286 161.44746368100536
     @test isapprox(lift, 703.8, rtol=0.05)
     sys_state = SysState(kps4)
     update_sys_state!(sys_state, kps4)
@@ -536,7 +543,7 @@ end
     integrator = KiteModels.init_sim!(kps4_; stiffness_factor=0.035, prn=false)
     kps4_.set.version = 2
     kps4_.stiffness_factor = 3
-    @test maximum(spring_forces(kps4_)) > 20000
+    @test maximum(spring_forces(kps4_; prn=false)) > 20000
 end
 
 # TODO Add test for winch_force

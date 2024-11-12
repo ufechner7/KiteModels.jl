@@ -1,149 +1,315 @@
-# unit tests for calculation of the orientation
-using LinearAlgebra, Rotations, Test, StaticArrays
-import ReferenceFrameRotations as RFR
-using Pkg
-pkg"add KiteUtils#main"
 using KiteUtils
+using KiteModels
+using KitePodModels
 
-# Kite reference frame
-# x: from trailing edge to leading edge
-# y: to the right looking in flight direction
-# z: down
-
-# all coordinates are in ENU (East, North, Up) reference frame
-# the orientation is calculated with respect to the NED (North, East, Down) reference frame
+using LinearAlgebra
+using StaticArrays
+using Test
 
 """
-    is_right_handed_orthonormal(x, y, z)
+    create_kite_model(x, y, z, pos)
 
-Returns `true` if the vectors `x`, `y` and `z` form a right-handed orthonormal basis.
+Create a kite model with a given kite reference frame and kite position.
+
+x, y, z:    Kite reference frame in ENU coordinates
+pos:        Kite position in ENU coordinates
 """
-function is_right_handed_orthonormal(x, y, z)
-    R = [x y z]
-    R*R' ≈ I && det(R) ≈ 1
+function create_kite_model(x, y, z, pos)
+    kcu::KCU = KCU(se())
+    s::KPS4 = KPS4(kcu)
+
+    s.x = x
+    s.y = y
+    s.z = z
+
+    KiteModels.set_v_wind_ground!(s, pos[begin+2], deg2rad(-90))
+
+    s.pos[end-2][begin] = pos[begin]
+    s.pos[end-2][begin+1] = pos[begin+1]
+    s.pos[end-2][begin+2] = pos[begin+2]
+    s
+end  
+
+"""
+    create_kite_model(x, y, z, pos, upwind_dir_deg)
+
+Create a kite model with a given kite reference frame, kite position and
+upwind direction.
+
+x, y, z:        Kite reference frame in ENU coordinates
+pos:            Kite position in ENU coordinates
+upwind_dir_deg: upwind direction in degrees
+"""
+function create_kite_model(x, y, z, pos, upwind_dir_deg)
+    kcu::KCU = KCU(se())
+    s::KPS4 = KPS4(kcu)
+
+    s.x = x
+    s.y = y
+    s.z = z
+
+    KiteModels.set_v_wind_ground!(s, pos[begin+2]; upwind_dir=deg2rad(upwind_dir_deg))
+
+    s.pos[end-2][begin] = pos[begin]
+    s.pos[end-2][begin+1] = pos[begin+1]
+    s.pos[end-2][begin+2] = pos[begin+2] 
+    s
+end  
+
+"""
+    obtain_results(s)
+
+Return the tuple (roll, pitch, yaw, azimuth_north, elevation, heading) of the kite model s
+"""
+function obtain_results(s)
+    roll, pitch, yaw = orient_euler(s)
+    elevation = calc_elevation(s)
+    azimuth_north = calc_azimuth_north(s)
+    heading = calc_heading(s)
+    return rad2deg(roll), rad2deg(pitch), rad2deg(yaw), rad2deg(azimuth_north), rad2deg(elevation), rad2deg(heading)
 end
 
-@testset "calc_orientation, kite pointing to the north and is at zenith" begin
-    # If kite (x axis) is pointing to the north, and is at zenith, then in ENUs reference frame:
-    # - x = 0, 1, 0
-    # - y = 1, 0, 0
-    # - z = 0, 0,-1
-    # This would be equal to the NED reference frame.
-    x = [0, 1, 0]
-    y = [1, 0, 0]
-    z = [0, 0,-1]
-    @assert is_right_handed_orthonormal(x, y, z)
-    rot = calc_orient_rot(x, y, z)
-    q = QuatRotation(rot)
-    roll, pitch, yaw = rad2deg.(quat2euler(q))
-    @test roll ≈ 0
-    @test pitch ≈ 0
-    @test yaw ≈ 0
+@testset verbose=true "Test roll, pitch, yaw, azimuth, elevation and heading..." begin
+
+# Kite at an elevation of 45 degrees and with 0 roll pitch yaw and azimuth. Heading is then 180 degrees"
+@testset "elevation 45" begin
+    s = create_kite_model((0, 1, 0), (1, 0, 0), (0, 0, -1), # Orientation
+                          (0, sqrt(2)/2, sqrt(2)/2))        # Pos ENU
+    roll, pitch, yaw, azimuth_north, elevation, heading = obtain_results(s)
+
+    @test isapprox(roll,            0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(pitch,           0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(yaw,             0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth_north,   0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(elevation,       45,     atol=1e-4, rtol=1e-4)
+    @test isapprox(heading,         180,    atol=1e-4, rtol=1e-4)
 end
-@testset "calc_orientation, kite pointing to the west and is at zenith " begin
-    x = [-1.0, 0.0, 0.0] # ENU, kite pointing to the west
-    y = [0.0, 1.0, 0.0]  # ENU, right tip pointing to the north
-    z = [0.0, 0.0, -1.0] # ENU, z axis pointing down
-    @assert is_right_handed_orthonormal(x, y, z)
-    rot = calc_orient_rot(x, y, z)
-    q = QuatRotation(rot)
-    roll, pitch, yaw = rad2deg.(quat2euler(q))
-    @test roll ≈ 0
-    @test pitch ≈ 0
-    @test yaw ≈ -90
+
+# Kite at an elevation of 60 degrees and with 0 roll pitch yaw and azimuth. Heading is then 180 degrees"
+@testset "elevation 60" begin
+    s = create_kite_model((0, 1, 0), (1, 0, 0), (0, 0, -1), # Orientation
+                          (0, 0.5, sqrt(3)/2))              # Pos ENU
+    roll, pitch, yaw, azimuth_north, elevation, heading = obtain_results(s)
+
+    @test isapprox(roll,            0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(pitch,           0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(yaw,             0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth_north,   0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(elevation,       60,     atol=1e-4, rtol=1e-4)
+    @test isapprox(heading,         180,    atol=1e-4, rtol=1e-4)
 end
-@testset "calc_orientation, kite pointing to the north, right tip up   " begin
-    # x = [0, 1, 0] y = [0, 0, 1] z = [1, 0, 0] should give -90 degrees roll
-    x = [ 0, 1, 0]
-    y = [ 0, 0, 1]
-    z = [ 1, 0, 0]
-    @assert is_right_handed_orthonormal(x, y, z)
-    rot = calc_orient_rot(x, y, z)
-    q = QuatRotation(rot)
-    roll, pitch, yaw = rad2deg.(quat2euler(q))
-    @test roll ≈ -90
-    @test pitch ≈ 0
-    @test yaw ≈ 0
+
+# Kite at an elevation of -60 degrees and with 0 roll pitch yaw and azimuth. Heading is then 0 degrees"
+@testset "elevation -60" begin
+    s = create_kite_model((0, 1, 0), (1, 0, 0), (0, 0, -1), # Orientation
+                          (0, 0.5, -sqrt(3)/2))             # Pos
+    roll, pitch, yaw, azimuth_north, elevation, heading = obtain_results(s)
+
+    @test isapprox(roll,            0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(pitch,           0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(yaw,             0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth_north,   0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(elevation,       -60,    atol=1e-4, rtol=1e-4)
+    @test isapprox(heading,         0,      atol=1e-4, rtol=1e-4)
 end
-@testset "calc_orientation, kite pointing upwards, right tip eastwards " begin
-    # If x, y and z are given in ENU
-    # x = [0, 0, 1] y = [1, 0, 0] z = [0, 1, 0] should give 90 degrees pitch
-    x = [ 0, 0, 1]  # nose pointing up
-    y = [ 1, 0, 0]  # right tip pointing east
-    z = [ 0, 1, 0]  # z axis pointing to the north
-    @assert is_right_handed_orthonormal(x, y, z)
-    rot = calc_orient_rot(x, y, z)
-    q = QuatRotation(rot)
-    roll, pitch, yaw = rad2deg.(quat2euler(q))
-    @test roll ≈ 0
-    @test pitch ≈ 90
-    @test yaw ≈ 0
+
+# Kite at an azimuth of 45 degrees and with 0 roll pitch yaw and elevation. Heading is then 270 degrees"
+@testset "azimuth 45" begin
+    s = create_kite_model((0, 1, 0), (1, 0, 0), (0, 0, -1), # Orientation
+                          (-sqrt(2)/2, sqrt(2)/2, 0))       # Pos
+    roll, pitch, yaw, azimuth_north, elevation, heading = obtain_results(s)
+
+    @test isapprox(roll,            0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(pitch,           0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(yaw,             0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth_north,   45,     atol=1e-4, rtol=1e-4)
+    @test isapprox(elevation,       0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(heading,         270,    atol=1e-4, rtol=1e-4)
 end
-@testset "calc_orientation, all angles positive                        " begin
-    # x, y and z are given in ENU
-    x = [0.29619813272602386, 0.8137976813493738, 0.49999999999999994]
-    y = [0.8297694655894313, 0.0400087565481419, -0.5566703992264194]
-    z = [-0.47302145844036114, 0.5797694655894312, -0.6634139481689384]
-    @assert is_right_handed_orthonormal(x, y, z)
-    rot = calc_orient_rot(x, y, z)
-    q = QuatRotation(rot)
-    roll, pitch, yaw = rad2deg.(quat2euler(q))
-    @test roll ≈ 40
-    @test pitch ≈ 30
-    @test yaw ≈ 20
+
+# Kite at an azimuth of 60 degrees and with 0 roll pitch yaw and elevation. Heading is then 270 degrees"
+@testset "azimuth 60" begin
+    s = create_kite_model((0, 1, 0), (1, 0, 0), (0, 0, -1), # Orientation
+                          (-sqrt(3)/2, 1/2, 0))             # Pos
+    roll, pitch, yaw, azimuth_north, elevation, heading = obtain_results(s)
+
+    @test isapprox(roll,            0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(pitch,           0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(yaw,             0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth_north,   60,     atol=1e-4, rtol=1e-4)
+    @test isapprox(elevation,       0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(heading,         270,    atol=1e-4, rtol=1e-4)
 end
-@testset "calc_orientation, yaw = 20°                                  " begin
-    # x, y and z are given in ENU
-    x = [0.3420201433256687, 0.9396926207859084, 0.0]
-    y = [0.9396926207859084, -0.3420201433256687, 0.0]
-    z = [0.0, 0.0, -1.0]
-    @assert is_right_handed_orthonormal(x, y, z)
-    rot = calc_orient_rot(x, y, z)
-    q = QuatRotation(rot)
-    roll, pitch, yaw = rad2deg.(quat2euler(q))
-    @test roll  ≈ 0
-    @test pitch ≈ 0
-    @test yaw   ≈ 20
+
+
+# Kite at an azimuth of -60 degrees and with 0 roll pitch yaw and elevation. Heading is then 90 degrees"
+@testset "azimuth -60" begin
+    s = create_kite_model((0, 1, 0), (1, 0, 0), (0, 0, -1), # Orientation
+                           (sqrt(3)/2, 1/2, 0))             # Pos
+    roll, pitch, yaw, azimuth_north, elevation, heading = obtain_results(s)
+
+    @test isapprox(roll,            0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(pitch,           0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(yaw,             0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth_north,   -60,    atol=1e-4, rtol=1e-4)
+    @test isapprox(elevation,       0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(heading,         90,     atol=1e-4, rtol=1e-4)
 end
-@testset "calc_orientation, pitch = 30°                                " begin
-    # x, y and z are given in ENU
-    x = [0.0, 0.8660254037844387, 0.49999999999999994]
-    y = [1.0, 0.0, 0.0]
-    z = [0.0, 0.49999999999999994, -0.8660254037844387]
-    @assert is_right_handed_orthonormal(x, y, z)
-    rot = calc_orient_rot(x, y, z)
-    q = QuatRotation(rot)
-    roll, pitch, yaw = rad2deg.(quat2euler(q))
-    @test roll  ≈ 0
-    @test pitch ≈ 30.0
-    @test yaw   ≈ 0
+
+# Kite at an azimuth of 60 degrees and with 45 degrees pitch, 0 roll yaw and elevation. Heading is then 319 degrees"
+@testset "pitch azimuth" begin
+    s = create_kite_model((0, sqrt(2)/2, sqrt(2)/2), (1, 0, 0), (0, sqrt(2)/2, -sqrt(2)/2),   # Orientation
+                          (-sqrt(3)/2, 1/2, 0))                                                 # Pos
+    roll, pitch, yaw, azimuth_north, elevation, heading = obtain_results(s)
+
+    @test isapprox(roll,            0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(pitch,           45,     atol=1e-4, rtol=1e-4)
+    @test isapprox(yaw,             0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth_north,   60,     atol=1e-4, rtol=1e-4)
+    @test isapprox(elevation,       0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(heading,         319.1066053508691,    atol=1e-4, rtol=1e-4)
 end
-@testset "calc_orientation, yaw=20°, pitch = 30°                       " begin
-    # x, y and z are given in ENU
-    x = [0.29619813272602386, 0.8137976813493738, 0.49999999999999994]
-    y = [0.9396926207859084, -0.3420201433256687, 0.0]
-    z = [0.17101007166283433, 0.46984631039295416, -0.8660254037844387]
+
+# Kite at an elevation of 60 degrees and with 45 degrees yaw, 0 roll pitch and elevation. Heading is then 229 degrees"
+@testset "yaw elevation" begin
+    s = create_kite_model((sqrt(2)/2, sqrt(2)/2, 0), (sqrt(2)/2, -sqrt(2)/2, 0), (0, 0, -1),    # Orientation
+                          (0, 1/2, sqrt(3)/2))                                                  # Pos
+    roll, pitch, yaw, azimuth_north, elevation, heading = obtain_results(s)
+
+    @test isapprox(roll,            0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(pitch,           0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(yaw,             45,     atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth_north,   0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(elevation,       60,     atol=1e-4, rtol=1e-4)
+    @test isapprox(heading,         229.10660535086907,    atol=1e-4, rtol=1e-4)
+end
+
+# Kite at an elevation and azimuth of 45 degrees and with 0 roll pitch and yaw. Heading is then 234 degrees"
+@testset "azimuth 45 elevation 45" begin
+    s = create_kite_model((0, 1, 0), (1, 0, 0), (0, 0, -1), # Orientation
+                          (-1/2, 1/2, sqrt(2)/2))           # Pos
+    roll, pitch, yaw, azimuth_north, elevation, heading = obtain_results(s)
+
+    @test isapprox(roll,            0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(pitch,           0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(yaw,             0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth_north,   45,     atol=1e-4, rtol=1e-4)
+    @test isapprox(elevation,       45,     atol=1e-4, rtol=1e-4)
+    @test isapprox(heading,         234.73561031724535,    atol=1e-4, rtol=1e-4)
+end
+
+# Kite at an elevation and azimuth of 45 degrees and 90 degrees roll. With 0 pitch and yaw. Heading is then 234 degrees and should not change due to roll"
+@testset "roll azimuth elevation" begin
+    s = create_kite_model((0, 1, 0), (0, 0, -1), (-1, 0, 0), # Orientation
+                          (-1/2, 1/2, sqrt(2)/2))           # Pos
+    roll, pitch, yaw, azimuth_north, elevation, heading = obtain_results(s)
+
+    @test isapprox(roll,            90,     atol=1e-4, rtol=1e-4)
+    @test isapprox(pitch,           0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(yaw,             0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth_north,   45,     atol=1e-4, rtol=1e-4)
+    @test isapprox(elevation,       45,     atol=1e-4, rtol=1e-4)
+    @test isapprox(heading,         234.73561031724535,    atol=1e-4, rtol=1e-4)
+end
+
+# Kite pointing towards zenith and z-axis towards groundstation at elevation and azimuth equal to 0, should give a heading of 0."
+@testset "base orientation" begin
+    s = create_kite_model((0, 0, 1), (-1, 0, 0), (0, -1, 0), # Orientation
+                          (0, 1, 0))                         # Pos
+    roll, pitch, yaw, azimuth_north, elevation, heading = obtain_results(s)
+
+    @test isapprox(azimuth_north,   0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(elevation,       0,      atol=1e-4, rtol=1e-4)
+    if heading > 359
+        heading -= 360
+    end
+    @test isapprox(heading,         0,      atol=1e-4, rtol=1e-4)
+end
+
+# Kite pointing towards west and z-axis towards groundstation at elevation and azimuth equal to 0, should give a heading of 90."
+@testset "base orientation heading 90" begin
+    s = create_kite_model((-1, 0, 0), (0, 0, -1), (0, -1, 0), # Orientation
+                          (0, 1, 0))                          # Pos
+    roll, pitch, yaw, azimuth_north, elevation, heading = obtain_results(s)
+
+    @test isapprox(azimuth_north,   0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(elevation,       0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(heading,         90,      atol=1e-4, rtol=1e-4)
+end
+
+# Kite is same place and orientation as base orientation, rotate the windframe x axis 45 degrees to the west"
+@testset "upwind_dir dir 45" begin
+    s = create_kite_model((0, 0, 1), (-1, 0, 0), (0, -1, 0), # Orientation
+                          (0, 1, 0),                         # Pos
+                          45+180)                            # upwind_dir  
+    roll, pitch, yaw, azimuth_north, elevation, heading = obtain_results(s)
+
+    @test isapprox(azimuth_north,   0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(elevation,       0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(heading,         0,      atol=1e-4, rtol=1e-4) || isapprox(heading, 360, atol=1e-4, rtol=1e-4)
+end
+
+# Kite is same place and orientation as base orientation, rotate the windframe x axis 60 degrees to the west"
+@testset "upwind_dir dir 60" begin
+    s = create_kite_model((0, 0, 1), (-1, 0, 0), (0, -1, 0), # Orientation
+                          (0, 1, 0),                         # Pos
+                          60+180)                            # upwind_dir  
+    roll, pitch, yaw, azimuth_north, elevation, heading = obtain_results(s)
+
+    @test isapprox(azimuth_north,   0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(elevation,       0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(heading,         0,      atol=1e-4, rtol=1e-4)
+end
+
+# Kite is same place and orientation as base orientation, rotate the windframe x axis 60 degrees to the east"
+@testset "upwind_dir dir -60" begin
+    s = create_kite_model((0, 0, 1), (-1, 0, 0), (0, -1, 0), # Orientation
+                          (0, 1, 0),                         # Pos
+                          -60+180)                           # upwind_dir  
+    roll, pitch, yaw, azimuth_north, elevation, heading = obtain_results(s)
     
-    @assert is_right_handed_orthonormal(x, y, z)
-    rot = calc_orient_rot(x, y, z)
-    q = QuatRotation(rot)
-    roll, pitch, yaw = rad2deg.(quat2euler(q))
-    @test roll + 1  ≈ 0 + 1
-    @test pitch     ≈ 30.0
-    @test yaw       ≈ 20.0
+    @test isapprox(azimuth_north,   0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(elevation,       0,      atol=1e-4, rtol=1e-4)
+    @test isapprox(heading,         0,      atol=1e-4, rtol=1e-4)
 end
-@testset "calc_orientation, roll = 40°                                 " begin
-    # x, y and z are given in ENU
-    x = [0.0, 1.0, 0.0]
-    y = [0.766044443118978, 0.0, -0.6427876096865393]
-    z = [-0.6427876096865393, 0.0, -0.766044443118978]
-    
-    @assert is_right_handed_orthonormal(x, y, z)
-    rot = calc_orient_rot(x, y, z)
-    q = QuatRotation(rot)
-    roll, pitch, yaw = rad2deg.(quat2euler(q))
-    @test roll       ≈ 40
-    @test pitch+1    ≈ 0.0+1
-    @test yaw+1      ≈ 0.0+1
+
+# Kite is same place and orientation as base orientation, rotate the windframe x axis 45 degrees to the west"
+@testset "upwind_dir dir 45 azimuth wind" begin
+    s = create_kite_model((0, 0, 1), (-1, 0, 0), (0, -1, 0), # Orientation
+                          (0, 1, 0),                         # Pos
+                          45+180)                            # upwind_dir  
+    azimuth = rad2deg(calc_azimuth(s))
+    azimuth_north = rad2deg(calc_azimuth_north(s))
+    @test isapprox(azimuth,         45,      atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth_north,   0,      atol=1e-4, rtol=1e-4)
+end
+
+# Kite is same place and orientation as base orientation, rotate the windframe x axis 60 degrees to the west"
+@testset "upwind_dir dir 60 azimuth wind" begin
+    s = create_kite_model((0, 0, 1), (-1, 0, 0), (0, -1, 0), # Orientation
+                          (0, 1, 0),                         # Pos
+                          60+180)                            # upwind_dir  
+    upwind_dir_ = rad2deg(upwind_dir(s))
+    azimuth = rad2deg(calc_azimuth(s))
+    azimuth_north = rad2deg(calc_azimuth_north(s))
+
+    @test isapprox(azimuth,         60,      atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth_north,   0,      atol=1e-4, rtol=1e-4)
+end
+
+# Kite is same place and orientation as base orientation, rotate the windframe x axis 60 degrees to the east"
+@testset "upwind_dir dir -60 azimuth wind" begin
+    s = create_kite_model((0, 0, 1), (-1, 0, 0), (0, -1, 0), # Orientation
+                          (0, 1, 0),                         # Pos
+                          -60+180)                           # upwind_dir  
+    azimuth = rad2deg(calc_azimuth(s))
+    azimuth_north = rad2deg(calc_azimuth_north(s))
+
+    @test isapprox(azimuth,         -60,      atol=1e-4, rtol=1e-4)
+    @test isapprox(azimuth_north,   0,      atol=1e-4, rtol=1e-4)
+
+end
 end
 nothing
+    
+calc_azimuth
