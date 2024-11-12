@@ -55,8 +55,7 @@ else
     exit 1
 fi
 
-totalmem=$(grep MemTotal /proc/meminfo | awk '{print $2 / 1024}')
-totalmem=${totalmem%.*}
+totalmem=$(grep MemTotal /proc/meminfo | awk '{printf "%i", $2 / 1024}')
 if [[ $totalmem -lt 27000 ]]; then
     echo "Warning: Less than 27GB of memory detected. Using only one thread for sysimage compilation."
     export JULIA_IMAGE_THREADS=1
