@@ -219,6 +219,7 @@ end
 # include(joinpath(@__DIR__, "CreatePolars.jl"))
 function KPS4_3L(kcu::KCU)
     set = kcu.set
+    @assert set.foil_file != "" "No foil file specified in settings."
     open(joinpath(dirname(get_data_path()), set.foil_file), "r") do f
         lines = readlines(f)
         if !endswith(chomp(lines[1]), "polars created")
@@ -320,10 +321,25 @@ function SysState(s::KPS4_3L, zoom=1.0) # TODO: add left and right lines, stop u
     t_sim = 0
     depower = rad2deg(s.get_flap_angle(s.integrator)[1] + s.get_flap_angle(s.integrator)[2])
     steering = rad2deg(s.get_flap_angle(s.integrator)[2] - s.get_flap_angle(s.integrator)[1])
-    KiteUtils.SysState{P}(s.t_0, t_sim, 0, 0, orient, elevation, azimuth, s.tether_lengths[3], s.get_tether_vels(s.integrator)[3], forces[3], depower, steering, 
-                          heading, course, v_app_norm, s.vel_kite, X, Y, Z, 
-                          0, 0, 0, 0, 
-                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+    ss = SysState{P}()
+    ss.time = s.t_0
+    ss.t_sim = t_sim
+    ss.orient .= orient
+    ss.elevation = elevation
+    ss.azimuth = azimuth
+    ss.l_tether = s.tether_lengths[3]
+    ss.v_reelout = s.get_tether_vels(s.integrator)[3]
+    ss.force = forces[3]
+    ss.depower = depower
+    ss.steering = steering
+    ss.heading = heading
+    ss.course = course
+    ss.v_app = v_app_norm
+    ss.vel_kite .= s.vel_kite
+    ss.X = X
+    ss.Y = Y
+    ss.Z = Z
+    ss
 end
 
 

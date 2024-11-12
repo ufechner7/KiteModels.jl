@@ -34,13 +34,14 @@ Scientific background: http://arxiv.org/abs/1406.6218 =#
 module KiteModels
 
 using PrecompileTools: @setup_workload, @compile_workload 
-using Dierckx, Interpolations, Serialization, StaticArrays, Rotations, LinearAlgebra, Parameters, NLsolve, 
+using Dierckx, Interpolations, Serialization, StaticArrays, LinearAlgebra, Parameters, NLsolve, 
       DocStringExtensions, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK
 import Sundials
 using Reexport, Pkg
 @reexport using KitePodModels
 @reexport using WinchModels
 @reexport using AtmosphericModels
+@reexport using Rotations
 import Base.zero
 import KiteUtils.calc_elevation
 import KiteUtils.calc_heading
@@ -59,7 +60,7 @@ export init_sim!, reset_sim!, next_step!, init_pos_vel, init_pos, model!        
 export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, calc_orient_quat  # getters
 export calc_azimuth_north, calc_azimuth_east
 export winch_force, lift_drag, cl_cd, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
-export kite_ref_frame, orient_euler, spring_forces, upwind_dir
+export kite_ref_frame, orient_euler, spring_forces, upwind_dir, copy_model_settings
 import LinearAlgebra: norm
 
 set_zero_subnormals(true)       # required to avoid drastic slow down on Intel CPUs when numbers become very small
@@ -119,8 +120,9 @@ include("KPS3.jl") # include code, specific for the one point kite model
 include("init.jl") # functions to calculate the inital state vector, the inital masses and initial springs
 
 # Calculate the lift and drag coefficient as a function of the angle of attack alpha.
-function set_cl_cd!(s::AKM, alpha)   
-    angle =  alpha * 180.0 / π
+function set_cl_cd!(s::AKM, alpha)
+    angle =  rad2deg(alpha)
+    s.alpha_2 = angle
     if angle > 180.0
         angle -= 360.0
     end
@@ -210,7 +212,7 @@ function set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind; upwind_dir=
     wind_dir = -upwind_dir - pi/2
     s.v_wind .= v_wind_gnd * calc_wind_factor(s.am, height) .* [cos(wind_dir), sin(wind_dir), 0]
     s.v_wind_gnd .= [v_wind_gnd * cos(wind_dir), v_wind_gnd * sin(wind_dir), 0.0]
-    s.v_wind_tether .= s.v_wind_gnd * calc_wind_factor(s.am, height / 2.0) # .* [cos(wind_dir), sin(wind_dir), 0]
+    s.v_wind_tether .= s.v_wind_gnd * calc_wind_factor(s.am, height / 2.0)
     s.rho = calc_rho(s.am, height)
     nothing
 end
@@ -327,6 +329,7 @@ end
     calc_azimuth_east(s::AKM)
 
 Determine the azimuth_east angle of the kite in radian.
+Positive clockwise when seen from above.
 """
 function calc_azimuth_east(s::AKM)
     KiteUtils.azimuth_east(pos_kite(s))
@@ -336,6 +339,7 @@ end
     calc_azimuth_north(s::AKM)
 
 Determine the azimuth_north angle of the kite in radian.
+Positive anti-clockwise when seen from above.
 """
 function calc_azimuth_north(s::AKM)
     KiteUtils.azimuth_north(pos_kite(s))
@@ -440,6 +444,14 @@ function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
     ss.depower = s.depower
     ss.steering = s.steering/s.set.cs_4p
     ss.vel_kite .= s.vel_kite
+    ss.t_sim = 0.0
+    ss.AoA = deg2rad(s.alpha_2)
+    cl, cd = cl_cd(s)
+    ss.CL2 = cl
+    ss.CD2 = cd
+    ss.v_wind_gnd  .= s.v_wind_gnd
+    ss.v_wind_200m .= s.v_wind_gnd * calc_wind_factor(s.am, 200.0)
+    ss.v_wind_kite .= s.v_wind
     nothing
 end
 
@@ -452,28 +464,9 @@ system state in a viewer. Optionally the position arrays can be zoomed
 according to the requirements of the viewer.
 """
 function SysState(s::AKM, zoom=1.0)
-    pos = s.pos
-    P = length(pos)
-    X = zeros(MVector{P, MyFloat})
-    Y = zeros(MVector{P, MyFloat})
-    Z = zeros(MVector{P, MyFloat})
-    for i in 1:P
-        X[i] = pos[i][1] * zoom
-        Y[i] = pos[i][2] * zoom
-        Z[i] = pos[i][3] * zoom
-    end
-    
-    orient = calc_orient_quat(s)
-
-    elevation = calc_elevation(s)
-    azimuth = calc_azimuth(s)
-    force = winch_force(s)
-    heading = calc_heading(s)
-    course = calc_course(s)
-    v_app_norm = norm(s.v_apparent)
-    t_sim = 0
-    KiteUtils.SysState{P}(s.t_0, t_sim, 0, 0, orient, elevation, azimuth, s.l_tether, s.v_reel_out, force, s.depower, s.steering/s.set.cs_4p, 
-                          heading, course, v_app_norm, s.vel_kite, X, Y, Z, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+    ss = SysState{length(s.pos)}()
+    update_sys_state!(ss, s, zoom)
+    ss
 end
 
 function calc_pre_tension(s::AKM)
@@ -601,14 +594,26 @@ function copy_examples()
     copy_files("examples", readdir(src_path))
 end
 
+function copy_model_settings()
+    files = ["settings.yaml", "MH82.dat", "polars.bin", "system.yaml", "settings_3l.yaml", 
+             "system_3l.yaml"]
+    dst_path = abspath(joinpath(pwd(), "data"))
+    copy_files("data", files)
+    set_data_path(joinpath(pwd(), "data"))
+    println("Copied $(length(files)) files to $(dst_path) !")
+end
+
 function install_examples(add_packages=true)
     copy_examples()
     copy_settings()
+    copy_model_settings()
     if add_packages
         Pkg.add("KiteUtils")
         Pkg.add("KitePodModels")
         Pkg.add("WinchModels")
         Pkg.add("ControlPlots")
+        Pkg.add("LaTeXStrings")
+        Pkg.add("StatsBase")
     end
 end
 
@@ -674,7 +679,8 @@ end
     # Putting some things in `@setup_workload` instead of `@compile_workload` can reduce the size of the
     # precompile file and potentially make loading faster.
     # list = [OtherType("hello"), OtherType("world!")]
-    set_data_path("data")
+    path = dirname(pathof(@__MODULE__))
+    set_data_path(joinpath(path, "..", "data"))
 
     set = se("system.yaml")
     set.kcu_diameter = 0

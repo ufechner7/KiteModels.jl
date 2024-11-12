@@ -70,6 +70,8 @@ $(TYPEDFIELDS)
     v_apparent::T =       zeros(S, 3)
     "vector, perpendicular to v_apparent; output of calc_drag"
     v_app_perp::T =       zeros(S, 3)
+    "angle of attack of the kite; output of set_cl_cd!"
+    alpha_2::S =          0.0
     "drag force of kite and bridle; output of calc_aero_forces"
     drag_force::T =       zeros(S, 3)
     "lift force of the kite; output of calc_aero_forces"
@@ -344,6 +346,14 @@ function calc_set_cl_cd!(s::KPS3, vec_c, v_app)
     s.vec_z .= normalize(vec_c)
     alpha = calc_alpha(v_app, s.vec_z) - s.alpha_depower
     set_cl_cd!(s, alpha)
+end
+"""
+    cl_cd(s::KPS3)
+
+Calculate the lift and drag coefficients of the kite, based on the current angles of attack.
+"""
+function cl_cd(s::KPS3)
+    CL2, CD2 = s.calc_cl(s.alpha_2), s.calc_cd(s.alpha_2)
 end
 
 """

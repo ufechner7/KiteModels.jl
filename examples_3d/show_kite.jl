@@ -1,4 +1,7 @@
-# generate test cases for the calculation of roll, pitch and yaw
+# show a static kite for verification of roll, pitch and yaw
+# To run this script, use the following commands:
+# julia --project
+# include("examples_3d/show_kite.jl")
 using LinearAlgebra
 
 using Printf
@@ -7,8 +10,8 @@ using Pkg, Timers
 tic()
 if ! ("KiteViewers" ∈ keys(Pkg.project().dependencies))
     Pkg.activate("examples_3d")
-    pkg"add KiteUtils#main"
-    pkg"add KiteModels#main"
+    # pkg"add KiteUtils#main"
+    # pkg"add KiteModels#main"
 end
 using KiteUtils, Rotations, StaticArrays
 using KiteViewers

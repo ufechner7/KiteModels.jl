@@ -18,15 +18,17 @@ This package is part of Julia Kite Power Tools, which consist of the following p
 If you want to run simulations and see the results in 3D, please install the meta package  [KiteSimulators](https://github.com/aenarete/KiteSimulators.jl) which contains all other packages. If you are not interested in 3D visualization or control you can just install this package. When you have installed the package KiteSimulators, use the command `using KiteSimulators` instead of `using KiteModels` when this is mentioned in the documentation.
 
 ## Installation
-Install [Julia 1.10](https://ufechner7.github.io/2024/08/09/installing-julia-with-juliaup.html) or later, if you haven't already. 
+Install [Julia 1.10](https://ufechner7.github.io/2024/08/09/installing-julia-with-juliaup.html) or later, if you haven't already. On Linux, make sure that Python3 and Matplotlib are installed:
+```
+sudo apt install python3-matplotlib
+```
 Before installing this software it is suggested to create a new project, for example like this:
 ```bash
 mkdir test
 cd test
 julia --project="."
 ```
-
-Now add KiteModels from  Julia's package manager, by typing 
+Then add KiteModels from  Julia's package manager, by typing:
 ```julia
 using Pkg
 pkg"add KiteModels"
@@ -47,11 +49,22 @@ include("examples/menu.jl")
 ```
 
 ## News
+#### October 2024
+- the orientation is now represented with respect to the NED reference frame
+- azimuth is now calculated in wind reference frame. This allows it to handle changes of the wind direction
+  during flight correctly.
+- many unit tests added by a new contributor
+- many tests for model verification added; they can be accessed using the `menu2.jl` script
+- the documentation was improved
 #### August 2024
 - a new kite model, KPS3_3L was contributed. It uses three lines to the ground and three winches for steering a ram-air foil kite.
+- a first [ModelingToolkit](https://docs.sciml.ai/ModelingToolkit/stable/) based model was added, which shows a much better performance and easier to read code
 - a new KCU model was added which assumes a linear relationship between the depower settings and the depower angle and thus is easier to configure than the original model.
+- the drag of the KCU is now taken into account
+- the drag of the bridle is now taken into account correctly, also if the real kite has more bridle lines than the model
+- the function to find the initial state is now much more robust
 #### July 2024
-- a new groundstation / winch-type is now supported, the `TorqueControlledMachine`. It can be configured in the section `winch` of the `settings.yaml` file. It uses a set torque as input.
+- a new groundstation / winch type is now supported, the `TorqueControlledMachine`. It can be configured in the section `winch` of the `settings.yaml` file. It uses a set torque as input.
 - a Python interface is now provided, see: [pykitemodels](https://github.com/ufechner7/pykitemodels)
 #### April 2024
 - added support for the native Julia DAE solver DFBDF. It is much more accurate and faster than the IDA solver that was used before.
@@ -78,7 +91,7 @@ The one point and four point kite models are described in detail in [Dynamic Mod
 
 ## See also
 - [Research Fechner](https://research.tudelft.nl/en/publications/?search=Fechner+wind&pageSize=50&ordering=rating&descending=true) for the scientic background of this code
-- The application [KiteViewer](https://github.com/ufechner7/KiteViewer)
+- The meta-package  [KiteSimulators](https://github.com/aenarete/KiteSimulators.jl)
 - the package [KiteUtils](https://github.com/ufechner7/KiteUtils.jl)
 - the packages [WinchModels](https://github.com/aenarete/WinchModels.jl) and [KitePodModels](https://github.com/aenarete/KitePodModels.jl) and [AtmosphericModels](https://github.com/aenarete/AtmosphericModels.jl)
 - the packages [KiteControllers](https://github.com/aenarete/KiteControllers.jl) and [KiteViewers](https://github.com/aenarete/KiteViewers.jl)

@@ -1,6 +1,6 @@
 using Printf
 
-using KiteModels, KitePodModels, KiteUtils, Rotations
+using KiteModels, KitePodModels, KiteUtils
 
 set = deepcopy(load_settings("system.yaml"))
 
@@ -39,14 +39,7 @@ function simulate(integrator, steps, plot=false)
         end
 
         KiteModels.next_step!(kps4, integrator; set_speed=0, dt)
-        iter += kps4.iter
-
-        sys_state = SysState(kps4)
-        q = QuatRotation(sys_state.orient)
-        # println(q)
-        roll, pitch, yaw = rad2deg.(quat2euler(q))
-        println("roll: ", roll, " pitch: ", pitch, " yaw: ", yaw)
-        
+        iter += kps4.iter    
         if plot
             reltime = i*dt-dt
             if mod(i, 5) == 1

@@ -16,6 +16,13 @@ This package is part of Julia Kite Power Tools, which consists of the following 
 <p align="center"><img src="./docs/src/kite_power_tools.png" width="500" /></p>
 
 ## News
+#### October 2024
+- the orientation is now represented with respect to the NED reference frame
+- azimuth is now calculated in wind reference frame. This allows it to handle changes of the wind direction
+  during flight correctly.
+- many unit tests added by a new contributor
+- many tests for model verification added; they can be accessed using the `menu2.jl` script
+- the documentation was improved
 #### August 2024
 - a new kite model, KPS3_3L was contributed. It uses three lines to the ground and three winches for steering a ram-air foil kite.
 - a first [ModelingToolkit](https://docs.sciml.ai/ModelingToolkit/stable/) based model was added, which shows a much better performance and easier to read code
@@ -33,7 +40,10 @@ This package is part of Julia Kite Power Tools, which consists of the following 
 If you want to run simulations and see the results in 3D, please install the meta package  [KiteSimulators](https://github.com/aenarete/KiteSimulators.jl) . If you are not interested in 3D visualization or control you can just install this package.
 
 ## Installation
-Install [Julia 1.10](https://ufechner7.github.io/2024/08/09/installing-julia-with-juliaup.html) or later, if you haven't already. 
+Install [Julia 1.10](https://ufechner7.github.io/2024/08/09/installing-julia-with-juliaup.html) or later, if you haven't already. On Linux, make sure that Python3 and Matplotlib are installed:
+```
+sudo apt install python3-matplotlib
+```
 
 Before installing this software it is suggested to create a new project, for example like this:
 ```bash

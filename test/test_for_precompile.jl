@@ -107,6 +107,7 @@ let
     set = se("system_3l.yaml")
     set.abs_tol = 0.006
     set.rel_tol = 0.01
+    set.foil_file = "data/MH82.dat"
     dt = 1/set.sample_freq
     tspan   = (0.0, dt)
 

@@ -1,5 +1,20 @@
-# Changelog
-### Unreleased
+### KiteModels v0.6.11 2024-11-09
+#### Fixed
+- fixed bug in spring_forces(), it used 4000N hardcoded max force
+#### Changed
+- bump KiteUtils to 0.9.0
+- the fields AoA, CL2, CD2 and the vectors v_wind_gnd, v_wind_200m and v_wind_kite are now updated 
+  when converting KPS3 or KPS4 to SysState
+#### Added
+- add example test_steady_state.jl
+
+### KiteModels v0.6.10 2024-11-01
+- fixed the installation of the examples
+- updated the documentation
+- the package Rotations is now re-exported by KiteModels
+- reduce number of dependencies of the examples
+
+### KiteModels v0.6.9 2024-11-01
 - added tests for calc_azimuth(s::AKM), the azimuth in wind reference frame
 - re-enable logging of the angles of attack of the three plates
 - `steering_test_4p.jl` now calculates both `c1` and `c2` of the turn-rate law
