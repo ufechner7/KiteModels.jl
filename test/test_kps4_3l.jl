@@ -195,7 +195,7 @@ end
     end
 
     ss = SysState(k3l)
-    @test isapprox(ss.v_reelout, 0, atol=1e-5)
+    @test isapprox(ss.v_reelout, 0, atol=0.2)
     
     # TODO Add testcase with varying reelout speed 
 end

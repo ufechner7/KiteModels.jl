@@ -37,7 +37,6 @@ for i in 1:steps
     global total_step_time, sys_state, steering, sign
     time = (i-1) * dt
     Core.println("time: ", time)
-    @show winch_force(s)
     # if time > 1.0 steering = [-1, -20, -200.0] end
     # if time > 5.0 steering = [-10, -1, -200.0] end
     steering .= -winch_force(s)*0.11
@@ -68,8 +67,6 @@ for i in 1:steps
     sys_state.var_11 =  clamp((s.integrator[s.simple_sys.flap_vel][1] - s.integrator[s.simple_sys.flap_vel][2]) /
                             (s.get_tether_vels(s.integrator)[1] - s.get_tether_vels(s.integrator)[2]) * 100, -20, 10)
 
-    @show sys_state.var_11
-
     step_time = @elapsed next_step!(s; set_values=steering, dt=dt)
     if time > total_time/2
         total_step_time += step_time
@@ -91,12 +88,12 @@ p=plotx(logger.time_vec,
             [rad2deg.(logger.var_07_vec), rad2deg.(logger.var_08_vec)], 
             [logger.var_09_vec, logger.var_11_vec],
             [logger.var_10_vec]; 
-        ylabels=["steering", "length", "heading [deg]", "ratio", "distance"], 
+        ylabels=["steering", "length", "heading [deg]", "ratio", "velocity"], 
         labels=[
             ["steering pos C", "steering pos D", "power angle"], 
             ["left tether", "right tether", "middle tether"], 
             ["turn_rate_y", "heading_y"],
-            ["turn_rate / flap difference", "diff' / tether_diff'"],
-            ["flap difference"]],
+            ["turn_rate / flap difference", "flap speed difference / tether speed difference"],
+            ["flap speed difference"]],
         fig="Steering and heading MTK model")
 display(p)
