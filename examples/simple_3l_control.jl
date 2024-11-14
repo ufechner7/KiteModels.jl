@@ -1,11 +1,11 @@
-using Revise, KiteModels, LinearAlgebra
+using KiteModels, LinearAlgebra
 using Base: summarysize
 
 using Pkg
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
     using TestEnv; TestEnv.activate()
 end
-using ControlPlots, StatsBase
+using ControlPlots, StatsBase, Revise
 
 set = deepcopy(load_settings("system_3l.yaml"))
 # set.elevation = 71
