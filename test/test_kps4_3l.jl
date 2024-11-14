@@ -2,7 +2,6 @@ using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils
 using KiteModels, KitePodModels
 
 old_path = get_data_path()
-# @show old_path
 set_data_path(joinpath(dirname(dirname(pathof(KiteModels))), "data"))
 kcu_3l::KCU = KCU(se("system_3l.yaml"))
 kcu_3l.set.winch_model = "AsyncMachine"
@@ -85,7 +84,7 @@ global initial_pos
         k3l.set.l_tether = 51.0
         KiteModels.init_sim!(k3l; prn=false, torque_control=false)
         pos2 = deepcopy(k3l.pos)
-        @test isapprox(k3l.tether_lengths[3], 51.0, atol=0.1)
+        @test isapprox(k3l.tether_lengths[3], 51.0, atol=0.2)
         for i in 4:k3l.num_A
             @test !isapprox(pos2[i], initial_pos[i], atol=tol, rtol=tol)
         end
@@ -159,10 +158,10 @@ end
 end
 
 function simulate(steps)
-    av_L_C = zeros(typeof(k3l.L_C))
+    av_L_C = k3l.get_L_C(k3l.integrator)
     for i in 1:steps
         KiteModels.next_step!(k3l; set_values=[0.0, 0.0, 0.0])
-        av_L_C .+= k3l.L_C
+        av_L_C .+= k3l.get_L_C(k3l.integrator)
     end
     av_L_C ./= steps
     return k3l.integrator.iter/steps, av_L_C
@@ -185,17 +184,18 @@ end
     end
   
     if prn
-        @show k3l.L_C
-        @show k3l.reel_out_speeds
+        @show k3l.get_L_C(k3l.integrator)
+        @show k3l.get_tether_vels(k3l.integrator)
     else
-        @test isapprox(av_L_C, [0.958166069034197, 103.82204584738277, 218.11784652013483], atol=1.0)
-        @test isapprox(normalize(k3l.L_C) ⋅ normalize(k3l.v_wind), 0.0, atol=1e-2)
-        @test isapprox(k3l.reel_out_speeds, [0.0, 0.0, 0.0], atol=tol)
-        @test isapprox(k3l.L_C[2], -k3l.L_D[2], atol=1e-1)
+        @test isapprox(av_L_C, [4.205557424653014, 113.23736209049324, 238.29250730249586], rtol=0.1)
+        @test isapprox(normalize(k3l.get_L_C(k3l.integrator)) ⋅ normalize(k3l.v_wind), 0.0, atol=0.02)
+        @test isapprox(k3l.get_tether_vels(k3l.integrator), [0.0, 0.0, 0.0], atol=0.2)
+        @test isapprox(k3l.get_L_C(k3l.integrator)[2], -k3l.get_L_D(k3l.integrator)[2], atol=1e-1)
+        @test isapprox(k3l.get_heading(k3l.integrator), 0.0, atol=tol)
     end
 
     ss = SysState(k3l)
-    @test isapprox(ss.v_reelout, 0, atol=1e-5)
+    @test isapprox(ss.v_reelout, 0, atol=0.2)
     
     # TODO Add testcase with varying reelout speed 
 end

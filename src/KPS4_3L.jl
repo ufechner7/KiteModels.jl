@@ -93,8 +93,6 @@ $(TYPEDFIELDS)
     v_wind_tether::T =    zeros(S, 3)
     "apparent wind vector at the kite"
     v_apparent::T =       zeros(S, 3)
-    "last winch force"
-    winch_forces::SVector{3,T} = [zeros(S, 3) for _ in 1:3]
     "a copy of the residual one (pos,vel) for debugging and unit tests"    
     res1::SVector{P, T} = zeros(SVector{P, T})
     "a copy of the residual two (vel,acc) for debugging and unit tests"
@@ -102,26 +100,18 @@ $(TYPEDFIELDS)
     "a copy of the actual positions as output for the user"
     pos::SVector{P, T} = zeros(SVector{P, T})
     vel::SVector{P, T} = zeros(SVector{P, T})
-    veld::SVector{P, T} = zeros(SVector{P, T})
-    flap_acc::MVector{2, S} = zeros(MVector{2, S})
-    "velocity vector of the kite"
-    vel_kite::T =          zeros(S, 3)
     "unstressed segment lengths of the three tethers [m]"
     segment_lengths::T =           zeros(S, 3)
     "azimuth angle in radian; inital value is zero"
     psi::S =              zero(S)
     "relative start time of the current time interval"
     t_0::S =               0.0
-    "reel out speed of the winch"
-    reel_out_speeds::T =        zeros(S, 3)
     "unstretched tether length"
     tether_lengths::T =          zeros(S, 3)
-    "lengths of the connections of the steering tethers to the kite"
-    flap_angle::MVector{2, S} =      zeros(S, 2)
     "air density at the height of the kite"
     rho::S =               0.0
     "multiplier for the damping of all movement"
-    damping_coeff::S =  0.0
+    damping_coeff::S =  50.0
     "current masses, depending on the total tether length"
     masses::MVector{P, S}         = zeros(P)
     "vector of the springs, defined as struct"
@@ -130,10 +120,6 @@ $(TYPEDFIELDS)
     c_spring::S = zero(S)
     "unit damping coefficient"
     damping::S = zero(S)
-    "vector of the forces, acting on the particles"
-    forces::SVector{P, T} = zeros(SVector{P, T})
-    "synchronous speed or torque of the motor/ generator"
-    set_values::KVec3  = zeros(KVec3)
     "whether or not to use torque control instead of speed control"
     torque_control::Bool = false
     "x vector of kite reference frame"
@@ -162,18 +148,18 @@ $(TYPEDFIELDS)
     α_C::S =     0.0
     "Kite length at point C"
     kite_length_C::S =     0.0
-    "Lift of point C"
-    L_C::T = zeros(S, 3)
-    "Lift of point D"
-    L_D::T = zeros(S, 3)
-    "Drag of point C"
-    D_C::T = zeros(S, 3)
-    "Drag of point D"
-    D_D::T = zeros(S, 3)
     "Solution of the steady state problem"
     steady_sol::Union{SciMLBase.NonlinearSolution, Nothing} = nothing
     "Simplified system of the mtk model"
     simple_sys::Union{ModelingToolkit.ODESystem, Nothing} = nothing
+    "Velocity of the kite"
+    vel_kite::T =           zeros(S, 3)
+    "Initial torque or speed set values"
+    init_set_values::T =    zeros(S, 3)
+    "Smooth sign constant"
+    ϵ::S =      1e-3
+    "Relative damping for flaps"
+    flap_damping::S     = 0.75
 
     # set_values_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
     v_wind_gnd_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
@@ -183,7 +169,7 @@ $(TYPEDFIELDS)
     get_pos::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_flap_angle::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_flap_acc::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
-    get_kite_vel::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
+    get_vel_kite::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_winch_forces::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_tether_lengths::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_tether_vels::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
@@ -191,6 +177,7 @@ $(TYPEDFIELDS)
     get_L_D::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_D_C::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_D_D::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
+    get_heading::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     integrator::Union{Sundials.CVODEIntegrator, OrdinaryDiffEqCore.ODEIntegrator, Nothing} = nothing
     u0:: Vector{SimFloat} = [0.0]
 end
@@ -203,24 +190,15 @@ Initialize the kite power model.
 function clear!(s::KPS4_3L)
     s.iter = 0
     s.t_0 = 0.0                              # relative start time of the current time interval
-    s.reel_out_speeds = zeros(3)
     # s.last_reel_out_speeds = zeros(3)
     s.v_wind_gnd    .= [s.set.v_wind, 0.0, 0.0]    # wind vector at reference height
     s.v_wind_tether .= [s.set.v_wind, 0.0, 0.0]
     s.v_apparent    .= [s.set.v_wind, 0.0, 0.0]
     height = sin(deg2rad(s.set.elevation)) * (s.set.l_tether)
     s.v_wind .= s.v_wind_gnd * calc_wind_factor(s.am, height)
-    s.L_C .= 0.0
-    s.L_D .= 0.0
-    s.D_C .= 0.0
-    s.D_D .= 0.0
     s.e_x .= 0.0
     s.e_y .= 0.0
     s.e_z .= 0.0
-    s.set_values .= 0.0
-    s.flap_angle .= 0.0
-    s.vel_kite .= 0.0
-    [s.winch_forces[i] .= 0.0 for i in 1:3]
     s.tether_lengths .= [s.set.l_tether for _ in 1:3]
     s.α_l = π/2 - s.set.min_steering_line_distance/(2*s.set.radius)
     s.α_r = π/2 + s.set.min_steering_line_distance/(2*s.set.radius)
@@ -231,10 +209,6 @@ function clear!(s::KPS4_3L)
     s.num_C = s.set.segments*3+3+1
     s.num_D = s.set.segments*3+3+2
     s.num_A = s.set.segments*3+3+3
-    for i in 1:s.num_A
-        s.forces[i] .= 0.0
-        s.veld[i] .= 0.0
-    end
     s.rho = s.set.rho_0
     s.c_spring = s.set.e_tether * (s.set.d_tether/2000.0)^2 * pi
     s.damping = (s.set.damping / s.set.c_spring) * s.c_spring
@@ -257,9 +231,9 @@ function KPS4_3L(kcu::KCU)
     replace_nan!(cl_matrix)
     replace_nan!(cd_matrix)
     replace_nan!(c_te_matrix)
-    cl_struct = linear_interpolation((alphas, d_flap_angles), cl_matrix; extrapolation_bc = NaN)
-    cd_struct = linear_interpolation((alphas, d_flap_angles), cd_matrix; extrapolation_bc = NaN)
-    c_te_struct = linear_interpolation((alphas, d_flap_angles), c_te_matrix; extrapolation_bc = NaN)
+    cl_struct = extrapolate(scale(interpolate(cl_matrix, BSpline(Quadratic())), alphas, d_flap_angles), NaN)
+    cd_struct = extrapolate(scale(interpolate(cd_matrix, BSpline(Quadratic())), alphas, d_flap_angles), NaN)
+    c_te_struct = extrapolate(scale(interpolate(c_te_matrix, BSpline(Quadratic())), alphas, d_flap_angles), NaN)
     cl_interp(a, d) = cl_struct(a, d)
     cd_interp(a, d) = cd_struct(a, d)
     c_te_interp(a, d) = c_te_struct(a, d)
@@ -314,18 +288,18 @@ function update_sys_state!(ss::SysState, s::KPS4_3L, zoom=1.0)
     ss.elevation = calc_elevation(s)
     ss.azimuth = calc_azimuth(s)
     ss.force = winch_force(s)[3]
-    ss.heading = calc_heading(s)
+    ss.heading = calc_heading(s.e_x, s.pos[s.num_E])
     ss.course = calc_course(s)
     ss.v_app = norm(s.v_apparent)
     ss.l_tether = s.tether_lengths[3]
-    ss.v_reelout = s.reel_out_speeds[3]
-    ss.depower = rad2deg(s.flap_angle[1] + s.flap_angle[2])
-    ss.steering = rad2deg(s.flap_angle[2] - s.flap_angle[1])
+    ss.v_reelout = s.get_tether_vels(s.integrator)[3]
+    ss.depower = rad2deg(s.get_flap_angle(s.integrator)[1] + s.get_flap_angle(s.integrator)[2])
+    ss.steering = rad2deg(s.get_flap_angle(s.integrator)[2] - s.get_flap_angle(s.integrator)[1])
     ss.vel_kite .= s.vel_kite
     nothing
 end
 
-function SysState(s::KPS4_3L, zoom=1.0)
+function SysState(s::KPS4_3L, zoom=1.0) # TODO: add left and right lines, stop using getters and setters
     pos = s.pos
     P = length(pos)
     X = zeros(MVector{P, MyFloat})
@@ -341,12 +315,12 @@ function SysState(s::KPS4_3L, zoom=1.0)
     elevation = calc_elevation(s)
     azimuth = calc_azimuth(s)
     forces = winch_force(s)
-    heading = calc_heading(s)
+    heading = calc_heading(s.e_x, s.pos[s.num_E])
     course = calc_course(s)
     v_app_norm = norm(s.v_apparent)
     t_sim = 0
-    depower = rad2deg(s.flap_angle[1] + s.flap_angle[2])
-    steering = rad2deg(s.flap_angle[2] - s.flap_angle[1])
+    depower = rad2deg(s.get_flap_angle(s.integrator)[1] + s.get_flap_angle(s.integrator)[2])
+    steering = rad2deg(s.get_flap_angle(s.integrator)[2] - s.get_flap_angle(s.integrator)[1])
     ss = SysState{P}()
     ss.time = s.t_0
     ss.t_sim = t_sim
@@ -354,7 +328,7 @@ function SysState(s::KPS4_3L, zoom=1.0)
     ss.elevation = elevation
     ss.azimuth = azimuth
     ss.l_tether = s.tether_lengths[3]
-    ss.v_reelout = s.reel_out_speeds[3]
+    ss.v_reelout = s.get_tether_vels(s.integrator)[3]
     ss.force = forces[3]
     ss.depower = depower
     ss.steering = steering
@@ -369,12 +343,18 @@ function SysState(s::KPS4_3L, zoom=1.0)
 end
 
 
-function calc_heading(s::KPS4_3L)
+function calc_heading(e_x, pos_kite)
     # turn s.e_x by -azimuth around global z-axis and then by elevation around global y-axis
-    vec = rotate_in_xz(rotate_in_yx(s.e_x, -calc_azimuth(s)), -calc_elevation(s))
+    vec = rotate_in_xz(rotate_in_yx(e_x, -KiteUtils.azimuth_east(pos_kite)), -KiteUtils.calc_elevation(pos_kite))
     heading = atan(-vec[2], vec[3])
     return heading
 end
+@register_symbolic calc_heading(e_x, pos_kite)
+
+function calc_heading_y(e_x)
+    return atan(-e_x[2]/-e_x[1])
+end
+@register_symbolic calc_heading_y(e_x)
 
 """
     init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false, torque_control=true)
@@ -390,21 +370,37 @@ Parameters:
 Returns:
 Nothing.
 """
-function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false, 
-                   torque_control=true) # TODO: add sysstate init ability
+function init_sim!(s::KPS4_3L; damping_coeff=s.damping_coeff, prn=false, 
+                   torque_control=s.torque_control, init_set_values=s.init_set_values, ϵ=s.ϵ, flap_damping=s.flap_damping)
     clear!(s)
-    change_control_mode = s.torque_control != torque_control
-    s.torque_control = torque_control
-
-    dt = 1/s.set.sample_freq*2
+    
+    dt = 1/s.set.sample_freq
     tspan   = (0.0, dt) 
-    solver = FBDF(autodiff=false) # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
-    s.damping_coeff = damping_coeff
-    new_inital_conditions = (s.last_init_elevation != s.set.elevation || s.last_init_tether_length != s.set.l_tether)
+    solver = QNDF(autodiff=false) # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
+    new_inital_conditions =     (s.last_init_elevation != s.set.elevation || 
+                                s.last_init_tether_length != s.set.l_tether) || 
+                                !all(s.init_set_values .== init_set_values)
     s.set_hash = settings_hash(s.set)
-    init_new_model = isnothing(s.prob) || change_control_mode || s.last_set_hash != s.set_hash
+    init_new_model = isnothing(s.prob) || 
+                    s.torque_control != torque_control || 
+                    s.last_set_hash != s.set_hash ||
+                    s.damping_coeff != damping_coeff ||
+                    s.ϵ != ϵ ||
+                    s.flap_damping != flap_damping
+    s.torque_control = torque_control
+    s.damping_coeff = damping_coeff
+    s.ϵ = ϵ
+    s.flap_damping = flap_damping
     init_new_pos = new_inital_conditions && !isnothing(s.get_pos)
 
+    dt0 = 1.0
+    function stabilize_kite(s::KPS4_3L)
+        set_values = copy(init_set_values)
+        for _ in 0:dt:dt0
+            next_step!(s; set_values, dt) # step to get stable state
+            if (torque_control) set_values .= -winch_force(s) .* s.set.drum_radius end
+        end
+    end
     if init_new_model
         if prn; println("initializing with new model and new pos"); end
         pos, vel = init_pos_vel(s)
@@ -412,31 +408,34 @@ function init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false,
         (s.simple_sys, _) = structural_simplify(sys, (inputs, []); simplify=true)
         s.prob = ODEProblem(s.simple_sys, nothing, tspan; fully_determined=true)
         s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
-        next_step!(s; set_values=zeros(3), dt=1.0) # step to get stable state
+        stabilize_kite(s)
         s.u0 = deepcopy(s.integrator.u)
-        OrdinaryDiffEqCore.reinit!(s.integrator, s.u0)
+        OrdinaryDiffEqCore.reinit!(s.integrator, s.u0; t0=dt0, tf=dt0+dt)
     elseif init_new_pos
         if prn; println("initializing with last model and new pos"); end
         pos, vel = init_pos_vel(s)
         pos, vel = convert_pos_vel(s, pos, vel)
-        defaults = vcat([vcat([s.simple_sys.pos[j, i] => pos[j, i] for i in 1:s.num_flap_C-1 for j in 1:3]), 
-                        vcat([s.simple_sys.pos[j, i] => pos[j, i] for i in s.num_flap_D+1:s.num_A for j in 1:3]),
-                        s.simple_sys.tether_length => s.tether_lengths]...)
+        defaults = vcat(
+                    vcat([s.simple_sys.pos[j, i] => pos[j, i] for i in 1:s.num_flap_C-1 for j in 1:3]), 
+                    vcat([s.simple_sys.pos[j, i] => pos[j, i] for i in s.num_flap_D+1:s.num_A for j in 1:3]),
+                    vcat([s.simple_sys.tether_length[i] => s.tether_lengths[i] for i in 1:3]),
+                        )
         s.prob = ODEProblem(s.simple_sys, defaults, tspan)
         OrdinaryDiffEqCore.reinit!(s.integrator, s.prob.u0)
-        next_step!(s; set_values=zeros(3), dt=1.0) # step to get stable state
+        stabilize_kite(s)
         s.u0 = deepcopy(s.integrator.u)
-        OrdinaryDiffEqCore.reinit!(s.integrator, s.u0)
+        OrdinaryDiffEqCore.reinit!(s.integrator, s.u0; t0=dt0, tf=dt0+dt)
     else
         if prn; println("initializing with last model and last pos"); end
-        OrdinaryDiffEqCore.reinit!(s.integrator, s.u0)
+        OrdinaryDiffEqCore.reinit!(s.integrator, s.u0; t0=dt0, tf=dt0+dt)
         # s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
     end
 
     s.last_init_elevation = s.set.elevation
     s.last_init_tether_length = s.set.l_tether
     s.last_set_hash = s.set_hash
-    update_pos!(s)
+    s.init_set_values .= init_set_values
+    update_state!(s)
     return nothing
 end
 
@@ -451,17 +450,17 @@ function next_step!(s::KPS4_3L; set_values=zeros(KVec3), v_wind_gnd=s.set.v_wind
         s.get_pos = getu(s.integrator.sol, s.simple_sys.pos[:,:])
         s.get_flap_angle = getu(s.integrator.sol, s.simple_sys.flap_angle)
         s.get_flap_acc = getu(s.integrator.sol, s.simple_sys.flap_acc)
-        s.get_kite_vel = getu(s.integrator.sol, s.simple_sys.vel[:,s.num_A])
-        s.get_winch_forces = getu(s.integrator.sol, s.simple_sys.force[:,1:3])
+        s.get_vel_kite = getu(s.integrator.sol, s.simple_sys.vel[:,s.num_A])
+        s.get_winch_forces = getu(s.integrator.sol, s.simple_sys.winch_force)
         s.get_L_C = getu(s.integrator.sol, s.simple_sys.L_C)
         s.get_L_D = getu(s.integrator.sol, s.simple_sys.L_D)
         s.get_D_C = getu(s.integrator.sol, s.simple_sys.D_C)
         s.get_D_D = getu(s.integrator.sol, s.simple_sys.D_D)
         s.get_tether_lengths = getu(s.integrator.sol, s.simple_sys.tether_length)
         s.get_tether_vels = getu(s.integrator.sol, s.simple_sys.tether_vel)
+        s.get_heading = getu(s.integrator.sol, s.simple_sys.heading)
     end
-    s.set_values .= set_values
-    s.set_set_values(s.integrator, s.set_values)
+    s.set_set_values(s.integrator, set_values)
     s.integrator.p[s.v_wind_gnd_idx] .= s.v_wind_gnd
     s.integrator.p[s.v_wind_idx] .= s.v_wind
     s.t_0 = s.integrator.t
@@ -470,7 +469,7 @@ function next_step!(s::KPS4_3L; set_values=zeros(KVec3), v_wind_gnd=s.set.v_wind
         println("Return code for solution: ", s.integrator.sol.retcode)
     end
     @assert successful_retcode(s.integrator.sol)
-    update_pos!(s)
+    update_state!(s)
     s.integrator.t
 end
 
@@ -544,7 +543,7 @@ end
 
 Return the absolute value of the force at the winch as calculated during the last timestep. 
 """
-function winch_force(s::KPS4_3L) norm.(s.winch_forces) end
+function winch_force(s::KPS4_3L) s.get_winch_forces(s.integrator) end
 
 
 # ==================== mtk model functions ================================================
@@ -552,10 +551,22 @@ function winch_force(s::KPS4_3L) norm.(s.winch_forces) end
 
 
 function calc_acc_speed(motor::AsyncMachine, tether_vel, norm_, set_speed)
-    calc_acceleration(motor, tether_vel, norm_; set_speed, set_torque=nothing, use_brake=true)
+    calc_acceleration(motor, tether_vel, norm_; set_speed, set_torque=nothing, use_brake=false) # TODO: add brake setting
 end
 @register_symbolic calc_acc_speed(motor::AsyncMachine, tether_vel, norm_, set_speed)
 
+function WinchModels.calc_acceleration(wm::TorqueControlledMachine, speed, force; set_torque=nothing, set_speed=nothing, use_brake = false)
+    omega      = wm.set.gear_ratio/wm.set.drum_radius * speed
+    τ = WinchModels.calc_coulomb_friction(wm) * WinchModels.smooth_sign(omega) + WinchModels.calc_viscous_friction(wm, omega)
+    # calculate tau based on the set_torque
+    K = 1.0
+    tau = set_torque * K
+    # calculate tau_total based on the friction
+    tau_total = tau + wm.set.drum_radius / wm.set.gear_ratio * force  - τ
+    # calculate omega_dot_m based on tau_total and the inertia
+    omega_dot_m = tau_total/wm.set.inertia_total
+    return wm.set.drum_radius/wm.set.gear_ratio * omega_dot_m
+end
 function calc_acc_torque(motor::TorqueControlledMachine, tether_vel, norm_, set_torque)
     calc_acceleration(motor, tether_vel, norm_; set_speed=nothing, set_torque, use_brake=false)
 end
@@ -671,7 +682,7 @@ function calc_aero_forces!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, e_x,
                 seg_flap_angle[i]    ~ flap_angle[2] :
                 seg_flap_angle[i]    ~ ((flap_angle[2] - flap_angle[1]) / (s.α_r - s.α_l) * (α - s.α_l) + (flap_angle[1]))
 
-            aoa[i]      ~ -asin((v_a_xr[:, i] / norm(v_a_xr[:, i])) ⋅ e_r[:, i]) + deg2rad(s.set.alpha_zero)
+            aoa[i]      ~ -asin2((v_a_xr[:, i] / norm(v_a_xr[:, i])) ⋅ e_r[:, i]) + deg2rad(s.set.alpha_zero)
             cl_seg[i]   ~ sym_interp(s.cl_interp, aoa[i], seg_flap_angle[i])
             cd_seg[i]   ~ sym_interp(s.cd_interp, aoa[i], seg_flap_angle[i])
 
@@ -682,7 +693,7 @@ function calc_aero_forces!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, e_x,
 
 
             e_te[:, i] ~ e_x * sin(seg_flap_angle[i]) + e_r[:, i] * cos(seg_flap_angle[i])
-            ram_force[i] ~ smooth_sign(deg2rad(s.set.alpha_zero) - seg_flap_angle[i]) *
+            ram_force[i] ~ smooth_sign_ϵ(deg2rad(s.set.alpha_zero) - seg_flap_angle[i]; s.ϵ) *
                         rho * norm(v_a[:, i])^2 * seg_flap_height * s.set.radius * dα * (seg_flap_height/2) / (kite_length/4)
             te_force[i] ~ 0.5 * rho * (norm(v_a_xr[:, i]))^2 * s.set.radius * dα * kite_length * 
                                 sym_interp(s.c_te_interp, aoa[i], seg_flap_angle[i])
@@ -725,8 +736,8 @@ function calc_aero_forces!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, e_x,
     # TODO: check if the right forces are added
     force_eqs[:,s.num_C]   .= (force[:,s.num_C]   .~ L_C + D_C) 
     force_eqs[:,s.num_D]   .= (force[:,s.num_D]   .~ L_D + D_D)
-    force_eqs[:,s.num_flap_C] .= (force[:,s.num_flap_C] .~ F_te_C)
-    force_eqs[:,s.num_flap_D] .= (force[:,s.num_flap_D] .~ F_te_D)
+    force_eqs[:,s.num_flap_C] .= (force[:,s.num_flap_C] .~ F_te_C + [0.0, 0.0, -G_EARTH*(s.set.mass/8)])
+    force_eqs[:,s.num_flap_D] .= (force[:,s.num_flap_D] .~ F_te_D + [0.0, 0.0, -G_EARTH*(s.set.mass/8)])
     return eqs2, force_eqs
 end
 
@@ -767,8 +778,8 @@ function calc_particle_forces!(s::KPS4_3L, eqs2, force_eqs, force, pos1, pos2, v
             eqs2 = [
                 eqs2
                 spring_force[j] ~ 
-                    (k  * (l_0 - norm1) - c1 * spring_vel) * unit_vector[j] * (1 + smooth_sign(norm1 - l_0)) / 2 +
-                    (k1 * (l_0 - norm1) -  c * spring_vel) * unit_vector[j] * (1 - smooth_sign(norm1 - l_0)) / 2
+                    (k  * (l_0 - norm1) - c1 * spring_vel) * unit_vector[j] * (1 + smooth_sign_ϵ(norm1 - l_0; s.ϵ)) / 2 +
+                    (k1 * (l_0 - norm1) -  c * spring_vel) * unit_vector[j] * (1 - smooth_sign_ϵ(norm1 - l_0; s.ϵ)) / 2
             ]
         end
     else
@@ -776,8 +787,8 @@ function calc_particle_forces!(s::KPS4_3L, eqs2, force_eqs, force, pos1, pos2, v
             eqs2 = [
                 eqs2
                 spring_force[j] ~
-                    ((k  * (l_0 - norm1) - c * spring_vel) * unit_vector[j] - c2 * perp_vel[j]) * (1 + smooth_sign(norm1 - l_0)) / 2 +
-                    ((k2 * (l_0 - norm1) - c * spring_vel) * unit_vector[j] - c2 * perp_vel[j]) * (1 - smooth_sign(norm1 - l_0)) / 2
+                    ((k  * (l_0 - norm1) - c * spring_vel) * unit_vector[j] - c2 * perp_vel[j]) * (1 + smooth_sign_ϵ(norm1 - l_0; s.ϵ)) / 2 +
+                    ((k2 * (l_0 - norm1) - c * spring_vel) * unit_vector[j] - c2 * perp_vel[j]) * (1 - smooth_sign_ϵ(norm1 - l_0; s.ϵ)) / 2
             ]
         end
     end
@@ -846,7 +857,7 @@ Output:length
             eqs2
             height[i]           ~ max(0.0, 0.5 * (pos[:, p1][3] + pos[:, p2][3]))
             rho[i]              ~ calc_rho(s.am, height[i])
-            v_wind_tether[:, i] ~ calc_wind_factor(s.am, height[i]) * v_wind_gnd
+            v_wind_tether[:, i] ~ AtmosphericModels.calc_wind_factor(s.am, height[i], s.set.profile_law) * v_wind_gnd
         ]
 
         eqs2, force_eqs = calc_particle_forces!(s, eqs2, force_eqs, force, pos[:, p1], pos[:, p2], vel[:, p1], 
@@ -859,20 +870,11 @@ Output:length
     return eqs2, force_eqs
 end
 
-function update_pos!(s)
+function update_state!(s)
     pos = s.get_pos(s.integrator)
-    s.flap_angle       .= s.get_flap_angle(s.integrator)
-    s.flap_acc         .= s.get_flap_acc(s.integrator)
     [s.pos[i]          .= pos[:, i] for i in 1:s.num_A]
-    s.vel_kite         .= s.get_kite_vel(s.integrator)
-    winch_forces        = s.get_winch_forces(s.integrator)
-    [s.winch_forces[i] .= (winch_forces[:, i]) for i in 1:3]
     s.tether_lengths   .= s.get_tether_lengths(s.integrator)
-    s.reel_out_speeds  .= s.get_tether_vels(s.integrator)
-    s.L_C               = s.get_L_C(s.integrator)
-    s.L_D               = s.get_L_D(s.integrator)
-    s.D_C               = s.get_D_C(s.integrator)
-    s.D_D               = s.get_D_D(s.integrator)
+    s.vel_kite         .= s.get_vel_kite(s.integrator)
     calc_kite_ref_frame!(s, s.pos[s.num_E], s.pos[s.num_C], s.pos[s.num_D])
     # @assert all(abs.(s.flap_angle) .<= deg2rad(90))
     nothing
@@ -900,15 +902,16 @@ function model!(s::KPS4_3L, pos_, vel_)
         v_wind[1:3] = s.v_wind
     end
     @variables begin
-        set_values(t)[1:3] = s.set_values
-        pos(t)[1:3, 1:s.num_A] = pos_
+        set_values(t)[1:3] = zeros(3) # left right middle
+        pos(t)[1:3, 1:s.num_A] = pos_ # left right middle
         vel(t)[1:3, 1:s.num_A] = vel_
         acc(t)[1:3, 1:s.num_A]
-        flap_angle(t)[1:2]   = zeros(2) # angle
+        flap_angle(t)[1:2]   = deg2rad(s.set.alpha_zero) # angle left right / C D
         flap_vel(t)[1:2]     = zeros(2) # angular vel
         flap_acc(t)[1:2]                # angular acc
         tether_length(t)[1:3]  = s.tether_lengths
         tether_vel(t)[1:3] = zeros(3)
+        tether_acc(t)[1:3]
         segment_length(t)[1:3]
         mass_tether_particle(t)[1:3]
         damping(t)[1:3]
@@ -925,6 +928,17 @@ function model!(s::KPS4_3L, pos_, vel_)
         e_te_D(t)[1:3]
         force(t)[1:3, 1:s.num_A]
         rho_kite(t)
+        winch_force(t)[1:3] # normalized winch forces
+        heading(t)
+        heading_y(t)
+        turn_rate_y(t)
+        power_angle(t) # average flap angle
+        power_vel(t)
+        steering_angle(t) # difference between left and right flap angle
+        steering_vel(t)
+        tether_diff(t)
+        tether_diff_vel(t)
+        set_diff(t)
     end
     # Collect the arrays into variables
     pos = collect(pos)
@@ -934,23 +948,16 @@ function model!(s::KPS4_3L, pos_, vel_)
     eqs1 = []
     mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
 
-    [eqs1 = vcat(eqs1, D.(pos[:, i]) .~ 0.0) for i in 1:3]
+    [eqs1 = vcat(eqs1, pos[:, i] .~ 0.0) for i in 1:3]
     [eqs1 = vcat(eqs1, D.(pos[:, i]) .~ vel[:, i]) for i in 4:s.num_flap_C-1]
     eqs1 = [eqs1; D(flap_angle)   ~ flap_vel]
     [eqs1 = vcat(eqs1, D.(pos[:, i]) .~ vel[:, i]) for i in s.num_E:s.num_A]
-    [eqs1 = vcat(eqs1, D.(vel[:, i]) .~ 0.0) for i in 1:3]
+    [eqs1 = vcat(eqs1, vel[:, i] .~ 0.0) for i in 1:3]
     [eqs1 = vcat(eqs1, D.(vel[:, i]) .~ acc[:, i]) for i in 4:s.num_flap_C-1]
     eqs1 = [eqs1; D(flap_vel)   ~ flap_acc]
     [eqs1 = vcat(eqs1, D.(vel[:, i]) .~ acc[:, i]) for i in s.num_E:s.num_A]
-
     eqs1 = vcat(eqs1, D.(tether_length) .~ tether_vel)
-    if s.torque_control
-        eqs1 = vcat(eqs1, D.(tether_vel) .~ [calc_acc_torque(s.motors[i], tether_vel[i], norm(force[:, (i-1) % 3 + 1]),
-                                                               set_values[i]) for i in 1:3])
-    else
-        eqs1 = vcat(eqs1, D.(tether_vel) .~ [calc_acc_speed(s.motors[i], tether_vel[i], norm(force[:,(i-1) % 3 + 1]), 
-                                                               set_values[i]) for i in 1:3])
-    end
+    eqs1 = vcat(eqs1, D.(tether_vel) .~ tether_acc)
 
     # Compute the masses and forces
     force_eqs = SizedArray{Tuple{3, s.num_A}, Symbolics.Equation}(undef)
@@ -974,18 +981,34 @@ function model!(s::KPS4_3L, pos_, vel_)
         e_x     ~ cross(e_y, e_z)
         e_r_C   ~ (E_C - pos[:, s.num_C]) / norm(E_C - pos[:, s.num_C])
         e_r_D   ~ (E_C - pos[:, s.num_D]) / norm(E_C - pos[:, s.num_D])
-        e_te_C ~ e_x * sin(flap_angle[1]) + e_r_C * cos(flap_angle[1])
-        e_te_D ~ e_x * sin(flap_angle[2]) + e_r_D * cos(flap_angle[2])
-        # E_C is the center of the circle shape of the front view of the kite
-        E_C     ~ pos[:, s.num_E] + e_z * (-s.set.bridle_center_distance + s.set.radius) 
-        rho_kite ~ calc_rho(s.am, pos[3,s.num_A])
-        damping_coeff ~ max(1.0 - t/2, 0.0) * s.damping_coeff
+        e_te_C  ~ e_x * sin(flap_angle[1]) + e_r_C * cos(flap_angle[1])
+        e_te_D  ~ e_x * sin(flap_angle[2]) + e_r_D * cos(flap_angle[2])
+        E_C     ~ pos[:, s.num_E] + e_z * (-s.set.bridle_center_distance + s.set.radius) # E_C is the center of the circle shape of the front view of the kite
+        rho_kite        ~ calc_rho(s.am, pos[3,s.num_A])
+        damping_coeff   ~ max(1.0 - t, 0.0) * s.damping_coeff
+        winch_force     ~ [norm(force[:, i]) for i in 1:3]
+        heading         ~ calc_heading(e_x, pos[:, s.num_E])
+        heading_y       ~ calc_heading_y(e_x)
+        turn_rate_y     ~ D(heading_y) 
+        power_angle         ~ (flap_angle[1] + flap_angle[2]) / 2
+        power_vel           ~ (flap_vel[1] + flap_vel[2]) / 2
+        steering_angle      ~ flap_angle[2] - flap_angle[1]
+        steering_vel        ~ flap_vel[2] - flap_vel[1]
+        tether_diff         ~ tether_length[2] - tether_length[1]
+        tether_diff_vel     ~ tether_vel[2] - tether_vel[1]
+        set_diff            ~ set_values[2] - set_values[1]
     ]
 
     eqs2, force_eqs = calc_aero_forces!(s, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, E_C, rho_kite, v_wind, flap_angle)
-    eqs2, force_eqs = inner_loop!(s, eqs2, force_eqs, t, force, pos, vel, segment_length, c_spring, damping, 
-                                      v_wind_gnd)
+    eqs2, force_eqs = inner_loop!(s, eqs2, force_eqs, t, force, pos, vel, segment_length, c_spring, damping, v_wind_gnd)
     
+    if s.torque_control
+        eqs2 = vcat(eqs2, tether_acc .~ [calc_acc_torque(s.motors[i], tether_vel[i], norm(force[:, (i-1)%3+1]),
+            set_values[i]) for i in 1:3])
+    else
+        eqs2 = vcat(eqs2, tether_acc .~ [calc_acc_speed(s.motors[i], tether_vel[i], norm(force[:, (i-1)%3+1]),
+            set_values[i]) for i in 1:3])
+    end
     for i in 1:3
         eqs2 = vcat(eqs2, vcat(force_eqs[:, i]))
         eqs2 = vcat(eqs2, acc[:, i] .~ 0)
@@ -1010,9 +1033,9 @@ function model!(s::KPS4_3L, pos_, vel_)
         eqs2
         vcat(force_eqs[:, s.num_flap_C])
         vcat(force_eqs[:, s.num_flap_D])
-        flap_acc[1] ~ ((force[:, s.num_flap_C] + [0.0, 0.0, -G_EARTH]) ⋅ e_te_C - s.damping * 0.75 * flap_vel[1]) * # TODO: add turning drag instead of damping
+        flap_acc[1] ~ ((force[:, s.num_flap_C]) ⋅ e_te_C - s.damping * s.flap_damping * flap_vel[1]) * # TODO: add turning drag instead of damping
                     flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - (damping_coeff*200) * flap_vel[1]
-        flap_acc[2] ~ ((force[:, s.num_flap_D] + [0.0, 0.0, -G_EARTH]) ⋅ e_te_D - s.damping * 0.75 * flap_vel[2]) * 
+        flap_acc[2] ~ ((force[:, s.num_flap_D]) ⋅ e_te_D - s.damping * s.flap_damping * flap_vel[2]) * 
                     flap_length / (1/3 * (s.set.mass/8) * flap_length^2) - (damping_coeff*200) * flap_vel[2]
     ]
 
@@ -1030,10 +1053,10 @@ end
 
 # ====================== helper functions ====================================
 
-function smooth_sign(x; ϵ = 0.01)
+function smooth_sign_ϵ(x; ϵ = 1e-3)
     return x / √(x^2 + ϵ^2)
 end
-@register_symbolic smooth_sign(x)
+@register_symbolic smooth_sign_ϵ(x)
 
 function settings_hash(st)
     fields = fieldnames(typeof(st))
@@ -1048,7 +1071,7 @@ end
 
 function replace_nan!(matrix)
     rows, cols = size(matrix)
-    distance = 10
+    distance = max(rows, cols)
     for i in 1:rows
         for j in 1:cols
             if isnan(matrix[i, j])
@@ -1056,19 +1079,19 @@ function replace_nan!(matrix)
                 for d in 1:distance
                     found = false
                     if i-d >= 1 && !isnan(matrix[i-d, j]);
-                        push!(neighbors, matrix[i-1, j])
+                        push!(neighbors, matrix[i-d, j])
                         found = true
                     end
                     if i+d <= rows && !isnan(matrix[i+d, j])
-                        push!(neighbors, matrix[i+1, j])
+                        push!(neighbors, matrix[i+d, j])
                         found = true
                     end
                     if j-d >= 1 && !isnan(matrix[i, j-d])
-                        push!(neighbors, matrix[i, j-1])
+                        push!(neighbors, matrix[i, j-d])
                         found = true
                     end
                     if j+d <= cols && !isnan(matrix[i, j+d])
-                        push!(neighbors, matrix[i, j+1])
+                        push!(neighbors, matrix[i, j+d])
                         found = true
                     end
                     if found; break; end
