@@ -555,18 +555,6 @@ function calc_acc_speed(motor::AsyncMachine, tether_vel, norm_, set_speed)
 end
 @register_symbolic calc_acc_speed(motor::AsyncMachine, tether_vel, norm_, set_speed)
 
-function WinchModels.calc_acceleration(wm::TorqueControlledMachine, speed, force; set_torque=nothing, set_speed=nothing, use_brake = false)
-    omega      = wm.set.gear_ratio/wm.set.drum_radius * speed
-    τ = WinchModels.calc_coulomb_friction(wm) * WinchModels.smooth_sign(omega) + WinchModels.calc_viscous_friction(wm, omega)
-    # calculate tau based on the set_torque
-    K = 1.0
-    tau = set_torque * K
-    # calculate tau_total based on the friction
-    tau_total = tau + wm.set.drum_radius / wm.set.gear_ratio * force  - τ
-    # calculate omega_dot_m based on tau_total and the inertia
-    omega_dot_m = tau_total/wm.set.inertia_total
-    return wm.set.drum_radius/wm.set.gear_ratio * omega_dot_m
-end
 function calc_acc_torque(motor::TorqueControlledMachine, tether_vel, norm_, set_torque)
     calc_acceleration(motor, tether_vel, norm_; set_speed=nothing, set_torque, use_brake=false)
 end
