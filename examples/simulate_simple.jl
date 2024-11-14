@@ -59,6 +59,9 @@ integrator = KiteModels.init_sim!(kps4;  delta=0.0, stiffness_factor=1, prn=STAT
 
 if PLOT
     av_steps = simulate(integrator, STEPS, true)
+    flight_log = KiteUtils.sys_log(logger)
+    p = plot(flight_log.syslog.time, flight_log.z; xlabel="time [s]", ylabel="z [m]", fig="plot_height")
+    display(p)
 else
     println("\nStarting simulation...")
     simulate(integrator, 100)
