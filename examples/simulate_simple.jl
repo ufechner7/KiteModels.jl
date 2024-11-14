@@ -34,6 +34,7 @@ logger::Logger = Logger(set.segments + 5, STEPS)
 function simulate(integrator, steps, plot=false)
     iter = 0
     global sys_state
+    sys_state = SysState(kps4)
     for i in 1:steps
         if PRINT
             lift, drag = KiteModels.lift_drag(kps4)
@@ -49,7 +50,7 @@ function simulate(integrator, steps, plot=false)
                 plot2d(kps4.pos, reltime; zoom=ZOOM, xlim=(40,60), front=FRONT_VIEW, segments=set.segments)                       
             end
         end
-        sys_state = SysState(kps4)
+        update_sys_state!(sys_state, kps4)
         log!(logger, sys_state)
     end
     iter / steps
