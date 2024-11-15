@@ -89,7 +89,7 @@ cd ..
 ```
 you can run the examples with
 ```julia
-include("example/menu.jl")
+menu()
 ```
 
 ## One point model
