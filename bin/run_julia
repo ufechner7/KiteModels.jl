@@ -33,15 +33,15 @@ fi
 if [[ $branch != "" ]]; then
     if test -f "bin/kps-image-${julia_major}-${branch}.so"; then
         echo "Found system image!"
-        julia -J  bin/kps-image-${julia_major}-${branch}.so -t 1 $GCT --project
+        julia -J  bin/kps-image-${julia_major}-${branch}.so -t 1 $GCT --project -i -e 'using KiteModels'
     else
-        julia $GCT --project
+        julia $GCT --project  -i -e 'using KiteModels'
     fi
 else
     if test -f "bin/kps-image-${julia_major}.so"; then
         echo "Found system image!"
-        julia -J  bin/kps-image-${julia_major}.so -t 1 $GCT --project
+        julia -J  bin/kps-image-${julia_major}.so -t 1 $GCT --project -i -e 'using KiteModels'
     else
-        julia $GCT --project
+        julia $GCT --project -i -e 'using KiteModels'
     fi
 fi 
