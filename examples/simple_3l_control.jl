@@ -75,7 +75,8 @@ for i in 1:steps
     KiteModels.update_sys_state!(sys_state, s)
     log!(logger, sys_state)
     l = s.set.l_tether+10
-    plot2d(s.pos, time; zoom=true, front=false, xlim=(-l/2, l/2), ylim=(0, l))
+    # currently not working as expected, needs to be fixed in ControlPlots
+    # plot2d(s.pos, time; zoom=true, front=false, xlim=(-l/2, l/2), ylim=(0, l))
 end
 
 times_reltime = (total_time/2) / total_step_time
