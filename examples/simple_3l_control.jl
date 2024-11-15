@@ -5,7 +5,7 @@ using Pkg
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
     using TestEnv; TestEnv.activate()
 end
-using ControlPlots, StatsBase, Revise
+using ControlPlots, StatsBase
 
 set = deepcopy(load_settings("system_3l.yaml"))
 # set.elevation = 71
