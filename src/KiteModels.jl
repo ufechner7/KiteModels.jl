@@ -116,6 +116,7 @@ end
 
 include("KPS4.jl") # include code, specific for the four point kite model
 include("KPS4_3L.jl") # include code, specific for the four point 3 line kite model
+include("mtk_model.jl") # include code, specific for the modelingtoolkit symbolic model definition of the 3 line kite model
 include("KPS3.jl") # include code, specific for the one point kite model
 include("init.jl") # functions to calculate the inital state vector, the inital masses and initial springs
 

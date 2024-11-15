@@ -134,7 +134,15 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
 end
 
 
-function init_pos_vel_acc(s::KPS4_3L; delta = 0.0, α = [45.0, 45.0, 45.0], flap_angle = [0.0, 0.0])
+function init_pos_vel_acc(s::KPS4_3L; 
+        delta = 0.0, 
+        tether_lengths = s.tether_lengths, 
+        α = [45.0, 45.0, 45.0], 
+        flap_angle = [0.0, 0.0],
+        elevation = 85,
+        azimuth = 0.0,
+
+        )
     pos = zeros(SVector{s.num_A, KVec3})
     vel = zeros(SVector{s.num_A, KVec3})
     acc = zeros(SVector{s.num_A, KVec3})
@@ -166,8 +174,6 @@ function init_pos_vel_acc(s::KPS4_3L; delta = 0.0, α = [45.0, 45.0, 45.0], flap
     pos[s.num_flap_C] .= pos[s.num_C] - s.e_x * flap_length * cos(flap_angle[1]) + e_r_C * flap_length * sin(flap_angle[1])
     pos[s.num_flap_D] .= pos[s.num_D] - s.e_x * flap_length * cos(flap_angle[2]) + e_r_D * flap_length * sin(flap_angle[2])
     
-    s.tether_lengths[3] = norm(pos[s.num_E])
-    s.tether_lengths[1] = 0.0
     # build tether points with degrees of bend α
     l = [norm(pos[s.num_flap_C]), norm(pos[s.num_flap_D]), norm(pos[s.num_E])]
     α = deg2rad(α)
@@ -181,7 +187,7 @@ function init_pos_vel_acc(s::KPS4_3L; delta = 0.0, α = [45.0, 45.0, 45.0], flap
         local_y .= [pos[s.num_flap_C][2], pos[s.num_flap_D][2], pos[s.num_E][2]] / s.set.segments * i
         for k in 1:3
             [pos[j+k-1] .= local_z_minus[k] * -s.e_z + local_x[k] * s.e_x + local_y[k] * s.e_y for k in 1:3]
-            s.tether_lengths[k] += norm(pos[j+k-1] - pos[j+k-1-3])
+            tether_lengths[k] += norm(pos[j+k-1] - pos[j+k-1-3])
         end
     end
     s.tether_lengths[1] += norm(pos[s.num_flap_C] - pos[s.num_flap_C-3])
@@ -273,4 +279,13 @@ function rotate_in_yx(vec, angle)
     result[2] = cos(angle) * vec[2] - sin(angle) * vec[1]
     result[3] = vec[3]
     result
+end
+
+# rotate a 3d vector v around 3d unit vector k with angle using https://en.wikipedia.org/wiki/Rodrigues%27_rotation_formula
+function rotate_v_k_angle(v, k, θ)
+    # Rodrigues' rotation formula
+    v_rot = v * cos(θ) +
+            (k × v) * sin(θ) +
+            k * (k ⋅ v) * (1 - cos(θ))
+    return v_rot
 end
