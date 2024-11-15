@@ -17,7 +17,7 @@ options = ["bench = include(\"bench.jl\")",
            "simple_3l_speed_control = include(\"simple_3l_speed_control.jl\")",
            "quit"]
 
-function menu()
+function example_menu()
     active = true
     while active
         menu = RadioMenu(options, pagesize=8)
@@ -32,4 +32,4 @@ function menu()
     end
 end
 
-menu()
+example_menu()
