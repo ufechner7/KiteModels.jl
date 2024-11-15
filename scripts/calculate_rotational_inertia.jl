@@ -1,3 +1,5 @@
+using KiteUtils
+
 function calculate_rotational_inertia(X::Vector, Y::Vector, Z::Vector, M::Vector; around_center_of_mass=true, rotation_point=[0, 0, 0])
     @assert size(X) == size(Y) == size(Z) == size(M)
     
@@ -33,5 +35,38 @@ function calculate_rotational_inertia(X::Vector, Y::Vector, Z::Vector, M::Vector
         Iyz += m * y * z
     end
     
-    [Ixx Ixy Ixz; Ixy Iyy Iyz; Ixz Iyz Izz]
+    println("Inertia matrix:")
+    println(" Ixx Ixy Ixz: [$Ixx $Ixy $Ixz] ")
+    println(" Ixy Iyy Iyz: [$Ixy $Iyy $Iyz] ")
+    println(" Ixz Iyz Izz: [$Ixz $Iyz $Izz] ")
+end
+
+
+function calculate_intertia_for_setting(settings_file::String; include_kcu=true, around_kcu=false)
+    set_data_path("data")
+    set = deepcopy(load_settings(settings_file))
+
+    points = KiteUtils.get_particles(set.height_k, set.h_bridle, set.width, set.m_k, [0, 0, 0], [0, 0, -1], [10, 0, 0])
+    
+    pos_matrix = [points[begin+1] points[begin+2] points[begin+3] points[begin+4] points[begin+5]]
+    X = pos_matrix[begin, :]
+    Y = pos_matrix[begin+1, :]
+    Z = pos_matrix[begin+2, :]
+
+    k2 = set.rel_top_mass * (1.0 - set.rel_nose_mass)
+    k3 = 0.5 * (1.0 - set.rel_top_mass) * (1.0 - set.rel_nose_mass)
+    M = [set.kcu_mass, set.rel_nose_mass * set.mass, k2 * set.mass, k3 * set.mass, k3 * set.mass]
+    
+    if !include_kcu
+        X = X[begin+1:end]
+        Y = Y[begin+1:end]
+        Z = Z[begin+1:end]
+        M = M[begin+1:end]
+    end
+
+    if around_kcu
+        calculate_rotational_inertia(X, Y, Z, M, false, points[begin+1])
+    else
+        calculate_rotational_inertia(X, Y, Z, M)
+    end
 end
