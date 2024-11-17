@@ -265,19 +265,21 @@ end
 
 # rotate a 3d vector around the y axis
 function rotate_in_xz(vec, angle)
-    result = similar(vec)
-    result[1] = cos(angle) * vec[1] - sin(angle) * vec[3]
-    result[2] = vec[2]
-    result[3] = cos(angle) * vec[3] + sin(angle) * vec[1]
+    result = [
+            cos(angle) * vec[1] - sin(angle) * vec[3],
+            vec[2],
+            cos(angle) * vec[3] + sin(angle) * vec[1]
+    ]
     result
 end
 
 # rotate a 3d vector around the z axis
 function rotate_in_yx(vec, angle)
-    result = similar(vec)
-    result[1] = cos(angle) * vec[1] + sin(angle) * vec[2]
-    result[2] = cos(angle) * vec[2] - sin(angle) * vec[1]
-    result[3] = vec[3]
+    result = [
+            cos(angle) * vec[1] + sin(angle) * vec[2]
+            cos(angle) * vec[2] - sin(angle) * vec[1]
+            vec[3]
+    ]
     result
 end
 
