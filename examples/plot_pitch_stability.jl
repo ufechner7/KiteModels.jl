@@ -47,8 +47,6 @@ end
 
 function simulate(kps4, integrator, logger, steps)
     iter = 0
-    cl = 0.0
-    cd = 0.0
     for i in 1:steps
         force = norm(kps4.forces[1])
         r = set.drum_radius
@@ -61,7 +59,7 @@ function simulate(kps4, integrator, logger, steps)
         log!(logger, sys_state)
         iter += kps4.iter
     end
-    return 1.0, 0.2
+    nothing
 end
 
 
@@ -83,9 +81,9 @@ set.elevation += 5
 set.v_wind = V_WIND_200
 integrator = KiteModels.init_sim!(kps4; delta=0.001*0, stiffness_factor=1, prn=STATISTIC)
 if ! isnothing(integrator)
-    force, v_reel_out = simulate(kps4, integrator, logger, STEPS)
+    simulate(kps4, integrator, logger, STEPS)
     set_depower_steering(kps4.kcu, depower, 0.0)
-    cl, cd = simulate(kps4, integrator, logger, STEPS)
+    simulate(kps4, integrator, logger, STEPS)
 end
 elev = rad2deg(logger.elevation_vec[end])
 V_WIND_KITE= norm(kps4.v_wind)
