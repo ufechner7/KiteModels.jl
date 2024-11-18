@@ -29,11 +29,6 @@ PRINT = true
 STATISTIC = false
 # end of user parameter section #
 
-bridle_length = KiteModels.bridle_length(set)
-println("bridle_length: $bridle_length")
-bridle_area = (set.d_line/2000) * bridle_length
-println("bridle_area: $bridle_area")
-
 function set_tether_diameter!(se, d; c_spring_4mm = 614600, damping_4mm = 473)
     set.d_tether = d
     set.c_spring = c_spring_4mm * (d/4.0)^2
@@ -65,18 +60,11 @@ function simulate(kps4, integrator, logger, steps)
         sys_state.var_01 = aoa
         log!(logger, sys_state)
         iter += kps4.iter
-        if i > steps - 50 # last 2.5s
-            cl_, cd_ = KiteModels.cl_cd(kps4)
-            cl += cl_
-            cd += cd_
-        end
     end
-    return cl/50, cd/50
+    return 1.0, 0.2
 end
 
 
-CL = zeros(length(DEPOWER))
-CD = zeros(length(DEPOWER))
 AOA = zeros(length(DEPOWER))
 DEP = zeros(length(DEPOWER))
 ELEV = zeros(length(DEPOWER))
@@ -89,7 +77,6 @@ for depower in DEPOWER
     local cl, cd, aoa, kcu, integrator, logger, v_app
 
     logger = Logger(set.segments + 5, STEPS)
-    DEP[i] = depower
     set.depower = 100*depower
     
     # set.depower_gain = 5
@@ -105,7 +92,8 @@ for depower in DEPOWER
         catch e
             println("Error: $e")
             if PLOT
-                p = plot(logger.time_vec, rad2deg.(logger.elevation_vec), logger.var_01_vec, xlabel="time [s]", ylabels=["elevation [°]", "aoa"], 
+                p = plot(logger.time_vec, rad2deg.(logger.elevation_vec), logger.var_01_vec, 
+                         xlabel="time [s]", ylabels=["elevation [°]", "aoa"], 
                          fig="depower: $depower")
                 display(p)
                 sleep(0.2)
@@ -129,14 +117,12 @@ for depower in DEPOWER
     v_app = norm(kps4.v_apparent)
     # v_200 = calc_wind_factor(kps4.am, 200) * V_WIND
     height = logger.Z_vec[end][end-2]
-    CL[i] = cl
-    CD[i] = cd
     AOA[i] = aoa
     if PRINT
-        print("Depower: $depower, alpha_dp: $(round(alpha_depower, digits=2)), CL $(round(cl, digits=3)), CD: $(round(cd, digits=3)), aoa: $(round(aoa, digits=2)), pitch: $(round(pitch, digits=2)), CL/CD: $(round(cl/cd, digits=2))")
+        print("Depower: $depower, alpha_dp: $(round(alpha_depower, digits=2)), aoa: $(round(aoa, digits=2)), ")
+        print("pitch: $(round(pitch, digits=2))")
         println(", elevation: $(round((elev), digits=2)), height:$(round(height, digits=2))")
     end
-    # if depower in [DEPOWER[begin+1], DEPOWER[end]] && PLOT
     if PLOT
         p = plot(logger.time_vec, rad2deg.(logger.elevation_vec), logger.var_01_vec, xlabel="time [s]", ylabels=["elevation [°]", "aoa [°]"], 
                  fig="depower: $depower")
