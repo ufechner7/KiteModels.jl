@@ -77,7 +77,7 @@ If you intend to modify or extend the code, it is suggested to fork the `KiteMod
 git clone https://github.com/USERNAME/KiteModels.jl
 ```
 where USERNAME is your github username.
-The compile a system image:
+Then compile a system image:
 ```bash
 cd KiteModels.jl/bin
 ./create_sys_image --update
