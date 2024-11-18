@@ -24,7 +24,7 @@ set.rel_tol=0.00001
 dt = 0.05
 set.solver="DFBDF" # IDA or DFBDF
 STEPS = 550# 740
-PLOT = true
+PLOT = false
 PRINT = true
 STATISTIC = false
 # end of user parameter section #
@@ -107,4 +107,15 @@ if PLOT
     display(p)
     sleep(0.2)
 end
+save_log(logger, "tmp")
+
+function plot_force_speed(filename)
+    log = load_log(filename)
+    sl  = log.syslog
+    display(plot(log.syslog.time, sl.force, sl.v_reelout;
+            ylabels=["force [N]", "v_reelout [m/s]"],
+            fig="force_speed", ysize=10))
+end
+
+plot_force_speed("tmp")
 
