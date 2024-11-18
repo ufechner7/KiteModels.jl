@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/bin/bash -eu
+
 update=false
 if [[ $# -gt 0 ]]; then
     if [[ $1 != "--update" ]]; then
