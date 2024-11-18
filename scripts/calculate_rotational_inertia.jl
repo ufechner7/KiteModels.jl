@@ -1,6 +1,6 @@
 using KiteUtils
 
-function calculate_rotational_inertia(X::Vector, Y::Vector, Z::Vector, M::Vector; around_center_of_mass=true, rotation_point=[0, 0, 0])
+function calculate_rotational_inertia(X::Vector, Y::Vector, Z::Vector, M::Vector, around_center_of_mass::Bool=true, rotation_point::Vector=[0, 0, 0])
     @assert size(X) == size(Y) == size(Z) == size(M)
     
     if around_center_of_mass
@@ -35,14 +35,11 @@ function calculate_rotational_inertia(X::Vector, Y::Vector, Z::Vector, M::Vector
         Iyz += m * y * z
     end
     
-    println("Inertia matrix:")
-    println(" Ixx Ixy Ixz: [$Ixx $Ixy $Ixz] ")
-    println(" Ixy Iyy Iyz: [$Ixy $Iyy $Iyz] ")
-    println(" Ixz Iyz Izz: [$Ixz $Iyz $Izz] ")
+    Ixx, Ixy, Ixz, Iyy, Iyz, Izz
 end
 
 
-function calculate_intertia_for_setting(settings_file::String; include_kcu=true, around_kcu=false)
+function calculate_intertia_for_setting(settings_file::String, include_kcu::Bool=true, around_kcu::Bool=false)
     set_data_path("data")
     set = deepcopy(load_settings(settings_file))
 
@@ -65,8 +62,26 @@ function calculate_intertia_for_setting(settings_file::String; include_kcu=true,
     end
 
     if around_kcu
-        calculate_rotational_inertia(X, Y, Z, M, false, points[begin+1])
+        Ixx, Ixy, Ixz, Iyy, Iyz, Izz = calculate_rotational_inertia(X, Y, Z, M, false, points[begin+1])
     else
-        calculate_rotational_inertia(X, Y, Z, M)
+        Ixx, Ixy, Ixz, Iyy, Iyz, Izz = calculate_rotational_inertia(X, Y, Z, M)
     end
+
+    Ixx, Ixy, Ixz, Iyy, Iyz, Izz
 end
+
+
+function print_inertia_matrix(Ixx, Ixy, Ixz, Iyy, Iyz, Izz)
+    println("Inertia matrix:")
+    println(" Ixx Ixy Ixz: [$Ixx $Ixy $Ixz] ")
+    println(" Ixy Iyy Iyz: [$Ixy $Iyy $Iyz] ")
+    println(" Ixz Iyz Izz: [$Ixz $Iyz $Izz] ")
+end
+
+
+set_file = "system_v9.yaml"
+inc_kcu = false
+ar_kcu = false
+
+Ixx, Ixy, Ixz, Iyy, Iyz, Izz = calculate_intertia_for_setting(set_file, inc_kcu, ar_kcu)
+print_inertia_matrix(Ixx, Ixy, Ixz, Iyy, Iyz, Izz)
