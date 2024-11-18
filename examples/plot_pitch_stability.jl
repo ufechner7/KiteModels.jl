@@ -1,5 +1,5 @@
-V_WIND_200    = [ 10.0 ]
-DEPOWER       = [0.38 ]
+V_WIND_200    = 10.0
+DEPOWER       = 0.38
 
 using Printf
 using KiteModels, KitePodModels, KiteUtils, LinearAlgebra
@@ -66,68 +66,47 @@ end
 
 
 AOA = zeros(length(DEPOWER))
-DEP = zeros(length(DEPOWER))
 ELEV = zeros(length(DEPOWER))
 V_WIND_KITE = zeros(length(DEPOWER))
 
 elev = set.elevation
-i = 1
-for depower in DEPOWER
-    global elev, i, kps4
-    local cl, cd, aoa, kcu, integrator, logger, v_app
+depower = DEPOWER
 
-    logger = Logger(set.segments + 5, STEPS)
-    set.depower = 100*depower
-    
-    # set.depower_gain = 5
+logger = Logger(set.segments + 5, STEPS)
+set.depower = 100*depower
 
-    kcu::KCU = KCU(set)
-    kps4::KPS4 = KPS4(kcu)
-    set.elevation += 5
-    set.v_wind = V_WIND_200[i]
-    integrator = KiteModels.init_sim!(kps4; delta=0.001*0, stiffness_factor=1, prn=STATISTIC)
-    if ! isnothing(integrator)
-        try
-            cl, cd = simulate(kps4, integrator, logger, STEPS)
-        catch e
-            println("Error: $e")
-            if PLOT
-                p = plot(logger.time_vec, rad2deg.(logger.elevation_vec), logger.var_01_vec, 
-                         xlabel="time [s]", ylabels=["elevation [°]", "aoa"], 
-                         fig="depower: $depower")
-                display(p)
-                sleep(0.2)
-            end        
-            break
-        end
-        set_depower_steering(kps4.kcu, depower, 0.0)
-        cl, cd = simulate(kps4, integrator, logger, STEPS)
-    else
-        break
-    end
-    elev = rad2deg(logger.elevation_vec[end])
-    ELEV[i] = elev
-    V_WIND_KITE[i] = norm(kps4.v_wind)
-    set.elevation = 67.36
+# set.depower_gain = 5
 
-    aoa = kps4.alpha_2
-    orient_vec = orient_euler(kps4)
-    alpha_depower = rad2deg(kps4.alpha_depower)
-    pitch = rad2deg(orient_vec[2]) + alpha_depower
-    v_app = norm(kps4.v_apparent)
-    # v_200 = calc_wind_factor(kps4.am, 200) * V_WIND
-    height = logger.Z_vec[end][end-2]
-    AOA[i] = aoa
-    if PRINT
-        print("Depower: $depower, alpha_dp: $(round(alpha_depower, digits=2)), aoa: $(round(aoa, digits=2)), ")
-        print("pitch: $(round(pitch, digits=2))")
-        println(", elevation: $(round((elev), digits=2)), height:$(round(height, digits=2))")
-    end
-    if PLOT
-        p = plot(logger.time_vec, rad2deg.(logger.elevation_vec), logger.var_01_vec, xlabel="time [s]", ylabels=["elevation [°]", "aoa [°]"], 
-                 fig="depower: $depower")
-        display(p)
-        sleep(0.2)
-    end
-    i+=1
+kcu::KCU = KCU(set)
+kps4::KPS4 = KPS4(kcu)
+set.elevation += 5
+set.v_wind = V_WIND_200
+integrator = KiteModels.init_sim!(kps4; delta=0.001*0, stiffness_factor=1, prn=STATISTIC)
+if ! isnothing(integrator)
+    force, v_reel_out = simulate(kps4, integrator, logger, STEPS)
+    set_depower_steering(kps4.kcu, depower, 0.0)
+    cl, cd = simulate(kps4, integrator, logger, STEPS)
 end
+elev = rad2deg(logger.elevation_vec[end])
+V_WIND_KITE= norm(kps4.v_wind)
+set.elevation = 67.36
+
+aoa = kps4.alpha_2
+orient_vec = orient_euler(kps4)
+alpha_depower = rad2deg(kps4.alpha_depower)
+pitch = rad2deg(orient_vec[2]) + alpha_depower
+v_app = norm(kps4.v_apparent)
+# v_200 = calc_wind_factor(kps4.am, 200) * V_WIND
+height = logger.Z_vec[end][end-2]
+if PRINT
+    print("Depower: $depower, alpha_dp: $(round(alpha_depower, digits=2)), aoa: $(round(aoa, digits=2)), ")
+    print("pitch: $(round(pitch, digits=2))")
+    println(", elevation: $(round((elev), digits=2)), height:$(round(height, digits=2))")
+end
+if PLOT
+    p = plot(logger.time_vec, rad2deg.(logger.elevation_vec), logger.var_01_vec, xlabel="time [s]", ylabels=["elevation [°]", "aoa [°]"], 
+            fig="depower: $depower")
+    display(p)
+    sleep(0.2)
+end
+
