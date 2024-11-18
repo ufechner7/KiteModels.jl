@@ -120,20 +120,7 @@ for depower in DEPOWER
     elev = rad2deg(logger.elevation_vec[end])
     ELEV[i] = elev
     V_WIND_KITE[i] = norm(kps4.v_wind)
-    set.elevation -= 5
-    if elev > 70
-        set.elevation = elev - 4
-    else
-        set.elevation = elev - 4
-    end 
-    j=i
-    if j ==2
-        set.elevation -= 4
-    elseif j == 3
-        set.elevation -= 4
-    elseif j == 4
-        set.elevation += 4
-    end
+    set.elevation = 67.36
 
     aoa = kps4.alpha_2
     orient_vec = orient_euler(kps4)
@@ -158,15 +145,3 @@ for depower in DEPOWER
     end
     i+=1
 end
-
-cl = zeros(length(AOA))
-cd = zeros(length(AOA))
-for (i, alpha) in pairs(AOA)
-    global cl, cd
-    cl[i] = kps4.calc_cl(alpha)
-    cd[i] = kps4.calc_cd(alpha)
-end
-
-# display(plot(AOA, [CL, cl], xlabel="AOA [deg]", ylabel="CL", labels=["CL","cl"], fig="CL vs AOA"))
-# display(plot(AOA, [CD, cd], xlabel="AOA [deg]", ylabel="CD", labels=["CD","cd"], fig="CD vs AOA"))
-# display(plot(DEP,[AOA, 1.5*25.5 .- 2PITCH]; xlabel="depower", ylabel="aoa/pitch [°]", scatter=true, labels=["aoa", "38.25°-2pitch"], fig="pitch and aoa vs depower"))
