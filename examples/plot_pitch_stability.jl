@@ -45,13 +45,22 @@ if PLOT
     using ControlPlots
 end
 
+FORCE = zeros(STEPS)
+DELAY = 120
+
 function simulate(kps4, integrator, logger, steps)
     iter = 0
     for i in 1:steps
         force = norm(kps4.forces[1])
+        FORCE[i] = force
         r = set.drum_radius
         n = set.gear_ratio
-        set_torque = -r/n * force
+        if i > DELAY
+            del_force = FORCE[i-DELAY]
+        else
+            del_force = force
+        end
+        set_torque = -r/n * del_force
         KiteModels.next_step!(kps4, integrator; set_torque, dt)
         sys_state = KiteModels.SysState(kps4)
         aoa = kps4.alpha_2
