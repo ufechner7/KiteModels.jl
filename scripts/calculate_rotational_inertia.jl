@@ -40,7 +40,7 @@ function calculate_rotational_inertia(X::Vector, Y::Vector, Z::Vector, M::Vector
 end
 
 
-function calculate_intertia_for_setting(settings_file::String, include_kcu::Bool=true, around_kcu::Bool=false)
+function calculate_inertia_for_setting(settings_file::String, include_kcu::Bool=true, around_kcu::Bool=false)
     set_data_path("data")
     set = deepcopy(load_settings(settings_file))
 
@@ -104,5 +104,5 @@ INCLKCU = false
 ARROUNDKCU = false
 
 print_settings(INCLKCU, ARROUNDKCU)
-IXX, IXY, IXZ, IYY, IYZ, IZZ = calculate_intertia_for_setting(SETFILE, INCLKCU, ARROUNDKCU)
+IXX, IXY, IXZ, IYY, IYZ, IZZ = calculate_inertia_for_setting(SETFILE, INCLKCU, ARROUNDKCU)
 print_inertia_matrix(IXX, IXY, IXZ, IYY, IYZ, IZZ)
