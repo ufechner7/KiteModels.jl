@@ -73,7 +73,7 @@ end
 
 
 function print_inertia_matrix(Ixx, Ixy, Ixz, Iyy, Iyz, Izz)
-    println("Inertia matrix [kgm^2]:")
+    println("Inertia matrix [kgm²]:")
     println(" Ixx Ixy Ixz: [$Ixx $Ixy $Ixz] ")
     println(" Ixy Iyy Iyz: [$Ixy $Iyy $Iyz] ")
     println(" Ixz Iyz Izz: [$Ixz $Iyz $Izz] ")
@@ -90,9 +90,9 @@ function print_settings(include_kcu::Bool=true, around_kcu::Bool=false)
     end
 
     if around_kcu
-        out *= " around the kcu"
+        out *= " around the kcu."
     else
-        out *= " around the center of mass"
+        out *= " around the center of mass."
     end 
 
     println(out)
