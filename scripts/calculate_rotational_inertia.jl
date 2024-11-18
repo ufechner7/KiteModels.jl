@@ -1,6 +1,7 @@
 using KiteUtils
 
-function calculate_rotational_inertia(X::Vector, Y::Vector, Z::Vector, M::Vector, around_center_of_mass::Bool=true, rotation_point::Vector=[0, 0, 0])
+function calculate_rotational_inertia(X::Vector, Y::Vector, Z::Vector, M::Vector, around_center_of_mass::Bool=true, 
+    rotation_point::Vector=[0, 0, 0])
     @assert size(X) == size(Y) == size(Z) == size(M)
     
     if around_center_of_mass
@@ -72,16 +73,36 @@ end
 
 
 function print_inertia_matrix(Ixx, Ixy, Ixz, Iyy, Iyz, Izz)
-    println("Inertia matrix:")
+    println("Inertia matrix [kgm^2]:")
     println(" Ixx Ixy Ixz: [$Ixx $Ixy $Ixz] ")
     println(" Ixy Iyy Iyz: [$Ixy $Iyy $Iyz] ")
     println(" Ixz Iyz Izz: [$Ixz $Iyz $Izz] ")
 end
 
 
-set_file = "system_v9.yaml"
-inc_kcu = false
-ar_kcu = false
+function print_settings(include_kcu::Bool=true, around_kcu::Bool=false)
+    out = ""
 
-Ixx, Ixy, Ixz, Iyy, Iyz, Izz = calculate_intertia_for_setting(set_file, inc_kcu, ar_kcu)
-print_inertia_matrix(Ixx, Ixy, Ixz, Iyy, Iyz, Izz)
+    if include_kcu
+        out *= "Calculating the inertia for kcu and kite"
+    else
+        out *= "Calculating the inertia for kite alone"
+    end
+
+    if around_kcu
+        out *= " around the kcu"
+    else
+        out *= " around the center of mass"
+    end 
+
+    println(out)
+end
+
+
+SETFILE = "system_v9.yaml"
+INCLKCU = false
+ARROUNDKCU = false
+
+print_settings(INCLKCU, ARROUNDKCU)
+IXX, IXY, IXZ, IYY, IYZ, IZZ = calculate_intertia_for_setting(SETFILE, INCLKCU, ARROUNDKCU)
+print_inertia_matrix(IXX, IXY, IXZ, IYY, IYZ, IZZ)
