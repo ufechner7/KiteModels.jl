@@ -1,5 +1,5 @@
 using Printf
-using KiteModels, KitePodModels, KiteUtils, LinearAlgebra
+using KiteModels, LinearAlgebra
 
 set = deepcopy(load_settings("system.yaml"))
 
