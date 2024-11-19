@@ -2,7 +2,7 @@ V_WIND_200    = 10.0
 DEPOWER       = 0.38
 
 using Printf
-using KiteModels, LinearAlgebra
+using KiteModels, LinearAlgebra, DSP
 
 if haskey(ENV, "USE_V9")
     set = deepcopy(load_settings("system_v9.yaml"))
@@ -22,7 +22,7 @@ set.rel_tol=0.00001
 
 # the following values can be changed to match your interest
 dt = 0.05
-fg = 10            # cut-off frequency for the filter in Hz
+fg = 2            # cut-off frequency for the filter in Hz
 set.solver="DFBDF" # IDA or DFBDF
 STEPS = 600
 PLOT = true
@@ -56,6 +56,8 @@ wcs = WinchSpeedController(dt=dt)
 function simulate(kps4, integrator, logger, steps)
     iter = 0
     last_measurement = 0.0
+    butter = create_filter(fg, dt=dt)
+    buffer = zeros(steps)
     for i in 1:steps
         force = norm(kps4.forces[1])
         FORCE[i] = force

@@ -5,6 +5,7 @@ version = "0.6.11"
 
 [deps]
 AtmosphericModels = "c59cac55-771d-4f45-b14d-1c681463a295"
+DSP = "717857b8-e6f2-59f4-9121-6e50c889abd2"
 Dierckx = "39dd38d3-220a-591b-8e3c-4c3a8c710a94"
 DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
 DiscretePIDs = "c1363496-6848-4723-8758-079b737f6baf"

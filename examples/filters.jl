@@ -23,3 +23,15 @@ function ema_filter(measurement, last_measurement, cut_off_freq, dt)
     end
     return filtered_value
 end
+
+# Design the filter
+function create_filter(cut_off_freq; order=4, dt)
+    Filters.digitalfilter(Filters.Lowpass(cut_off_freq; fs=1/dt), Filters.Butterworth(order))
+end
+
+# Apply the filter
+function apply_filter(butter, measurement, buffer, index)
+    buffer[index] = measurement
+    res = filt(butter, buffer[1:index])
+    return res[index]
+end
