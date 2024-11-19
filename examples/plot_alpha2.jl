@@ -1,5 +1,5 @@
 using Printf
-using KiteModels, KitePodModels, KiteUtils
+using KiteModels
 
 using Pkg
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
