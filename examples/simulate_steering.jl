@@ -1,5 +1,6 @@
 using Printf
-using KiteModels, KitePodModels, KiteUtils
+# simulate the effect of steering the kite using the one point kite model
+using KiteModels, KitePodModels
 
 set = deepcopy(load_settings("system.yaml"))
 
@@ -10,7 +11,7 @@ set.rel_tol=0.00001
 dt = 0.05
 STEPS = 600
 PLOT = true
-FRONT_VIEW = false
+FRONT_VIEW = true
 ZOOM = false
 PRINT = false
 STATISTIC = false
