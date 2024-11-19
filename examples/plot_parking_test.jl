@@ -16,7 +16,7 @@ HEIGHT        = [ 268.3, 250.1, 249.4, 237.5]
 DEPOWER       = [0.40, 0.44, 0.4799, 0.5198]
 
 using Printf
-using KiteModels, KitePodModels, KiteUtils, LinearAlgebra
+using KiteModels, LinearAlgebra
 
 if haskey(ENV, "USE_V9")
     set = deepcopy(load_settings("system_v9.yaml"))

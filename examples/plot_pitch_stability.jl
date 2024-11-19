@@ -2,7 +2,7 @@ V_WIND_200    = 10.0
 DEPOWER       = 0.38
 
 using Printf
-using KiteModels, KitePodModels, KiteUtils, LinearAlgebra
+using KiteModels, LinearAlgebra
 
 if haskey(ENV, "USE_V9")
     set = deepcopy(load_settings("system_v9.yaml"))

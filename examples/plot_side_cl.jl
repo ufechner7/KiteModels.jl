@@ -1,6 +1,6 @@
 # plot the side lift coefficient vs rel_steering
 using Printf
-using KiteModels, KitePodModels, KiteUtils
+using KiteModels
 
 if haskey(ENV, "USE_V9")
     set = deepcopy(load_settings("system_v9.yaml"))
