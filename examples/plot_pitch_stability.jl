@@ -23,6 +23,8 @@ set.rel_tol=0.00001
 # the following values can be changed to match your interest
 dt = 0.05
 fg = 2            # cut-off frequency for the filter in Hz
+use_butter  = true
+order = 4         # order of the butterworth filter
 set.solver="DFBDF" # IDA or DFBDF
 STEPS = 600
 PLOT = true
@@ -49,19 +51,23 @@ end
 FORCE = zeros(STEPS)
 
 include("filters.jl")
-
 include("winch_controller.jl")
 wcs = WinchSpeedController(dt=dt)
 
 function simulate(kps4, integrator, logger, steps)
+    local filtered_force
     iter = 0
     last_measurement = 0.0
-    butter = create_filter(fg, dt=dt)
+    butter = create_filter(fg; dt, order)
     buffer = zeros(steps)
     for i in 1:steps
         force = norm(kps4.forces[1])
         FORCE[i] = force
-        filtered_force = ema_filter(force, last_measurement, fg, dt)
+        if use_butter
+            filtered_force = apply_filter(butter, force, buffer, i)
+        else
+            filtered_force = ema_filter(force, last_measurement, fg, dt)
+        end
         v_set = 0.0
         set_torque = calc_set_torque(set, wcs, v_set, kps4.v_reel_out, filtered_force)
         KiteModels.next_step!(kps4, integrator; set_torque, dt)
