@@ -1,5 +1,5 @@
 using Printf
-using KiteModels, KitePodModels, KiteUtils
+using KiteModels
 
 if false include("../src/KPS4.jl") end
 
