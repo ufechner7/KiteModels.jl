@@ -1,5 +1,5 @@
 using Printf
-using KiteModels, KitePodModels, KiteUtils
+using KiteModels
 
 using Pkg
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
@@ -54,8 +54,8 @@ function simulate(integrator, steps, offset=0)
     return iter/steps
 end
 
-integrator = KiteModels.init_sim!(kps4_3l, stiffness_factor=0.3, prn=STATISTIC)
-kps4_3l.set_speeds = [0.0, 0.0, 0.0]
+integrator = KiteModels.init_sim!(kps4_3l, prn=STATISTIC)
+# kps4_3l.set_speeds = [0.0, 0.0, 0.0]
 
 println("\nStarting simulation...")
 simulate(integrator, 100, 100)
