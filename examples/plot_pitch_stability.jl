@@ -48,19 +48,19 @@ end
 FORCE = zeros(STEPS)
 DELAY = 120
 
+include("filters.jl")
+fg = 20 # cut-off frequency for the filter in Hz
+
 function simulate(kps4, integrator, logger, steps)
     iter = 0
+    last_measurement = 0.0
     for i in 1:steps
         force = norm(kps4.forces[1])
         FORCE[i] = force
         r = set.drum_radius
         n = set.gear_ratio
-        if i > DELAY
-            del_force = FORCE[i-DELAY]
-        else
-            del_force = force
-        end
-        set_torque = -r/n * del_force
+        filtered_force = ema_filter(force, last_measurement, fg, dt)
+        set_torque = -r/n * filtered_force
         KiteModels.next_step!(kps4, integrator; set_torque, dt)
         sys_state = KiteModels.SysState(kps4)
         aoa = kps4.alpha_2
