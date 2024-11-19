@@ -6,7 +6,7 @@ mutable struct WinchSpeedController
     ki::Float64
     pid::DiscretePID
 end
-function WinchSpeedController(;kp=1000.0, ki=100.0, dt)
+function WinchSpeedController(;kp=2000.0, ki=400.0, dt)
     pid = DiscretePID(;K=kp, Ti=kp/ki, Ts=dt)
     WinchSpeedController(kp, ki, pid)
 end
@@ -29,5 +29,5 @@ function calc_set_torque(set::Settings, wcs::WinchSpeedController, v_set, v_reel
     # calculate the set torque
     r = set.drum_radius
     n = set.gear_ratio
-    set_torque = -r/n * -err
+    set_torque = -r/n * (0.0*set_force-err)
 end

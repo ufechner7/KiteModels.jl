@@ -22,9 +22,10 @@ set.rel_tol=0.00001
 
 # the following values can be changed to match your interest
 dt = 0.05
+fg = 10            # cut-off frequency for the filter in Hz
 set.solver="DFBDF" # IDA or DFBDF
-STEPS = 550# 740
-PLOT = false
+STEPS = 600
+PLOT = true
 PRINT = true
 STATISTIC = false
 # end of user parameter section #
@@ -46,10 +47,8 @@ if PLOT
 end
 
 FORCE = zeros(STEPS)
-DELAY = 120
 
 include("filters.jl")
-fg = 1 # cut-off frequency for the filter in Hz
 
 include("winch_controller.jl")
 wcs = WinchSpeedController(dt=dt)
@@ -61,7 +60,6 @@ function simulate(kps4, integrator, logger, steps)
         force = norm(kps4.forces[1])
         FORCE[i] = force
         filtered_force = ema_filter(force, last_measurement, fg, dt)
-        # set_torque = -r/n * filtered_force
         v_set = 0.0
         set_torque = calc_set_torque(set, wcs, v_set, kps4.v_reel_out, filtered_force)
         KiteModels.next_step!(kps4, integrator; set_torque, dt)
