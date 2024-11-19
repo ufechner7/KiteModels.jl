@@ -49,9 +49,10 @@ FORCE = zeros(STEPS)
 DELAY = 120
 
 include("filters.jl")
-fg = 20 # cut-off frequency for the filter in Hz
+fg = 1 # cut-off frequency for the filter in Hz
 
-# TODO add speed controller
+include("winch_controller.jl")
+wcs = WinchSpeedController(dt=dt)
 
 function simulate(kps4, integrator, logger, steps)
     iter = 0
@@ -59,10 +60,10 @@ function simulate(kps4, integrator, logger, steps)
     for i in 1:steps
         force = norm(kps4.forces[1])
         FORCE[i] = force
-        r = set.drum_radius
-        n = set.gear_ratio
         filtered_force = ema_filter(force, last_measurement, fg, dt)
-        set_torque = -r/n * filtered_force
+        # set_torque = -r/n * filtered_force
+        v_set = 0.0
+        set_torque = calc_set_torque(set, wcs, v_set, kps4.v_reel_out, filtered_force)
         KiteModels.next_step!(kps4, integrator; set_torque, dt)
         sys_state = KiteModels.SysState(kps4)
         aoa = kps4.alpha_2
