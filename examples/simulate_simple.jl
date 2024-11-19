@@ -1,4 +1,6 @@
 using Printf
+# simple parking test without changing the control input
+# shows how to log, plot, and print the simulation results
 
 using KiteModels, KitePodModels, KiteUtils
 
@@ -71,5 +73,6 @@ else
     println("Simulation speed: $(round(speed, digits=2)) times realtime.")
 end
 lift, drag = KiteModels.lift_drag(kps4)
+println("Ground wind speed: $(round(set.v_wind, digits=2)) m/s")
 println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
-println("Average number of callbacks per time step: $av_steps")
+println("Average number of callbacks per time step: $(round(av_steps, digits=2))")
