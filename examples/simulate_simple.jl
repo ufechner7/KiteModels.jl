@@ -2,7 +2,7 @@ using Printf
 # simple parking test without changing the control input
 # shows how to log, plot, and print the simulation results
 
-using KiteModels, KitePodModels, KiteUtils
+using KiteModels
 
 set = deepcopy(load_settings("system.yaml"))
 
