@@ -6,7 +6,7 @@ mutable struct WinchSpeedController
     ki::Float64
     pid::DiscretePID
 end
-function WinchSpeedController(;kp=12000.0, ki=1200.0, dt)
+function WinchSpeedController(;kp=12000.0, ki=4800.0, dt)
     pid = DiscretePID(;K=kp, Ti=kp/ki, Ts=dt)
     WinchSpeedController(kp, ki, pid)
 end

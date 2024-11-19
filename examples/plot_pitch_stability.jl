@@ -1,5 +1,4 @@
-V_WIND_200    = 10.0
-DEPOWER       = 0.38
+
 
 using Printf
 using KiteModels, LinearAlgebra, DSP
@@ -19,6 +18,7 @@ plt.close("all")
 
 set.abs_tol=0.0006
 set.rel_tol=0.00001
+set.l_tether=280
 
 # the following values can be changed to match your interest
 dt = 0.05
@@ -30,6 +30,8 @@ STEPS = 600
 PLOT = true
 PRINT = true
 STATISTIC = false
+V_WIND_200    = 7.0
+DEPOWER       = 0.36
 # end of user parameter section #
 
 function set_tether_diameter!(se, d; c_spring_4mm = 614600, damping_4mm = 473)
