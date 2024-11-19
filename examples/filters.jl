@@ -35,3 +35,12 @@ function apply_filter(butter, measurement, buffer, index)
     res = filt(butter, buffer[1:index])
     return res[index]
 end
+
+function apply_delay(measurement, buffer, index; delay=1)
+    buffer[index] = measurement
+    if delay <=0 || index-delay < 1
+        return measurement
+    else
+        return buffer[index-delay]
+    end
+end

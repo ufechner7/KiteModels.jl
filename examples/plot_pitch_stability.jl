@@ -60,6 +60,7 @@ function simulate(kps4, integrator, logger, steps)
     last_measurement = 0.0
     butter = create_filter(fg; dt, order)
     buffer = zeros(steps)
+    buffer2 = zeros(steps)
     for i in 1:steps
         force = norm(kps4.forces[1])
         FORCE[i] = force
@@ -68,8 +69,9 @@ function simulate(kps4, integrator, logger, steps)
         else
             filtered_force = ema_filter(force, last_measurement, fg, dt)
         end
+        delayed_v_reelout = apply_delay(kps4.v_reel_out, buffer2, i; delay=2)
         v_set = 0.0
-        set_torque = calc_set_torque(set, wcs, v_set, kps4.v_reel_out, filtered_force)
+        set_torque = calc_set_torque(set, wcs, v_set, delayed_v_reelout, filtered_force)
         KiteModels.next_step!(kps4, integrator; set_torque, dt)
         sys_state = KiteModels.SysState(kps4)
         aoa = kps4.alpha_2
