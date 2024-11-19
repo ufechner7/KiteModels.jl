@@ -51,6 +51,8 @@ DELAY = 120
 include("filters.jl")
 fg = 20 # cut-off frequency for the filter in Hz
 
+# TODO add speed controller
+
 function simulate(kps4, integrator, logger, steps)
     iter = 0
     last_measurement = 0.0
