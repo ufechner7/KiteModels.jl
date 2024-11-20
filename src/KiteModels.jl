@@ -533,6 +533,11 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.5, delta=0.001, prn=fal
     differential_vars = ones(Bool, length(y0))
     prob    = DAEProblem{true}(residual!, yd0, y0, tspan, s; differential_vars)
     integrator = OrdinaryDiffEqCore.init(prob, solver; abstol=abstol, reltol=s.set.rel_tol, save_everystep=false)
+    if isa(s, KPS4)
+        roll, pitch, yaw = orient_euler(s)
+        s.pitch_rate = 0
+        s.pitch = pitch
+    end
     return integrator
 end
 
@@ -575,6 +580,11 @@ function next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing,
         if s.stiffness_factor > 1.0
             s.stiffness_factor = 1.0
         end
+    end
+    if isa(s, KPS4)
+        roll, pitch, yaw = orient_euler(s)
+        s.pitch_rate = (pitch - s.pitch) / dt
+        s.pitch = pitch
     end
     integrator.t
 end

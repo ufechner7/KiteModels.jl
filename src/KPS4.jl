@@ -135,6 +135,10 @@ $(TYPEDFIELDS)
     psi::S =              zero(S)
     "depower angle [deg]"
     alpha_depower::S =     0.0
+    "pitch angle [rad]"
+    pitch::S =            0.0
+    "pitch rate [rad/s]"
+    pitch_rate::S =       0.0
     "aoa at paricle B"
     alpha_2::S =           0.0
     "aoa at paricle B, corrected formula"
@@ -218,6 +222,9 @@ function clear!(s::KPS4)
     s.ks = deg2rad(s.set.max_steering) 
     s.kcu.depower = s.set.depower/100.0
     s.kcu.set_depower = s.kcu.depower
+    roll, pitch, yaw = orient_euler(s)
+    s.pitch = pitch
+    s.pitch_rate = 0.0
     KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
 end
 
