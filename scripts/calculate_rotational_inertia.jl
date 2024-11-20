@@ -100,9 +100,9 @@ end
 
 
 SETFILE = "system_v9.yaml"
-INCLKCU = false
-ARROUNDKCU = false
+INCL_KCU = false
+ARROUND_KCU = false
 
-print_settings(INCLKCU, ARROUNDKCU)
-IXX, IXY, IXZ, IYY, IYZ, IZZ = calculate_inertia_for_setting(SETFILE, INCLKCU, ARROUNDKCU)
+print_settings(INCL_KCU, ARROUND_KCU)
+IXX, IXY, IXZ, IYY, IYZ, IZZ = calculate_inertia_for_setting(SETFILE, INCL_KCU, ARROUND_KCU)
 print_inertia_matrix(IXX, IXY, IXZ, IYY, IYZ, IZZ)
