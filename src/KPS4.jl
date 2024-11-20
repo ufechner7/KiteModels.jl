@@ -322,8 +322,8 @@ Updates the vector s.forces of the first parameter.
     # pos_B, pos_C, pos_D: position of the kite particles B, C, and D
     # v_B,   v_C,   v_D:   velocity of the kite particles B, C, and D
     pos_B, pos_C, pos_D = pos[s.set.segments+3], pos[s.set.segments+4], pos[s.set.segments+5]
-    v_B,   v_C,   v_D   = vel[s.set.segments+3], vel[s.set.segments+4], vel[s.set.segments+5]
-    va_2,  va_3,  va_4  = s.v_wind - v_B, s.v_wind - v_C, s.v_wind - v_D
+    v_A, v_B, v_C, v_D  = vel[s.set.segments+2], vel[s.set.segments+3], vel[s.set.segments+4], vel[s.set.segments+5]
+    va_1, va_2,  va_3,  va_4  = s.v_wind - v_A, s.v_wind - v_B, s.v_wind - v_C, s.v_wind - v_D
  
     pos_centre = 0.5 * (pos_C + pos_D)
     delta = pos_B - pos_centre
@@ -332,6 +332,7 @@ Updates the vector s.forces of the first parameter.
     x = y × z
     s.x .= x; s.y .= y; s.z .= z # save the kite reference frame in the state
 
+    va_yz1 = va_1 - (va_1 ⋅ x) * x
     va_xz2 = va_2 - (va_2 ⋅ y) * y
     va_xy3 = va_3 - (va_3 ⋅ z) * z
     va_xy4 = va_4 - (va_4 ⋅ z) * z
@@ -367,7 +368,8 @@ Updates the vector s.forces of the first parameter.
         s.drag_force .= D2 + D3 + D4
         s.forces[s.set.segments + 3] .+= (L2 + D2)
     end
-    
+    f_d = -0.5 * rho * s.set.area * norm(s.set.cmq * s.pitch_rate * s.set.cord_length) * va_yz1
+    s.forces[s.set.segments + 2] .+= f_d
     s.forces[s.set.segments + 4] .+= (L3 + D3)
     s.forces[s.set.segments + 5] .+= (L4 + D4)
     s.side_force .= (L3 + L4)
