@@ -51,6 +51,8 @@ function simulate(integrator, steps, plot=false)
             end
         end
         sys_state = SysState(kps4)
+        sys_state.var_01 = kps4.pitch
+        sys_state.var_02 = kps4.pitch_rate
         log!(logger, sys_state)
     end
     iter / steps
@@ -62,7 +64,10 @@ if PLOT
     global flight_log
     av_steps = simulate(integrator, STEPS, true)
     flight_log = KiteUtils.sys_log(logger)
-    p = plot(flight_log.syslog.time, flight_log.z; xlabel="time [s]", ylabel="z [m]", fig="plot_height")
+    p = plotx(flight_log.syslog.time, flight_log.z, 
+              rad2deg.(flight_log.syslog.var_01), rad2deg.(flight_log.syslog.var_02);
+              xlabel="time [s]", ylabels=["z [m]", "pitch [°]", "pitch_rate [°/s]"], 
+              fig="plot_height_pitch")
     display(p)
 else
     println("\nStarting simulation...")
