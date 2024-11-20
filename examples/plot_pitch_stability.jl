@@ -31,7 +31,7 @@ PLOT = true
 PRINT = true
 STATISTIC = false
 V_WIND_200    = 7.0
-DEPOWER       = 0.36
+DEPOWER       = 0.35
 # end of user parameter section #
 
 function set_tether_diameter!(se, d; c_spring_4mm = 614600, damping_4mm = 473)
