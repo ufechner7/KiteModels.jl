@@ -2,9 +2,9 @@ using Printf
 # simple parking test without changing the control input
 # shows how to log, plot, and print the simulation results
 
-using KiteModels
+using KiteModels, LinearAlgebra
 
-set = deepcopy(load_settings("system.yaml"))
+set = deepcopy(load_settings("system_v9.yaml"))
 
 set.abs_tol=0.0006
 set.rel_tol=0.00001
@@ -81,3 +81,11 @@ lift, drag = KiteModels.lift_drag(kps4)
 println("Ground wind speed: $(round(set.v_wind, digits=2)) m/s")
 println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
 println("Average number of callbacks per time step: $(round(av_steps, digits=2))")
+
+points = KiteUtils.get_particles(set.height_k, set.h_bridle, set.width, set.m_k, [0, 0, 0], [0, 0, -1], [10, 0, 0])
+pos_A = points[3]
+pos_C = points[5]
+pos_D = points[6]
+Pc = 0.5*(pos_C + pos_D)
+distance = norm(pos_A-Pc)
+println("Distance between A and Pc: $(round(distance, digits=2)) m")
