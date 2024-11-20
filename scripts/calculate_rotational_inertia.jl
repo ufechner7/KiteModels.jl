@@ -104,5 +104,5 @@ INCL_KCU = false
 ARROUND_KCU = false
 
 print_settings(INCL_KCU, ARROUND_KCU)
-IXX, IXY, IXZ, IYY, IYZ, IZZ = calculate_inertia_for_setting(SETFILE, INCL_KCU, ARROUND_KCU)
-print_inertia_matrix(IXX, IXY, IXZ, IYY, IYZ, IZZ)
+ixx, ixy, ixz, iyy, iyz, izz = calculate_inertia_for_setting(SETFILE, INCL_KCU, ARROUND_KCU)
+print_inertia_matrix(ixx, ixy, ixz, iyy, iyz, izz)
