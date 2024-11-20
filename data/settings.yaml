@@ -57,6 +57,9 @@ kps4:
     m_k:           0.2      # relative nose distance; increasing m_k increases C2 of the turn-rate law
     rel_nose_mass: 0.47     # relative nose mass
     rel_top_mass:  0.4      # mass of the top particle relative to the sum of top and side particles
+    smc:           0.0      # steering moment coefficient                 [-]
+    cmq:           0.0      # pitch rate dependant moment coefficient     [-]
+    cord_length:   2.0      # average aerodynamic cord length of the kite [m]
 
 kps4_3l:
     radius: 2.0                    # the radius of the circle shape on which the kite lines, viewed 
