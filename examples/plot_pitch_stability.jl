@@ -35,6 +35,9 @@ V_WIND_200    = 7.0
 DEPOWER       = 0.35
 # end of user parameter section #
 
+TIME = 0.0:dt:(STEPS-1)*dt
+SIN = sin.(2π*TIME)
+
 function set_tether_diameter!(se, d; c_spring_4mm = 614600, damping_4mm = 473)
     set.d_tether = d
     set.c_spring = c_spring_4mm * (d/4.0)^2
