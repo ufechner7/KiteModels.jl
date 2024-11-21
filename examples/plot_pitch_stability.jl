@@ -33,7 +33,7 @@ PRINT = true
 STATISTIC = false
 V_WIND_200    = 7.0
 DEPOWER       = 0.35
-F_EX = 2.2 # frequency of exertation
+F_EX = 2.23 # frequency of exertation
 # end of user parameter section #
 
 TIME = 0.0:dt:(STEPS-1)*dt
