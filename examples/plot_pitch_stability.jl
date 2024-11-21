@@ -18,7 +18,8 @@ plt.close("all")
 
 set.abs_tol=0.0006
 set.rel_tol=0.00001
-set.l_tether=280
+set.l_tether=200
+set.v_wind = 8.0
 
 # the following values can be changed to match your interest
 dt = 0.05
@@ -140,4 +141,8 @@ function plot_force_speed(filename)
 end
 
 plot_force_speed("tmp")
+filename = "tmp"
+lg = load_log(filename)
+sl = lg.syslog
+nothing
 
