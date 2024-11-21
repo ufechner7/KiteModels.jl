@@ -99,7 +99,7 @@ let
     kps4.stiffness_factor = 0.04
     simulate(integrator, 100, true)
 end
-let 
+if ! haskey(ENV, "NO_MTK")
     using KiteModels, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK, LinearAlgebra
     using Base: summarysize
 
