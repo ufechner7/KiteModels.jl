@@ -1,7 +1,7 @@
 
 
 using Printf
-using KiteModels, StatsBase, DSP
+using KiteModels, StatsBase, LinearAlgebra, DSP
 
 if haskey(ENV, "USE_V9")
     set = deepcopy(load_settings("system_v9.yaml"))
