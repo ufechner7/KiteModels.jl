@@ -14,7 +14,7 @@ if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
     using TestEnv; TestEnv.activate()
 end
 using ControlPlots
-# plt.close("all")
+plt.close("all")
 
 set.abs_tol=0.0006
 set.rel_tol=0.00001
@@ -27,16 +27,19 @@ fg = 2            # cut-off frequency for the filter in Hz
 use_butter  = true
 order = 4         # order of the Butterworth filter
 set.solver="DFBDF" # IDA or DFBDF
-STEPS = 600
-PLOT = true
+STEPS = 640
+PLOT = false
 PRINT = true
 STATISTIC = false
 V_WIND_200    = 7.0
-DEPOWER       = 0.35
-F_EX = 2.23 # frequency of exertation
+DEPOWER       = 0.38
+F_EX_MIN = 0.1
+N_EX = 260 # number of frequencies to be tested
 # end of user parameter section #
 
 TIME = 0.0:dt:(STEPS-1)*dt
+AOA_AMP = zeros(N_EX)
+F_EX = zeros(N_EX)
 
 function set_tether_diameter!(se, d; c_spring_4mm = 614600, damping_4mm = 473)
     set.d_tether = d
@@ -100,37 +103,50 @@ function sim_and_plot(set; depower=DEPOWER, f_ex)
     integrator = KiteModels.init_sim!(kps4; delta=0.001*0, stiffness_factor=1, prn=STATISTIC)
     set_depower_steering(kps4.kcu, depower, 0.0)
     simulate(kps4, integrator, logger, STEPS, f_ex)
+    save_log(logger, "tmp")
     if PLOT
         p = plot(logger.time_vec, rad2deg.(logger.elevation_vec), logger.var_01_vec, xlabel="time [s]", ylabels=["elevation [°]", "aoa [°]"], 
-                fig="depower: $(depower), f_ex:"*repr(f_ex))
+                fig="depower: $(depower), f_ex: "*repr(round(f_ex, digits=3)))
         display(p)
+        plot_force_speed("tmp", f_ex)
         sleep(0.2)
     end
-    save_log(logger, "tmp")
+    
 end
 
 function calc_aoa_amplitude(filename)
     log = load_log(filename)
     sl  = log.syslog
-    # last 4 seconds
-    aoa = sl.var_01[end-(Int64(1/dt)*4):end]
+    # last 7 seconds
+    aoa = sl.var_01[end-(Int64(1/dt)*7):end]
     aoa = aoa .- mean(aoa)
     0.5 * (maximum(aoa) - minimum(aoa))
 end
 
-function plot_force_speed(filename)
+function plot_force_speed(filename, f_ex)
     log = load_log(filename)
     sl  = log.syslog
     display(plot(log.syslog.time, sl.force, sl.v_reelout;
             ylabels=["force [N]", "v_reelout [m/s]"],
-            fig="force_speed"*repr(set.cmq), ysize=10))
+            fig="force_speed, f_ex: "*repr(round(f_ex, digits=3)), ysize=10))
 end
+todb(mag) = 20 * log10(mag)
 
-for f_ex in 1.5:0.1:3.0
+f_ex = F_EX_MIN
+for i in 1:N_EX
+    global f_ex
+    F_EX[i] = f_ex
     sim_and_plot(set; f_ex=f_ex)
-    println("AOA amplitude: ", round(calc_aoa_amplitude("tmp"), digits=3), "°")
+    aoa_amp = calc_aoa_amplitude("tmp")
+    AOA_AMP[i] = aoa_amp
+    println("AOA amplitude: ", round(aoa_amp, digits=3), "°")
+    f_ex *= 1.018
 end
-
-
-nothing
+# plot(F_EX, todb.(AOA_AMP), xlabel="f_ex [Hz]", ylabel="AOA amplitude [dB°]", fig="AOA amplitude vs f_ex")
+plt.figure("AOA amplitude vs f_ex")
+plt.plot(F_EX, todb.(AOA_AMP))
+plt.xlabel("f_ex [Hz]")
+plt.ylabel("AOA amplitude [dB°]")
+plt.gca().set_xscale("log")
+plt.grid(true)
 
