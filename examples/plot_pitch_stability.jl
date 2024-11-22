@@ -1,7 +1,7 @@
 
 
 using Printf
-using KiteModels, LinearAlgebra, DSP
+using KiteModels, StatsBase, DSP
 
 if haskey(ENV, "USE_V9")
     set = deepcopy(load_settings("system_v9.yaml"))
@@ -137,6 +137,15 @@ if PLOT
 end
 save_log(logger, "tmp")
 
+function calc_aoa_amplitude(filename)
+    log = load_log(filename)
+    sl  = log.syslog
+    # last 4 seconds
+    aoa = sl.var_01[end-(Int64(1/dt)*4):end]
+    aoa = aoa .- mean(aoa)
+    0.5 * (maximum(aoa) - minimum(aoa))
+end
+
 function plot_force_speed(filename)
     log = load_log(filename)
     sl  = log.syslog
@@ -145,9 +154,10 @@ function plot_force_speed(filename)
             fig="force_speed"*repr(set.cmq), ysize=10))
 end
 
-plot_force_speed("tmp")
-filename = "tmp"
-lg = load_log(filename)
-sl = lg.syslog
+# plot_force_speed("tmp")
+# filename = "tmp"
+# lg = load_log(filename)
+# sl = lg.syslog
+println("AOA amplitude: ", round(calc_aoa_amplitude("tmp"), digits=3), "°")
 nothing
 
