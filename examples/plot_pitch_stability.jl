@@ -79,7 +79,7 @@ function simulate(kps4, integrator, logger, steps)
         delayed_v_reelout = apply_delay(kps4.v_reel_out, buffer2, i; delay=2)
         v_set = 0.0
         set_torque = calc_set_torque(set, wcs, v_set, delayed_v_reelout, filtered_force)
-        # set_torque += 200*SIN[i]
+        set_torque += 200*SIN[i]
         KiteModels.next_step!(kps4, integrator; set_torque, dt)
         sys_state = KiteModels.SysState(kps4)
         aoa = kps4.alpha_2
@@ -145,7 +145,7 @@ function plot_force_speed(filename)
             fig="force_speed"*repr(set.cmq), ysize=10))
 end
 
-# plot_force_speed("tmp")
+plot_force_speed("tmp")
 filename = "tmp"
 lg = load_log(filename)
 sl = lg.syslog
