@@ -13,7 +13,7 @@ using Pkg
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
     using TestEnv; TestEnv.activate()
 end
-using ControlPlots
+using ControlPlots, JLD2
 plt.close("all")
 
 set.abs_tol=0.0006
@@ -31,14 +31,13 @@ STEPS = 640
 PLOT = false
 PRINT = true
 STATISTIC = false
-V_WIND_200    = 7.0
 DEPOWER       = 0.38
 F_EX_MIN = 0.1
 N_EX = 260 # number of frequencies to be tested
 # end of user parameter section #
 
 TIME = 0.0:dt:(STEPS-1)*dt
-AOA_AMP = zeros(N_EX)
+AOA_EFF = zeros(N_EX)
 F_EX = zeros(N_EX)
 
 function set_tether_diameter!(se, d; c_spring_4mm = 614600, damping_4mm = 473)
@@ -99,7 +98,6 @@ function sim_and_plot(set; depower=DEPOWER, f_ex)
     set.elevation = 67.0
     kcu::KCU = KCU(set)
     kps4::KPS4 = KPS4(kcu)
-    set.v_wind = V_WIND_200
     integrator = KiteModels.init_sim!(kps4; delta=0.001*0, stiffness_factor=1, prn=STATISTIC)
     set_depower_steering(kps4.kcu, depower, 0.0)
     simulate(kps4, integrator, logger, STEPS, f_ex)
@@ -114,13 +112,13 @@ function sim_and_plot(set; depower=DEPOWER, f_ex)
     
 end
 
-function calc_aoa_amplitude(filename)
+function calc_aoa_eff(filename)
     log = load_log(filename)
     sl  = log.syslog
     # last 7 seconds
     aoa = sl.var_01[end-(Int64(1/dt)*7):end]
     aoa = aoa .- mean(aoa)
-    0.5 * (maximum(aoa) - minimum(aoa))
+    (mean(aoa.^2))^0.5
 end
 
 function plot_force_speed(filename, f_ex)
@@ -137,14 +135,26 @@ for i in 1:N_EX
     global f_ex
     F_EX[i] = f_ex
     sim_and_plot(set; f_ex=f_ex)
-    aoa_amp = calc_aoa_amplitude("tmp")
-    AOA_AMP[i] = aoa_amp
-    println("AOA amplitude: ", round(aoa_amp, digits=3), "°")
+    aoa_eff = calc_aoa_eff("tmp")
+    AOA_EFF[i] = aoa_eff
+    println("AOA amplitude: ", round(aoa_eff, digits=3), "°")
     f_ex *= 1.018
 end
-# plot(F_EX, todb.(AOA_AMP), xlabel="f_ex [Hz]", ylabel="AOA amplitude [dB°]", fig="AOA amplitude vs f_ex")
+mutable struct Spectrum
+    name::String
+    cmq::Float64
+    v_wind::Float64
+    f_ex::Vector{Float64}
+    aoa_eff::Vector{Float64}
+end
+
+name = "spectrum_" * repr(set.v_wind) * "_" * repr(-set.cmq)
+spectrum = Spectrum(name, set.cmq, set.v_wind, F_EX, AOA_EFF)
+jldsave("data/" * spectrum.name * ".jld2"; spectrum)
+
+# plot(F_EX, todb.(AOA_EFF), xlabel="f_ex [Hz]", ylabel="AOA amplitude [dB°]", fig="AOA amplitude vs f_ex")
 plt.figure("AOA amplitude vs f_ex")
-plt.plot(F_EX, todb.(AOA_AMP))
+plt.plot(F_EX, todb.(AOA_EFF))
 plt.xlabel("f_ex [Hz]")
 plt.ylabel("AOA amplitude [dB°]")
 plt.gca().set_xscale("log")
