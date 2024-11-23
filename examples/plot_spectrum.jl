@@ -30,3 +30,4 @@ function plot_spectrum(name)
 end
 
 plot_spectrum("spectrum_8.0_0.2")
+plot_spectrum("spectrum_8.0_0.0")
