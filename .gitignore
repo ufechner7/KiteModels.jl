@@ -40,3 +40,4 @@ examples_3d/Manifest.toml
 
 data/settings_v9c.yaml
 data/settings_v9d.yaml
+data/spectrum*.jld2
