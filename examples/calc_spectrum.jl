@@ -112,11 +112,12 @@ function sim_and_plot(set; depower=DEPOWER, f_ex)
     
 end
 
-function calc_aoa_eff(filename)
+function calc_aoa_eff(filename, f_ex)
     log = load_log(filename)
     sl  = log.syslog
-    # last 7 seconds
-    aoa = sl.var_01[end-(Int64(1/dt)*7):end]
+    # full periods of the signal, but maximal 10 seconds
+    measurement_time = div(10, 1/f_ex) * 1/f_ex
+    aoa = sl.var_01[end-(Int64(round(1/dt*measurement_time))):end]
     aoa = aoa .- mean(aoa)
     (mean(aoa.^2))^0.5
 end
@@ -135,7 +136,7 @@ for i in 1:N_EX
     global f_ex
     F_EX[i] = f_ex
     sim_and_plot(set; f_ex=f_ex)
-    aoa_eff = calc_aoa_eff("tmp")
+    aoa_eff = calc_aoa_eff("tmp", f_ex)
     AOA_EFF[i] = aoa_eff
     println("AOA amplitude: ", round(aoa_eff, digits=3), "°")
     f_ex *= 1.018
