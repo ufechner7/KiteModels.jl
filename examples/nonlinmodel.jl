@@ -36,15 +36,15 @@ s.set.l_tether = 21.0
 s.set.elevation = 87
 s.torque_control = true
 
-ns = nonlin_model!(s, s.pos, s.vel)
+op = nonlin_model!(s, s.pos, s.vel)
 
-guesses = Dict()
-[guesses[ns.segment[i, j]] = 1 for i in 1:3 for j in 1:s.num_A]
-[guesses[ns.γ[i, j]] = 1 for i in 1:3 for j in 1:s.set.segments-1]
-[guesses[ns.mass_tether_particle[i]] = 1 for i in 1:3]
+# guesses = Dict()
+# [guesses[ns.segment[i, j]] = 1 for i in 1:3 for j in 1:s.num_A]
+# [guesses[ns.γ[i, j]] = 1 for i in 1:3 for j in 1:s.set.segments-1]
+# [guesses[ns.mass_tether_particle[i]] = 1 for i in 1:3]
 
-prob = NonlinearProblem(nsys, guesses, []; check_length=false)
-sol = solve(prob, NewtonRaphson())
+# prob = NonlinearProblem(nsys, guesses, []; check_length=false)
+# sol = solve(prob, NewtonRaphson())
 
 # guesses = defaults(ns)
 
