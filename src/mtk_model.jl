@@ -467,7 +467,7 @@ function model!(s::KPS4_3L, pos, vel, e_x, e_y, e_z, flap_angle, eqs=[])
         eqs = [eqs; vcat(force_eqs[:, i])]
         eqs = [eqs; acc[:, i] ~ [0.0; 0.0; -G_EARTH] .+ (force[:, i] ./ s.masses[i])]
     end
-    return eqs, (acc, tether_length, tether_vel, tether_acc, flap_angle, flap_vel, flap_acc, set_values, heading_y)
+    return eqs, (acc, tether_length, tether_vel, tether_acc, flap_angle, flap_vel, flap_acc, set_values, heading_y, v_wind_gnd, v_wind)
 end
 
 
@@ -585,30 +585,29 @@ function nonlin_model!(s::KPS4_3L, pos_, vel_)
     # measurements
     @parameters begin
         m_azimuth = 0.0
-        m_elevation = 85
+        m_elevation = deg2rad(85.0)
         m_tether_length = 50.0
         m_tether_vel[1:3] = zeros(3)
         m_tether_acc[1:3] = zeros(3)
-        m_heading_y = 0.0
+        m_heading_up = 0.0
         m_turn_rate_y = 0.0
         m_turn_acc_y = 0.0
     end
     @variables begin
         pos[1:3, 1:s.num_A]     = ones(3, s.num_A) # left right middle
         vel[1:3, 1:s.num_A]     = zeros(3, s.num_A)
+        total_acc               = 1.0
         r[1:3]                  = ones(3)
         kite_distance[1:3]      = s.tether_lengths  # distance from ground station to kite tether connection point
         flap_angle[1:2]         = zeros(2)
         tether_rot[1:3]         = zeros(3)
         t_y[1:3, 1:3]           = repeat([0, 1, 0]', 3, 1) # tether y vector in ENU frame
         t_x[1:3, 1:3]           = repeat([1, 0, 0]', 3, 1) 
-        t_z[1:3, 1:3]           = repeat([0, 0, 1]', 3, 1) 
-        e_x[1:3]                = repeat([0, 1, 0]', 3, 1) 
+        t_z[1:3, 1:3]           
+        e_x[1:3]                = repeat([0, 1, 0]', 3, 1) # kite x vector in NED frame
+        e_x0[1:3]               = repeat([0, 1, 0]', 3, 1) # kite e_x with zero rotation
         e_y[1:3]                = repeat([1, 0, 0]', 3, 1) 
         e_z[1:3]                = repeat([0, 0, 1]', 3, 1) 
-        ls_y[1:3]               = repeat([0, 1, 0]', 3, 1)  # last tether segment y vector in NED frame
-        ls_x[1:3]               = repeat([-1, 0, 0]', 3, 1) 
-        ls_z[1:3]               = repeat([0, 0, -1]', 3, 1) 
         kite_angle[1:2]         = zeros(2) # angles between last tether segment and kite reference frame
     end
 
@@ -616,16 +615,13 @@ function nonlin_model!(s::KPS4_3L, pos_, vel_)
     # segment length is known because of the measured tether force
     # with the known segment length and wind speed there should be 1 solution for tether bending
     eqs = [
-        t_z[:, 3] ~ rotate_in_yx((rotate_in_xz([0.0, 1.0, 0.0], m_elevation)), m_azimuth)
+        t_z[:, 3] ~ rotate_in_yx((rotate_in_xz([1.0, 0.0, 0.0], m_elevation)), m_azimuth)
         # build kite points from bend + heading + kite_distance
         pos[:, s.num_E] ~ t_z[:, 3] * kite_distance[3]
-        ls_z ~ (pos[:, s.num_E-3] - pos[:, s.num_E]) / norm(pos[:, s.num_E-3] - pos[:, s.num_E])
-        calc_heading_y(ls_x) ~ m_heading_y # TODO: check if this works
-        ls_x ~ ls_y × ls_z
-        ls_y ~ ls_z × ls_x
-        e_x ~ rotate_v_k_angle(rotate_v_k_angle(ls_x, ls_y, kite_angle[1]), ls_x, kite_angle[2])
-        e_z ~ rotate_v_k_angle(rotate_v_k_angle(ls_z, ls_y, kite_angle[1]), ls_x, kite_angle[2])
-        e_y ~ rotate_v_k_angle(rotate_v_k_angle(ls_y, ls_y, kite_angle[1]), ls_x, kite_angle[2])
+        e_x0 ~ rotate_v_k_angle(t_z[:, 3] × (t_z[:, 3] × [t_z[1, 3], t_z[2, 3], 0.0]), t_z[:, 3], m_heading_up)
+        e_x ~ rotate_v_k_angle(rotate_v_k_angle(t_x[:, 3], t_y[:, 3], kite_angle[1]), t_x[:, 3], kite_angle[2])
+        e_y ~ rotate_v_k_angle(rotate_v_k_angle(t_y[:, 3], t_y[:, 3], kite_angle[1]), t_x[:, 3], kite_angle[2])
+        e_z ~ rotate_v_k_angle(rotate_v_k_angle(t_z[:, 3], t_y[:, 3], kite_angle[1]), t_x[:, 3], kite_angle[2])
     ]
 
     # generate kite points
@@ -641,8 +637,8 @@ function nonlin_model!(s::KPS4_3L, pos_, vel_)
     for i in 1:3
         eqs = [
             eqs
-            t_y[:, i] ~ e_x × t_z[:, i]
-            t_x[:, i] ~ t_y[:, i] × t_z[:, i]    
+            t_y[:, i] ~ e_x0 × t_z[:, i]
+            t_x[:, i] ~ t_y[:, i] × t_z[:, i]
         ]
     end
 
@@ -679,20 +675,19 @@ function nonlin_model!(s::KPS4_3L, pos_, vel_)
         end
     end
 
-    eqs, (acc, tether_length, tether_vel, tether_acc, flap_vel, flap_acc, set_values, heading_y) = 
+    eqs, (acc, tether_length, tether_vel, tether_acc, flap_angle, flap_vel, flap_acc, set_values, heading_y, v_wind_gnd, v_wind) = 
         model!(s, pos, vel, e_x, e_y, e_z, flap_angle, eqs)
 
-    
-    [eqs =  [eqs; zeros(3) ~ pos[:, i]] for i in 1:3]
-    [eqs =  [eqs; zeros(3) ~ vel[:, i]] for i in 1:3]
-    [eqs =  [eqs; zeros(3) ~ vel[:, i]] for i in 4:s.num_flap_C-1]
-    [eqs =  [eqs; zeros(3) ~ vel[:, i]] for i in s.num_E:s.num_A]
-    eqs =   [eqs; zeros(2) ~ flap_vel]
+    [eqs =  [eqs; pos[:, i] ~ zeros(3)] for i in 1:3]
+    [eqs =  [eqs; vel[:, i] ~ zeros(3)] for i in 1:3]
+    [eqs =  [eqs; vel[:, i] ~ zeros(3)] for i in 4:s.num_flap_C-1]
+    [eqs =  [eqs; vel[:, i] ~ zeros(3)] for i in s.num_E:s.num_A]
+    eqs =   [eqs; flap_vel ~ zeros(2)]
     # TODO: spring forces in kite segments ~ 0.0
-    [eqs =  [eqs; zeros(3) ~ acc[:, i]] for i in 1:3]
-    [eqs =  [eqs; zeros(3) ~ acc[:, i]] for i in 4:s.num_flap_C-1]
-    [eqs =  [eqs; zeros(3) ~ acc[:, i]] for i in s.num_E:s.num_A]
-    eqs =   [eqs; zeros(2) ~ flap_acc]
+    # [eqs =  [eqs; zeros(3) ~ acc[:, i]] for i in 1:3]
+    # [eqs =  [eqs; zeros(3) ~ acc[:, i]] for i in 4:s.num_flap_C-1]
+    # [eqs =  [eqs; zeros(3) ~ acc[:, i]] for i in s.num_E:s.num_A]
+    # eqs =   [eqs; zeros(2) ~ flap_acc]
     # eqs =   [eqs; 0 ~ tether_vel]
     # eqs =   [eqs; 0 ~ tether_acc]
 
@@ -701,10 +696,17 @@ function nonlin_model!(s::KPS4_3L, pos_, vel_)
         tether_length[3] ~ m_tether_length
         tether_acc ~ m_tether_acc
         tether_vel ~ m_tether_vel
+        set_values ~ [-0.1, -0.1, -70.0]
+        total_acc  ~ norm(acc)
     ]
     # return eqs
-
     eqs = Symbolics.scalarize.(reduce(vcat, Symbolics.scalarize.(eqs)))
-    @mtkbuild nsys = NonlinearSystem(eqs) fully_determined = false  # TODO: optimalizationproblem
-    return nsys
+
+    opt_vars = [α..., flap_angle..., tether_length[1], tether_length[2], kite_distance[3], kite_angle...]
+    opt_params = [m_azimuth, m_elevation, m_tether_length, m_tether_vel..., m_tether_acc..., m_heading_up, v_wind_gnd..., v_wind...]
+    @show opt_vars
+    @show opt_params
+    @mtkbuild sys = OptimizationSystem(total_acc, opt_vars, opt_params; constraints=eqs) simplify=false
+    
 end
+
