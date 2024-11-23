@@ -29,5 +29,5 @@ function plot_spectrum(name)
     plt.grid(true)
 end
 
-plot_spectrum("spectrum_8.0_0.2")
+plot_spectrum("spectrum_8.0_0.15")
 plot_spectrum("spectrum_8.0_0.0")

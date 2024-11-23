@@ -156,7 +156,7 @@ function plot_spectrum(name)
     spectrum = jldopen("data/" * name * ".jld2") do file
         read(file, "spectrum")
     end
-    plt.figure("AOA amplitude vs f_ex")
+    plt.figure(name)
     plt.plot(spectrum.f_ex, todb.(spectrum.aoa_eff))
     plt.xlabel("f_ex [Hz]")
     plt.ylabel("AOA amplitude [dB°]")
@@ -164,11 +164,5 @@ function plot_spectrum(name)
     plt.grid(true)
 end
 
-# plot(F_EX, todb.(AOA_EFF), xlabel="f_ex [Hz]", ylabel="AOA amplitude [dB°]", fig="AOA amplitude vs f_ex")
-plt.figure("AOA amplitude vs f_ex")
-plt.plot(F_EX, todb.(AOA_EFF))
-plt.xlabel("f_ex [Hz]")
-plt.ylabel("AOA amplitude [dB°]")
-plt.gca().set_xscale("log")
-plt.grid(true)
+plot_spectrum(spectrum.name)
 
