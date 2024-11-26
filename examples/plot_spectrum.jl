@@ -31,6 +31,4 @@ function plot_spectrum(name)
 end
 
 plot_spectrum("spectrum2_8.0_0.09")
-#plot_spectrum("spectrum2_8.0_5.0")
-#plot_spectrum("spectrum2_8.0_1.0")
-plot_spectrum("spectrum_8.0_0.0")
+plot_spectrum("spectrum2_8.0_0.0")
