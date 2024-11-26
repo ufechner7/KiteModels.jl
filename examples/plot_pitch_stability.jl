@@ -20,7 +20,7 @@ set.abs_tol=0.0006
 set.rel_tol=0.00001
 set.l_tether=200
 set.v_wind = 8.0
-# set.cmq = -0.09
+set.cmq = 0.0 # -0.09
 
 # the following values can be changed to match your interest
 dt = 0.05
@@ -34,6 +34,7 @@ PRINT = true
 STATISTIC = false
 V_WIND_200    = 7.0
 DEPOWER       = 0.38
+AMP_EX = 0.0
 F_EX = 2.45 # frequency of excitation
 # end of user parameter section #
 
@@ -80,7 +81,7 @@ function simulate(kps4, integrator, logger, steps)
         delayed_v_reelout = apply_delay(kps4.v_reel_out, buffer2, i; delay=2)
         v_set = 0.0
         set_torque = calc_set_torque(set, wcs, v_set, delayed_v_reelout, filtered_force)
-        set_torque += 200*SIN[i]
+        set_torque += AMP_EX*SIN[i]
         KiteModels.next_step!(kps4, integrator; set_torque, dt)
         sys_state = KiteModels.SysState(kps4)
         aoa = kps4.alpha_2
