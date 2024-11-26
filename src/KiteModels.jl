@@ -116,6 +116,7 @@ end
 
 include("KPS4.jl") # include code, specific for the four point kite model
 include("KPS4_3L.jl") # include code, specific for the four point 3 line kite model
+include("mtk_model.jl")
 include("KPS3.jl") # include code, specific for the one point kite model
 include("init.jl") # functions to calculate the inital state vector, the inital masses and initial springs
 
@@ -706,7 +707,7 @@ end
         integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
         integrator = KiteModels.init_sim!(kps4_; delta=0.03, stiffness_factor=0.05, prn=false) 
         if ! haskey(ENV, "NO_MTK")
-            integrator = KiteModels.init_sim!(kps4_3l_)
+            # integrator = KiteModels.init_sim!(kps4_3l_)
         end   
         nothing
     end
