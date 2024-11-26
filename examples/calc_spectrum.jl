@@ -83,6 +83,7 @@ function simulate(kps4, integrator, logger, steps, f_ex)
         set_torque = calc_set_torque(set, wcs, v_set, delayed_v_reelout, filtered_force)
         set_torque += 200*SIN[i]
         KiteModels.next_step!(kps4, integrator; set_torque, dt)
+        # println(kps4.va_z)
         sys_state = KiteModels.SysState(kps4)
         aoa = kps4.alpha_2
         sys_state.var_01 = aoa
@@ -149,7 +150,7 @@ mutable struct Spectrum
     aoa_eff::Vector{Float64}
 end
 
-name = "spectrum_" * repr(set.v_wind) * "_" * repr(-set.cmq)
+name = "spectrum2_" * repr(set.v_wind) * "_" * repr(-set.cmq)
 spectrum = Spectrum(name, set.cmq, set.v_wind, F_EX, AOA_EFF)
 jldsave("data/" * spectrum.name * ".jld2"; spectrum)
 

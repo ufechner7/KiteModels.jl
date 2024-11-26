@@ -332,7 +332,6 @@ Updates the vector s.forces of the first parameter.
     x = y × z
     s.x .= x; s.y .= y; s.z .= z # save the kite reference frame in the state
 
-    # va_yz1 = va_1 - (va_1 ⋅ x) * x
     va_xz1 = va_1 - (va_1 ⋅ y) * y
     va_xz2 = va_2 - (va_2 ⋅ y) * y
     va_xy3 = va_3 - (va_3 ⋅ z) * z
@@ -369,10 +368,7 @@ Updates the vector s.forces of the first parameter.
         s.drag_force .= D2 + D3 + D4
         s.forces[s.set.segments + 3] .+= (L2 + D2)
     end
-    # if the impact of cmq is just drag
-    # f_d = -0.5 * rho * s.set.area * norm(va_xz1) * (s.set.cmq * norm(s.pitch_rate) * s.set.cord_length) * va_xz1
-    # otherwise
-    f_d = -0.5 * rho * s.set.area * norm(va_xz1) * (s.set.cmq * s.pitch_rate * s.set.cord_length) * va_xz1
+    f_d = 0.5 * rho * s.set.area * norm(va_xz1)^2 * (s.set.cmq * (s.pitch_rate) * s.set.cord_length) * z
     s.forces[s.set.segments + 2] .+= f_d
     s.forces[s.set.segments + 4] .+= (L3 + D3 -0.5*f_d)
     s.forces[s.set.segments + 5] .+= (L4 + D4 -0.5*f_d)

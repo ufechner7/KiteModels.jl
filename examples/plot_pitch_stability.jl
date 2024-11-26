@@ -20,6 +20,7 @@ set.abs_tol=0.0006
 set.rel_tol=0.00001
 set.l_tether=200
 set.v_wind = 8.0
+# set.cmq = -0.09
 
 # the following values can be changed to match your interest
 dt = 0.05
@@ -33,7 +34,7 @@ PRINT = true
 STATISTIC = false
 V_WIND_200    = 7.0
 DEPOWER       = 0.38
-F_EX = 2.2 # frequency of exertation
+F_EX = 2.45 # frequency of excitation
 # end of user parameter section #
 
 TIME = 0.0:dt:(STEPS-1)*dt
