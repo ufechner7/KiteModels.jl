@@ -515,15 +515,15 @@ function model!(s::KPS4_3L)
 
     normal_pos_idxs = vcat(4:s.num_flap_C-1) #, s.num_D+1:s.num_A)
     u0map = [
-        [sys.vel[j, i] => sys.vel[j, end] for j in 1:3 for i in normal_pos_idxs]
+        [sys.vel[j, i] => sys.vel[j, s.num_E] * (i / s.num_A) for j in 1:3 for i in normal_pos_idxs]
         [sys.acc[j, i] => 0 for j in 1:3 for i in normal_pos_idxs]
 
         [sys.flap_vel[j] => 0 for j in 1:2]
         [sys.flap_acc[j] => 0 for j in 1:2]
 
-        [sys.tether_length[j] => s.tether_lengths[j] for j in 1:3]
+        [sys.tether_vel[j] => [0.020830973216646776, 0.020830973182101, 1.7514555679599906][j] for j in 1:3]
         [sys.tether_acc[j] => 0 for j in 1:3]
-        # [sys.tether_acc[j] => 0 for j in 1:3]
+        [sys.set_values[i]   => s.measure.winch_torque[i] for i in 1:3]
 
         [sys.pos[j, s.num_E] => pos[s.num_E][j] for j in 1:3]
         [sys.vel[j, s.num_E] => 0 for j in 1:3]
@@ -535,15 +535,14 @@ function model!(s::KPS4_3L)
         [sys.vel[j, s.num_A] => 0 for j in 1:3]
 
         # sys.heading        => s.measure.heading
-        [sys.set_values[i]   => s.measure.winch_torque[i] for i in 1:3]
         sys.gust_factor => 1.0
         ]
     @show length(u0map)
     guesses = [
         [sys.pos[j, i] => pos[i][j] for j in 1:3 for i in normal_pos_idxs]
         [sys.flap_angle[j] => 0 for j in 1:2]
-        [sys.tether_vel[j] => 0 for j in 1:3]
-        # [sys.tether_length[j] => s.tether_lengths[j] for j in 1:3]
+        # [sys.tether_vel[j] => 0 for j in 1:3]
+        [sys.tether_length[j] => s.tether_lengths[j] for j in 1:3]
     ]
     dt = 1/s.set.sample_freq
     tspan   = (0.0, dt) 

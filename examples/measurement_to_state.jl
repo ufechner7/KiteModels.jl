@@ -4,7 +4,7 @@ s = KPS4_3L(KCU(se("system_3l.yaml")))
 update_settings()
 s.set.segments = 2
 s.set.aero_surfaces = 2
-s.measure.winch_torque = [-0.1, -0.1, -70]
+s.measure.winch_torque = [-0.1, -0.1, -20]
 s.measure.tether_length = [s.set.l_tether, s.set.l_tether, s.set.l_tether]
 s.measure.elevation = deg2rad(85)
 
