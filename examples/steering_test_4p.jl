@@ -10,7 +10,7 @@ end
 
 set.abs_tol=0.00006
 set.rel_tol=0.000001
-set.v_wind = 12
+set.v_wind = 10
 set.elevation = 69.4
 set.l_tether = 200
 set.depower = set.depower_offset # fully powered kite
