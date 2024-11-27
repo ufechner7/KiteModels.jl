@@ -369,9 +369,10 @@ Updates the vector s.forces of the first parameter.
         s.forces[s.set.segments + 3] .+= (L2 + D2)
     end
     f_d = 0.5 * rho * s.set.area * norm(va_xz1)^2 * (s.set.cmq * s.pitch_rate * s.set.cord_length) * z
+    f_s = 0.5 * rho * s.set.area * (0.5*(norm(va_xy3)+norm(va_xy4)))^2 * (s.set.smc * rel_steering * s.ks) * x
     s.forces[s.set.segments + 2] .+= f_d
-    s.forces[s.set.segments + 4] .+= (L3 + D3 -0.5*f_d)
-    s.forces[s.set.segments + 5] .+= (L4 + D4 -0.5*f_d)
+    s.forces[s.set.segments + 4] .+= (L3 + D3 -0.5*f_d + 0.5*f_s)
+    s.forces[s.set.segments + 5] .+= (L4 + D4 -0.5*f_d - 0.5*f_s)
     s.side_force .= (L3 + L4)
 end
 
