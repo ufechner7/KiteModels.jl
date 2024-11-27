@@ -52,6 +52,7 @@ const MeasureFloat = Float32
     heading::MeasureFloat       = 0.0
     turn_rate::MeasureFloat     = 0.0
     turn_acc::MeasureFloat      = 0.0
+    distance::MeasureFloat      = 0.0
     winch_torque::MVector{3, MeasureFloat}  = zeros(3)
     tether_length::MVector{3, MeasureFloat} = zeros(3)
     tether_vel::MVector{3, MeasureFloat}    = zeros(3)

@@ -34,7 +34,7 @@ Parameters:
 
 Updates the vector s.forces of the first parameter.
 """
-function calc_aero_forces!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, E_C, rho, v_wind, flap_angle)
+function calc_aero_forces!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, E_c, rho, v_wind, flap_angle)
     n = s.set.aero_surfaces
     @variables begin
         v_cx(t)[1:3]
@@ -110,8 +110,8 @@ function calc_aero_forces!(s::KPS4_3L, eqs2, force_eqs, force, pos, vel, t, e_x,
         seg_flap_height = kite_length * s.set.flap_height
         eqs2 = [
             eqs2
-            F[:, i]          ~ E_C + e_y * cos(α) * s.set.radius - e_z * sin(α) * s.set.radius
-            e_r[:, i]        ~ (E_C - F[:, i]) / norm(E_C - F[:, i])
+            F[:, i]          ~ E_c + e_y * cos(α) * s.set.radius - e_z * sin(α) * s.set.radius
+            e_r[:, i]        ~ (E_c - F[:, i]) / norm(E_c - F[:, i])
             y_l[i]           ~ cos(α) * s.set.radius
             α < π/2 ?
                 v_kite[:, i] ~ ((v_cx - v_dx) / (y_lc - y_ld) * (y_l[i] - y_ld) + v_dx) + v_cy + v_cz :
@@ -364,7 +364,7 @@ function create_sys!(s::KPS4_3L, pos_, vel_)
         damping_coeff(t)
         c_spring(t)[1:3]
         P_c(t)[1:3]
-        E_C(t)[1:3]
+        E_c(t)[1:3]
         e_x(t)[1:3]
         e_y(t)[1:3]
         e_z(t)[1:3]
@@ -389,6 +389,9 @@ function create_sys!(s::KPS4_3L, pos_, vel_)
         elevation(t)
         d_azimuth(t)
         d_elevation(t)
+        distance(t)
+        distance_vel(t)
+        distance_acc(t)
     end
     # Collect the arrays into variables
     pos = collect(pos)
@@ -429,11 +432,11 @@ function create_sys!(s::KPS4_3L, pos_, vel_)
         e_y     ~ (pos[:, s.num_C] - pos[:, s.num_D]) / norm(pos[:, s.num_C] - pos[:, s.num_D])
         e_z     ~ (pos[:, s.num_E] - P_c) / norm(pos[:, s.num_E] - P_c)
         e_x     ~ cross(e_y, e_z)
-        e_r_C   ~ (E_C - pos[:, s.num_C]) / norm(E_C - pos[:, s.num_C])
-        e_r_D   ~ (E_C - pos[:, s.num_D]) / norm(E_C - pos[:, s.num_D])
+        e_r_C   ~ (E_c - pos[:, s.num_C]) / norm(E_c - pos[:, s.num_C])
+        e_r_D   ~ (E_c - pos[:, s.num_D]) / norm(E_c - pos[:, s.num_D])
         e_te_C  ~ e_x * sin(flap_angle[1]) + e_r_C * cos(flap_angle[1])
         e_te_D  ~ e_x * sin(flap_angle[2]) + e_r_D * cos(flap_angle[2])
-        E_C     ~ pos[:, s.num_E] + e_z * (-s.set.bridle_center_distance + s.set.radius) # E_C is the center of the circle shape of the front view of the kite
+        E_c     ~ pos[:, s.num_E] + e_z * (-s.set.bridle_center_distance + s.set.radius) # E_c is the center of the circle shape of the front view of the kite
         rho_kite        ~ calc_rho(s.am, pos[3,s.num_A])
         damping_coeff   ~ max(1.0 - t, 0.0) * s.damping_coeff
         winch_force     ~ [norm(force[:, i]) for i in 1:3]
@@ -446,13 +449,18 @@ function create_sys!(s::KPS4_3L, pos_, vel_)
         tether_diff         ~ tether_length[2] - tether_length[1]
         tether_diff_vel     ~ tether_vel[2] - tether_vel[1]
         set_diff            ~ set_values[2] - set_values[1]
+
+        distance          ~ norm(pos[:, end])
+        distance_vel      ~ vel[:, end] ⋅ (pos[:, end] / norm(pos[:, end]))
+        distance_acc      ~ acc[:, end] ⋅ (pos[:, end] / norm(pos[:, end]))
         elevation         ~ atan(pos[3, end] / pos[1, end])
+        # elevation_vel     ~ vel in direction up
         azimuth           ~ -atan(pos[2, end] / pos[1, end])
         d_azimuth         ~ D(azimuth) # TODO: does this work for init problem
         d_elevation       ~ D(elevation)
     ]
 
-    eqs2, force_eqs = calc_aero_forces!(s, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, E_C, rho_kite, v_wind, flap_angle)
+    eqs2, force_eqs = calc_aero_forces!(s, eqs2, force_eqs, force, pos, vel, t, e_x, e_y, e_z, E_c, rho_kite, v_wind, flap_angle)
     eqs2, force_eqs = inner_loop!(s, eqs2, force_eqs, t, force, pos, vel, segment_length, c_spring, damping, v_wind_gnd)
     
     if s.torque_control
@@ -504,14 +512,26 @@ function create_sys!(s::KPS4_3L, pos_, vel_)
     return sys, collect(set_values)
 end
 
-
+"""
+The distance/vel/acc of the kite cannot be measured directly, but the average acc of the kite distance is equal to the tether acc.
+    So while the set_values input and wind is constant, distance_acc = tether_acc[3]. To accurately describe distance_acc when set_values
+    or wind suddenly change, the distance_acc is calculated by combining the simulated distance_acc from timestep-1 to timestep and the
+    current measured acc.
+    distance_acc = 0.99 * sim_distance_acc + 0.01 * measured_distance_acc
+"""
 function model!(s::KPS4_3L)
     pos, vel = init_pos_vel(s)
     sys, inputs = create_sys!(s, pos, vel)
     (sys, _) = structural_simplify(sys, (inputs, []))
     s.simple_sys = sys
 
-    # E = rotate_in_yx(rotate_in_xz([s.measure.tether_length[3], 0, 0], s.measure.elevation), s.measure.azimuth)
+    E = rotate_in_yx(rotate_in_xz([s.measure.distance, 0, 0], s.measure.elevation), s.measure.azimuth)
+    width, radius, tip_length, middle_length = s.set.width, s.set.radius, s.set.tip_length, s.set.middle_length
+    α_0 = pi/2 - width/2/radius
+    α_C = α_0 + width*(-2*tip_length + sqrt(2*middle_length^2 + 2*tip_length^2)) /
+        (4*(middle_length - tip_length)) / radius
+    α_D = π - α_C
+    kite_length_C = tip_length + (middle_length-tip_length) * (α_C - α_0) / (π/2 - α_0)
 
     normal_pos_idxs = vcat(4:s.num_flap_C-1) #, s.num_D+1:s.num_A)
     u0map = [
@@ -522,30 +542,31 @@ function model!(s::KPS4_3L)
         [sys.flap_acc[j] => 0 for j in 1:2]
 
         [sys.tether_vel[j] => [0.020830973216646776, 0.020830973182101, 1.7514555679599906][j] for j in 1:3]
-        [sys.tether_acc[j] => 0 for j in 1:3]
-        [sys.set_values[i]   => s.measure.winch_torque[i] for i in 1:3]
+        sys.tether_acc[3] => 0.0
+        [sys.set_values[i] => s.measure.winch_torque[i] for i in 1:3]
 
-        [sys.pos[j, s.num_E] => pos[s.num_E][j] for j in 1:3]
-        [sys.vel[j, s.num_E] => 0 for j in 1:3]
-        [sys.pos[j, s.num_C] => pos[s.num_C][j] for j in 1:3]
+        [sys.pos[j, s.num_E] => E[j] for j in 1:3] # calculate E using elevation azimuth and current best guess for distance
+        [sys.pos[j, s.num_C] => sys.E_c[j] + e_y[j]*cos(α_C)*radius - sys.e_z[j]*sin(α_C)*radius for j in 1:3] # symbolic init function to find these points depending on heading and last tether segment
+        [sys.pos[j, s.num_D] => sys.E_c[j] + e_y[j]*cos(α_D)*radius - sys.e_z[j]*sin(α_D)*radius for j in 1:3]
+        [sys.pos[j, s.num_A] => sys.P_c[j] - sys.e_x[j]*(kite_length_C*(3/4 - 1/4)) for j in 1:3]
+        # define sys.e_y using heading. USING E_Y IS CIRCULAR
+        # check the angle between e_z and last tether segment. if it is small, use last tether segment.
+        [sys.vel[j, s.num_E] => 0 for j in 1:3] # calculate vel using change in elevation and azimuth and current best guess for distance_vel
         [sys.vel[j, s.num_C] => 0 for j in 1:3]
-        [sys.pos[j, s.num_D] => pos[s.num_D][j] for j in 1:3]
         [sys.vel[j, s.num_D] => 0 for j in 1:3]
-        [sys.pos[j, s.num_A] => pos[s.num_A][j] for j in 1:3]
         [sys.vel[j, s.num_A] => 0 for j in 1:3]
 
-        # sys.heading        => s.measure.heading
-        sys.gust_factor => 1.0
-        ]
+        # sys.gust_factor => 1.0 # give middle teather acc instead
+    ]
     @show length(u0map)
     guesses = [
-        [sys.pos[j, i] => pos[i][j] for j in 1:3 for i in normal_pos_idxs]
+        [sys.pos[j, i] => pos[i][j] for j in 1:3 for i in normal_pos_idxslill]
         [sys.flap_angle[j] => 0 for j in 1:2]
         # [sys.tether_vel[j] => 0 for j in 1:3]
         [sys.tether_length[j] => s.tether_lengths[j] for j in 1:3]
     ]
     dt = 1/s.set.sample_freq
-    tspan   = (0.0, dt) 
+    tspan   = (0.0, dt)
     @time prob = ODEProblem(sys, u0map, tspan; guesses, fully_determined=true)
     solver = QNDF(autodiff=false) # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
     @time s.integrator = OrdinaryDiffEqCore.init(prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
