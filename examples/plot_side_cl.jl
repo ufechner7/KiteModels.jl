@@ -60,11 +60,17 @@ function simulate(integrator, steps, steering; plot=false)
         end
     end
     set_depower_steering(kps4.kcu, kps4.depower, steering)
-    for i in 1:15
+    for i in 1:20
         KiteModels.next_step!(kps4, integrator; set_speed=0, dt)
         iter += kps4.iter
     end
-    kps4.side_cl, kps4.steering/kps4.set.cs_4p
+    side_cl = 0 
+    for i in 1:5
+        KiteModels.next_step!(kps4, integrator; set_speed=0, dt)
+        side_cl += kps4.side_cl
+        iter += kps4.iter
+    end
+    side_cl/5, kps4.steering/kps4.set.cs_4p
 end
 
 SET_STEERING = -0.7:0.02:0.7
