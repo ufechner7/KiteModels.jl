@@ -348,15 +348,15 @@ function create_sys!(s::KPS4_3L, pos_, vel_)
         v_wind[1:3] = s.v_wind
     end
     @variables begin
-        set_values(t)[1:3] = zeros(3) # left right middle
-        pos(t)[1:3, 1:s.num_A] = pos_ # left right middle
-        vel(t)[1:3, 1:s.num_A] = vel_
+        set_values(t)[1:3] # left right middle
+        pos(t)[1:3, 1:s.num_A] # left right middle
+        vel(t)[1:3, 1:s.num_A] 
         acc(t)[1:3, 1:s.num_A]
-        flap_angle(t)[1:2]   = deg2rad(s.set.alpha_zero) # angle left right / C D
-        flap_vel(t)[1:2]     = zeros(2) # angular vel
+        flap_angle(t)[1:2]  # angle left right / C D
+        flap_vel(t)[1:2]    # angular vel
         flap_acc(t)[1:2]                # angular acc
-        tether_length(t)[1:3]  = s.tether_lengths
-        tether_vel(t)[1:3] = zeros(3)
+        tether_length(t)[1:3]
+        tether_vel(t)[1:3]
         tether_acc(t)[1:3]
         segment_length(t)[1:3]
         mass_tether_particle(t)[1:3]
@@ -506,39 +506,50 @@ end
 
 
 function model!(s::KPS4_3L)
-    sys, inputs = create_sys!(s, s.pos, s.vel)
+    pos, vel = init_pos_vel(s)
+    sys, inputs = create_sys!(s, pos, vel)
     (sys, _) = structural_simplify(sys, (inputs, []))
-    sys.heading        => s.measure.heading
-    sys.turn_rate      => s.measure.turn_rate
-    [sys.set_values[i]   => s.measure.winch_torque[i] for i in 1:3]
-    [sys.tether_length[i]  => s.measure.tether_length[i] for i in 1:3]
-    [sys.tether_vel[i]     => s.measure.tether_vel[i] for i in 1:3]
-    [sys.tether_acc[i]     => s.measure.tether_acc[i] for i in 1:3]
-    sys.azimuth        => s.measure.azimuth
-    sys.d_azimuth      => s.measure.d_azimuth
-    sys.elevation      => s.measure.elevation
-    sys.d_elevation    => s.measure.d_elevation
+    s.simple_sys = sys
+
+    # E = rotate_in_yx(rotate_in_xz([s.measure.tether_length[3], 0, 0], s.measure.elevation), s.measure.azimuth)
+
+    normal_pos_idxs = vcat(4:s.num_flap_C-1) #, s.num_D+1:s.num_A)
     u0map = [
-        sys.heading        => s.measure.heading
-        sys.turn_rate      => s.measure.turn_rate
+        [sys.vel[j, i] => sys.vel[j, end] for j in 1:3 for i in normal_pos_idxs]
+        [sys.acc[j, i] => 0 for j in 1:3 for i in normal_pos_idxs]
+
+        [sys.flap_vel[j] => 0 for j in 1:2]
+        [sys.flap_acc[j] => 0 for j in 1:2]
+
+        [sys.tether_length[j] => s.tether_lengths[j] for j in 1:3]
+        [sys.tether_acc[j] => 0 for j in 1:3]
+        # [sys.tether_acc[j] => 0 for j in 1:3]
+
+        [sys.pos[j, s.num_E] => pos[s.num_E][j] for j in 1:3]
+        [sys.vel[j, s.num_E] => 0 for j in 1:3]
+        [sys.pos[j, s.num_C] => pos[s.num_C][j] for j in 1:3]
+        [sys.vel[j, s.num_C] => 0 for j in 1:3]
+        [sys.pos[j, s.num_D] => pos[s.num_D][j] for j in 1:3]
+        [sys.vel[j, s.num_D] => 0 for j in 1:3]
+        [sys.pos[j, s.num_A] => pos[s.num_A][j] for j in 1:3]
+        [sys.vel[j, s.num_A] => 0 for j in 1:3]
+
+        # sys.heading        => s.measure.heading
         [sys.set_values[i]   => s.measure.winch_torque[i] for i in 1:3]
-        [sys.tether_length[i]  => s.measure.tether_length[i] for i in 1:3]
-        [sys.tether_vel[i]     => s.measure.tether_vel[i] for i in 1:3]
-        [sys.tether_acc[i]     => s.measure.tether_acc[i] for i in 1:3]
-        sys.azimuth        => s.measure.azimuth
-        sys.d_azimuth      => s.measure.d_azimuth
-        sys.elevation      => s.measure.elevation
-        sys.d_elevation    => s.measure.d_elevation
-    ]
-    guesses = [
         sys.gust_factor => 1.0
+        ]
+    @show length(u0map)
+    guesses = [
+        [sys.pos[j, i] => pos[i][j] for j in 1:3 for i in normal_pos_idxs]
+        [sys.flap_angle[j] => 0 for j in 1:2]
+        [sys.tether_vel[j] => 0 for j in 1:3]
+        # [sys.tether_length[j] => s.tether_lengths[j] for j in 1:3]
     ]
     dt = 1/s.set.sample_freq
     tspan   = (0.0, dt) 
-    @time prob = ODEProblem(sys, u0map, tspan; guesses, fully_determined=false) # how to remake iprob with new parameters
+    @time prob = ODEProblem(sys, u0map, tspan; guesses, fully_determined=true)
     solver = QNDF(autodiff=false) # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
-    @time integrator = OrdinaryDiffEqCore.init(prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
-    @time integrator = OrdinaryDiffEqCore.init(prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
-
-    @show integrator[sys.gust_factor]
+    @time s.integrator = OrdinaryDiffEqCore.init(prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
+    @time s.integrator = OrdinaryDiffEqCore.init(prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
+    return u0map, guesses
 end
