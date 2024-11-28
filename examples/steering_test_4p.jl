@@ -22,7 +22,7 @@ set.depower = set.depower_offset # fully powered kite
 set.sample_freq = 50
 set.solver="DFBDF" # IDA or DFBDF
 if set.kcu_model == "KCU2"
-    STEPS = 2600
+    STEPS = 3200 # 2600
 else
     STEPS = 2400
 end
