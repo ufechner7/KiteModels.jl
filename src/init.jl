@@ -59,20 +59,21 @@ end
 
 
 function init_masses!(s::KPS4)
+    MASS_FACTOR = 1.0
     s.masses = zeros(s.set.segments+KITE_PARTICLES+1)
     l_0 = s.set.l_tether / s.set.segments 
     for i in 1:s.set.segments
         s.masses[i]   += 0.5 * l_0 * s.set.rho_tether * (s.set.d_tether/2000.0)^2 * pi
         s.masses[i+1] += 0.5 * l_0 * s.set.rho_tether * (s.set.d_tether/2000.0)^2 * pi
     end
-    s.masses[s.set.segments+1] += s.set.kcu_mass
+    s.masses[s.set.segments+1] += s.set.kcu_mass * MASS_FACTOR
     k2 = s.set.rel_top_mass * (1.0 - s.set.rel_nose_mass)
     k3 = 0.5 * (1.0 - s.set.rel_top_mass) * (1.0 - s.set.rel_nose_mass)
     k4 = 0.5 * (1.0 - s.set.rel_top_mass) * (1.0 - s.set.rel_nose_mass)
-    s.masses[s.set.segments+2] += s.set.rel_nose_mass * s.set.mass
-    s.masses[s.set.segments+3] += k2 * s.set.mass
-    s.masses[s.set.segments+4] += k3 * s.set.mass
-    s.masses[s.set.segments+5] += k4 * s.set.mass  
+    s.masses[s.set.segments+2] += s.set.rel_nose_mass * s.set.mass * MASS_FACTOR
+    s.masses[s.set.segments+3] += k2 * s.set.mass * MASS_FACTOR
+    s.masses[s.set.segments+4] += k3 * s.set.mass * MASS_FACTOR
+    s.masses[s.set.segments+5] += k4 * s.set.mass * MASS_FACTOR
     s.masses 
 end
 
