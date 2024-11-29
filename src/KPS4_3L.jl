@@ -49,20 +49,23 @@ const KITE_PARTICLES_3L = 4
 const MeasureFloat = Float32
 
 @with_kw mutable struct Measurements
-    heading::MeasureFloat       = 0.0
-    turn_rate::MeasureFloat     = 0.0
-    turn_acc::MeasureFloat      = 0.0
     distance::MeasureFloat      = 0.0
     winch_torque::MVector{3, MeasureFloat}  = zeros(3)
     tether_length::MVector{3, MeasureFloat} = zeros(3)
     tether_vel::MVector{3, MeasureFloat}    = zeros(3)
     tether_acc::MVector{3, MeasureFloat}    = zeros(3)
-    azimuth::MeasureFloat       = 0.0
-    d_azimuth::MeasureFloat     = 0.0
-    dd_azimuth::MeasureFloat    = 0.0
-    elevation::MeasureFloat     = 0.0
-    d_elevation::MeasureFloat   = 0.0
-    dd_elevation::MeasureFloat  = 0.0
+    azimuth_left::MeasureFloat       = 0.0
+    d_azimuth_left::MeasureFloat     = 0.0
+    dd_azimuth_left::MeasureFloat    = 0.0
+    azimuth_right::MeasureFloat       = 0.0
+    d_azimuth_right::MeasureFloat     = 0.0
+    dd_azimuth_right::MeasureFloat    = 0.0
+    elevation_left::MeasureFloat     = 0.0
+    d_elevation_left::MeasureFloat   = 0.0
+    dd_elevation_left::MeasureFloat  = 0.0
+    elevation_right::MeasureFloat     = 0.0
+    d_elevation_right::MeasureFloat   = 0.0
+    dd_elevation_right::MeasureFloat  = 0.0
 end
 
 """
@@ -363,13 +366,13 @@ function SysState(s::KPS4_3L, zoom=1.0) # TODO: add left and right lines, stop u
 end
 
 
-function calc_heading(e_x, pos_kite)
-    # turn s.e_x by -azimuth around global z-axis and then by elevation around global y-axis
-    vec = rotate_in_xz(rotate_in_yx(e_x, -KiteUtils.azimuth_east(pos_kite)), -KiteUtils.calc_elevation(pos_kite))
-    heading = atan(-vec[2], vec[3])
-    return heading
-end
-@register_symbolic calc_heading(e_x, pos_kite)
+# function calc_heading(e_x, pos_kite)
+#     # turn s.e_x by -azimuth around global z-axis and then by elevation around global y-axis
+#     vec = rotate_in_xz(rotate_in_yx(e_x, -KiteUtils.azimuth_east(pos_kite)), -KiteUtils.calc_elevation(pos_kite))
+#     heading = atan(-vec[2], vec[3])
+#     return heading
+# end
+# @register_symbolic calc_heading(e_x, pos_kite)
 
 function calc_heading_y(e_x)
     return atan(-e_x[2]/-e_x[1])

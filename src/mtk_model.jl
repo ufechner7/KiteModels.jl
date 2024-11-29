@@ -340,8 +340,9 @@ Output:length
     return seqs, force_eqs
 end
 
-function scalar_eqs(s, seqs, pos, vel, acc, segment_length, mass_tether_particle, damping, c_spring, 
-        P_c, e_y, e_z, e_x, e_r_C, e_r_D, e_te_C, e_te_D, E_c, rho_kite, damping_coeff, v_wind_gnd)
+function scalar_eqs(s, seqs, pos, vel, acc, flap_angle, flap_vel, flap_acc, segment_length, mass_tether_particle, damping, c_spring, 
+        P_c, e_y, e_z, e_x, e_r_C, e_r_D, e_te_C, e_te_D, E_c, rho_kite, damping_coeff, v_wind_gnd, tether_length, tether_vel,
+        mass_per_meter, force, set_values)
     flap_length = s.kite_length_C/4
     seqs = [
         seqs
@@ -370,10 +371,7 @@ function scalar_eqs(s, seqs, pos, vel, acc, segment_length, mass_tether_particle
 
     @variables begin
         winch_force(t)[1:3] # normalized winch forces
-        heading_up(t)
         heading_y(t)
-        turn_rate(t)
-        turn_acc(t)
         power_angle(t) # average flap angle
         power_vel(t)
         steering_angle(t) # difference between left and right flap angle
@@ -383,20 +381,15 @@ function scalar_eqs(s, seqs, pos, vel, acc, segment_length, mass_tether_particle
         set_diff(t)
         azimuth(t)
         elevation(t)
-        d_azimuth(t)
-        d_elevation(t)
         distance(t)
-        distance_vel(t)
-        distance_acc(t)
     end
     seqs = [
         seqs
         winch_force     ~ [norm(force[:, i]) for i in 1:3]
-        orientation     ~ orient_euler(s; one_point=false) # TODO: this doesn't work. Calc orientation as observable from camera, with only symbolic vars.
-        upwind_dir      ~ upwind_dir(v_wind_gnd)
-        heading         ~ calc_heading(orientation, elevation, azimuth; upwind_dir)
+        # orientation     ~ orient_euler(s; one_point=false) # TODO: this doesn't work. Calc orientation as observable from camera, with only symbolic vars.
+        # upwind_dir      ~ upwind_dir(v_wind_gnd)
+        # heading         ~ calc_heading(orientation, elevation, azimuth; upwind_dir)
         heading_y       ~ calc_heading_y(e_x)
-        turn_rate       ~ D(heading)
         power_angle         ~ (flap_angle[1] + flap_angle[2]) / 2
         power_vel           ~ (flap_vel[1] + flap_vel[2]) / 2
         steering_angle      ~ flap_angle[2] - flap_angle[1]
@@ -406,13 +399,9 @@ function scalar_eqs(s, seqs, pos, vel, acc, segment_length, mass_tether_particle
         set_diff            ~ set_values[2] - set_values[1]
 
         distance          ~ norm(pos[:, end])
-        distance_vel      ~ vel[:, end] ⋅ (pos[:, end] / norm(pos[:, end]))
-        distance_acc      ~ acc[:, end] ⋅ (pos[:, end] / norm(pos[:, end]))
         elevation         ~ atan(pos[3, end] / pos[1, end])
         # elevation_vel     ~ vel in direction up
         azimuth           ~ -atan(pos[2, end] / pos[1, end])
-        d_azimuth         ~ D(azimuth) # TODO: does this work for init problem
-        d_elevation       ~ D(elevation)
     ]
     return seqs
 end
@@ -463,6 +452,7 @@ function create_sys!(s::KPS4_3L, pos_, vel_)
 
     deqs = []
     mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
+    flap_length = s.kite_length_C/4
 
     [deqs = vcat(deqs, pos[:, i] .~ 0.0) for i in 1:3]
     [deqs = vcat(deqs, D.(pos[:, i]) .~ vel[:, i]) for i in 4:s.num_flap_C-1]
@@ -480,8 +470,9 @@ function create_sys!(s::KPS4_3L, pos_, vel_)
     force_eqs[:, :] .= (force[:, :] .~ 0)
     
     seqs = []
-    seqs            = scalar_eqs(s, seqs, pos, vel, acc, segment_length, mass_tether_particle, damping, c_spring, 
-                        P_c, e_y, e_z, e_x, e_r_C, e_r_D, e_te_C, e_te_D, E_c, rho_kite, damping_coeff, v_wind_gnd)
+    seqs            = scalar_eqs(s, seqs, pos, vel, acc, flap_angle, flap_vel, flap_acc, segment_length, mass_tether_particle, damping, c_spring, 
+                        P_c, e_y, e_z, e_x, e_r_C, e_r_D, e_te_C, e_te_D, E_c, rho_kite, damping_coeff, v_wind_gnd, tether_length, tether_vel,
+                        mass_per_meter, force, set_values)
     seqs, force_eqs = calc_aero_forces!(s, seqs, force_eqs, force, pos, vel, t, e_x, e_y, e_z, E_c, rho_kite, v_wind, flap_angle)
     seqs, force_eqs = inner_loop!(s, seqs, force_eqs, t, force, pos, vel, segment_length, c_spring, damping, v_wind_gnd)
     
@@ -547,48 +538,47 @@ function model!(s::KPS4_3L)
     (sys, _) = structural_simplify(sys, (inputs, []))
     s.simple_sys = sys
 
-    E = rotate_in_yx(rotate_in_xz([s.measure.distance, 0, 0], s.measure.elevation), s.measure.azimuth)
+    C = rotate_in_yx(rotate_in_xz([s.measure.distance, 0, 0], s.measure.elevation_left), s.measure.azimuth_left)
+    D_measured = rotate_in_yx(rotate_in_xz([s.measure.distance, 0, 0], s.measure.elevation_right), s.measure.azimuth_right)
+    e_y_measured = normalize(C - D_measured)
+    D = C - e_y_measured * s.springs[end-2].length
+    @show C D
+    POS0 = similar(s.pos)
+
     width, radius, tip_length, middle_length = s.set.width, s.set.radius, s.set.tip_length, s.set.middle_length
     α_0 = pi/2 - width/2/radius
     α_C = α_0 + width*(-2*tip_length + sqrt(2*middle_length^2 + 2*tip_length^2)) /
         (4*(middle_length - tip_length)) / radius
-    α_D = π - α_C
     kite_length_C = tip_length + (middle_length-tip_length) * (α_C - α_0) / (π/2 - α_0)
 
-    normal_pos_idxs = vcat(4:s.num_flap_C-1) #, s.num_D+1:s.num_A)
+    normal_pos_idxs = vcat(4:s.num_flap_C-1, s.num_E)
     u0map = [
-        [sys.vel[j, i] => sys.vel[j, s.num_E] * (i / s.num_A) for j in 1:3 for i in normal_pos_idxs]
+        [sys.vel[j, i] => (sys.vel[j, s.num_C] + sys.vel[j, s.num_D]) / 2 * (i / s.num_A) for j in 1:3 for i in normal_pos_idxs]
         [sys.acc[j, i] => 0 for j in 1:3 for i in normal_pos_idxs]
 
         [sys.flap_vel[j] => 0 for j in 1:2]
         [sys.flap_acc[j] => 0 for j in 1:2]
 
-        [sys.tether_vel[j] => [0.020830973216646776, 0.020830973182101, 1.7514555679599906][j] for j in 1:3]
-        sys.tether_acc[3] => 0.0
+        [sys.tether_vel[j] => [0.0, 0.0, 0.0][j] for j in 1:3]
+        [sys.tether_acc[j] => 0.0 for j in 1:3]
         [sys.set_values[i] => s.measure.winch_torque[i] for i in 1:3]
 
-        [sys.pos[j, s.num_E] => E[j] for j in 1:3] # calculate E using elevation azimuth and current best guess for distance
         # C and D are calculated directly using measured distance and heading, under the assumption that distance from ground to C = distance from ground to D
         # A => calculated using e_x from P_c
         # E => vel and acc are set to zero
-        # DONE NICE YESS
-        [sys.e_y[j] => rotate_v_around_k(normalize([pos[1, s.num_E], pos[2, s.num_E], 0]) × sys.e_z, -sys.e_z, s.measure.heading)[j] for j in 1:3]
-        [sys.pos[j, s.num_D] => sys.E_c[j] + e_y[j]*cos(α_D)*radius - sys.e_z[j]*sin(α_D)*radius for j in 1:3]
+        [sys.pos[j, s.num_C] => C[j] for j in 1:3]
+        [sys.pos[j, s.num_D] => D[j] for j in 1:3]
         [sys.pos[j, s.num_A] => sys.P_c[j] - sys.e_x[j]*(kite_length_C*(3/4 - 1/4)) for j in 1:3]
-        # define sys.e_y using heading. USING E_Y IS CIRCULAR
-        # There is less than 1 degree angle difference between the last tether segment and the kite, so e_z = normalize(last_middle_segment)
-        # e_y = e_global_y rotated by heading
-        # TODO: add option to optimize kite orientation relative to last tether segment
-        [sys.vel[j, s.num_E] => 0 for j in 1:3] # calculate vel using change in elevation and azimuth and current best guess for distance_vel
-        [sys.vel[j, s.num_C] => 0 for j in 1:3]
+        [sys.vel[j, s.num_C] => 0 for j in 1:3] # calculate vel using change in elevation and azimuth and current best guess for distance_vel
         [sys.vel[j, s.num_D] => 0 for j in 1:3]
         [sys.vel[j, s.num_A] => 0 for j in 1:3]
 
-        # sys.gust_factor => 1.0 # give middle teather acc instead
+        sys.gust_factor => 1.0 # give sum(C_acc, D_acc, A_acc) instead
     ]
     @show length(u0map)
+    @show normal_pos_idxs
     guesses = [
-        [sys.pos[j, i] => pos[i][j] for j in 1:3 for i in normal_pos_idxslill]
+        [sys.pos[j, i] => pos[i][j] for j in 1:3 for i in normal_pos_idxs]
         [sys.flap_angle[j] => 0 for j in 1:2]
         # [sys.tether_vel[j] => 0 for j in 1:3]
         [sys.tether_length[j] => s.tether_lengths[j] for j in 1:3]

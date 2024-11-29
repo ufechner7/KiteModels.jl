@@ -282,3 +282,9 @@ function rotate_in_yx(vec, angle)
     result[3] = vec[3]
     result
 end
+
+function rotate_v_around_k(v, k, θ)
+    k = normalize(k)
+    v_rot = v * cos(θ) + (k × v) * sin(θ)  + k * (k ⋅ v) * (1 - cos(θ))
+    return v_rot
+end

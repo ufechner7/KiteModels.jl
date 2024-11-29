@@ -7,7 +7,10 @@ s.set.aero_surfaces = 2
 s.measure.winch_torque = [-0.1, -0.1, -20]
 s.measure.tether_length = [s.set.l_tether, s.set.l_tether, s.set.l_tether]
 s.measure.distance = s.measure.tether_length[3]
-s.measure.elevation = deg2rad(85)
+s.measure.elevation_left = deg2rad(85)
+s.measure.elevation_right = deg2rad(85)
+s.measure.azimuth_left = deg2rad(-1)
+s.measure.azimuth_right = deg2rad(1)
 
 u0map, guesses = model!(s)
 

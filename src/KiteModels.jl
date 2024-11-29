@@ -219,12 +219,16 @@ function set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind; upwind_dir=
 end
 
 function upwind_dir(s::AKM)
-    if s.v_wind_gnd[1] == 0.0 && s.v_wind_gnd[2] == 0.0
+    upwind_dir(s.v_wind_gnd)
+end
+function upwind_dir(v_wind_gnd)
+    if v_wind_gnd[1] == 0.0 && v_wind_gnd[2] == 0.0
         return NaN
     end
-    wind_dir = atan(s.v_wind_gnd[2], s.v_wind_gnd[1])
+    wind_dir = atan(v_wind_gnd[2], v_wind_gnd[1])
     -(wind_dir + π/2)
 end
+@register_symbolic upwind_dir(v_wind_gnd)
 
 """
     tether_length(s::AKM)
