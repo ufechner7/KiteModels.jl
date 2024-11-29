@@ -134,72 +134,73 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
 end
 
 
-function init_pos_vel_acc(s::KPS4_3L; delta = 0.0, α = 45.0)
-    pos = zeros(SVector{s.num_A, KVec3})
-    vel = zeros(SVector{s.num_A, KVec3})
-    acc = zeros(SVector{s.num_A, KVec3})
+function init_pos!(s::KPS4_3L; α = 5.0)
     # ground points
-    [pos[i] .= [0.0, delta, 0.0] for i in 1:3]
-
-    # middle tether
-    sin_el, cos_el = sin(deg2rad(s.set.elevation)), cos(deg2rad(s.set.elevation))
-    for (i, j) in enumerate(range(6, step=3, length=s.set.segments))
-        radius = i * (s.set.l_tether/s.set.segments)
-        pos[j] .= [cos_el*radius, delta, sin_el*radius]
-    end
+    [s.pos[i] .= [0, 0, 0] for i in 1:3]
 
     # kite points
-    vec_c = pos[s.num_flap_C-1] - pos[s.num_E]
-    E, C, D, A, s.α_C, s.kite_length_C = KiteUtils.get_particles_3l(s.set.width, s.set.radius, 
-                            s.set.middle_length, s.set.tip_length, s.set.bridle_center_distance, pos[s.num_E], vec_c, s.v_apparent)
+    C = rotate_in_yx(rotate_in_xz([s.measure.distance, 0, 0], s.measure.elevation_left), s.measure.azimuth_left)
+    D = rotate_in_yx(rotate_in_xz([s.measure.distance, 0, 0], s.measure.elevation_right), s.measure.azimuth_right)
+    s.e_y .= normalize(C - D)
+    # calculate D again to make sure the distance between C and D is correct
+    D = C - s.e_y * s.springs[end-2].length
+    P_c = (C+D)/2
+    s.e_z .= normalize(s.pos[3] .- P_c) # no bend in middle tether
+    E = P_c + s.e_z * s.set.bridle_center_distance
+    s.e_x .= s.e_y × s.e_z
 
-    pos[s.num_A] .= A
-    pos[s.num_C] .= C
-    pos[s.num_D] .= [pos[s.num_C][1], -pos[s.num_C][2], pos[s.num_C][3]]
+    width, radius, tip_length, middle_length = s.set.width, s.set.radius, s.set.tip_length, s.set.middle_length
+    α_0 = pi/2 - width/2/radius
+    α_C = α_0 + width*(-2*tip_length + sqrt(2*middle_length^2 + 2*tip_length^2)) /
+        (4*(middle_length - tip_length)) / radius
+    s.kite_length_C = tip_length + (middle_length-tip_length) * (α_C - α_0) / (π/2 - α_0)
+    A = P_c - s.e_x*(s.kite_length_C*(3/4 - 1/4))
+
+    s.pos[s.num_A] .= A
+    s.pos[s.num_C] .= C
+    s.pos[s.num_D] .= D
+    s.pos[s.num_E] .= E
+    @show C D E
+
+    # middle tether
+    for (i, j) in enumerate(range(6, step=3, length=s.set.segments))
+        s.pos[j] .= E / s.set.segments * i
+    end
     
     # build tether connection points
-    calc_kite_ref_frame!(s, E, C, D)
-    E_C = pos[s.num_E] + s.e_z * (-s.set.bridle_center_distance + s.set.radius) 
-    e_r_C = (E_C - pos[s.num_C]) / norm(E_C - pos[s.num_C])
+    E_c = s.pos[s.num_E] + s.e_z * (-s.set.bridle_center_distance + s.set.radius) 
+    e_r_C = (E_c - s.pos[s.num_C]) / norm(E_c - s.pos[s.num_C])
+    e_r_D = (E_c - s.pos[s.num_D]) / norm(E_c - s.pos[s.num_D])
     flap_length = s.kite_length_C/4
-    angle_flap_c = 0.0 # distance between c and left steering line
+    angle_flap_c = 0.0 # distance between c and left flap
+    angle_flap_d = 0.0
     # distance_c_l = s.set.tip_length/2 # distance between c and left steering line
-    pos[s.num_flap_C] .= pos[s.num_C] - s.e_x * flap_length * cos(angle_flap_c) + e_r_C * flap_length * sin(angle_flap_c)
-    pos[s.num_flap_D] .= pos[s.num_flap_C] .* [1.0, -1.0, 1.0]
-    
-    s.tether_lengths[3] = norm(pos[s.num_E])
-    s.tether_lengths[1] = 0.0
+    @show - s.kite_length_C
+    s.pos[s.num_flap_C] .= s.pos[s.num_C] - s.e_x * flap_length * cos(angle_flap_c) + e_r_C * flap_length * sin(angle_flap_c)
+    s.pos[s.num_flap_D] .= s.pos[s.num_D] - s.e_x * flap_length * cos(angle_flap_d) + e_r_D * flap_length * sin(angle_flap_d)
+
     # build left and right tether points with degrees of bend α
+    s.tether_lengths[3] = norm(s.pos[s.num_E])
+    s.tether_lengths[1] = 0.0
     l = s.tether_lengths[3]
-    @assert s.set.elevation > α > 0.0
     α = deg2rad(α)
     h = l/(2tan(α))
     r = l/(2sin(α))
     for (i, j) in enumerate(range(4, step=3, length=s.set.segments-1))
-        # pos[j] .= pos[s.num_flap_C] ./ s.set.segments .* i .+ [(middle_distance)*s.tether_lengths[3]*0.5, 0.0, 0.0]
+        # s.pos[j] .= s.pos[s.num_flap_C] ./ s.set.segments .* i .+ [(middle_distance)*s.tether_lengths[3]*0.5, 0.0, 0.0]
         γ = -α + 2α*i / s.set.segments
         local_z_minus = l/2 + r * sin(γ)
         local_x = h - r * cos(γ)
-        local_y = pos[s.num_flap_C][2] / s.set.segments * i
-        pos[j] .= local_z_minus * -s.e_z + local_x * s.e_x + local_y * s.e_y
+        s.pos[j] .= local_z_minus * normalize(C) + local_x * s.e_x
+        s.pos[j+1] .= local_z_minus * normalize(D) + local_x * s.e_x
 
-        s.tether_lengths[1] += norm(pos[j] - pos[j-3])
-        pos[j+1] .= [pos[j][1], -pos[j][2], pos[j][3]]
+        s.tether_lengths[1] += norm(s.pos[j] - s.pos[j-3])
+        s.tether_lengths[2] += norm(s.pos[j+1] - s.pos[j-2])
     end
-    s.tether_lengths[1] += norm(pos[s.num_flap_C] - pos[s.num_flap_C-3])
+    s.tether_lengths[1] += norm(s.pos[s.num_flap_C] - s.pos[s.num_flap_C-3])
     s.tether_lengths[2] = s.tether_lengths[1]
 
-    # set vel and acc
-    for i in 1:s.num_A
-        vel[i] .= [delta, delta, delta]
-        acc[i] .= [delta, delta, delta]
-    end
-    
-    for i in eachindex(pos)
-        s.pos[i] .= pos[i]
-    end
-
-    return pos, vel, acc
+    return s.pos
 end
 
 
@@ -209,17 +210,6 @@ end
 function init_pos_vel(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)))
     pos, vel, acc = init_pos_vel_acc(s, X; old=true)
     pos, vel
-end
-
-function init_pos_vel(s::KPS4_3L; delta=0.0)
-    pos, vel, _ = init_pos_vel_acc(s; delta=0.0)
-    # pos = Array{Union{Nothing, Float64}}(nothing, 3, s.num_A)
-    # vel = Array{Union{Nothing, Float64}}(nothing, 3, s.num_A)
-    # [pos[:,i] .= pos_[i] for i in 1:s.num_flap_C-1]
-    # [vel[:,i] .= zeros(3) for i in 1:s.num_flap_C-1]
-    # [pos[:,i] .= pos_[i] for i in s.num_flap_D+1:s.num_A]
-    # [vel[:,i] .= zeros(3) for i in s.num_flap_D+1:s.num_A]
-    return pos, vel
 end
 
 function init_inner(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false, delta=0.0)

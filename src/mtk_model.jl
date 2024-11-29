@@ -181,7 +181,6 @@ function calc_aero_forces!(s::KPS4_3L, seqs, force_eqs, force, pos, vel, t, e_x,
         end
     end
 
-    
     seqs = [
         seqs
         l_c_eq
@@ -382,6 +381,7 @@ function scalar_eqs(s, seqs, pos, vel, acc, flap_angle, flap_vel, flap_acc, segm
         azimuth(t)
         elevation(t)
         distance(t)
+        kite_acc(t)
     end
     seqs = [
         seqs
@@ -397,17 +397,18 @@ function scalar_eqs(s, seqs, pos, vel, acc, flap_angle, flap_vel, flap_acc, segm
         tether_diff         ~ tether_length[2] - tether_length[1]
         tether_diff_vel     ~ tether_vel[2] - tether_vel[1]
         set_diff            ~ set_values[2] - set_values[1]
+        # D(set_values)       ~ [0, 0, 0]
 
         distance          ~ norm(pos[:, end])
         elevation         ~ atan(pos[3, end] / pos[1, end])
         # elevation_vel     ~ vel in direction up
         azimuth           ~ -atan(pos[2, end] / pos[1, end])
+        kite_acc          ~ norm(acc[:, s.num_C] + acc[:, s.num_D] + acc[:, s.num_A])
     ]
     return seqs
 end
 
-function create_sys!(s::KPS4_3L, pos_, vel_)
-    pos_, vel_ = convert_pos_vel(s, pos_, vel_)
+function create_sys!(s::KPS4_3L)
     if s.torque_control
         [s.motors[i] = TorqueControlledMachine(s.set) for i in 1:3]
     else
@@ -533,61 +534,58 @@ The distance/vel/acc of the kite cannot be measured directly, but the average ac
     distance_acc = 0.99 * sim_distance_acc + 0.01 * measured_distance_acc
 """
 function model!(s::KPS4_3L)
-    pos, vel = init_pos_vel(s)
-    sys, inputs = create_sys!(s, pos, vel)
-    (sys, _) = structural_simplify(sys, (inputs, []))
+    # pos, vel = init_pos_vel(s)
+    sys, inputs = create_sys!(s)
+    sys = structural_simplify(sys; fully_determined=false)
     s.simple_sys = sys
 
-    C = rotate_in_yx(rotate_in_xz([s.measure.distance, 0, 0], s.measure.elevation_left), s.measure.azimuth_left)
-    D_measured = rotate_in_yx(rotate_in_xz([s.measure.distance, 0, 0], s.measure.elevation_right), s.measure.azimuth_right)
-    e_y_measured = normalize(C - D_measured)
-    D = C - e_y_measured * s.springs[end-2].length
-    @show C D
-    POS0 = similar(s.pos)
-
-    width, radius, tip_length, middle_length = s.set.width, s.set.radius, s.set.tip_length, s.set.middle_length
-    α_0 = pi/2 - width/2/radius
-    α_C = α_0 + width*(-2*tip_length + sqrt(2*middle_length^2 + 2*tip_length^2)) /
-        (4*(middle_length - tip_length)) / radius
-    kite_length_C = tip_length + (middle_length-tip_length) * (α_C - α_0) / (π/2 - α_0)
+    init_pos!(s; α = 5.0)
+    @show s.pos
 
     normal_pos_idxs = vcat(4:s.num_flap_C-1, s.num_E)
     u0map = [
-        [sys.vel[j, i] => (sys.vel[j, s.num_C] + sys.vel[j, s.num_D]) / 2 * (i / s.num_A) for j in 1:3 for i in normal_pos_idxs]
+        # [sys.vel[j, i] => (sys.vel[j, s.num_C] + sys.vel[j, s.num_D]) / 2 * (i / s.num_A) for j in 1:3 for i in normal_pos_idxs]
+        [sys.vel[j, i] => 0 for j in 1:3 for i in normal_pos_idxs]
         [sys.acc[j, i] => 0 for j in 1:3 for i in normal_pos_idxs]
 
+        [sys.flap_angle[j] => 0 for j in 1:2]
         [sys.flap_vel[j] => 0 for j in 1:2]
-        [sys.flap_acc[j] => 0 for j in 1:2]
+        # [sys.flap_acc[j] => 0 for j in 1:2]
 
+        [sys.tether_length[j] => s.tether_lengths[j]+0.1 for j in 1:3]
         [sys.tether_vel[j] => [0.0, 0.0, 0.0][j] for j in 1:3]
-        [sys.tether_acc[j] => 0.0 for j in 1:3]
+        # [sys.tether_acc[j] => 0.0 for j in 1:3]
         [sys.set_values[i] => s.measure.winch_torque[i] for i in 1:3]
 
         # C and D are calculated directly using measured distance and heading, under the assumption that distance from ground to C = distance from ground to D
         # A => calculated using e_x from P_c
         # E => vel and acc are set to zero
-        [sys.pos[j, s.num_C] => C[j] for j in 1:3]
-        [sys.pos[j, s.num_D] => D[j] for j in 1:3]
-        [sys.pos[j, s.num_A] => sys.P_c[j] - sys.e_x[j]*(kite_length_C*(3/4 - 1/4)) for j in 1:3]
+        [sys.pos[j, s.num_C] => s.pos[s.num_C][j] for j in 1:3]
+        [sys.pos[j, s.num_D] => s.pos[s.num_D][j] for j in 1:3]
+        # [sys.pos[j, s.num_A] => sys.P_c[j] - sys.e_x[j]*(kite_length_C*(3/4 - 1/4)) for j in 1:3]
+        [sys.pos[j, s.num_A] => s.pos[s.num_A][j] for j in 1:3]
         [sys.vel[j, s.num_C] => 0 for j in 1:3] # calculate vel using change in elevation and azimuth and current best guess for distance_vel
         [sys.vel[j, s.num_D] => 0 for j in 1:3]
         [sys.vel[j, s.num_A] => 0 for j in 1:3]
 
         sys.gust_factor => 1.0 # give sum(C_acc, D_acc, A_acc) instead
+        # sys.kite_acc => 0.0
     ]
-    @show length(u0map)
-    @show normal_pos_idxs
     guesses = [
-        [sys.pos[j, i] => pos[i][j] for j in 1:3 for i in normal_pos_idxs]
+        [sys.pos[j, i] => s.pos[i][j] for j in 1:3 for i in normal_pos_idxs]
         [sys.flap_angle[j] => 0 for j in 1:2]
         # [sys.tether_vel[j] => 0 for j in 1:3]
         [sys.tether_length[j] => s.tether_lengths[j] for j in 1:3]
+        sys.gust_factor => 1.0
     ]
-    dt = 1/s.set.sample_freq
-    tspan   = (0.0, dt)
-    @time prob = ODEProblem(sys, u0map, tspan; guesses, fully_determined=true)
-    solver = QNDF(autodiff=false) # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
-    @time s.integrator = OrdinaryDiffEqCore.init(prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
-    @time s.integrator = OrdinaryDiffEqCore.init(prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
-    return u0map, guesses
+    @time prob = ModelingToolkit.InitializationProblem(sys, 0.0, u0map; guesses, fully_determined=true)
+    @time sol = solve(prob; maxiters=1_000, abstol=0.001, reltol=0.001)
+    # @time sol = solve(prob, LevenbergMarquardt(); maxiters=10_000)
+    # dt = 1/s.set.sample_freq
+    # tspan   = (0.0, dt)
+    # @time prob = ODEProblem(sys, u0map, tspan; guesses, fully_determined=false)
+    # solver = qndf(autodiff=false) # https://docs.sciml.ai/scimlbenchmarksoutput/stable/#results
+    # @time s.integrator = ordinarydiffeqcore.init(prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
+    # @time s.integrator = ordinarydiffeqcore.init(prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
+    return prob, sol, sys
 end
