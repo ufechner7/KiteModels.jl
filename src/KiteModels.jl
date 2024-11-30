@@ -458,6 +458,11 @@ function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
     else
         ss.set_speed = s.sync_speed
     end
+    if isnothing(s.set_force)
+        ss.set_force = NaN
+    else
+        ss.set_force = s.set_force
+    end
     cl, cd = cl_cd(s)
     ss.CL2 = cl
     ss.CD2 = cd
@@ -555,8 +560,8 @@ end
 
 
 """
-    next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2, 
-               dt=1/s.set.sample_freq)
+    next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, set_force=nothing, v_wind_gnd=s.set.v_wind, 
+               upwind_dir=-pi/2, dt=1/s.set.sample_freq)
 
 Calculates the next simulation step. Either `set_speed` or `set_torque` must be provided.
 
@@ -565,6 +570,7 @@ Parameters:
 - integrator:   an integrator instance as returned by the function [`init_sim!`](@ref)
 - set_speed:         set value of reel out speed in m/s or nothing
 - set_torque:   set value of the torque in Nm or nothing
+- set_force:    set value of the force in N or nothing (only for logging, not used otherwise)
 - `v_wind_gnd`: wind speed at reference height in m/s
 - `upwind_dir`: upwind direction in radians, the direction the wind is coming from. Zero is at north; 
                 clockwise positive. Default: -pi/2, wind from west.
@@ -573,12 +579,13 @@ Parameters:
 Returns:
 The end time of the time step in seconds.
 """
-function next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2, 
-                    dt=1/s.set.sample_freq)
+function next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, set_force=nothing, 
+                    v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2, dt=1/s.set.sample_freq)
     KitePodModels.on_timer(s.kcu)
     KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
     s.sync_speed = set_speed
     s.set_torque = set_torque
+    s.set_force = set_force
     s.t_0 = integrator.t
     set_v_wind_ground!(s, calc_height(s), v_wind_gnd; upwind_dir)
     s.iter = 0

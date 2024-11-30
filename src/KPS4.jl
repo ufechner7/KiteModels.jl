@@ -177,6 +177,8 @@ $(TYPEDFIELDS)
     sync_speed::Union{S, Nothing} =        0.0
     "set_torque of the motor/generator"
     set_torque::Union{S, Nothing} = nothing
+    "set value of the force at the winch, for logging only"
+    set_force::Union{S, Nothing} = nothing
     "x vector of kite reference frame"
     x::T =                 zeros(S, 3)
     "y vector of kite reference frame"
