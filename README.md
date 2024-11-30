@@ -16,6 +16,11 @@ This package is part of Julia Kite Power Tools, which consists of the following 
 <p align="center"><img src="./docs/src/kite_power_tools.png" width="500" /></p>
 
 ## News
+#### November 2024
+- the four point kite model KPS4 was extended to include aerodynamic damping of pitch oscillations;
+  for this purpose, the parameters `cmq` and `cord_length` must be defined in `settings.yaml`
+- the four point kite model KPS4 was extended to include the impact of the deformation of the
+  kite on the turn rate; for this, the parameter `smc` must be defined in `settings.yaml`
 #### October 2024
 - the orientation is now represented with respect to the NED reference frame
 - azimuth is now calculated in wind reference frame. This allows it to handle changes of the wind direction
