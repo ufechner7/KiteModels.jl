@@ -326,7 +326,7 @@ Output:length
             seqs
             height[i]           ~ max(0.0, 0.5 * (pos[:, p1][3] + pos[:, p2][3]))
             rho[i]              ~ calc_rho(s.am, height[i])
-            v_wind_tether[:, i] ~ AtmosphericModels.calc_wind_factor(s.am, height[i], s.set.profile_law) * v_wind_gnd * gust_factor
+            v_wind_tether[:, i] ~ AtmosphericModels.calc_wind_factor(s.am, height[i], s.set.profile_law) * v_wind_gnd * abs(gust_factor)
         ]
 
         seqs, force_eqs = calc_particle_forces!(s, seqs, force_eqs, force, pos[:, p1], pos[:, p2], vel[:, p1], 
@@ -381,7 +381,10 @@ function scalar_eqs(s, seqs, pos, vel, acc, flap_angle, flap_vel, flap_acc, segm
         azimuth(t)
         elevation(t)
         distance(t)
-        kite_acc(t)
+        distance_acc(t)
+        kite_acc(t)[1:3]
+        x_acc(t)
+        y_acc(t)
     end
     seqs = [
         seqs
@@ -399,11 +402,14 @@ function scalar_eqs(s, seqs, pos, vel, acc, flap_angle, flap_vel, flap_acc, segm
         set_diff            ~ set_values[2] - set_values[1]
         # D(set_values)       ~ [0, 0, 0]
 
-        distance          ~ norm(pos[:, end])
-        elevation         ~ atan(pos[3, end] / pos[1, end])
+        distance            ~ norm(pos[:, end])
+        distance_acc        ~ (acc[:, s.num_C] + acc[:, s.num_D] + acc[:, s.num_A]) ⋅ normalize(P_c - pos[:, 3])
+        elevation           ~ atan(pos[3, end] / pos[1, end])
         # elevation_vel     ~ vel in direction up
-        azimuth           ~ -atan(pos[2, end] / pos[1, end])
-        kite_acc          ~ norm(acc[:, s.num_C] + acc[:, s.num_D] + acc[:, s.num_A])
+        azimuth             ~ -atan(pos[2, end] / pos[1, end])
+        kite_acc            ~ acc[:, s.num_C] + acc[:, s.num_D] + acc[:, s.num_A]
+        x_acc               ~ (acc[:, s.num_C] + acc[:, s.num_D] + acc[:, s.num_A]) ⋅ e_x
+        y_acc               ~ (acc[:, s.num_C] + acc[:, s.num_D] + acc[:, s.num_A]) ⋅ e_y
     ]
     return seqs
 end
@@ -454,6 +460,7 @@ function create_sys!(s::KPS4_3L)
     deqs = []
     mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
     flap_length = s.kite_length_C/4
+    @assert flap_length != 0
 
     [deqs = vcat(deqs, pos[:, i] .~ 0.0) for i in 1:3]
     [deqs = vcat(deqs, D.(pos[:, i]) .~ vel[:, i]) for i in 4:s.num_flap_C-1]
@@ -532,44 +539,44 @@ The distance/vel/acc of the kite cannot be measured directly, but the average ac
     or wind suddenly change, the distance_acc is calculated by combining the simulated distance_acc from timestep-1 to timestep and the
     current measured acc.
     distance_acc = 0.99 * sim_distance_acc + 0.01 * measured_distance_acc
+
+Assume distance_acc = tether_acc[3] for convenience
 """
 function model!(s::KPS4_3L)
     # pos, vel = init_pos_vel(s)
+    init_pos!(s; α = 17.0)
     sys, inputs = create_sys!(s)
     sys = structural_simplify(sys; fully_determined=false)
     s.simple_sys = sys
 
-    init_pos!(s; α = 5.0)
-    @show s.pos
-
     normal_pos_idxs = vcat(4:s.num_flap_C-1, s.num_E)
     u0map = [
-        # [sys.vel[j, i] => (sys.vel[j, s.num_C] + sys.vel[j, s.num_D]) / 2 * (i / s.num_A) for j in 1:3 for i in normal_pos_idxs]
+        # [sys.vel[j, i] => (sys.vel[j, s.num_C] + sys.vel[j, s.num_D]) / 2 * (i / length(normal_pos_idxs)) for j in 1:3 for i in normal_pos_idxs]
         [sys.vel[j, i] => 0 for j in 1:3 for i in normal_pos_idxs]
-        [sys.acc[j, i] => 0 for j in 1:3 for i in normal_pos_idxs]
+        [sys.acc[j, i] => (sys.kite_acc * (k / length(normal_pos_idxs)))[j] for j in 1:3 for (k, i) in enumerate(normal_pos_idxs)]
 
-        [sys.flap_angle[j] => 0 for j in 1:2]
+        # [sys.flap_angle[j] => 0 for j in 1:2]
+        # [sys.winch_force[j] => [21, 25][j] for j in 1:2]
         [sys.flap_vel[j] => 0 for j in 1:2]
-        # [sys.flap_acc[j] => 0 for j in 1:2]
+        [sys.flap_acc[j] => 0 for j in 1:2]
 
-        [sys.tether_length[j] => s.tether_lengths[j]+0.1 for j in 1:3]
+        # [sys.tether_length[j] => s.tether_lengths[j] for j in 1:3]
         [sys.tether_vel[j] => [0.0, 0.0, 0.0][j] for j in 1:3]
-        # [sys.tether_acc[j] => 0.0 for j in 1:3]
-        [sys.set_values[i] => s.measure.winch_torque[i] for i in 1:3]
+        [sys.tether_acc[j] => 0 for j in 1:3]
+        [sys.set_values[j] => s.measure.winch_torque[j] for j in 1:3]
 
         # C and D are calculated directly using measured distance and heading, under the assumption that distance from ground to C = distance from ground to D
         # A => calculated using e_x from P_c
         # E => vel and acc are set to zero
         [sys.pos[j, s.num_C] => s.pos[s.num_C][j] for j in 1:3]
         [sys.pos[j, s.num_D] => s.pos[s.num_D][j] for j in 1:3]
-        # [sys.pos[j, s.num_A] => sys.P_c[j] - sys.e_x[j]*(kite_length_C*(3/4 - 1/4)) for j in 1:3]
-        [sys.pos[j, s.num_A] => s.pos[s.num_A][j] for j in 1:3]
+        [sys.pos[j, s.num_A] => sys.P_c[j] - sys.e_x[j]*(s.kite_length_C*(3/4 - 1/4)) for j in 1:3]
         [sys.vel[j, s.num_C] => 0 for j in 1:3] # calculate vel using change in elevation and azimuth and current best guess for distance_vel
         [sys.vel[j, s.num_D] => 0 for j in 1:3]
         [sys.vel[j, s.num_A] => 0 for j in 1:3]
 
-        sys.gust_factor => 1.0 # give sum(C_acc, D_acc, A_acc) instead
-        # sys.kite_acc => 0.0
+        sys.gust_factor => 1.0 # give distance_acc instead
+        # sys.distance_acc => 0.0
     ]
     guesses = [
         [sys.pos[j, i] => s.pos[i][j] for j in 1:3 for i in normal_pos_idxs]
@@ -579,7 +586,20 @@ function model!(s::KPS4_3L)
         sys.gust_factor => 1.0
     ]
     @time prob = ModelingToolkit.InitializationProblem(sys, 0.0, u0map; guesses, fully_determined=true)
-    @time sol = solve(prob; maxiters=1_000, abstol=0.001, reltol=0.001)
+    tol = 1e-2
+    @time remake(prob; u0=u0map)
+    @time sol = solve(prob; maxiters=10_000, abstol=tol, reltol=tol)
+    # println("remaking init prob")
+    # @time remake(prob; u0=[sys.gust_factor=>1.1])
+    # @time sol = solve(prob; maxiters=10_000, abstol=tol, reltol=tol)
+    # @time remake(prob; u0=[sys.gust_factor=>0.9])
+    # @time sol = solve(prob; maxiters=10_000, abstol=tol, reltol=tol)
+
+    # loop that fixes acc measurements if not succesful retcode
+    if !successful_retcode(sol)
+
+    end
+
     # @time sol = solve(prob, LevenbergMarquardt(); maxiters=10_000)
     # dt = 1/s.set.sample_freq
     # tspan   = (0.0, dt)

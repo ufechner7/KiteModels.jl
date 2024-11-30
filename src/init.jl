@@ -160,7 +160,6 @@ function init_pos!(s::KPS4_3L; α = 5.0)
     s.pos[s.num_C] .= C
     s.pos[s.num_D] .= D
     s.pos[s.num_E] .= E
-    @show C D E
 
     # middle tether
     for (i, j) in enumerate(range(6, step=3, length=s.set.segments))
@@ -175,7 +174,6 @@ function init_pos!(s::KPS4_3L; α = 5.0)
     angle_flap_c = 0.0 # distance between c and left flap
     angle_flap_d = 0.0
     # distance_c_l = s.set.tip_length/2 # distance between c and left steering line
-    @show - s.kite_length_C
     s.pos[s.num_flap_C] .= s.pos[s.num_C] - s.e_x * flap_length * cos(angle_flap_c) + e_r_C * flap_length * sin(angle_flap_c)
     s.pos[s.num_flap_D] .= s.pos[s.num_D] - s.e_x * flap_length * cos(angle_flap_d) + e_r_D * flap_length * sin(angle_flap_d)
 

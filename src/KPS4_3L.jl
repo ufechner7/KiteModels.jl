@@ -50,6 +50,7 @@ const MeasureFloat = Float32
 
 @with_kw mutable struct Measurements
     distance::MeasureFloat      = 0.0
+    distance_acc::MeasureFloat  = 0.0
     winch_torque::MVector{3, MeasureFloat}  = zeros(3)
     tether_length::MVector{3, MeasureFloat} = zeros(3)
     tether_vel::MVector{3, MeasureFloat}    = zeros(3)
