@@ -1,3 +1,13 @@
+### Unreleased
+#### Changed
+- update the fields `set_torque`, `set_force`, `set_speed`, `alpha3`, `alpha4`, `roll`, `pitch`, `yaw`
+  of the `SysState` struct in the function `update_sys_state!`
+- add the parameter `set_force` to the function `next_step!` for logging
+- the four point kite model KPS4 was extended to include aerodynamic damping of pitch oscillations;
+  for this purpose, the parameters `cmq` and `cord_length` must be defined in `settings.yaml`
+- the four point kite model KPS4 was extended to include the impact of the deformation of the
+  kite on the turn rate; for this, the parameter `smc` must be defined in `settings.yaml`
+
 ### KiteModels v0.6.11 2024-11-09
 #### Fixed
 - fixed bug in spring_forces(), it used 4000N hardcoded max force
