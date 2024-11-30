@@ -7,6 +7,10 @@
   for this purpose, the parameters `cmq` and `cord_length` must be defined in `settings.yaml`
 - the four point kite model KPS4 was extended to include the impact of the deformation of the
   kite on the turn rate; for this, the parameter `smc` must be defined in `settings.yaml`
+- improve examples
+- add the packages `JLD2` and `Colors` to the system image
+#### Added
+- add examples `calc_spectrum.jl` and `plot_spectrum` to plot the eigenfrequencies of the system
 
 ### KiteModels v0.6.11 2024-11-09
 #### Fixed
