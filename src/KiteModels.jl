@@ -463,6 +463,7 @@ function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
     else
         ss.set_force = s.set_force
     end
+    ss.roll, ss.pitch, ss.yaw = orient_euler(s)
     cl, cd = cl_cd(s)
     ss.CL2 = cl
     ss.CD2 = cd
