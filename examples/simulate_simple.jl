@@ -4,7 +4,7 @@ using Printf
 
 using KiteModels, LinearAlgebra
 
-set = deepcopy(load_settings("system_v9.yaml"))
+set = deepcopy(load_settings("system.yaml"))
 
 set.abs_tol=0.0006
 set.rel_tol=0.00001
