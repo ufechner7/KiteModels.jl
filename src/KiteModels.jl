@@ -446,8 +446,15 @@ function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
     ss.vel_kite .= s.vel_kite
     ss.t_sim = 0.0
     ss.AoA = deg2rad(s.alpha_2)
-    ss.alpha3 = deg2rad(s.alpha_3)
-    ss.alpha4 = deg2rad(s.alpha_4)
+    if isa(s, KPS4)
+        ss.alpha3 = deg2rad(s.alpha_3)
+        ss.alpha4 = deg2rad(s.alpha_4)
+        if isnothing(s.set_force)
+            ss.set_force = NaN
+        else
+            ss.set_force = s.set_force
+        end
+    end
     if isnothing(s.set_torque)
         ss.set_torque = NaN
     else
@@ -457,11 +464,6 @@ function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
         ss.set_speed = NaN
     else
         ss.set_speed = s.sync_speed
-    end
-    if isnothing(s.set_force)
-        ss.set_force = NaN
-    else
-        ss.set_force = s.set_force
     end
     ss.roll, ss.pitch, ss.yaw = orient_euler(s)
     cl, cd = cl_cd(s)
@@ -586,7 +588,9 @@ function next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing,
     KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
     s.sync_speed = set_speed
     s.set_torque = set_torque
-    s.set_force = set_force
+    if isa(s, KPS4)
+        s.set_force = set_force
+    end
     s.t_0 = integrator.t
     set_v_wind_ground!(s, calc_height(s), v_wind_gnd; upwind_dir)
     s.iter = 0
