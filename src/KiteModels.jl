@@ -448,6 +448,16 @@ function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
     ss.AoA = deg2rad(s.alpha_2)
     ss.alpha3 = deg2rad(s.alpha_3)
     ss.alpha4 = deg2rad(s.alpha_4)
+    if isnothing(s.set_torque)
+        ss.set_torque = NaN
+    else
+        ss.set_torque = s.set_torque
+    end
+    if isnothing(s.sync_speed)
+        ss.set_speed = NaN
+    else
+        ss.set_speed = s.sync_speed
+    end
     cl, cd = cl_cd(s)
     ss.CL2 = cl
     ss.CD2 = cd
