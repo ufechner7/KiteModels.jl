@@ -507,7 +507,7 @@ function calc_pre_tension(s::AKM)
 end
 
 """
-    init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.5, delta=0.001, prn=false)
+    init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.5, delta=0.001, upwind_dir=-pi/2, prn=false)
 
 Initialises the integrator of the model.
 
@@ -516,21 +516,23 @@ Parameters:
 - t_end: end time of the simulation; normally not needed
 - stiffness_factor: factor applied to the tether stiffness during initialisation
 - delta: initial stretch of the tether during the steady state calculation
+- upwind_dir: upwind direction in radians, the direction the wind is coming from. Zero is at north; 
+              clockwise positive. Default: -pi/2, wind from west.
 - prn: if set to true, print the detailed solver results
 
 Returns:
 An instance of a DAE integrator.
 """
-function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.5, delta=0.001, prn=false)
+function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.5, delta=0.001, upwind_dir=-pi/2, prn=false)
     clear!(s)
     s.stiffness_factor = stiffness_factor
     
     try
-        y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor, delta, prn)
+        y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor, delta, upwind_dir, prn)
     catch e
         if e isa AssertionError
             println("ERROR: Failure to find initial steady state in find_steady_state! function!\n"*
-                    "Try to increase the delta parameter or to decrease the inital_stiffness of the init_sim! function.")
+                    "Try to increase the delta parameter or to decrease the initial_stiffness of the init_sim! function.")
             return nothing
         else
             rethrow(e)

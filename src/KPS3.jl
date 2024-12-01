@@ -528,12 +528,12 @@ function find_steady_state_inner(s::KPS3, X, prn=false; delta=0.0)
  end
 
 """
-    find_steady_state!(s::KPS3, prn=false, delta = 0.0, stiffness_factor=0.035)
+    find_steady_state!(s::KPS3; prn=false, delta = 0.0, stiffness_factor=0.035, upwind_dir=-pi/2)
 
-Find an initial equilibrium, based on the inital parameters
+Find an initial equilibrium, based on the initial parameters
 `l_tether`, elevation and `v_reel_out`.
 """
-function find_steady_state!(s::KPS3; prn=false, delta = 0.0, stiffness_factor=0.035)
+function find_steady_state!(s::KPS3; prn=false, delta = 0.0, stiffness_factor=0.035, upwind_dir=-pi/2)
     zero = zeros(SimFloat, 2*s.set.segments)
     s.stiffness_factor=stiffness_factor
     zero = find_steady_state_inner(s, zero, prn; delta)
