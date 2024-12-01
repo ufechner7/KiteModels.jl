@@ -11,6 +11,7 @@
 - add the packages `JLD2` and `Colors` to the system image
 #### Added
 - add examples `calc_spectrum.jl` and `plot_spectrum` to plot the eigenfrequencies of the system
+- function `menu2()` which displays a menu with scripts for model verification
 
 ### KiteModels v0.6.11 2024-11-09
 #### Fixed
