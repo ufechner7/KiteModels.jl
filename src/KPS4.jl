@@ -641,16 +641,26 @@ function find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0
                 j = i + 1
             end
             # copy the x-component of the residual res2 (acceleration)
-            F[i]                               = res[1 + 3*(j-1) + 3*(s.set.segments+KITE_PARTICLES)]
+            x = res[1 + 3*(j-1) + 3*(s.set.segments+KITE_PARTICLES)]
+            y = res[2 + 3*(j-1) + 3*(s.set.segments+KITE_PARTICLES)]
+            # turn the x,y vector by upwind_dir+pi/2
+            F[i] = cos(upwind_dir+pi/2) * x + sin(upwind_dir+pi/2) * y
+            # F[i]                               = res[1 + 3*(j-1) + 3*(s.set.segments+KITE_PARTICLES)]
             # copy the z-component of the residual res2
             F[i+s.set.segments+KITE_PARTICLES] = res[3 + 3*(j-1) + 3*(s.set.segments+KITE_PARTICLES)]
         end
         # copy the acceleration of point KCU in x direction
         i = s.set.segments+1
-        F[end-1]                               = res[1 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)] 
+        x = res[1 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)]
+        y = res[2 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)]
+        F[end-1]                               = cos(upwind_dir+pi/2) * x + sin(upwind_dir+pi/2) * y
+        # F[end-1]                               = res[1 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)] 
         # copy the acceleration of point C in y direction
         i = s.set.segments+3 
-        F[end]                                 = res[2 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)] 
+        x = res[1 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)]
+        y = res[2 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)]
+        F[end]                                 = cos(upwind_dir+pi/2) * y + sin(upwind_dir+pi/2) * x
+        # F[end]                                 = res[2 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)] 
         iter += 1
         return nothing 
     end
