@@ -26,6 +26,7 @@ PLOT = true
 PRINT = true
 STATISTIC = false
 DEPOWER = 0.47:-0.005:0.355
+UPWIND_DIR = -pi/2
 # end of user parameter section #
 
 elev = set.elevation
@@ -35,7 +36,7 @@ logger::Logger = Logger(set.segments + 5, STEPS)
 
 kcu::KCU = KCU(set)
 kps4::KPS4 = KPS4(kcu)
-integrator = KiteModels.init_sim!(kps4; delta=0.03, stiffness_factor=0.1, prn=STATISTIC)
+integrator = KiteModels.init_sim!(kps4; delta=0.03, stiffness_factor=0.01, upwind_dir=UPWIND_DIR, prn=STATISTIC)
 lift, drag = lift_drag(kps4)
 sys_state = KiteModels.SysState(kps4)
 log!(logger, sys_state)
