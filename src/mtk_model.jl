@@ -345,8 +345,10 @@ function scalar_eqs(s, seqs, pos, vel, acc, flap_angle, flap_vel, flap_acc, segm
     flap_length = s.kite_length_C/4
     seqs = [
         seqs
-        pos[:, s.num_flap_C]    ~ pos[:, s.num_C] - e_x * flap_length * cos(flap_angle[1]) + e_r_C * flap_length * sin(flap_angle[1])
-        pos[:, s.num_flap_D]    ~ pos[:, s.num_D] - e_x * flap_length * cos(flap_angle[2]) + e_r_D * flap_length * sin(flap_angle[2])
+        pos[:, s.num_flap_C]    ~ pos[:, s.num_C] - e_x * flap_length * cos(flap_angle[1]) + e_r_C * flap_length * sin(flap_angle[1]) + 
+            e_z * (sin(s.α_C) * s.set.radius + (s.set.bridle_center_distance - s.set.radius))
+        pos[:, s.num_flap_D]    ~ pos[:, s.num_D] - e_x * flap_length * cos(flap_angle[2]) + e_r_D * flap_length * sin(flap_angle[2]) +
+            e_z * (sin(s.α_C) * s.set.radius + (s.set.bridle_center_distance - s.set.radius))
         vel[:, s.num_flap_C]    ~ vel[:, s.num_C] - e_x * flap_length * cos(flap_vel[1]) + e_r_C * flap_length * sin(flap_vel[1])
         vel[:, s.num_flap_D]    ~ vel[:, s.num_D] - e_x * flap_length * cos(flap_vel[2]) + e_r_D * flap_length * sin(flap_vel[2])
         acc[:, s.num_flap_C]    ~ acc[:, s.num_C] - e_x * flap_length * cos(flap_acc[1]) + e_r_C * flap_length * sin(flap_acc[1])
@@ -385,6 +387,8 @@ function scalar_eqs(s, seqs, pos, vel, acc, flap_angle, flap_vel, flap_acc, segm
         kite_acc(t)[1:3]
         x_acc(t)
         y_acc(t)
+        left_diff(t)
+        right_diff(t)
     end
     seqs = [
         seqs
@@ -410,6 +414,8 @@ function scalar_eqs(s, seqs, pos, vel, acc, flap_angle, flap_vel, flap_acc, segm
         kite_acc            ~ acc[:, s.num_C] + acc[:, s.num_D] + acc[:, s.num_A]
         x_acc               ~ (acc[:, s.num_C] + acc[:, s.num_D] + acc[:, s.num_A]) ⋅ e_x
         y_acc               ~ (acc[:, s.num_C] + acc[:, s.num_D] + acc[:, s.num_A]) ⋅ e_y
+        left_diff           ~ tether_length[1] - tether_length[3]
+        right_diff          ~ tether_length[2] - tether_length[3]
     ]
     return seqs
 end
@@ -542,52 +548,73 @@ The distance/vel/acc of the kite cannot be measured directly, but the average ac
 
 Assume distance_acc = tether_acc[3] for convenience
 """
-function model!(s::KPS4_3L)
+function model!(s::KPS4_3L; real=true)
     # pos, vel = init_pos_vel(s)
-    init_pos!(s; α = 17.0)
+    init_pos!(s; α = 30.0)
     sys, inputs = create_sys!(s)
     sys = structural_simplify(sys; fully_determined=false)
     s.simple_sys = sys
 
-    normal_pos_idxs = vcat(4:s.num_flap_C-1, s.num_E)
+    if (real) normal_pos_idxs = vcat(4:s.num_flap_C-1, s.num_E)
+    else normal_pos_idxs = vcat(4:s.num_flap_C-1, s.num_E:s.num_A) end
     u0map = [
         # [sys.vel[j, i] => (sys.vel[j, s.num_C] + sys.vel[j, s.num_D]) / 2 * (i / length(normal_pos_idxs)) for j in 1:3 for i in normal_pos_idxs]
         [sys.vel[j, i] => 0 for j in 1:3 for i in normal_pos_idxs]
-        [sys.acc[j, i] => (sys.kite_acc * (k / length(normal_pos_idxs)))[j] for j in 1:3 for (k, i) in enumerate(normal_pos_idxs)]
 
         # [sys.flap_angle[j] => 0 for j in 1:2]
         # [sys.winch_force[j] => [21, 25][j] for j in 1:2]
         [sys.flap_vel[j] => 0 for j in 1:2]
         [sys.flap_acc[j] => 0 for j in 1:2]
 
-        # [sys.tether_length[j] => s.tether_lengths[j] for j in 1:3]
-        [sys.tether_vel[j] => [0.0, 0.0, 0.0][j] for j in 1:3]
-        [sys.tether_acc[j] => 0 for j in 1:3]
-        [sys.set_values[j] => s.measure.winch_torque[j] for j in 1:3]
-
-        # C and D are calculated directly using measured distance and heading, under the assumption that distance from ground to C = distance from ground to D
-        # A => calculated using e_x from P_c
-        # E => vel and acc are set to zero
-        [sys.pos[j, s.num_C] => s.pos[s.num_C][j] for j in 1:3]
-        [sys.pos[j, s.num_D] => s.pos[s.num_D][j] for j in 1:3]
-        [sys.pos[j, s.num_A] => sys.P_c[j] - sys.e_x[j]*(s.kite_length_C*(3/4 - 1/4)) for j in 1:3]
-        [sys.vel[j, s.num_C] => 0 for j in 1:3] # calculate vel using change in elevation and azimuth and current best guess for distance_vel
-        [sys.vel[j, s.num_D] => 0 for j in 1:3]
-        [sys.vel[j, s.num_A] => 0 for j in 1:3]
-
         sys.gust_factor => 1.0 # give distance_acc instead
-        # sys.distance_acc => 0.0
+        # sys.distance_acc => 36
     ]
+    if real
+        u0map = [
+            u0map
+            [sys.acc[j, i] => (sys.kite_acc * (k / length(normal_pos_idxs)))[j] for j in 1:3 for (k, i) in enumerate(normal_pos_idxs)]
+
+            sys.left_diff => s.measure.tether_length[1] - s.measure.tether_length[3]
+            sys.right_diff => s.measure.tether_length[2] - s.measure.tether_length[3]
+            sys.tether_acc[3] => s.measure.tether_acc[3]
+            [sys.tether_vel[j] => s.measure.tether_vel[j] for j in 1:3]
+            [sys.set_values[j] => s.measure.winch_torque[j] for j in 1:3]
+    
+            # C and D are calculated directly using measured distance and heading, under the assumption that distance from ground to C = distance from ground to D
+            # A => calculated using e_x from P_c
+            # E => vel and acc are set to zero
+            [sys.pos[j, s.num_C] => s.pos[s.num_C][j] for j in 1:3]
+            [sys.pos[j, s.num_D] => s.pos[s.num_D][j] for j in 1:3]
+            [sys.pos[j, s.num_A] => sys.P_c[j] - sys.e_x[j]*(s.kite_length_C*(3/4 - 1/4)) for j in 1:3]
+            [sys.vel[j, s.num_C] => 0 for j in 1:3] # calculate vel using change in elevation and azimuth and current best guess for distance_vel
+            [sys.vel[j, s.num_D] => 0 for j in 1:3]
+            [sys.vel[j, s.num_A] => 0 for j in 1:3]    
+        ]
+    else
+        u0map = [
+            u0map
+            [sys.pos[j, s.num_C] => s.pos[s.num_C][j] for j in 1:3]
+            [sys.pos[j, s.num_D] => s.pos[s.num_D][j] for j in 1:3]
+            [sys.acc[j, i] => 0 for j in 1:3 for i in normal_pos_idxs]
+
+            [sys.tether_vel[j] => 0 for j in 1:3]
+            [sys.tether_acc[j] => 0 for j in 1:3]
+            # [sys.set_values[j] => s.measure.winch_torque[j] for j in 1:3]
+        ]
+    end
     guesses = [
-        [sys.pos[j, i] => s.pos[i][j] for j in 1:3 for i in normal_pos_idxs]
+        [sys.pos[j, i] => s.pos[i][j] for j in 1:3 for i in 1:s.num_A]
         [sys.flap_angle[j] => 0 for j in 1:2]
         # [sys.tether_vel[j] => 0 for j in 1:3]
-        [sys.tether_length[j] => s.tether_lengths[j] for j in 1:3]
+        [sys.tether_length[j] => s.measure.tether_length[j] for j in 1:3]
         sys.gust_factor => 1.0
+        [sys.kite_acc[j] => 0 for j in 1:3]
+        [sys.set_values[j] => s.measure.winch_torque[j] for j in 1:3]
+        sys.set_diff => s.measure.winch_torque[2] - s.measure.winch_torque[1]
     ]
-    @time prob = ModelingToolkit.InitializationProblem(sys, 0.0, u0map; guesses, fully_determined=true)
-    tol = 1e-2
-    @time remake(prob; u0=u0map)
+    @time prob = ModelingToolkit.InitializationProblem(sys, 0.0, u0map; guesses, fully_determined=real)
+    tol = 1e-1
+    # @time remake(prob; u0=u0map)
     @time sol = solve(prob; maxiters=10_000, abstol=tol, reltol=tol)
     # println("remaking init prob")
     # @time remake(prob; u0=[sys.gust_factor=>1.1])

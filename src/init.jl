@@ -138,6 +138,12 @@ function init_pos!(s::KPS4_3L; α = 5.0)
     # ground points
     [s.pos[i] .= [0, 0, 0] for i in 1:3]
 
+    width, radius, tip_length, middle_length = s.set.width, s.set.radius, s.set.tip_length, s.set.middle_length
+    α_0 = pi/2 - width/2/radius
+    s.α_C = α_0 + width*(-2*tip_length + sqrt(2*middle_length^2 + 2*tip_length^2)) /
+        (4*(middle_length - tip_length)) / radius
+    s.kite_length_C = tip_length + (middle_length-tip_length) * (s.α_C - α_0) / (π/2 - α_0)
+    
     # kite points
     C = rotate_in_yx(rotate_in_xz([s.measure.distance, 0, 0], s.measure.elevation_left), s.measure.azimuth_left)
     D = rotate_in_yx(rotate_in_xz([s.measure.distance, 0, 0], s.measure.elevation_right), s.measure.azimuth_right)
@@ -146,14 +152,8 @@ function init_pos!(s::KPS4_3L; α = 5.0)
     D = C - s.e_y * s.springs[end-2].length
     P_c = (C+D)/2
     s.e_z .= normalize(s.pos[3] .- P_c) # no bend in middle tether
-    E = P_c + s.e_z * s.set.bridle_center_distance
     s.e_x .= s.e_y × s.e_z
-
-    width, radius, tip_length, middle_length = s.set.width, s.set.radius, s.set.tip_length, s.set.middle_length
-    α_0 = pi/2 - width/2/radius
-    α_C = α_0 + width*(-2*tip_length + sqrt(2*middle_length^2 + 2*tip_length^2)) /
-        (4*(middle_length - tip_length)) / radius
-    s.kite_length_C = tip_length + (middle_length-tip_length) * (α_C - α_0) / (π/2 - α_0)
+    E = P_c + (sin(s.α_C) * radius + (s.set.bridle_center_distance - radius)) * s.e_z
     A = P_c - s.e_x*(s.kite_length_C*(3/4 - 1/4))
 
     s.pos[s.num_A] .= A
@@ -174,8 +174,10 @@ function init_pos!(s::KPS4_3L; α = 5.0)
     angle_flap_c = 0.0 # distance between c and left flap
     angle_flap_d = 0.0
     # distance_c_l = s.set.tip_length/2 # distance between c and left steering line
-    s.pos[s.num_flap_C] .= s.pos[s.num_C] - s.e_x * flap_length * cos(angle_flap_c) + e_r_C * flap_length * sin(angle_flap_c)
-    s.pos[s.num_flap_D] .= s.pos[s.num_D] - s.e_x * flap_length * cos(angle_flap_d) + e_r_D * flap_length * sin(angle_flap_d)
+    s.pos[s.num_flap_C] .= s.pos[s.num_C] - s.e_x * flap_length * cos(angle_flap_c) + e_r_C * flap_length * sin(angle_flap_c) +
+        s.e_z * (sin(s.α_C) * s.set.radius + (s.set.bridle_center_distance - s.set.radius))
+    s.pos[s.num_flap_D] .= s.pos[s.num_D] - s.e_x * flap_length * cos(angle_flap_d) + e_r_D * flap_length * sin(angle_flap_d) +
+        s.e_z * (sin(s.α_C) * s.set.radius + (s.set.bridle_center_distance - s.set.radius))
 
     # build left and right tether points with degrees of bend α
     s.tether_lengths[3] = norm(s.pos[s.num_E])
