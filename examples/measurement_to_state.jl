@@ -6,20 +6,20 @@ function angle_between_vectors(v1, v2)
     return rad2deg(θ)  # Angle in radians
 end
 
-s = KPS4_3L(KCU(se("system_3l.yaml")))
-update_settings()
-s.set.segments = 2
-s.set.aero_surfaces = 2
-s.measure.winch_torque = [-1.95, -0.818, -4.97]
+set = se("system_3l.yaml")
+set.segments = 2
+set.aero_surfaces = 2
+s = KPS4_3L(KCU(set))
+s.measure.winch_torque = [-0.2, -0.2, -20]
 s.measure.tether_length = [47.37, 47.59, 47.639]
 s.measure.distance = s.set.l_tether
-s.measure.elevation_left = deg2rad(89)
-s.measure.elevation_right = deg2rad(89)
-s.measure.azimuth_left = deg2rad(-3)
+s.measure.elevation_left = deg2rad(80)
+s.measure.elevation_right = deg2rad(80)
+s.measure.azimuth_left = deg2rad(-1)
 s.measure.azimuth_right = deg2rad(1)
 s.measure.distance_acc = s.measure.tether_acc[3]
 
-prob, sol, ss = model!(s; real=false)
+prob, sol, ss, u0map = model!(s; real=false)
 
 pos = sol[ss.pos]
 pos = [[pos[j, i] for j in 1:3] for i in 1:s.num_A]
@@ -28,6 +28,9 @@ l = s.set.l_tether+10
 plot2d(pos, 0.0; zoom=true, front=false, xlim=(-l/2, l/2), ylim=(0, l))
 
 # next_step!(s)
-@show angle_between_vectors(s.pos[5], s.pos[5+3]-s.pos[5])
+@show angle_between_vectors(pos[5], pos[5+3]-pos[5])
 @show sol.retcode
+# for (u, e) in zip(sol.resid, equations(prob.f.sys))
+#     println(u, "\t", e)
+# end
 nothing

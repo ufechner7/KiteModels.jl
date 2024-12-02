@@ -255,7 +255,7 @@ function calc_particle_forces!(s::KPS4_3L, seqs, force_eqs, force, pos1, pos2, v
                 seqs
                 spring_force[j] ~
                     ((k  * (l_0 - norm1) - c * spring_vel) * unit_vector[j] - c2 * perp_vel[j]) * (1 + smooth_sign_ϵ(norm1 - l_0; s.ϵ)) / 2 +
-                    ((k2 * (l_0 - norm1) - c * spring_vel) * unit_vector[j] - c2 * perp_vel[j]) * (1 - smooth_sign_ϵ(norm1 - l_0; s.ϵ)) / 2
+                    ((-c * spring_vel) * unit_vector[j] - c2 * perp_vel[j]) * (1 - smooth_sign_ϵ(norm1 - l_0; s.ϵ)) / 2
             ]
         end
     end
@@ -550,29 +550,19 @@ Assume distance_acc = tether_acc[3] for convenience
 """
 function model!(s::KPS4_3L; real=true)
     # pos, vel = init_pos_vel(s)
-    init_pos!(s; α = 30.0)
+    init_pos!(s; α = 10.0)
     sys, inputs = create_sys!(s)
     sys = structural_simplify(sys; fully_determined=false)
     s.simple_sys = sys
 
     if (real) normal_pos_idxs = vcat(4:s.num_flap_C-1, s.num_E)
-    else normal_pos_idxs = vcat(4:s.num_flap_C-1, s.num_E:s.num_A) end
-    u0map = [
-        # [sys.vel[j, i] => (sys.vel[j, s.num_C] + sys.vel[j, s.num_D]) / 2 * (i / length(normal_pos_idxs)) for j in 1:3 for i in normal_pos_idxs]
-        [sys.vel[j, i] => 0 for j in 1:3 for i in normal_pos_idxs]
-
-        # [sys.flap_angle[j] => 0 for j in 1:2]
-        # [sys.winch_force[j] => [21, 25][j] for j in 1:2]
-        [sys.flap_vel[j] => 0 for j in 1:2]
-        [sys.flap_acc[j] => 0 for j in 1:2]
-
-        sys.gust_factor => 1.0 # give distance_acc instead
-        # sys.distance_acc => 36
-    ]
+    else normal_pos_idxs = vcat(4:s.num_flap_C-1, s.num_E, s.num_A) end
     if real
         u0map = [
-            u0map
-            [sys.acc[j, i] => (sys.kite_acc * (k / length(normal_pos_idxs)))[j] for j in 1:3 for (k, i) in enumerate(normal_pos_idxs)]
+            # [sys.vel[j, i] => (sys.vel[j, s.num_C] + sys.vel[j, s.num_D]) / 2 * (i / length(normal_pos_idxs)) for j in 1:3 for i in normal_pos_idxs]
+            [sys.vel[j, i] => 0 for j in 1:3 for i in normal_pos_idxs]
+            [sys.acc[j, i] => (sys.kite_acc * (norm(s.pos[i]) / norm(0.5*s.pos[s.num_C] + 0.5*s.pos[s.num_D])))[j] 
+                for j in 1:3 for i in normal_pos_idxs]
 
             sys.left_diff => s.measure.tether_length[1] - s.measure.tether_length[3]
             sys.right_diff => s.measure.tether_length[2] - s.measure.tether_length[3]
@@ -589,33 +579,57 @@ function model!(s::KPS4_3L; real=true)
             [sys.vel[j, s.num_C] => 0 for j in 1:3] # calculate vel using change in elevation and azimuth and current best guess for distance_vel
             [sys.vel[j, s.num_D] => 0 for j in 1:3]
             [sys.vel[j, s.num_A] => 0 for j in 1:3]    
+
+            # [sys.flap_angle[j] => 0 for j in 1:2]
+            # [sys.winch_force[j] => [21, 25][j] for j in 1:2]
+            [sys.flap_vel[j] => 0 for j in 1:2]
+            [sys.flap_acc[j] => 0 for j in 1:2]
+
+            sys.gust_factor => 1.0 # give distance_acc instead
+            # sys.distance_acc => 36
         ]
     else
         u0map = [
-            u0map
-            [sys.pos[j, s.num_C] => s.pos[s.num_C][j] for j in 1:3]
-            [sys.pos[j, s.num_D] => s.pos[s.num_D][j] for j in 1:3]
-            [sys.acc[j, i] => 0 for j in 1:3 for i in normal_pos_idxs]
+            # [sys.pos[j, s.num_C] => s.pos[s.num_C][j] for j in 1:3]
+            # [sys.pos[j, s.num_D] => s.pos[s.num_D][j] for j in 1:3]
+            # [sys.pos[2, i] => s.pos[i][2] for i in normal_pos_idxs]
+            # [sys.acc[j, i] => 0 for j in 1:3 for i in vcat(normal_pos_idxs, s.num_C, s.num_D)]
+            # [sys.vel[j, i] => collect((sys.vel[:, s.num_C] + sys.vel[:, s.num_D]) / 2 * (norm(s.pos[i]) / norm(0.5*s.pos[s.num_C] + 0.5*s.pos[s.num_D])))[j]
+            #     for j in 1:3 for i in normal_pos_idxs]
+            sys.distance => norm(s.pos[s.num_A])
+            # [sys.vel[j, i] => 0 for j in 1:3 for i in 4:s.num_A]
+            [sys.acc[j, i] => 0 for j in 1:3 for i in vcat(4:s.num_flap_C-1, s.num_flap_D+1:s.num_A)]
 
-            [sys.tether_vel[j] => 0 for j in 1:3]
+            # [sys.flap_vel[j] => 0 for j in 1:2]
+            [sys.flap_acc[j] => 0 for j in 1:2]
+
+            sys.gust_factor => 1.0
+
+            [sys.tether_vel[j] => [0, 0, 0][j] for j in 1:3]
             [sys.tether_acc[j] => 0 for j in 1:3]
-            # [sys.set_values[j] => s.measure.winch_torque[j] for j in 1:3]
+            # [sys.set_values[j] => s.measure.winch_torque[j] for j in 1:3]# TODO: set set values symbolically to -winch_torque
         ]
     end
     guesses = [
         [sys.pos[j, i] => s.pos[i][j] for j in 1:3 for i in 1:s.num_A]
+        [sys.vel[j, i] => 0 for j in 1:3 for i in 1:s.num_A]
+
         [sys.flap_angle[j] => 0 for j in 1:2]
-        # [sys.tether_vel[j] => 0 for j in 1:3]
+        [sys.flap_vel[j] => 0 for j in 1:2]
+
         [sys.tether_length[j] => s.measure.tether_length[j] for j in 1:3]
+        [sys.tether_vel[j] => 0 for j in 1:3]
+
         sys.gust_factor => 1.0
         [sys.kite_acc[j] => 0 for j in 1:3]
         [sys.set_values[j] => s.measure.winch_torque[j] for j in 1:3]
         sys.set_diff => s.measure.winch_torque[2] - s.measure.winch_torque[1]
     ]
     @time prob = ModelingToolkit.InitializationProblem(sys, 0.0, u0map; guesses, fully_determined=real)
-    tol = 1e-1
+    tol = 1e-3
     # @time remake(prob; u0=u0map)
-    @time sol = solve(prob; maxiters=10_000, abstol=tol, reltol=tol)
+    @time sol = solve(prob, RobustMultiNewton(); maxiters=10_000, abstol=tol, reltol=tol)
+    @time sol = solve(prob, RobustMultiNewton(); maxiters=10_000, abstol=tol, reltol=tol)
     # println("remaking init prob")
     # @time remake(prob; u0=[sys.gust_factor=>1.1])
     # @time sol = solve(prob; maxiters=10_000, abstol=tol, reltol=tol)
@@ -634,5 +648,5 @@ function model!(s::KPS4_3L; real=true)
     # solver = qndf(autodiff=false) # https://docs.sciml.ai/scimlbenchmarksoutput/stable/#results
     # @time s.integrator = ordinarydiffeqcore.init(prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
     # @time s.integrator = ordinarydiffeqcore.init(prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
-    return prob, sol, sys
+    return prob, sol, sys, u0map
 end

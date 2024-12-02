@@ -147,9 +147,11 @@ function init_pos!(s::KPS4_3L; α = 5.0)
     # kite points
     C = rotate_in_yx(rotate_in_xz([s.measure.distance, 0, 0], s.measure.elevation_left), s.measure.azimuth_left)
     D = rotate_in_yx(rotate_in_xz([s.measure.distance, 0, 0], s.measure.elevation_right), s.measure.azimuth_right)
+    P_c = (C+D)/2
     s.e_y .= normalize(C - D)
-    # calculate D again to make sure the distance between C and D is correct
-    D = C - s.e_y * s.springs[end-2].length
+    # calculate C and D again to make sure the distance between C and D is correct
+    C = P_c + s.e_y * s.springs[end-2].length / 2
+    D = P_c - s.e_y * s.springs[end-2].length / 2
     P_c = (C+D)/2
     s.e_z .= normalize(s.pos[3] .- P_c) # no bend in middle tether
     s.e_x .= s.e_y × s.e_z
