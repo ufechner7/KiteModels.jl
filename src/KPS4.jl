@@ -618,6 +618,20 @@ function spring_forces(s::KPS4; prn=true)
     forces
 end
 
+# todo: write testcase
+function turn(res, upwind_dir)
+    turnangle = upwind_dir + pi/2
+    res2 = zeros(SimFloat, length(res))
+    for i in 1:div(length(res), 3)
+        x = res[3*(i-1)+1]
+        y = res[3*(i-1)+2]
+        res2[3*(i-1)+1] = cos(turnangle) * x + sin(turnangle) * y
+        res2[3*(i-1)+2] = cos(turnangle) * y - sin(turnangle) * x
+        res2[3*(i-1)+3] = res[3*(i-1)+3]
+    end
+    res2
+end
+
 """
     find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0.035, upwind_dir=-pi/2))
 
@@ -641,26 +655,18 @@ function find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0
                 j = i + 1
             end
             # copy the x-component of the residual res2 (acceleration)
-            x = res[1 + 3*(j-1) + 3*(s.set.segments+KITE_PARTICLES)]
-            y = res[2 + 3*(j-1) + 3*(s.set.segments+KITE_PARTICLES)]
-            # turn the x,y vector by upwind_dir+pi/2
-            F[i] = cos(upwind_dir+pi/2) * x + sin(upwind_dir+pi/2) * y
-            # F[i]                               = res[1 + 3*(j-1) + 3*(s.set.segments+KITE_PARTICLES)]
+            F[i]                               = res[1 + 3*(j-1) + 3*(s.set.segments+KITE_PARTICLES)]
             # copy the z-component of the residual res2
             F[i+s.set.segments+KITE_PARTICLES] = res[3 + 3*(j-1) + 3*(s.set.segments+KITE_PARTICLES)]
         end
         # copy the acceleration of point KCU in x direction
         i = s.set.segments+1
-        x = res[1 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)]
-        y = res[2 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)]
-        F[end-1]                               = cos(upwind_dir+pi/2) * x + sin(upwind_dir+pi/2) * y
-        # F[end-1]                               = res[1 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)] 
+        F[end-1]                               = res[1 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)] 
         # copy the acceleration of point C in y direction
         i = s.set.segments+3 
         x = res[1 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)]
         y = res[2 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)]
-        F[end]                                 = cos(upwind_dir+pi/2) * y + sin(upwind_dir+pi/2) * x
-        # F[end]                                 = res[2 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)] 
+        F[end]                                 = res[2 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)] 
         iter += 1
         return nothing 
     end
@@ -668,5 +674,8 @@ function find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0
     X00 = zeros(SimFloat, 2*(s.set.segments+KITE_PARTICLES-1)+2)
     results = nlsolve(test_initial_condition!, X00, autoscale=true, xtol=4e-7, ftol=4e-7, iterations=s.set.max_iter)
     if prn println("\nresult: $results") end
-    init(s, results.zero)
+    println("xxx, turnangle: ", upwind_dir+pi/2)
+    y0, yd0 = init(s, turn(results.zero, upwind_dir))
+    residual!(res, yd0, y0, s, 0.0)
+    y0, yd0
 end
