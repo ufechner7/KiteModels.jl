@@ -482,7 +482,7 @@ function next_step!(s::KPS4_3L; set_values=zeros(KVec3), v_wind_gnd=s.set.v_wind
         s.get_D_D = getu(s.integrator.sol, s.simple_sys.D_D)
         s.get_tether_lengths = getu(s.integrator.sol, s.simple_sys.tether_length)
         s.get_tether_vels = getu(s.integrator.sol, s.simple_sys.tether_vel)
-        s.get_heading = getu(s.integrator.sol, s.simple_sys.heading)
+        s.get_heading = getu(s.integrator.sol, s.simple_sys.heading_y)
     end
     s.set_set_values(s.integrator, set_values)
     s.integrator.p[s.v_wind_gnd_idx] .= s.v_wind_gnd

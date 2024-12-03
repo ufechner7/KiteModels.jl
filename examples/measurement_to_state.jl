@@ -10,7 +10,7 @@ set = se("system_3l.yaml")
 set.segments = 2
 set.aero_surfaces = 2
 s = KPS4_3L(KCU(set))
-s.measure.winch_torque = [-0.2, -0.2, -20]
+s.measure.winch_torque = [-0.2, -0.2, -70]
 s.measure.tether_length = [47.37, 47.59, 47.639]
 s.measure.distance = s.set.l_tether
 s.measure.elevation_left = deg2rad(80)
@@ -25,7 +25,7 @@ pos = sol[ss.pos]
 pos = [[pos[j, i] for j in 1:3] for i in 1:s.num_A]
 
 l = s.set.l_tether+10
-plot2d(pos, 0.0; zoom=true, front=false, xlim=(-l/2, l/2), ylim=(0, l))
+# plot2d(pos, 0.0; zoom=true, front=false, xlim=(-l/2, l/2), ylim=(0, l))
 
 # next_step!(s)
 @show angle_between_vectors(pos[5], pos[5+3]-pos[5])
@@ -33,4 +33,15 @@ plot2d(pos, 0.0; zoom=true, front=false, xlim=(-l/2, l/2), ylim=(0, l))
 # for (u, e) in zip(sol.resid, equations(prob.f.sys))
 #     println(u, "\t", e)
 # end
+
+t = 0
+try
+    while t < 20
+        global t
+        plot2d(s.pos, t; zoom=true, front=false, xlim=(-l/2, l/2), ylim=(0, l))
+        t = next_step!(s; set_values=[-0.2, -0.2, -70])
+    end
+catch AssertionError
+    @show t
+end
 nothing

@@ -552,7 +552,7 @@ function model!(s::KPS4_3L; real=true)
     # pos, vel = init_pos_vel(s)
     init_pos!(s; α = 10.0)
     sys, inputs = create_sys!(s)
-    sys = structural_simplify(sys; fully_determined=false)
+    (sys, _) = structural_simplify(sys, (inputs, []); fully_determined=false)
     s.simple_sys = sys
 
     if (real) normal_pos_idxs = vcat(4:s.num_flap_C-1, s.num_E)
@@ -590,22 +590,22 @@ function model!(s::KPS4_3L; real=true)
         ]
     else
         u0map = [
-            # [sys.pos[j, s.num_C] => s.pos[s.num_C][j] for j in 1:3]
-            # [sys.pos[j, s.num_D] => s.pos[s.num_D][j] for j in 1:3]
-            # [sys.pos[2, i] => s.pos[i][2] for i in normal_pos_idxs]
-            # [sys.acc[j, i] => 0 for j in 1:3 for i in vcat(normal_pos_idxs, s.num_C, s.num_D)]
-            # [sys.vel[j, i] => collect((sys.vel[:, s.num_C] + sys.vel[:, s.num_D]) / 2 * (norm(s.pos[i]) / norm(0.5*s.pos[s.num_C] + 0.5*s.pos[s.num_D])))[j]
-            #     for j in 1:3 for i in normal_pos_idxs]
             sys.distance => norm(s.pos[s.num_A])
             # [sys.vel[j, i] => 0 for j in 1:3 for i in 4:s.num_A]
+            # [sys.vel[j, 4] => sys.vel[j, 5] for j in 1:3]
+            # [sys.vel[j, 5] => sys.vel[j, 6] for j in 1:3]
             [sys.acc[j, i] => 0 for j in 1:3 for i in vcat(4:s.num_flap_C-1, s.num_flap_D+1:s.num_A)]
+
+            [sys.spring_vel[i] => 0 for i in eachindex(s.springs)]
 
             # [sys.flap_vel[j] => 0 for j in 1:2]
             [sys.flap_acc[j] => 0 for j in 1:2]
 
             sys.gust_factor => 1.0
 
-            [sys.tether_vel[j] => [0, 0, 0][j] for j in 1:3]
+            # [sys.set_values[i] => -s.set.drum_radius * sys.winch_force[i] for i in 1:3]
+
+            [sys.tether_vel[j] => 0 for j in 1:3]
             [sys.tether_acc[j] => 0 for j in 1:3]
             # [sys.set_values[j] => s.measure.winch_torque[j] for j in 1:3]# TODO: set set values symbolically to -winch_torque
         ]
@@ -617,7 +617,7 @@ function model!(s::KPS4_3L; real=true)
         [sys.flap_angle[j] => 0 for j in 1:2]
         [sys.flap_vel[j] => 0 for j in 1:2]
 
-        [sys.tether_length[j] => s.measure.tether_length[j] for j in 1:3]
+        [sys.tether_length[j] => s.tether_lengths[j] for j in 1:3]
         [sys.tether_vel[j] => 0 for j in 1:3]
 
         sys.gust_factor => 1.0
@@ -626,27 +626,24 @@ function model!(s::KPS4_3L; real=true)
         sys.set_diff => s.measure.winch_torque[2] - s.measure.winch_torque[1]
     ]
     @time prob = ModelingToolkit.InitializationProblem(sys, 0.0, u0map; guesses, fully_determined=real)
-    tol = 1e-3
+    tol = 2
     # @time remake(prob; u0=u0map)
-    @time sol = solve(prob, RobustMultiNewton(); maxiters=10_000, abstol=tol, reltol=tol)
-    @time sol = solve(prob, RobustMultiNewton(); maxiters=10_000, abstol=tol, reltol=tol)
+    # @time sol = solve(prob, RobustMultiNewton(); maxiters=10_000, abstol=tol, reltol=tol)
+    @time sol = solve(prob; maxiters=10_000, abstol=tol, reltol=tol)
+    @time sol = solve(prob; maxiters=10_000, abstol=tol, reltol=tol)
     # println("remaking init prob")
     # @time remake(prob; u0=[sys.gust_factor=>1.1])
     # @time sol = solve(prob; maxiters=10_000, abstol=tol, reltol=tol)
     # @time remake(prob; u0=[sys.gust_factor=>0.9])
     # @time sol = solve(prob; maxiters=10_000, abstol=tol, reltol=tol)
 
-    # loop that fixes acc measurements if not succesful retcode
-    if !successful_retcode(sol)
-
-    end
-
-    # @time sol = solve(prob, LevenbergMarquardt(); maxiters=10_000)
-    # dt = 1/s.set.sample_freq
-    # tspan   = (0.0, dt)
-    # @time prob = ODEProblem(sys, u0map, tspan; guesses, fully_determined=false)
-    # solver = qndf(autodiff=false) # https://docs.sciml.ai/scimlbenchmarksoutput/stable/#results
-    # @time s.integrator = ordinarydiffeqcore.init(prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
-    # @time s.integrator = ordinarydiffeqcore.init(prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
+    dt = 1/s.set.sample_freq
+    tspan   = (0.0, dt)
+    # @time s.prob = ODEProblem(sys, u0map, tspan; guesses, fully_determined=real, check_length=real)
+    u0 = collect(unknowns(sys) .=> sol[unknowns(sys)])
+    p0 = collect(sys.set_values .=> sol[sys.set_values])
+    s.prob = ODEProblem(sys, u0, tspan, p0)
+    solver = QNDF(autodiff=false) # https://docs.sciml.ai/scimlbenchmarksoutput/stable/#results
+    s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
     return prob, sol, sys, u0map
 end
