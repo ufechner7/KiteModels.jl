@@ -590,22 +590,24 @@ function model!(s::KPS4_3L; real=true)
         ]
     else
         u0map = [
-            sys.distance => norm(s.pos[s.num_A])
+            # sys.distance => norm(s.pos[s.num_A])
             # [sys.vel[j, i] => 0 for j in 1:3 for i in 4:s.num_A]
             # [sys.vel[j, 4] => sys.vel[j, 5] for j in 1:3]
             # [sys.vel[j, 5] => sys.vel[j, 6] for j in 1:3]
-            [sys.acc[j, i] => 0 for j in 1:3 for i in vcat(4:s.num_flap_C-1, s.num_flap_D+1:s.num_A)]
+            collect(sys.pos[:, s.num_A] .=> s.pos[s.num_A])
+            [sys.vel[j, i] => norm(s.pos[i]) / norm(s.pos[s.num_A]) * sys.vel[j, s.num_A] 
+                for j in 1:3 for i in vcat(4:s.num_flap_C-1, s.num_flap_D+1:s.num_A-1)]
+            [sys.acc[:, i] => 0 for i in vcat(4:s.num_flap_C-1, s.num_flap_D+1:s.num_A)]
+            # [sys.spring_vel[i] => 0 for i in eachindex(s.springs)]
 
-            [sys.spring_vel[i] => 0 for i in eachindex(s.springs)]
-
-            # [sys.flap_vel[j] => 0 for j in 1:2]
+            [sys.flap_vel[j] => 0 for j in 1:2]
             [sys.flap_acc[j] => 0 for j in 1:2]
 
             sys.gust_factor => 1.0
 
             # [sys.set_values[i] => -s.set.drum_radius * sys.winch_force[i] for i in 1:3]
 
-            [sys.tether_vel[j] => 0 for j in 1:3]
+            [sys.tether_length[j] => s.tether_lengths[j] for j in 1:3]
             [sys.tether_acc[j] => 0 for j in 1:3]
             # [sys.set_values[j] => s.measure.winch_torque[j] for j in 1:3]# TODO: set set values symbolically to -winch_torque
         ]
@@ -625,8 +627,8 @@ function model!(s::KPS4_3L; real=true)
         [sys.set_values[j] => s.measure.winch_torque[j] for j in 1:3]
         sys.set_diff => s.measure.winch_torque[2] - s.measure.winch_torque[1]
     ]
-    @time prob = ModelingToolkit.InitializationProblem(sys, 0.0, u0map; guesses, fully_determined=real)
-    tol = 2
+    @time prob = ModelingToolkit.InitializationProblem(sys, 0.0, u0map; guesses, fully_determined=true)
+    tol = 1e-3
     # @time remake(prob; u0=u0map)
     # @time sol = solve(prob, RobustMultiNewton(); maxiters=10_000, abstol=tol, reltol=tol)
     @time sol = solve(prob; maxiters=10_000, abstol=tol, reltol=tol)

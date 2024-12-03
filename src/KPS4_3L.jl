@@ -312,7 +312,7 @@ function update_sys_state!(ss::SysState, s::KPS4_3L, zoom=1.0)
     ss.elevation = calc_elevation(s)
     ss.azimuth = calc_azimuth(s)
     ss.force = winch_force(s)[3]
-    ss.heading = calc_heading(s.e_x, s.pos[s.num_E])
+    ss.heading = calc_heading_y(s.e_x)
     ss.course = calc_course(s)
     ss.v_app = norm(s.v_apparent)
     ss.l_tether = s.tether_lengths[3]
@@ -324,6 +324,7 @@ function update_sys_state!(ss::SysState, s::KPS4_3L, zoom=1.0)
 end
 
 function SysState(s::KPS4_3L, zoom=1.0) # TODO: add left and right lines, stop using getters and setters
+    generate_getters!(s)
     pos = s.pos
     P = length(pos)
     X = zeros(MVector{P, MyFloat})
@@ -339,7 +340,7 @@ function SysState(s::KPS4_3L, zoom=1.0) # TODO: add left and right lines, stop u
     elevation = calc_elevation(s)
     azimuth = calc_azimuth(s)
     forces = winch_force(s)
-    heading = calc_heading(s.e_x, s.pos[s.num_E])
+    heading = calc_heading_y(s.e_x)
     course = calc_course(s)
     v_app_norm = norm(s.v_apparent)
     t_sim = 0
@@ -463,10 +464,7 @@ function init_sim!(s::KPS4_3L; damping_coeff=s.damping_coeff, prn=false,
     return nothing
 end
 
-
-function next_step!(s::KPS4_3L; set_values=zeros(KVec3), v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2, dt=1/s.set.sample_freq)
-    s.iter = 0
-    set_v_wind_ground!(s, calc_height(s), v_wind_gnd; upwind_dir)
+function generate_getters!(s)
     if isnothing(s.get_pos)
         s.v_wind_gnd_idx = parameter_index(s.integrator.f, :v_wind_gnd)
         s.v_wind_idx = parameter_index(s.integrator.f, :v_wind)
@@ -484,6 +482,13 @@ function next_step!(s::KPS4_3L; set_values=zeros(KVec3), v_wind_gnd=s.set.v_wind
         s.get_tether_vels = getu(s.integrator.sol, s.simple_sys.tether_vel)
         s.get_heading = getu(s.integrator.sol, s.simple_sys.heading_y)
     end
+    nothing
+end
+
+function next_step!(s::KPS4_3L; set_values=zeros(KVec3), v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2, dt=1/s.set.sample_freq)
+    s.iter = 0
+    set_v_wind_ground!(s, calc_height(s), v_wind_gnd; upwind_dir)
+    generate_getters!(s)
     s.set_set_values(s.integrator, set_values)
     s.integrator.p[s.v_wind_gnd_idx] .= s.v_wind_gnd
     s.integrator.p[s.v_wind_idx] .= s.v_wind
