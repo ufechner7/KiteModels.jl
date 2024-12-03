@@ -24,7 +24,7 @@ s.measure.azimuth_left = deg2rad(-1)
 s.measure.azimuth_right = deg2rad(1)
 s.measure.distance_acc = s.measure.tether_acc[3]
 
-prob, sol, ss, u0map = model!(s; real=false)
+prob, sol, ss, u0map = model!(s; real=true)
 sys_state = KiteModels.SysState(s)
 
 norm0 = 38
@@ -51,9 +51,9 @@ try
         plot2d(s.pos, t; zoom=true, front=false, xlim=(-l/2, l/2), ylim=(0, l))
         t = next_step!(s; set_values=s.measure.winch_torque, dt)
         KiteModels.update_sys_state!(sys_state, s)
-        sys_state.var_01 = norm(s.get_tether_vels(s.integrator))
+        sys_state.var_01 = s.get_tether_vels(s.integrator)[3]
         sys_state.var_02 = mean(norm.([s.integrator[ss.acc[:, i]] for i in vcat(4:s.num_flap_C-1, s.num_flap_D+1:s.num_A)]))
-        sys_state.var_03 = norm(s.pos)
+        sys_state.var_03 = angle_between_vectors(s.pos[5], s.pos[5+3]-s.pos[5])
         sys_state.var_04 = norm(s.integrator[ss.vel])
         log!(logger, sys_state)
     end
@@ -72,7 +72,7 @@ p=plotx(logger.time_vec,
         labels=[
             ["tether_vel","vel"],
             ["acc"],
-            ["pos"],],
+            ["angle"],],
         fig="Steering and heading MTK model")
 display(p)
 nothing

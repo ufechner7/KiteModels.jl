@@ -559,57 +559,38 @@ function model!(s::KPS4_3L; real=true)
     else normal_pos_idxs = vcat(4:s.num_flap_C-1, s.num_E, s.num_A) end
     if real
         u0map = [
-            # [sys.vel[j, i] => (sys.vel[j, s.num_C] + sys.vel[j, s.num_D]) / 2 * (i / length(normal_pos_idxs)) for j in 1:3 for i in normal_pos_idxs]
-            [sys.vel[j, i] => 0 for j in 1:3 for i in normal_pos_idxs]
-            [sys.acc[j, i] => (sys.kite_acc * (norm(s.pos[i]) / norm(0.5*s.pos[s.num_C] + 0.5*s.pos[s.num_D])))[j] 
-                for j in 1:3 for i in normal_pos_idxs]
-
-            sys.left_diff => s.measure.tether_length[1] - s.measure.tether_length[3]
-            sys.right_diff => s.measure.tether_length[2] - s.measure.tether_length[3]
-            sys.tether_acc[3] => s.measure.tether_acc[3]
-            [sys.tether_vel[j] => s.measure.tether_vel[j] for j in 1:3]
-            [sys.set_values[j] => s.measure.winch_torque[j] for j in 1:3]
-    
-            # C and D are calculated directly using measured distance and heading, under the assumption that distance from ground to C = distance from ground to D
-            # A => calculated using e_x from P_c
-            # E => vel and acc are set to zero
-            [sys.pos[j, s.num_C] => s.pos[s.num_C][j] for j in 1:3]
-            [sys.pos[j, s.num_D] => s.pos[s.num_D][j] for j in 1:3]
-            [sys.pos[j, s.num_A] => sys.P_c[j] - sys.e_x[j]*(s.kite_length_C*(3/4 - 1/4)) for j in 1:3]
-            [sys.vel[j, s.num_C] => 0 for j in 1:3] # calculate vel using change in elevation and azimuth and current best guess for distance_vel
-            [sys.vel[j, s.num_D] => 0 for j in 1:3]
-            [sys.vel[j, s.num_A] => 0 for j in 1:3]    
-
-            # [sys.flap_angle[j] => 0 for j in 1:2]
-            # [sys.winch_force[j] => [21, 25][j] for j in 1:2]
-            [sys.flap_vel[j] => 0 for j in 1:2]
-            [sys.flap_acc[j] => 0 for j in 1:2]
-
-            sys.gust_factor => 1.0 # give distance_acc instead
-            # sys.distance_acc => 36
-        ]
-    else
-        u0map = [
             # sys.distance => norm(s.pos[s.num_A])
-            # [sys.vel[j, i] => 0 for j in 1:3 for i in 4:s.num_A]
-            # [sys.vel[j, 4] => sys.vel[j, 5] for j in 1:3]
-            # [sys.vel[j, 5] => sys.vel[j, 6] for j in 1:3]
-            collect(sys.pos[:, s.num_A] .=> s.pos[s.num_A])
+            [sys.pos[j, s.num_A] => s.pos[s.num_A][j] for j in 1:3]
             [sys.vel[j, i] => norm(s.pos[i]) / norm(s.pos[s.num_A]) * sys.vel[j, s.num_A] 
                 for j in 1:3 for i in vcat(4:s.num_flap_C-1, s.num_flap_D+1:s.num_A-1)]
             [sys.acc[:, i] => 0 for i in vcat(4:s.num_flap_C-1, s.num_flap_D+1:s.num_A)]
-            # [sys.spring_vel[i] => 0 for i in eachindex(s.springs)]
 
             [sys.flap_vel[j] => 0 for j in 1:2]
             [sys.flap_acc[j] => 0 for j in 1:2]
 
             sys.gust_factor => 1.0
 
-            # [sys.set_values[i] => -s.set.drum_radius * sys.winch_force[i] for i in 1:3]
+            # [sys.tether_length[j] => s.tether_lengths[j] for j in 1:3]
+            # [sys.tether_vel[j] => [0.01, 0.01, -10][j] for j in 1:3]
+            [sys.winch_force[j] => [3.49, 3.49, 57.52][j] for j in 1:3]
+            [sys.tether_acc[j] => 0 for j in 1:3]
+        ]
+    else
+        u0map = [
+            # sys.distance => norm(s.pos[s.num_A])
+            [sys.pos[j, s.num_A] => s.pos[s.num_A][j] for j in 1:3]
+            [sys.vel[j, i] => norm(s.pos[i]) / norm(s.pos[s.num_A]) * sys.vel[j, s.num_A] 
+                for j in 1:3 for i in vcat(4:s.num_flap_C-1, s.num_flap_D+1:s.num_A-1)]
+            [sys.acc[:, i] => 0 for i in vcat(4:s.num_flap_C-1, s.num_flap_D+1:s.num_A)]
+
+            [sys.flap_vel[j] => 0 for j in 1:2]
+            [sys.flap_acc[j] => 0 for j in 1:2]
+
+            sys.gust_factor => 1.0
 
             [sys.tether_length[j] => s.tether_lengths[j] for j in 1:3]
+            # [sys.tether_vel[j] => [1.46, 1.46, 1.46][j] for j in 1:3]
             [sys.tether_acc[j] => 0 for j in 1:3]
-            # [sys.set_values[j] => s.measure.winch_torque[j] for j in 1:3]# TODO: set set values symbolically to -winch_torque
         ]
     end
     guesses = [
