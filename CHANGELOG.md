@@ -1,3 +1,9 @@
+### Unreleased
+#### Changed
+- update the fields `set_steering`, `bearing` and `attractor` of the `SysState` struct 
+  in the function `update_sys_state!`
+- add the parameters `bearing` and `attractor` to the function `next_step!` for logging
+
 ### KiteModels v0.6.22 2024-12-01
 #### Changed
 - update the fields `set_torque`, `set_force`, `set_speed`, `alpha3`, `alpha4`, `roll`, `pitch`, `yaw`
