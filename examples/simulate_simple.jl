@@ -18,6 +18,7 @@ FRONT_VIEW = false
 ZOOM = true
 PRINT = false
 STATISTIC = false
+UPWIND_DIR = -pi/2 +deg2rad(1)
 # end of user parameter section #
 
 kcu::KCU = KCU(set)
@@ -58,7 +59,7 @@ function simulate(integrator, steps, plot=false)
     iter / steps
 end
 
-integrator = KiteModels.init_sim!(kps4;  delta=0.0, stiffness_factor=1, prn=STATISTIC)
+integrator = KiteModels.init_sim!(kps4;  delta=0.0, stiffness_factor=1, upwind_dir=UPWIND_DIR, prn=STATISTIC)
 
 if PLOT
     global flight_log
