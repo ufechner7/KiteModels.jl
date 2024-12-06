@@ -1,6 +1,7 @@
 using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils
 using KiteModels, KitePodModels
 
+set = deepcopy(load_settings("system.yaml"))
 if ! @isdefined kcu
     const kcu = KCU(se())
 end
@@ -47,7 +48,7 @@ function init_150()
     kps4.set.v_wind = 9.1
     kps4.set.mass = 6.21
     kps4.set.c_s = 0.6
-    kps4.set.damping = 473.0     # unit damping coefficient
+    kps4.set.damping = 473.0     # unit damping
     kps4.set.c_spring = 614600.0 # unit spring coefficent
     kps4.set.width = 4.9622
 end
@@ -539,7 +540,7 @@ end
 end
 
 @testset "Raptures" begin
-    kps4_ = KPS4(KCU(se()))
+    kps4_ = KPS4(KCU(set))
     integrator = KiteModels.init_sim!(kps4_; stiffness_factor=0.035, prn=false)
     kps4_.set.version = 2
     kps4_.stiffness_factor = 3
@@ -561,6 +562,21 @@ end
     @test isdir("bin")
     cd("bin")
     @test isfile("create_sys_image")
+end
+
+@testset "turn" begin
+    # test the turn function
+    UPWIND_DIR = -pi/2 +deg2rad(10)
+
+    # y, yd
+    res=[1.0, 0, 1, 0, 0, 0]
+    res2 = KiteModels.turn(res, UPWIND_DIR)
+    @test res2[1] ≈ 0.984807753012208
+    @test res2[2] ≈ -0.17364817766693036
+    @test res2[3] ≈ 1.0
+    @test res2[4] ≈ 0.0
+    @test res2[5] ≈ 0.0
+    @test res2[6] ≈ 0.0
 end
 
 end
