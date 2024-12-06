@@ -458,7 +458,18 @@ function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
         else
             ss.set_force = s.set_force
         end
+        if isnothing(s.bearing)
+            ss.bearing = NaN
+        else
+            ss.bearing = s.bearing
+        end
+        if isnothing(s.attractor)
+            ss.attractor = [NaN, NaN]
+        else
+            ss.attractor = s.attractor
+        end
     end
+    ss.set_steering = s.kcu.set_steering
     if isnothing(s.set_torque)
         ss.set_torque = NaN
     else
