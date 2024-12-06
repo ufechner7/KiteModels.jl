@@ -111,7 +111,8 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
     if old
         particles = KiteUtils.get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k)
     else
-        particles = KiteUtils.get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k, pos[s.set.segments+1], rotate_in_xz(vec_c, deg2rad(KITE_ANGLE)), s.v_apparent)
+        particles = KiteUtils.get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k, 
+                              pos[s.set.segments+1], rotate_in_xz(vec_c, deg2rad(KITE_ANGLE)), s.v_apparent)
     end
     j = 1
     for i in [1,2,3] # set p8, p9, p10
@@ -151,8 +152,8 @@ function init_pos_vel_acc(s::KPS4_3L; delta = 0.0, α = 45.0)
 
     # kite points
     vec_c = pos[s.num_flap_C-1] - pos[s.num_E]
-    E, C, D, A, s.α_C, s.kite_length_C = KiteUtils.get_particles_3l(s.set.width, s.set.radius, 
-                            s.set.middle_length, s.set.tip_length, s.set.bridle_center_distance, pos[s.num_E], vec_c, s.v_apparent)
+    E, C, D, A, s.α_C, s.kite_length_C = KiteUtils.get_particles_3l(s.set.width, s.set.radius, s.set.middle_length, 
+                    s.set.tip_length, s.set.bridle_center_distance, pos[s.num_E], vec_c, s.v_apparent)
 
     pos[s.num_A] .= A
     pos[s.num_C] .= C
