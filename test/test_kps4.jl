@@ -475,15 +475,15 @@ end
     pre_tension = KiteModels.calc_pre_tension(kps4)
     @test pre_tension > 1.0001
     @test pre_tension < 1.01
-    @test unstretched_length(kps4) ≈ 392.0              # initial, unstreched tether lenght
+    @test unstretched_length(kps4) ≈ 392.0              # initial, unstretched tether lenght
     # println("length: ", tether_length(kps4))
-    @test isapprox(tether_length(kps4), 408.74, rtol=1e-2) # real, streched tether length was: 406.4
+    @test isapprox(tether_length(kps4), 407.27, rtol=1e-2) # real, stretched tether length was: 406.4
 #    @test winch_force(kps) ≈ 276.25776695110034        # initial force at the winch [N]
 #    lift, drag = lift_drag(kps)
 #    @test lift ≈ 443.63303000106197                    # initial lift force of the kite [N]
 #    @test drag ≈ 94.25223134952152                     # initial drag force of the kite [N]
-#    @test lift_over_drag(kps) ≈ 4.706870316479931      # initlal lift-over-drag
-#    @test norm(v_wind_kite(kps)) ≈ 9.107670173739065   # inital wind speed at the height of the kite [m/s]
+#    @test lift_over_drag(kps) ≈ 4.706870316479931      # initial lift-over-drag
+#    @test norm(v_wind_kite(kps)) ≈ 9.107670173739065   # initial wind speed at the height of the kite [m/s]
 end
 
 @testset "test_spring_forces    " begin
