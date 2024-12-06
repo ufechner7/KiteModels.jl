@@ -18,7 +18,7 @@ FRONT_VIEW = false
 ZOOM = true
 PRINT = false
 STATISTIC = false
-UPWIND_DIR = -pi/2 +deg2rad(1)
+UPWIND_DIR = -pi/2 +deg2rad(10)
 # end of user parameter section #
 
 kcu::KCU = KCU(set)
