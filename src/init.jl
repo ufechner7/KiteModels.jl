@@ -257,8 +257,6 @@ function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=fal
     MVector{6*(s.set.segments+KITE_PARTICLES)+2, SimFloat}(res1), MVector{6*(s.set.segments+KITE_PARTICLES)+2, SimFloat}(res2)
 end
 
-
-
 function init(s::KPS4_3L; delta=0.0)
     y_, yd_ = init_inner(s; delta = delta)
     y = vcat(reduce(vcat, y_), reduce(vcat,[s.tether_lengths, zeros(3)]))
