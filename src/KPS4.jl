@@ -622,7 +622,6 @@ function spring_forces(s::KPS4; prn=true)
     forces
 end
 
-# todo: write testcase
 function turn(res, upwind_dir)
     turnangle = upwind_dir + pi/2
     res2 = zeros(SimFloat, length(res))
@@ -679,9 +678,7 @@ function find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0
     X00 = zeros(SimFloat, 2*(s.set.segments+KITE_PARTICLES-1)+2)
     results = nlsolve(test_initial_condition!, X00, autoscale=true, xtol=4e-7, ftol=4e-7, iterations=s.set.max_iter)
     if prn println("\nresult: $results") end
-    y0, yd0 = init(s, turn(results.zero, upwind_dir))
-    println("y0: $y0")
-    println("turning by $(rad2deg(upwind_dir+pi/2)) °")
+    y0, yd0 = init(s, results.zero; upwind_dir)
     set_v_wind_ground!(s, calc_height(s), s.set.v_wind; upwind_dir)
     residual!(res, yd0, y0, s, 0.0)
     y0, yd0
