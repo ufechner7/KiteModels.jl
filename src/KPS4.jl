@@ -179,6 +179,10 @@ $(TYPEDFIELDS)
     set_torque::Union{S, Nothing} = nothing
     "set value of the force at the winch, for logging only"
     set_force::Union{S, Nothing} = nothing
+    "set value of the bearing angle in radians, for logging only"
+    bearing::Union{S, Nothing} = nothing
+    "coordinates of the attractor point [azimuth, elevation] in radian, for logging only"
+    attractor::Union{SVector{2, S}, Nothing} = nothing
     "x vector of kite reference frame"
     x::T =                 zeros(S, 3)
     "y vector of kite reference frame"
