@@ -1,8 +1,11 @@
-### Unreleased
+### KiteModels v0.6.23 2024-12-06
 #### Changed
 - update the fields `set_steering`, `bearing` and `attractor` of the `SysState` struct 
   in the function `update_sys_state!`
 - add the parameters `bearing` and `attractor` to the function `next_step!` for logging
+#### Fixed
+- fix #88: the function `init_sim!()` has the new parameter `upwind_dir` to define the
+  initial wind direction 
 
 ### KiteModels v0.6.22 2024-12-01
 #### Changed
