@@ -252,9 +252,15 @@ function init_inner(s::KPS4_3L; delta=0.0)
 end
 
 # same as above, but returns a tuple of two one dimensional arrays
-function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false, delta=0.0)
+function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false, delta=0.0, upwind_dir=nothing)
     res1_, res2_ = init_inner(s, X; old=old, delta = delta)
-    res1, res2  = vcat(reduce(vcat, res1_), [s.l_tether, 0]), vcat(reduce(vcat, res2_),[0,0])
+    res1__ = reduce(vcat, res1_)
+    res2__ = reduce(vcat, res2_)
+    if !isnothing(upwind_dir)
+        res1__ = turn(res1__, upwind_dir)
+        res2__ = turn(res2__, upwind_dir)
+    end
+    res1, res2  = vcat(res1__, [s.l_tether, 0]),  vcat(res2__,[0,0])
     MVector{6*(s.set.segments+KITE_PARTICLES)+2, SimFloat}(res1), MVector{6*(s.set.segments+KITE_PARTICLES)+2, SimFloat}(res2)
 end
 
