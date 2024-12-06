@@ -57,6 +57,7 @@ println("y:", kps4.y) # to the right looking in flight direction
 println("z:", kps4.z) # down
 azimuth = calc_azimuth(kps4)
 println("azimuth: ", round(rad2deg(azimuth), digits = 2), "°")
+println("azimuth_north: ", round(rad2deg(KiteUtils.azimuth_north(pos_kite(kps4))), digits = 2), "°")
 
 # print point C and point D
 pos_C, pos_D = kps4.pos[kps4.set.segments+4], kps4.pos[kps4.set.segments+5]
