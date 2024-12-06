@@ -643,6 +643,7 @@ Find an initial equilibrium, based on the initial parameters
 `l_tether`, elevation and `v_reel_out`.
 """
 function find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0.035, upwind_dir=-pi/2)
+    set_v_wind_ground!(s, calc_height(s), s.set.v_wind; upwind_dir)
     s.stiffness_factor = stiffness_factor
     res = zeros(MVector{6*(s.set.segments+KITE_PARTICLES)+2, SimFloat})
     iter = 0
@@ -678,7 +679,6 @@ function find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0
     X00 = zeros(SimFloat, 2*(s.set.segments+KITE_PARTICLES-1)+2)
     results = nlsolve(test_initial_condition!, X00, autoscale=true, xtol=4e-7, ftol=4e-7, iterations=s.set.max_iter)
     if prn println("\nresult: $results") end
-    println("xxx, turnangle: ", upwind_dir+pi/2)
     y0, yd0 = init(s, turn(results.zero, upwind_dir))
     residual!(res, yd0, y0, s, 0.0)
     y0, yd0
