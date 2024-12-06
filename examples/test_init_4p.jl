@@ -26,7 +26,7 @@ PLOT = true
 PRINT = true
 STATISTIC = false
 DEPOWER = 0.47:-0.005:0.355
-UPWIND_DIR = -pi/2 #+deg2rad(10)
+UPWIND_DIR = -pi/2 +deg2rad(10)
 # end of user parameter section #
 
 elev = set.elevation
