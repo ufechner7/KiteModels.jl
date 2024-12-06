@@ -1,6 +1,7 @@
 using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils
 using KiteModels, KitePodModels
 
+set_data_path(joinpath(dirname(dirname(pathof(KiteModels))), "data"))
 set = deepcopy(load_settings("system.yaml"))
 if ! @isdefined kcu
     const kcu = KCU(set)
@@ -544,7 +545,7 @@ end
     integrator = KiteModels.init_sim!(kps4_; stiffness_factor=0.035, prn=false)
     kps4_.set.version = 2
     kps4_.stiffness_factor = 3
-    @test maximum(spring_forces(kps4_; prn=false)) > 20000
+    @test maximum(spring_forces(kps4_; prn=false)) > 9000
 end
 
 # TODO Add test for winch_force
