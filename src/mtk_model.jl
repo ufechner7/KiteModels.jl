@@ -382,7 +382,7 @@ function scalar_eqs(s, seqs, pos, vel, acc, flap_angle, flap_vel, flap_acc, segm
         set_diff(t)
         azimuth(t)
         elevation(t)
-        distance(t)
+        distance(t)[1:s.num_A]
         distance_acc(t)
         kite_acc(t)[1:3]
         x_acc(t)
@@ -406,7 +406,6 @@ function scalar_eqs(s, seqs, pos, vel, acc, flap_angle, flap_vel, flap_acc, segm
         set_diff            ~ set_values[2] - set_values[1]
         # D(set_values)       ~ [0, 0, 0]
 
-        distance            ~ norm(pos[:, end])
         distance_acc        ~ (acc[:, s.num_C] + acc[:, s.num_D] + acc[:, s.num_A]) ⋅ normalize(P_c - pos[:, 3])
         elevation           ~ atan(pos[3, end] / pos[1, end])
         # elevation_vel     ~ vel in direction up
@@ -417,6 +416,9 @@ function scalar_eqs(s, seqs, pos, vel, acc, flap_angle, flap_vel, flap_acc, segm
         left_diff           ~ tether_length[1] - tether_length[3]
         right_diff          ~ tether_length[2] - tether_length[3]
     ]
+    for i in 1:s.num_A
+        seqs = [seqs; distance[i] ~ norm(pos[:, i])]
+    end
     return seqs
 end
 
@@ -559,10 +561,12 @@ function model!(s::KPS4_3L; real=true)
     else normal_pos_idxs = vcat(4:s.num_flap_C-1, s.num_E, s.num_A) end
     if real
         u0map = [
-            # sys.distance => norm(s.pos[s.num_A])
+            # sys.distance[s.num_A] => norm(s.pos[s.num_A])
             [sys.pos[j, s.num_A] => s.pos[s.num_A][j] for j in 1:3]
             [sys.vel[j, i] => norm(s.pos[i]) / norm(s.pos[s.num_A]) * sys.vel[j, s.num_A] 
                 for j in 1:3 for i in vcat(4:s.num_flap_C-1, s.num_flap_D+1:s.num_A-1)]
+            # [sys.vel[j, i] => norm(s.pos[i]) / norm(s.pos[s.num_A]) * sys.vel[j, s.num_A] 
+            #     for j in 1:3 for i in vcat(4:s.num_flap_C-1, s.num_flap_D+1:s.num_A-1)]
             [sys.acc[:, i] => 0 for i in vcat(4:s.num_flap_C-1, s.num_flap_D+1:s.num_A)]
 
             [sys.flap_vel[j] => 0 for j in 1:2]
@@ -577,7 +581,7 @@ function model!(s::KPS4_3L; real=true)
         ]
     else
         u0map = [
-            # sys.distance => norm(s.pos[s.num_A])
+            # sys.distance[s.num_A] => norm(s.pos[s.num_A])
             [sys.pos[j, s.num_A] => s.pos[s.num_A][j] for j in 1:3]
             [sys.vel[j, i] => norm(s.pos[i]) / norm(s.pos[s.num_A]) * sys.vel[j, s.num_A] 
                 for j in 1:3 for i in vcat(4:s.num_flap_C-1, s.num_flap_D+1:s.num_A-1)]
@@ -612,8 +616,7 @@ function model!(s::KPS4_3L; real=true)
     tol = 1e-3
     # @time remake(prob; u0=u0map)
     # @time sol = solve(prob, RobustMultiNewton(); maxiters=10_000, abstol=tol, reltol=tol)
-    @time sol = solve(prob; maxiters=10_000, abstol=tol, reltol=tol)
-    @time sol = solve(prob; maxiters=10_000, abstol=tol, reltol=tol)
+    @time sol = solve(prob; maxiters=20_000, abstol=tol, reltol=tol)
     # println("remaking init prob")
     # @time remake(prob; u0=[sys.gust_factor=>1.1])
     # @time sol = solve(prob; maxiters=10_000, abstol=tol, reltol=tol)
