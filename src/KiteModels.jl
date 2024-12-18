@@ -169,7 +169,7 @@ end
 """
     unstretched_length(s::AKM)
 
-Getter for the unstretched tether reel-out lenght (at zero force).
+Getter for the unstretched tether reel-out length (at zero force).
 """
 function unstretched_length(s::AKM) s.l_tether end
 
