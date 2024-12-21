@@ -84,7 +84,7 @@ use the input and output functions instead.
 
 $(TYPEDFIELDS)
 """
-@with_kw mutable struct KPS4_3L{S, T, P, Q, SP} <: AbstractKiteModel
+@with_kw mutable struct KPS4_3L{S, T, P, Q, SP} <: AbstractKiteModel # TODO: subdivide in kite-changing fields and non-kite-changing fields. combine this with fast caching
     "Reference to the settings struct"
     set::Settings
     "Reference to the settings hash"
@@ -184,6 +184,16 @@ $(TYPEDFIELDS)
     flap_damping::S     = 0.75
     "Measured data points used to create an initial state"
     measure::Measurements = Measurements()
+    "Buffer for expected kite pos and vel, defined as (pos, vel), (x, y, z), (value)"
+    expected_tether_pos_vel_buffer::Array{S, 3} = zeros(2, 3, (P ÷ 3)-1)
+    "Buffers for Jacobian for expected tether point velocities relative to winch velocities and kite velocities"
+    J_buffer::Matrix{S} = zeros(3((P ÷ 3)-1), 2)
+    "Makes autodiff faster"
+    prep::Union{Nothing, Any} = nothing
+    "Buffer for jacobian y values (vectorized velocities)"
+    y_buffer::Vector{SimFloat} = zeros(3*((P ÷ 3)-1))
+    "Buffer for jacobian x values (angle, distance)"
+    x_buffer::Vector{SimFloat} = zeros(2)
 
     # set_values_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
     v_wind_gnd_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
@@ -204,6 +214,10 @@ $(TYPEDFIELDS)
     get_heading::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     integrator::Union{Sundials.CVODEIntegrator, OrdinaryDiffEqCore.ODEIntegrator, Nothing} = nothing
     u0:: Vector{SimFloat} = [0.0]
+end
+
+function show(io::IO, s::KPS4_3L)
+    print(io, "KPS4_3L")
 end
 
 """
@@ -370,7 +384,7 @@ end
 
 # function calc_heading(e_x, pos_kite)
 #     # turn s.e_x by -azimuth around global z-axis and then by elevation around global y-axis
-#     vec = rotate_in_xz(rotate_in_yx(e_x, -KiteUtils.azimuth_east(pos_kite)), -KiteUtils.calc_elevation(pos_kite))
+#     vec = rotate_around_y(rotate_around_z(e_x, -KiteUtils.azimuth_east(pos_kite)), -KiteUtils.calc_elevation(pos_kite))
 #     heading = atan(-vec[2], vec[3])
 #     return heading
 # end
@@ -535,7 +549,117 @@ function tether_length(s::KPS4_3L)
     return length
 end
 
+"""
+Only on x and z axis, tether start and end point laying on x axis
+"""
+function generate_tether!(pos, d, segments, tether_length, total_angle)
+    segment_angle = total_angle / segments
+    pos[:, 1] .= 0
+    initial_angle = -total_angle / 2 + segment_angle/2
+    for i in 2:segments+1
+        angle = initial_angle + (i - 2) * segment_angle
+        pos[1, i] = pos[1, i-1] + tether_length/segments * cos(angle)
+        pos[2, i] = 0.0
+        pos[3, i] = pos[3, i-1] + tether_length/segments * sin(angle)
+    end
+    dx = pos[1, end] - pos[1, 1]
+    dz = pos[3, end] - pos[3, 1]
+    d[] = sqrt(dx^2 + dz^2)
+    nothing
+end
 
+"""
+Rotate a 3d matrix by a quaternion rotation
+"""
+function rotate!(pos, quat)
+    for i in eachindex(pos[1, :])
+        pos[:, i] .= quat * pos[:, i]
+    end
+    nothing
+end
+
+"""
+Generate a 2d tether given a certain distance and length.
+"""
+function tether_from_distance_length!(pos, distance::SimFloat, tether_length::SimFloat, segments, quat)
+    d = Ref(0.0)
+    cost = Ref(0.0)
+    d[] = 0.0
+    cost[] = 0.0
+    function f_zero!(total_angle)
+        generate_tether!(pos, d, segments, tether_length, total_angle)
+        cost[] = d[] - distance
+        return cost[]
+    end
+    Roots.find_zero(f_zero!, (0, 2π); atol=1e-6)
+    rotate!(pos, quat)
+    nothing
+end
+
+"""
+Rotation from vector u to vector v
+"""
+function quaternion_rotation(u, v)
+    d = dot(u, v)
+    w = cross(u, v)
+    return QuatRotation(d + sqrt(d * d + dot(w, w)), w...)
+end
+
+"""
+Kite pos: C flap pos - D flap pos - middle tether pos \
+Kite vel: C flap vel - D flap vel - middle tether vel \
+Tether vel: left - middle - right tether vel
+
+Return: an expected vel for all kite pos
+"""
+function calc_expected_pos_vel(s::KPS4_3L, kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, stretched_tether_length) # TODO: remove the 123 caused by this issue: https://github.com/SciML/ModelingToolkit.jl/issues/3003
+    try
+        kite_pos = [kite_pos1, kite_pos2, kite_pos3]
+        s.expected_tether_pos_vel_buffer .= 0.0
+        expected_pos = @views s.expected_tether_pos_vel_buffer[1, :, :]
+        expected_vel = @views s.expected_tether_pos_vel_buffer[2, :, :]
+        J, y, x, segments = s.J_buffer, s.y_buffer, s.x_buffer, s.set.segments
+        distance = norm(kite_pos)
+
+        if any(isnan.((kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, stretched_tether_length))) || 
+                any(isa.((kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, stretched_tether_length), ForwardDiff.Dual)) ||
+                distance >= stretched_tether_length
+            expected_pos .= NaN
+            expected_vel .= NaN
+            return s.expected_tether_pos_vel_buffer
+        end
+
+        quat = quaternion_rotation([1, 0, 0], kite_pos)
+        function f_jac!(dx, x)
+            tether_from_distance_length!(expected_pos, x[1], x[2], segments, quat)
+            dx .= vec(expected_pos)
+            nothing
+        end
+
+        x[1] = distance
+        x[2] = stretched_tether_length
+        backend = ADTypes.AutoFiniteDiff()
+        if isnothing(s.prep)
+            s.prep = prepare_jacobian(f_jac!, y, backend, x)
+        end
+        DifferentiationInterface.jacobian!(f_jac!, y, J, s.prep, backend, x)
+        expected_vel .= reshape(J * [kite_vel, tether_vel], size(expected_vel))
+    catch e
+        @show kite_pos1 kite_pos2 kite_pos3 kite_vel tether_vel stretched_tether_length
+        rethrow(e)
+    end
+    @show 
+    return s.expected_tether_pos_vel_buffer
+end
+const FD = ForwardDiff.Dual
+function calc_expected_pos_vel(s::KPS4_3L, _::FD, _::FD, _::FD, _::FD, _::FD, _::FD) # dummy function for forwarddiff compatibility
+    s.expected_tether_pos_vel_buffer .= NaN
+    return s.expected_tether_pos_vel_buffer
+end
+@register_array_symbolic calc_expected_pos_vel(s::KPS4_3L, kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, stretched_tether_length) begin
+    size = size(s.expected_tether_pos_vel_buffer)
+    eltype = SimFloat
+end
 
 # =================== getter functions ====================================================
 

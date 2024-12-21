@@ -110,7 +110,7 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
     if old
         particles = KiteUtils.get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k)
     else
-        particles = KiteUtils.get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k, pos[s.set.segments+1], rotate_in_xz(vec_c, deg2rad(KITE_ANGLE)), s.v_apparent)
+        particles = KiteUtils.get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k, pos[s.set.segments+1], rotate_around_y(vec_c, -deg2rad(KITE_ANGLE)), s.v_apparent)
     end
     j = 1
     for i in [1,2,3] # set p8, p9, p10
@@ -145,8 +145,8 @@ function init_pos!(s::KPS4_3L; α = 5.0)
     s.kite_length_C = tip_length + (middle_length-tip_length) * (s.α_C - α_0) / (π/2 - α_0)
     
     # kite points
-    C = rotate_in_yx(rotate_in_xz([s.measure.distance, 0, 0], s.measure.elevation_left), s.measure.azimuth_left)
-    D = rotate_in_yx(rotate_in_xz([s.measure.distance, 0, 0], s.measure.elevation_right), s.measure.azimuth_right)
+    C = rotate_around_z(rotate_around_y([s.measure.distance, 0, 0], -s.measure.elevation_left), s.measure.azimuth_left)
+    D = rotate_around_z(rotate_around_y([s.measure.distance, 0, 0], -s.measure.elevation_right), s.measure.azimuth_right)
     P_c = (C+D)/2
     s.e_y .= normalize(C - D)
     # calculate C and D again to make sure the distance between C and D is correct
@@ -257,20 +257,20 @@ function init(s::KPS4_3L; delta=0.0)
     MVector{6*(s.num_A-5)+4+6, SimFloat}(y), MVector{6*(s.num_A-5)+4+6, SimFloat}(yd)
 end
 
-# rotate a 3d vector around the y axis
-function rotate_in_xz(vec, angle)
+# rotate a 3d vector around the y axis in the xz plane - following the right hand rule
+function rotate_around_y(vec, angle)
     result = similar(vec)
-    result[1] = cos(angle) * vec[1] - sin(angle) * vec[3]
+    result[1] = cos(angle) * vec[1] + sin(angle) * vec[3]
     result[2] = vec[2]
-    result[3] = cos(angle) * vec[3] + sin(angle) * vec[1]
+    result[3] = -sin(angle) * vec[1] + cos(angle) * vec[3]
     result
 end
 
-# rotate a 3d vector around the z axis
-function rotate_in_yx(vec, angle)
+# rotate a 3d vector around the z axis in the yx plane - following the right hand rule
+function rotate_around_z(vec, angle)
     result = similar(vec)
-    result[1] = cos(angle) * vec[1] + sin(angle) * vec[2]
-    result[2] = cos(angle) * vec[2] - sin(angle) * vec[1]
+    result[1] = cos(angle) * vec[1] - sin(angle) * vec[2]
+    result[2] = sin(angle) * vec[1] + cos(angle) * vec[2]
     result[3] = vec[3]
     result
 end

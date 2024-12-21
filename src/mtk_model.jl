@@ -17,7 +17,7 @@ end
 @register_symbolic calc_acc_torque(motor::TorqueControlledMachine, tether_vel, norm_, set_torque)
 
 function sym_interp(interp::Function, aoa, flap_angle)
-    return interp(rad2deg(aoa), rad2deg(flap_angle-aoa))
+    return interp(rad2deg(aoa), rad2deg(flap_angle-aoa)) # TODO: register callable struct https://docs.sciml.ai/Symbolics/dev/manual/functions/#Symbolics.@register_array_symbolic
 end
 @register_symbolic sym_interp(interp::Function, aoa, flap_angle)
 
@@ -290,7 +290,7 @@ Output:length
 - s.forces
 - s.v_wind_tether
 """
-@inline function inner_loop!(s::KPS4_3L, seqs, force_eqs, t, force, pos, vel, length, c_spring, damping, v_wind_gnd)
+@inline function inner_loop!(s::KPS4_3L, seqs, force_eqs, t, force, pos, vel, length, c_spring, damping, v_wind_gnd, norm1)
     @variables begin
         height(t)[eachindex(s.springs)]
         rho(t)[eachindex(s.springs)]
@@ -302,7 +302,6 @@ Output:length
         segment(t)[1:3, eachindex(s.springs)]
         rel_vel(t)[1:3, eachindex(s.springs)]
         av_vel(t)[1:3, eachindex(s.springs)] 
-        norm1(t)[eachindex(s.springs)]
         unit_vector(t)[1:3, eachindex(s.springs)]
         k1(t)[eachindex(s.springs)]
         k2(t)[eachindex(s.springs)]
@@ -339,9 +338,54 @@ Output:length
     return seqs, force_eqs
 end
 
+function expected_pos_vel(s, seqs, pos, vel, tether_vel, tether_length, norm1)
+    @variables begin
+        kite_vel(t)[1:3]
+        kite_pos(t)[1:3, 1:3]
+        stretched_tether_length(t)[1:3]
+        expected_tether_pos(t)[1:3, 1:3, 1:(s.num_E ÷ 3)]
+        tether_move_vel(t)[1:3, 1:3, 1:(s.num_E ÷ 3)]
+        tether_kite_vel(t)[1:3, 1:s.num_E]
+        expected_tether_vel(t)[1:3, 1:s.num_E]
+        expected_pos(t)[1:3, 1:s.num_A]
+        expected_vel(t)[1:3, 1:s.num_A]
+    end
+    seqs = [
+        seqs
+        [kite_vel[i] ~ vel[:, j] ⋅ normalize(pos[:, j]) for (i, j) in enumerate(s.num_flap_C:s.num_E)]
+        [stretched_tether_length[i] ~ sum([norm1[j] for j in range(i, step=3, length=s.set.segments)]) for i in 1:3]
+    ]
+    seqs = [
+        seqs
+        [expected_tether_pos[i, j, k] ~ 
+            calc_expected_pos_vel(s, pos[1, i+s.num_flap_C-1], pos[2, i+s.num_flap_C-1], pos[3, i+s.num_flap_C-1], 
+                kite_vel[i], tether_vel[i], tether_length[i])[1, j, k] for i in 1:3 for j in 1:3 for k in 1:(s.num_E ÷ 3)]
+    ]
+    seqs = [
+        seqs
+        [tether_move_vel[i, j, k] ~ 
+            calc_expected_pos_vel(s, pos[1, i+s.num_flap_C-1], pos[2, i+s.num_flap_C-1], pos[3, i+s.num_flap_C-1], 
+                kite_vel[i], tether_vel[i], tether_length[i])[2, j, k] for i in 1:3 for j in 1:3 for k in 1:(s.num_E ÷ 3)]
+    ]
+    seqs = [
+        seqs
+        [tether_kite_vel[j, i] ~ (norm(pos[:, i]) / norm(pos[:, s.num_A]) * 
+            (vel[:, s.num_A] .- vel[:, s.num_A] ⋅ normalize(pos[:, s.num_A]) * normalize(pos[:, s.num_A])))[j] 
+                for j in 1:3 for i in 1:s.num_E]
+        # vec(expected_tether_vel) .~ vec(tether_move_vel) + vec(tether_kite_vel) # TODO: vec operation is wrong
+        [expected_tether_vel[j, i] ~ tether_move_vel[((i-1)%3)+1, j, (i+2) ÷ 3] + tether_kite_vel[j, i] for j in 1:3 for i in 1:s.num_E]
+        vec(expected_vel[:, 1:s.num_E]) .~ vec(expected_tether_vel)
+        vec(expected_vel[:, s.num_C:s.num_A]) .~ vec(vel[:, s.num_C:s.num_A]) # TODO: different vels at different points TODO: rotation --> speed
+        # vec(expected_pos[:, 1:s.num_E]) .~ vec(expected_tether_pos)
+        [expected_pos[j, i] ~ expected_tether_pos[((i-1)%3)+1, j, (i+2) ÷ 3] for j in 1:3 for i in 1:s.num_E]
+        vec(expected_pos[:, s.num_C:s.num_A]) .~ vec(pos[:, s.num_C:s.num_A])
+    ]
+    return seqs
+end
+
 function scalar_eqs(s, seqs, pos, vel, acc, flap_angle, flap_vel, flap_acc, segment_length, mass_tether_particle, damping, c_spring, 
         P_c, e_y, e_z, e_x, e_r_C, e_r_D, e_te_C, e_te_D, E_c, rho_kite, damping_coeff, v_wind_gnd, tether_length, tether_vel,
-        mass_per_meter, force, set_values)
+        mass_per_meter, force, set_values, norm1)
     flap_length = s.kite_length_C/4
     seqs = [
         seqs
@@ -390,10 +434,13 @@ function scalar_eqs(s, seqs, pos, vel, acc, flap_angle, flap_vel, flap_acc, segm
         left_diff(t)
         right_diff(t)
     end
+    # println(size([(vel[:, i] ⋅ normalize(pos[:, i]) for i in s.num_flap_C: s.num_E)]))
+    # println([kite_vel[i] ~ vel[:, j] ⋅ normalize(pos[:, j]) for (i, j) in enumerate(s.num_flap_C: s.num_E)])
+    seqs = expected_pos_vel(s, seqs, pos, vel, tether_vel, tether_length, norm1)
     seqs = [
         seqs
         winch_force     ~ [norm(force[:, i]) for i in 1:3]
-        # orientation     ~ orient_euler(s; one_point=false) # TODO: this doesn't work. Calc orientation as observable from camera, with only symbolic vars.
+        # orientation     ~ orient_euler(s; one_point=false)
         # upwind_dir      ~ upwind_dir(v_wind_gnd)
         # heading         ~ calc_heading(orientation, elevation, azimuth; upwind_dir)
         heading_y       ~ calc_heading_y(e_x)
@@ -415,10 +462,8 @@ function scalar_eqs(s, seqs, pos, vel, acc, flap_angle, flap_vel, flap_acc, segm
         y_acc               ~ (acc[:, s.num_C] + acc[:, s.num_D] + acc[:, s.num_A]) ⋅ e_y
         left_diff           ~ tether_length[1] - tether_length[3]
         right_diff          ~ tether_length[2] - tether_length[3]
+        [distance[i]        ~ norm(pos[:, i]) for i in 1:s.num_A]
     ]
-    for i in 1:s.num_A
-        seqs = [seqs; distance[i] ~ norm(pos[:, i])]
-    end
     return seqs
 end
 
@@ -434,7 +479,7 @@ function create_sys!(s::KPS4_3L)
     end
     @variables begin
         set_values(t)[1:3] # left right middle
-        pos(t)[1:3, 1:s.num_A] # left right middle
+        pos(t)[1:3, 1:s.num_A] # left right middle TODO: divide in diff pos tether, pos kite and non-diff pos, middle left and right tether
         vel(t)[1:3, 1:s.num_A] 
         acc(t)[1:3, 1:s.num_A]
         flap_angle(t)[1:2]  # angle left right / C D
@@ -459,6 +504,7 @@ function create_sys!(s::KPS4_3L)
         e_te_D(t)[1:3]
         force(t)[1:3, 1:s.num_A]
         rho_kite(t)
+        norm1(t)[eachindex(s.springs)]
     end
     # Collect the arrays into variables
     pos = collect(pos)
@@ -488,9 +534,9 @@ function create_sys!(s::KPS4_3L)
     seqs = []
     seqs            = scalar_eqs(s, seqs, pos, vel, acc, flap_angle, flap_vel, flap_acc, segment_length, mass_tether_particle, damping, c_spring, 
                         P_c, e_y, e_z, e_x, e_r_C, e_r_D, e_te_C, e_te_D, E_c, rho_kite, damping_coeff, v_wind_gnd, tether_length, tether_vel,
-                        mass_per_meter, force, set_values)
+                        mass_per_meter, force, set_values, norm1)
     seqs, force_eqs = calc_aero_forces!(s, seqs, force_eqs, force, pos, vel, t, e_x, e_y, e_z, E_c, rho_kite, v_wind, flap_angle)
-    seqs, force_eqs = inner_loop!(s, seqs, force_eqs, t, force, pos, vel, segment_length, c_spring, damping, v_wind_gnd)
+    seqs, force_eqs = inner_loop!(s, seqs, force_eqs, t, force, pos, vel, segment_length, c_spring, damping, v_wind_gnd, norm1)
     
     if s.torque_control
         seqs = vcat(seqs, tether_acc .~ [calc_acc_torque(s.motors[i], tether_vel[i], norm(force[:, (i-1)%3+1]),
@@ -559,24 +605,43 @@ function model!(s::KPS4_3L; real=true)
 
     if (real) normal_pos_idxs = vcat(4:s.num_flap_C-1, s.num_E)
     else normal_pos_idxs = vcat(4:s.num_flap_C-1, s.num_E, s.num_A) end
+    u0map = []
     if real
         u0map = [
-            # sys.distance[s.num_A] => norm(s.pos[s.num_A])
-            [sys.pos[j, s.num_A] => s.pos[s.num_A][j] for j in 1:3]
-            [sys.vel[j, i] => norm(s.pos[i]) / norm(s.pos[s.num_A]) * sys.vel[j, s.num_A] 
-                for j in 1:3 for i in vcat(4:s.num_flap_C-1, s.num_flap_D+1:s.num_A-1)]
-            # [sys.vel[j, i] => norm(s.pos[i]) / norm(s.pos[s.num_A]) * sys.vel[j, s.num_A] 
+            # # sys.distance[s.num_A] => norm(s.pos[s.num_A])
+            # [sys.pos[j, s.num_A] => s.pos[s.num_A][j] for j in 1:3]
+            # [sys.vel[j, i] => sys.expected_vel[j, i] 
             #     for j in 1:3 for i in vcat(4:s.num_flap_C-1, s.num_flap_D+1:s.num_A-1)]
-            [sys.acc[:, i] => 0 for i in vcat(4:s.num_flap_C-1, s.num_flap_D+1:s.num_A)]
+            # [sys.pos[j, i] => sys.expected_pos[j, i] 
+            #     for j in 1:3 for i in 4:s.num_flap_C-1]
+            # [sys.acc[j, i] => 0
+            #     for j in 1:3 for i in s.num_flap_D+1:s.num_A-1]
+
+            # [sys.flap_vel[j] => 0 for j in 1:2]
+            # [sys.flap_acc[j] => 0 for j in 1:2]
+
+            # sys.gust_factor => 1.0
+
+            # # [sys.tether_length[j] => s.tether_lengths[j] for j in 1:3]
+            # [sys.tether_vel[j] => [0.01, 0.01, -10][j] for j in 1:3]
+            # [sys.winch_force[j] => [3.49, 3.49, 57.52][j] for j in 1:3]
+            # [sys.tether_acc[j] => 0 for j in 1:3]
+
+            [sys.pos[j, s.num_A] => s.pos[s.num_A][j] for j in 1:3]
+
+            [sys.pos[j, i] => sys.expected_pos[j, i] for j in 1:3 for i in 4:s.num_flap_C-1]
+            [sys.vel[j, i] => sys.expected_vel[j, i] for j in 1:3 for i in vcat(4:s.num_flap_C-1, s.num_flap_D+1:s.num_A-1)]
+            [sys.acc[j, i] => 0.0 for j in 1:3 for i in s.num_flap_D+1:s.num_A]
+
+            [sys.acc[j, i] => 0.0 for j in 1:3 for i in 4:s.num_flap_C-2]
 
             [sys.flap_vel[j] => 0 for j in 1:2]
             [sys.flap_acc[j] => 0 for j in 1:2]
 
             sys.gust_factor => 1.0
 
-            # [sys.tether_length[j] => s.tether_lengths[j] for j in 1:3]
-            # [sys.tether_vel[j] => [0.01, 0.01, -10][j] for j in 1:3]
-            [sys.winch_force[j] => [3.49, 3.49, 57.52][j] for j in 1:3]
+            [sys.tether_length[j] => s.measure.tether_length[j] for j in 1:3]
+            # [sys.tether_vel[j] => [1.46, 1.46, 1.46][j] for j in 1:3]
             [sys.tether_acc[j] => 0 for j in 1:3]
         ]
     else
@@ -585,21 +650,24 @@ function model!(s::KPS4_3L; real=true)
             [sys.pos[j, s.num_A] => s.pos[s.num_A][j] for j in 1:3]
             [sys.vel[j, i] => norm(s.pos[i]) / norm(s.pos[s.num_A]) * sys.vel[j, s.num_A] 
                 for j in 1:3 for i in vcat(4:s.num_flap_C-1, s.num_flap_D+1:s.num_A-1)]
-            [sys.acc[:, i] => 0 for i in vcat(4:s.num_flap_C-1, s.num_flap_D+1:s.num_A)]
+            [sys.acc[j, i] => 0 for j in 1:3 for i in vcat(4:s.num_flap_C-1, s.num_flap_D+1:s.num_A)]
 
             [sys.flap_vel[j] => 0 for j in 1:2]
             [sys.flap_acc[j] => 0 for j in 1:2]
 
             sys.gust_factor => 1.0
 
-            [sys.tether_length[j] => s.tether_lengths[j] for j in 1:3]
+            [sys.tether_length[j] => s.measure.tether_length[j] for j in 1:3]
             # [sys.tether_vel[j] => [1.46, 1.46, 1.46][j] for j in 1:3]
             [sys.tether_acc[j] => 0 for j in 1:3]
         ]
     end
     guesses = [
         [sys.pos[j, i] => s.pos[i][j] for j in 1:3 for i in 1:s.num_A]
+        [sys.expected_pos[j, i] => s.pos[i][j] for j in 1:3 for i in 1:s.num_A]
         [sys.vel[j, i] => 0 for j in 1:3 for i in 1:s.num_A]
+        [sys.expected_vel[j, i] => 0 for j in 1:3 for i in 1:s.num_A]
+        [sys.acc[j, i] => 0 for j in 1:3 for i in 1:s.num_A]
 
         [sys.flap_angle[j] => 0 for j in 1:2]
         [sys.flap_vel[j] => 0 for j in 1:2]
