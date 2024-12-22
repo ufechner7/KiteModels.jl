@@ -20,8 +20,8 @@ s.measure.tether_length = [51, 51, 50]
 s.measure.distance = 49
 s.measure.elevation_left = deg2rad(80)
 s.measure.elevation_right = deg2rad(80)
-s.measure.azimuth_left = deg2rad(-1)
-s.measure.azimuth_right = deg2rad(1)
+s.measure.azimuth_left = deg2rad(1)
+s.measure.azimuth_right = deg2rad(-1)
 s.measure.distance_acc = s.measure.tether_acc[3]
 
 prob, sol, ss, u0map = model!(s; real=true)

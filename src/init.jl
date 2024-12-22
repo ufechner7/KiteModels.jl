@@ -134,7 +134,7 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
 end
 
 
-function init_pos!(s::KPS4_3L; α = 5.0)
+function init_pos!(s::KPS4_3L; new=true, α = 5.0)
     # ground points
     [s.pos[i] .= [0, 0, 0] for i in 1:3]
 
@@ -145,8 +145,9 @@ function init_pos!(s::KPS4_3L; α = 5.0)
     s.kite_length_C = tip_length + (middle_length-tip_length) * (s.α_C - α_0) / (π/2 - α_0)
     
     # kite points
-    C = rotate_around_z(rotate_around_y([s.measure.distance, 0, 0], -s.measure.elevation_left), s.measure.azimuth_left)
-    D = rotate_around_z(rotate_around_y([s.measure.distance, 0, 0], -s.measure.elevation_right), s.measure.azimuth_right)
+    distance_E_Pc_z = (sin(s.α_C) * s.set.radius + (s.set.bridle_center_distance - s.set.radius))
+    C = rotate_around_z(rotate_around_y([s.measure.distance + distance_E_Pc_z, 0, 0], -s.measure.elevation_left), s.measure.azimuth_left)
+    D = rotate_around_z(rotate_around_y([s.measure.distance + distance_E_Pc_z, 0, 0], -s.measure.elevation_right), s.measure.azimuth_right)
     P_c = (C+D)/2
     s.e_y .= normalize(C - D)
     # calculate C and D again to make sure the distance between C and D is correct
@@ -162,11 +163,6 @@ function init_pos!(s::KPS4_3L; α = 5.0)
     s.pos[s.num_C] .= C
     s.pos[s.num_D] .= D
     s.pos[s.num_E] .= E
-
-    # middle tether
-    for (i, j) in enumerate(range(6, step=3, length=s.set.segments))
-        s.pos[j] .= E / s.set.segments * i
-    end
     
     # build tether connection points
     E_c = s.pos[s.num_E] + s.e_z * (-s.set.bridle_center_distance + s.set.radius) 
@@ -177,32 +173,46 @@ function init_pos!(s::KPS4_3L; α = 5.0)
     angle_flap_d = 0.0
     # distance_c_l = s.set.tip_length/2 # distance between c and left steering line
     s.pos[s.num_flap_C] .= s.pos[s.num_C] - s.e_x * flap_length * cos(angle_flap_c) + e_r_C * flap_length * sin(angle_flap_c) +
-        s.e_z * (sin(s.α_C) * s.set.radius + (s.set.bridle_center_distance - s.set.radius))
+        s.e_z * distance_E_Pc_z
     s.pos[s.num_flap_D] .= s.pos[s.num_D] - s.e_x * flap_length * cos(angle_flap_d) + e_r_D * flap_length * sin(angle_flap_d) +
-        s.e_z * (sin(s.α_C) * s.set.radius + (s.set.bridle_center_distance - s.set.radius))
+        s.e_z * distance_E_Pc_z
 
-    # build left and right tether points with degrees of bend α
-    s.tether_lengths[3] = norm(s.pos[s.num_E])
-    s.tether_lengths[1] = 0.0
-    l = s.tether_lengths[3]
-    α = deg2rad(α)
-    h = l/(2tan(α))
-    r = l/(2sin(α))
-    for (i, j) in enumerate(range(4, step=3, length=s.set.segments-1))
-        # s.pos[j] .= s.pos[s.num_flap_C] ./ s.set.segments .* i .+ [(middle_distance)*s.tether_lengths[3]*0.5, 0.0, 0.0]
-        γ = -α + 2α*i / s.set.segments
-        local_z_minus = l/2 + r * sin(γ)
-        local_x = h - r * cos(γ)
-        s.pos[j] .= local_z_minus * normalize(C) + local_x * s.e_x
-        s.pos[j+1] .= local_z_minus * normalize(D) + local_x * s.e_x
+    if new
+        for i in 1:3
+            expected_pos = calc_expected_pos_vel(s, s.pos[i+s.num_flap_C-1][1], s.pos[i+s.num_flap_C-1][2], s.pos[i+s.num_flap_C-1][3], 
+                0, 0, s.measure.tether_length[i])[1, :, :]
+            [s.pos[3(k-1)+i][j] = expected_pos[j, k] for j in 1:3 for k in 1:(s.num_E ÷ 3)]
+        end
+        return s.pos
+    else
+        # middle tether
+        for (i, j) in enumerate(range(6, step=3, length=s.set.segments))
+            s.pos[j] .= E / s.set.segments * i
+        end
 
-        s.tether_lengths[1] += norm(s.pos[j] - s.pos[j-3])
-        s.tether_lengths[2] += norm(s.pos[j+1] - s.pos[j-2])
+        # build left and right tether points with degrees of bend α
+        s.tether_lengths[3] = norm(s.pos[s.num_E])
+        s.tether_lengths[1] = 0.0
+        l = s.tether_lengths[3]
+        α = deg2rad(α)
+        h = l/(2tan(α))
+        r = l/(2sin(α))
+        for (i, j) in enumerate(range(4, step=3, length=s.set.segments-1))
+            # s.pos[j] .= s.pos[s.num_flap_C] ./ s.set.segments .* i .+ [(middle_distance)*s.tether_lengths[3]*0.5, 0.0, 0.0]
+            γ = -α + 2α*i / s.set.segments
+            local_z_minus = l/2 + r * sin(γ)
+            local_x = h - r * cos(γ)
+            s.pos[j] .= local_z_minus * normalize(C) + local_x * s.e_x
+            s.pos[j+1] .= local_z_minus * normalize(D) + local_x * s.e_x
+
+            s.tether_lengths[1] += norm(s.pos[j] - s.pos[j-3])
+            s.tether_lengths[2] += norm(s.pos[j+1] - s.pos[j-2])
+        end
+        s.tether_lengths[1] += norm(s.pos[s.num_flap_C] - s.pos[s.num_flap_C-3])
+        s.tether_lengths[2] = s.tether_lengths[1]
+
+        return s.pos
     end
-    s.tether_lengths[1] += norm(s.pos[s.num_flap_C] - s.pos[s.num_flap_C-3])
-    s.tether_lengths[2] = s.tether_lengths[1]
-
-    return s.pos
 end
 
 

@@ -227,7 +227,7 @@ function calc_particle_forces!(s::KPS4_3L, seqs, force_eqs, force, pos1, pos2, v
         i <= s.set.segments*3 ? k   ~ c_spring[(i-1) % 3 + 1] :
                                 k   ~ s.springs[i].c_spring        # Spring constant
         i <= s.set.segments*3 ? c   ~ damping[(i-1) % 3 + 1] : c ~ s.springs[i].damping # Damping coefficient    
-        segment     .~ pos1 - pos2 # TODO: all segments have same length and tension
+        segment     .~ pos1 - pos2
         rel_vel     .~ vel1 - vel2
         av_vel      .~ 0.5 * (vel1 + vel2)
         norm1        ~ norm(segment)
@@ -343,8 +343,8 @@ function expected_pos_vel(s, seqs, pos, vel, tether_vel, tether_length, norm1)
         kite_vel(t)[1:3]
         kite_pos(t)[1:3, 1:3]
         stretched_tether_length(t)[1:3]
-        expected_tether_pos(t)[1:3, 1:3, 1:(s.num_E ÷ 3)]
-        tether_move_vel(t)[1:3, 1:3, 1:(s.num_E ÷ 3)]
+        expected_tether_pos(t)[1:3, 1:s.num_E]
+        tether_move_vel(t)[1:3, 1:s.num_E]
         tether_kite_vel(t)[1:3, 1:s.num_E]
         expected_tether_vel(t)[1:3, 1:s.num_E]
         expected_pos(t)[1:3, 1:s.num_A]
@@ -357,28 +357,29 @@ function expected_pos_vel(s, seqs, pos, vel, tether_vel, tether_length, norm1)
     ]
     seqs = [
         seqs
-        [expected_tether_pos[i, j, k] ~ 
+        # [expected_tether_pos[i, j, k] ~ 
+        #     calc_expected_pos_vel(s, pos[1, i+s.num_flap_C-1], pos[2, i+s.num_flap_C-1], pos[3, i+s.num_flap_C-1], 
+        #         kite_vel[i], tether_vel[i], stretched_tether_length[i])[1, j, k] for i in 1:3 for j in 1:3 for k in 1:(s.num_E ÷ 3)]
+        [expected_tether_pos[j, 3(k-1)+i] ~ 
             calc_expected_pos_vel(s, pos[1, i+s.num_flap_C-1], pos[2, i+s.num_flap_C-1], pos[3, i+s.num_flap_C-1], 
-                kite_vel[i], tether_vel[i], tether_length[i])[1, j, k] for i in 1:3 for j in 1:3 for k in 1:(s.num_E ÷ 3)]
+                kite_vel[i], tether_vel[i], stretched_tether_length[i])[1, j, k] for i in 1:3 for j in 1:3 for k in 1:(s.num_E ÷ 3)]
     ]
     seqs = [
         seqs
-        [tether_move_vel[i, j, k] ~ 
+        [tether_move_vel[j, 3(k-1)+i] ~ 
             calc_expected_pos_vel(s, pos[1, i+s.num_flap_C-1], pos[2, i+s.num_flap_C-1], pos[3, i+s.num_flap_C-1], 
-                kite_vel[i], tether_vel[i], tether_length[i])[2, j, k] for i in 1:3 for j in 1:3 for k in 1:(s.num_E ÷ 3)]
+                kite_vel[i], tether_vel[i], stretched_tether_length[i])[2, j, k] for i in 1:3 for j in 1:3 for k in 1:(s.num_E ÷ 3)]
     ]
     seqs = [
         seqs
         [tether_kite_vel[j, i] ~ (norm(pos[:, i]) / norm(pos[:, s.num_A]) * 
             (vel[:, s.num_A] .- vel[:, s.num_A] ⋅ normalize(pos[:, s.num_A]) * normalize(pos[:, s.num_A])))[j] 
                 for j in 1:3 for i in 1:s.num_E]
-        # vec(expected_tether_vel) .~ vec(tether_move_vel) + vec(tether_kite_vel) # TODO: vec operation is wrong
-        [expected_tether_vel[j, i] ~ tether_move_vel[((i-1)%3)+1, j, (i+2) ÷ 3] + tether_kite_vel[j, i] for j in 1:3 for i in 1:s.num_E]
-        vec(expected_vel[:, 1:s.num_E]) .~ vec(expected_tether_vel)
-        vec(expected_vel[:, s.num_C:s.num_A]) .~ vec(vel[:, s.num_C:s.num_A]) # TODO: different vels at different points TODO: rotation --> speed
-        # vec(expected_pos[:, 1:s.num_E]) .~ vec(expected_tether_pos)
-        [expected_pos[j, i] ~ expected_tether_pos[((i-1)%3)+1, j, (i+2) ÷ 3] for j in 1:3 for i in 1:s.num_E]
-        vec(expected_pos[:, s.num_C:s.num_A]) .~ vec(pos[:, s.num_C:s.num_A])
+        vec(expected_tether_vel)                .~ vec(tether_move_vel) + vec(tether_kite_vel)
+        vec(expected_vel[:, 1:s.num_E])         .~ vec(expected_tether_vel)
+        vec(expected_vel[:, s.num_C:s.num_A])   .~ vec(vel[:, s.num_C:s.num_A]) # TODO: different vels at different points TODO: rotation --> speed
+        vec(expected_pos[:, 1:s.num_E])         .~ vec(expected_tether_pos)
+        vec(expected_pos[:, s.num_C:s.num_A])   .~ vec(pos[:, s.num_C:s.num_A])
     ]
     return seqs
 end
@@ -608,32 +609,15 @@ function model!(s::KPS4_3L; real=true)
     u0map = []
     if real
         u0map = [
-            # # sys.distance[s.num_A] => norm(s.pos[s.num_A])
-            # [sys.pos[j, s.num_A] => s.pos[s.num_A][j] for j in 1:3]
-            # [sys.vel[j, i] => sys.expected_vel[j, i] 
-            #     for j in 1:3 for i in vcat(4:s.num_flap_C-1, s.num_flap_D+1:s.num_A-1)]
-            # [sys.pos[j, i] => sys.expected_pos[j, i] 
-            #     for j in 1:3 for i in 4:s.num_flap_C-1]
-            # [sys.acc[j, i] => 0
-            #     for j in 1:3 for i in s.num_flap_D+1:s.num_A-1]
-
-            # [sys.flap_vel[j] => 0 for j in 1:2]
-            # [sys.flap_acc[j] => 0 for j in 1:2]
-
-            # sys.gust_factor => 1.0
-
-            # # [sys.tether_length[j] => s.tether_lengths[j] for j in 1:3]
-            # [sys.tether_vel[j] => [0.01, 0.01, -10][j] for j in 1:3]
-            # [sys.winch_force[j] => [3.49, 3.49, 57.52][j] for j in 1:3]
-            # [sys.tether_acc[j] => 0 for j in 1:3]
-
             [sys.pos[j, s.num_A] => s.pos[s.num_A][j] for j in 1:3]
+            [sys.pos[j, s.num_C] => s.pos[s.num_C][j] for j in 1:3]
+            [sys.pos[j, s.num_D] => s.pos[s.num_D][j] for j in 1:3]
 
             [sys.pos[j, i] => sys.expected_pos[j, i] for j in 1:3 for i in 4:s.num_flap_C-1]
             [sys.vel[j, i] => sys.expected_vel[j, i] for j in 1:3 for i in vcat(4:s.num_flap_C-1, s.num_flap_D+1:s.num_A-1)]
             [sys.acc[j, i] => 0.0 for j in 1:3 for i in s.num_flap_D+1:s.num_A]
 
-            [sys.acc[j, i] => 0.0 for j in 1:3 for i in 4:s.num_flap_C-2]
+            # [sys.acc[j, i] => 0.0 for j in 1:3 for i in 4:s.num_flap_C-2] # TODO: fix this weird one
 
             [sys.flap_vel[j] => 0 for j in 1:2]
             [sys.flap_acc[j] => 0 for j in 1:2]
@@ -683,8 +667,8 @@ function model!(s::KPS4_3L; real=true)
     @time prob = ModelingToolkit.InitializationProblem(sys, 0.0, u0map; guesses, fully_determined=true)
     tol = 1e-3
     # @time remake(prob; u0=u0map)
-    # @time sol = solve(prob, RobustMultiNewton(); maxiters=10_000, abstol=tol, reltol=tol)
-    @time sol = solve(prob; maxiters=20_000, abstol=tol, reltol=tol)
+    @time sol = solve(prob, RobustMultiNewton(); maxiters=10_000, abstol=tol, reltol=tol)
+    # @time sol = solve(prob; maxiters=20_000, abstol=tol, reltol=tol)
     # println("remaking init prob")
     # @time remake(prob; u0=[sys.gust_factor=>1.1])
     # @time sol = solve(prob; maxiters=10_000, abstol=tol, reltol=tol)

@@ -613,42 +613,36 @@ Tether vel: left - middle - right tether vel
 Return: an expected vel for all kite pos
 """
 function calc_expected_pos_vel(s::KPS4_3L, kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, stretched_tether_length) # TODO: remove the 123 caused by this issue: https://github.com/SciML/ModelingToolkit.jl/issues/3003
-    try
-        kite_pos = [kite_pos1, kite_pos2, kite_pos3]
-        s.expected_tether_pos_vel_buffer .= 0.0
-        expected_pos = @views s.expected_tether_pos_vel_buffer[1, :, :]
-        expected_vel = @views s.expected_tether_pos_vel_buffer[2, :, :]
-        J, y, x, segments = s.J_buffer, s.y_buffer, s.x_buffer, s.set.segments
-        distance = norm(kite_pos)
+    kite_pos = [kite_pos1, kite_pos2, kite_pos3]
+    s.expected_tether_pos_vel_buffer .= 0.0
+    expected_pos = @views s.expected_tether_pos_vel_buffer[1, :, :]
+    expected_vel = @views s.expected_tether_pos_vel_buffer[2, :, :]
+    J, y, x, segments = s.J_buffer, s.y_buffer, s.x_buffer, s.set.segments
+    distance = norm(kite_pos)
 
-        if any(isnan.((kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, stretched_tether_length))) || 
-                any(isa.((kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, stretched_tether_length), ForwardDiff.Dual)) ||
-                distance >= stretched_tether_length
-            expected_pos .= NaN
-            expected_vel .= NaN
-            return s.expected_tether_pos_vel_buffer
-        end
-
-        quat = quaternion_rotation([1, 0, 0], kite_pos)
-        function f_jac!(dx, x)
-            tether_from_distance_length!(expected_pos, x[1], x[2], segments, quat)
-            dx .= vec(expected_pos)
-            nothing
-        end
-
-        x[1] = distance
-        x[2] = stretched_tether_length
-        backend = ADTypes.AutoFiniteDiff()
-        if isnothing(s.prep)
-            s.prep = prepare_jacobian(f_jac!, y, backend, x)
-        end
-        DifferentiationInterface.jacobian!(f_jac!, y, J, s.prep, backend, x)
-        expected_vel .= reshape(J * [kite_vel, tether_vel], size(expected_vel))
-    catch e
-        @show kite_pos1 kite_pos2 kite_pos3 kite_vel tether_vel stretched_tether_length
-        rethrow(e)
+    if any(isnan.((kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, stretched_tether_length))) || 
+            any(isa.((kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, stretched_tether_length), ForwardDiff.Dual)) ||
+            distance >= stretched_tether_length
+        expected_pos .= NaN
+        expected_vel .= NaN
+        return s.expected_tether_pos_vel_buffer
     end
-    @show 
+
+    quat = quaternion_rotation([1, 0, 0], kite_pos)
+    function f_jac!(dx, x)
+        tether_from_distance_length!(expected_pos, x[1], x[2], segments, quat)
+        dx .= vec(expected_pos)
+        nothing
+    end
+
+    x[1] = distance
+    x[2] = stretched_tether_length
+    backend = ADTypes.AutoFiniteDiff()
+    if isnothing(s.prep)
+        s.prep = prepare_jacobian(f_jac!, y, backend, x)
+    end
+    DifferentiationInterface.jacobian!(f_jac!, y, J, s.prep, backend, x)
+    expected_vel .= reshape(J * [kite_vel, tether_vel], size(expected_vel))
     return s.expected_tether_pos_vel_buffer
 end
 const FD = ForwardDiff.Dual
@@ -660,6 +654,7 @@ end
     size = size(s.expected_tether_pos_vel_buffer)
     eltype = SimFloat
 end
+
 
 # =================== getter functions ====================================================
 
