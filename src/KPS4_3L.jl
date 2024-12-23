@@ -622,7 +622,6 @@ function calc_expected_pos_vel(s::KPS4_3L, kite_pos1, kite_pos2, kite_pos3, kite
     distance = norm(kite_pos)
 
     stretched_tether_length = tether_length + tether_force / (c_spring/tether_length)
-    @show stretched_tether_length tether_length
 
     if any(isnan.((kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, tether_length, tether_force, c_spring))) || 
             any(isa.((kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, tether_length, tether_force, c_spring), ForwardDiff.Dual)) ||
