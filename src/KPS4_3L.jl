@@ -139,9 +139,9 @@ $(TYPEDFIELDS)
     "vector of the springs, defined as struct"
     springs::MVector{Q, SP}       = zeros(SP, Q)
     "unit spring coefficient"
-    c_spring::S = zero(S)
+    c_spring::T = zeros(S, 3)
     "unit damping coefficient"
-    damping::S = zero(S)
+    damping::T = zeros(S, 3)
     "whether or not to use torque control instead of speed control"
     torque_control::Bool = false
     "x vector of kite reference frame"
@@ -204,7 +204,7 @@ $(TYPEDFIELDS)
     get_flap_angle::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_flap_acc::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_vel_kite::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
-    get_winch_forces::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
+    get_tether_forces::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_tether_lengths::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_tether_vels::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_L_C::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
@@ -248,8 +248,9 @@ function clear!(s::KPS4_3L)
     s.num_D = s.set.segments*3+3+2
     s.num_A = s.set.segments*3+3+3
     s.rho = s.set.rho_0
-    s.c_spring = s.set.e_tether * (s.set.d_tether/2000.0)^2 * pi
-    s.damping = (s.set.damping / s.set.c_spring) * s.c_spring
+    c_spring = s.set.e_tether * (s.set.d_tether/2000.0)^2 * pi
+    s.c_spring .= [c_spring, c_spring, 2c_spring]
+    s.damping .= (s.set.damping / s.set.c_spring) * s.c_spring
     init_masses!(s)
     init_springs!(s)
 end
@@ -325,7 +326,7 @@ function update_sys_state!(ss::SysState, s::KPS4_3L, zoom=1.0)
     ss.orient .= calc_orient_quat(s)
     ss.elevation = calc_elevation(s)
     ss.azimuth = calc_azimuth(s)
-    ss.force = winch_force(s)[3]
+    ss.force = tether_force(s)[3]
     ss.heading = calc_heading_y(s.e_x)
     ss.course = calc_course(s)
     ss.v_app = norm(s.v_apparent)
@@ -353,7 +354,7 @@ function SysState(s::KPS4_3L, zoom=1.0) # TODO: add left and right lines, stop u
     orient = MVector{4, Float32}(calc_orient_quat(s))
     elevation = calc_elevation(s)
     azimuth = calc_azimuth(s)
-    forces = winch_force(s)
+    forces = tether_force(s)
     heading = calc_heading_y(s.e_x)
     course = calc_course(s)
     v_app_norm = norm(s.v_apparent)
@@ -437,7 +438,7 @@ function init_sim!(s::KPS4_3L; damping_coeff=s.damping_coeff, prn=false,
         set_values = copy(init_set_values)
         for _ in 0:dt:dt0
             next_step!(s; set_values, dt) # step to get stable state
-            if (torque_control) set_values .= -winch_force(s) .* s.set.drum_radius end
+            if (torque_control) set_values .= -tether_force(s) .* s.set.drum_radius end
         end
     end
     if init_new_model
@@ -487,7 +488,7 @@ function generate_getters!(s)
         s.get_flap_angle = getu(s.integrator.sol, s.simple_sys.flap_angle)
         s.get_flap_acc = getu(s.integrator.sol, s.simple_sys.flap_acc)
         s.get_vel_kite = getu(s.integrator.sol, s.simple_sys.vel[:,s.num_A])
-        s.get_winch_forces = getu(s.integrator.sol, s.simple_sys.winch_force)
+        s.get_tether_forces = getu(s.integrator.sol, s.simple_sys.tether_force)
         s.get_L_C = getu(s.integrator.sol, s.simple_sys.L_C)
         s.get_L_D = getu(s.integrator.sol, s.simple_sys.L_D)
         s.get_D_C = getu(s.integrator.sol, s.simple_sys.D_C)
@@ -523,7 +524,7 @@ function calc_pre_tension(s::KPS4_3L)
         avg_force += forces[i]
     end
     avg_force /= s.num_A
-    res = avg_force/s.c_spring
+    res = avg_force/s.c_spring[3]
     if res < 0.0 res = 0.0 end
     if isnan(res) res = 0.0 end
     return res + 1.0
@@ -612,7 +613,7 @@ Tether vel: left - middle - right tether vel
 
 Return: an expected vel for all kite pos
 """
-function calc_expected_pos_vel(s::KPS4_3L, kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, stretched_tether_length) # TODO: remove the 123 caused by this issue: https://github.com/SciML/ModelingToolkit.jl/issues/3003
+function calc_expected_pos_vel(s::KPS4_3L, kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, tether_length, tether_force, c_spring) # TODO: remove the 123 caused by this issue: https://github.com/SciML/ModelingToolkit.jl/issues/3003
     kite_pos = [kite_pos1, kite_pos2, kite_pos3]
     s.expected_tether_pos_vel_buffer .= 0.0
     expected_pos = @views s.expected_tether_pos_vel_buffer[1, :, :]
@@ -620,8 +621,11 @@ function calc_expected_pos_vel(s::KPS4_3L, kite_pos1, kite_pos2, kite_pos3, kite
     J, y, x, segments = s.J_buffer, s.y_buffer, s.x_buffer, s.set.segments
     distance = norm(kite_pos)
 
-    if any(isnan.((kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, stretched_tether_length))) || 
-            any(isa.((kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, stretched_tether_length), ForwardDiff.Dual)) ||
+    stretched_tether_length = tether_length + tether_force / (c_spring/tether_length)
+    @show stretched_tether_length tether_length
+
+    if any(isnan.((kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, tether_length, tether_force, c_spring))) || 
+            any(isa.((kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, tether_length, tether_force, c_spring), ForwardDiff.Dual)) ||
             distance >= stretched_tether_length
         expected_pos .= NaN
         expected_vel .= NaN
@@ -646,11 +650,11 @@ function calc_expected_pos_vel(s::KPS4_3L, kite_pos1, kite_pos2, kite_pos3, kite
     return s.expected_tether_pos_vel_buffer
 end
 const FD = ForwardDiff.Dual
-function calc_expected_pos_vel(s::KPS4_3L, _::FD, _::FD, _::FD, _::FD, _::FD, _::FD) # dummy function for forwarddiff compatibility
+function calc_expected_pos_vel(s::KPS4_3L, _::FD, _::FD, _::FD, _::FD, _::FD, _::FD, _::FD, _::FD) # dummy function for forwarddiff compatibility
     s.expected_tether_pos_vel_buffer .= NaN
     return s.expected_tether_pos_vel_buffer
 end
-@register_array_symbolic calc_expected_pos_vel(s::KPS4_3L, kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, stretched_tether_length) begin
+@register_array_symbolic calc_expected_pos_vel(s::KPS4_3L, kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, tether_length, tether_force, c_spring) begin
     size = size(s.expected_tether_pos_vel_buffer)
     eltype = SimFloat
 end
@@ -687,11 +691,11 @@ function kite_ref_frame(s::KPS4_3L; one_point=false)
 end
 
 """
-    winch_force(s::KPS4_3L)
+    tether_force(s::KPS4_3L)
 
 Return the absolute value of the force at the winch as calculated during the last timestep. 
 """
-function winch_force(s::KPS4_3L) s.get_winch_forces(s.integrator) end
+function tether_force(s::KPS4_3L) s.get_tether_forces(s.integrator) end
 
 
 # ====================== helper functions ====================================

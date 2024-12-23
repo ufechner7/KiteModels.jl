@@ -178,9 +178,13 @@ function init_pos!(s::KPS4_3L; new=true, α = 5.0)
         s.e_z * distance_E_Pc_z
 
     if new
+        angular_acc = s.measure.tether_acc / s.set.drum_radius
+        net_torque = angular_acc * s.set.inertia_total # TODO: check if inertia is correct
+        tether_force = (net_torque - s.measure.winch_torque) * s.set.drum_radius
+        @show tether_force
         for i in 1:3
             expected_pos = calc_expected_pos_vel(s, s.pos[i+s.num_flap_C-1][1], s.pos[i+s.num_flap_C-1][2], s.pos[i+s.num_flap_C-1][3], 
-                0, 0, s.measure.tether_length[i])[1, :, :]
+                0, 0, s.measure.tether_length[i], tether_force[i], s.c_spring[i])[1, :, :]
             [s.pos[3(k-1)+i][j] = expected_pos[j, k] for j in 1:3 for k in 1:(s.num_E ÷ 3)]
         end
         return s.pos
