@@ -381,7 +381,7 @@ function expected_pos_vel(s, seqs, pos, vel, tether_vel, tether_length, tether_f
                 for j in 1:3 for i in 1:s.num_E] # TODO: c+d average vel?
         vec(expected_tether_vel)                .~ vec(tether_move_vel) .+ vec(tether_kite_vel)
         vec(expected_vel[:, 1:s.num_E])         .~ vec(expected_tether_vel)
-        vec(expected_vel[:, s.num_C:s.num_A])   .~ vec(vel[:, s.num_C:s.num_A]) # TODO: different vels at different points TODO: rotation --> speed
+        vec(expected_vel[:, s.num_C:s.num_A])   .~ vec(repeat(vel[:, s.num_A], 1, 3)) # TODO: different vels at different points TODO: rotation --> speed
         vec(expected_pos[:, 1:s.num_E])         .~ vec(expected_tether_pos)
         vec(expected_pos[:, s.num_C:s.num_A])   .~ vec(pos[:, s.num_C:s.num_A])
     ]
@@ -433,7 +433,10 @@ function scalar_eqs(s, seqs, pos, vel, acc, flap_angle, flap_vel, flap_acc, segm
         set_diff(t)
         azimuth(t)
         elevation(t)
+        azimuth_vel(t)
+        elevation_vel(t)
         distance(t)[1:s.num_A]
+        distance_vel(t)
         distance_acc(t)
         kite_acc(t)[1:3]
         x_acc(t)
@@ -460,10 +463,12 @@ function scalar_eqs(s, seqs, pos, vel, acc, flap_angle, flap_vel, flap_acc, segm
         set_diff            ~ set_values[2] - set_values[1]
         # D(set_values)       ~ [0, 0, 0]
 
-        distance_acc        ~ (acc[:, s.num_C] + acc[:, s.num_D] + acc[:, s.num_A]) ⋅ normalize(P_c - pos[:, 3])
-        elevation           ~ atan(pos[3, end] / pos[1, end])
-        # elevation_vel     ~ vel in direction up
-        azimuth             ~ -atan(pos[2, end] / pos[1, end])
+        distance_vel        ~ (vel[:, s.num_A]) ⋅ normalize(P_c - pos[:, 3])
+        distance_acc        ~ (acc[:, s.num_A]) ⋅ normalize(P_c - pos[:, 3])
+        elevation           ~ atan(pos[3, s.num_A] / pos[1, s.num_A])
+        elevation_vel       ~ D(elevation)
+        azimuth             ~ -atan(pos[2, s.num_A] / pos[1, s.num_A])
+        azimuth_vel         ~ D(azimuth)
         kite_acc            ~ acc[:, s.num_C] + acc[:, s.num_D] + acc[:, s.num_A]
         x_acc               ~ (acc[:, s.num_C] + acc[:, s.num_D] + acc[:, s.num_A]) ⋅ e_x
         y_acc               ~ (acc[:, s.num_C] + acc[:, s.num_D] + acc[:, s.num_A]) ⋅ e_y
@@ -624,18 +629,20 @@ function model!(s::KPS4_3L; real=true)
             # kite vel --> whatever
             # kite acc --> 0
 
-            [sys.pos[j, s.num_A] => s.pos[s.num_A][j] for j in 1:3]
-            [sys.vel[j, s.num_A] => [-1, 0, 0][j] for j in 1:3]
+            sys.elevation => atan(s.pos[s.num_A][3] / s.pos[s.num_A][1])
+            sys.azimuth => -atan(s.pos[s.num_A][2] / s.pos[s.num_A][1])
+            sys.distance_vel => 0
 
-            [sys.vel[j, s.num_C] => [-1, 0, 0][j] for j in 1:3]
-            [sys.acc[j, s.num_C] => 0 for j in 1:3]
+            sys.elevation_vel => 0 # defined wrong symbolically
+            sys.azimuth_vel => 0
+            sys.distance_acc => 0
+
+            # [sys.pos[j, s.num_A] => s.pos[s.num_A][j] for j in 1:3]
+            # [sys.vel[j, s.num_A] => [-1, 0, 0][j] for j in 1:3]
+
+            [sys.vel[j, i] => [-1, 0, 0][j] for j in 1:3 for i in s.num_E:s.num_D]
+            [sys.acc[j, i] => 0 for j in 1:3 for i in s.num_E:s.num_D]
             
-            [sys.vel[j, s.num_D] => [-1, 0, 0][j] for j in 1:3]
-            [sys.acc[j, s.num_D] => 0 for j in 1:3]
-
-            [sys.vel[j, s.num_E] => [-1, 0, 0][j] for j in 1:3]
-            [sys.acc[j, s.num_E] => 0 for j in 1:3]
-
             # [sys.pos[j, i] => sys.expected_pos[j, i] for j in 1:3 for i in 4:s.num_flap_C-1]
             [sys.vel[j, i] => sys.expected_vel[j, i] for j in 1:3 for i in 4:s.num_flap_C-1]
             [sys.acc[j, i] => 0.0 for j in 1:3 for i in 4:s.num_flap_C-1]
