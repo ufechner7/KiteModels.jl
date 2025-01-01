@@ -78,18 +78,14 @@ end
 
 
 function init_masses!(s::KPS4_3L)
-    s.masses = zeros(s.num_A)
+    s.masses = zeros(s.num_C)
     l_0 = s.set.l_tether / s.set.segments 
     mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
-    for i in 4:s.set.segments*3
+    for i in 4:s.num_C
         s.masses[i]   += l_0 * mass_per_meter
     end
-    [s.masses[i] += 0.5 * l_0 * mass_per_meter for i in s.num_flap_C:s.num_E]
-    s.masses[s.num_E] += 0.5 * s.set.l_bridle * mass_per_meter
-    s.masses[s.num_A] += s.set.mass/4
-    s.masses[s.num_C] += s.set.mass*3/8
-    s.masses[s.num_D] += s.set.mass*3/8
-    return s.masses 
+    [s.masses[i] += 0.5 * l_0 * mass_per_meter for i in s.num_A:s.num_C]
+    return s.masses
 end
 
 function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1); old=false, delta = 0.0)
@@ -133,36 +129,91 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
     pos, vel, acc
 end
 
+# function calc_inertia!(s::KPS4_3L)
+#     segs = 100
+#     mass_per_area = s.set.mass / ((s.set.middle_length + s.set.tip_length) * 0.5 * s.set.width)
+#     s.I_kite .= 0.0
+#     for α in range(s.α_l, π-s.α_l, segs)
+#         if α < π/2
+#             kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (α - s.α_l) / (π/2 - s.α_l)
+#         else
+#             kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (π - s.α_l - α) / (π/2 - s.α_l)
+#         end
+#         area = kite_length * s.set.width/segs
+#         mass = area * mass_per_area
+#         x = 0.0 # TODO: improve x location
+#         y = cos(α) * s.set.radius
+#         z = -sin(α) * s.set.radius
+#         @show area mass x y z
+#         s.I_kite[1] += mass * (y^2 + z^2)
+#         s.I_kite[2] += mass * (x^2 + z^2)
+#         s.I_kite[3] += mass * (x^2 + y^2)
+#     end
+#     @show I_kite
+#     return nothing
+# end
+function calc_inertia!(s::KPS4_3L)
+    segs = 100
+    mass_per_area = s.set.mass / ((s.set.middle_length + s.set.tip_length) * 0.5 * s.set.width)
+    
+    # First pass - calculate COM
+    total_mass = 0.0
+    com = zeros(3)
+    for α in range(s.α_l, π-s.α_l, segs)
+        if α < π/2
+            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (α - s.α_l) / (π/2 - s.α_l)
+        else
+            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (π - s.α_l - α) / (π/2 - s.α_l)
+        end
+        area = kite_length * s.set.width/segs
+        mass = area * mass_per_area
+        pos = [0.0,                   
+               cos(α) * s.set.radius,
+               -sin(α) * s.set.radius]
+        com .+= mass * pos
+        total_mass += mass
+    end
+    @show total_mass s.set.mass
+    com ./= total_mass
+    @show com
+    
+    # Second pass - calculate inertia relative to COM
+    s.I_kite .= 0.0
+    for α in range(s.α_l, π-s.α_l, segs)
+        if α < π/2
+            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (α - s.α_l) / (π/2 - s.α_l)
+        else
+            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (π - s.α_l - α) / (π/2 - s.α_l)
+        end
+        area = kite_length * s.set.width/segs
+        mass = area * mass_per_area
+        pos = [0.0,                    # x
+               cos(α) * s.set.radius,  # y
+               -sin(α) * s.set.radius] # z
+        r = pos .- com
+        # Add inertia contribution using parallel axis theorem
+        s.I_kite[1] += mass * (r[2]^2 + r[3]^2)  # x
+        s.I_kite[2] += mass * (r[1]^2 + r[3]^2)  # y
+        s.I_kite[3] += mass * (r[1]^2 + r[2]^2)  # z
+    end
+    @show s.I_kite
+    return nothing
+end
 
 function init_pos!(s::KPS4_3L; new=true, α = 5.0)
     # ground points
-    [s.pos[i] .= [0, 0, 0] for i in 1:3]
+    s.pos[:, 1:3] .= 0
 
     width, radius, tip_length, middle_length = s.set.width, s.set.radius, s.set.tip_length, s.set.middle_length
-    α_0 = pi/2 - width/2/radius
-    s.α_C = α_0 + width*(-2*tip_length + sqrt(2*middle_length^2 + 2*tip_length^2)) /
+    s.α_l = pi/2 - width/2/radius
+    s.α_C = s.α_l + width*(-2*tip_length + sqrt(2*middle_length^2 + 2*tip_length^2)) /
         (4*(middle_length - tip_length)) / radius
-    s.kite_length_C = tip_length + (middle_length-tip_length) * (s.α_C - α_0) / (π/2 - α_0)
+    s.kite_length_C = tip_length + (middle_length-tip_length) * (s.α_C - s.α_l) / (π/2 - s.α_l)
     
     # kite points
     distance_E_Pc_z = (sin(s.α_C) * s.set.radius + (s.set.bridle_center_distance - s.set.radius))
-    C = rotate_around_z(rotate_around_y([s.measure.distance + distance_E_Pc_z, 0, 0], -s.measure.elevation_left), s.measure.azimuth_left)
-    D = rotate_around_z(rotate_around_y([s.measure.distance + distance_E_Pc_z, 0, 0], -s.measure.elevation_right), s.measure.azimuth_right)
-    P_c = (C+D)/2
-    s.e_y .= normalize(C - D)
-    # calculate C and D again to make sure the distance between C and D is correct
-    C = P_c + s.e_y * s.springs[end-2].length / 2
-    D = P_c - s.e_y * s.springs[end-2].length / 2
-    P_c = (C+D)/2
-    s.e_z .= normalize(s.pos[3] .- P_c) # no bend in middle tether
-    s.e_x .= s.e_y × s.e_z
-    E = P_c + (sin(s.α_C) * radius + (s.set.bridle_center_distance - radius)) * s.e_z
-    A = P_c - s.e_x*(s.kite_length_C*(3/4 - 1/4))
-
-    s.pos[s.num_A] .= A
-    s.pos[s.num_C] .= C
-    s.pos[s.num_D] .= D
-    s.pos[s.num_E] .= E
+    s.O_k .= rotate_around_z(rotate_around_y([s.measure.distance + s.set.bridle_center_distance - radius, 0, 0], -s.measure.elevation_left), s.measure.azimuth_left)
+    calc_inertia!(s)
     
     # build tether connection points
     E_c = s.pos[s.num_E] + s.e_z * (-s.set.bridle_center_distance + s.set.radius) 
