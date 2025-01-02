@@ -36,7 +36,6 @@ module KiteModels
 using PrecompileTools: @setup_workload, @compile_workload 
 using Dierckx, Interpolations, Serialization, StaticArrays, LinearAlgebra, Parameters, NLsolve, Roots, ForwardDiff,
       DocStringExtensions, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK, NonlinearSolve, FiniteDiff, DifferentiationInterface
-import Base: show
 import Sundials
 using Reexport, Pkg
 @reexport using KitePodModels
@@ -167,7 +166,7 @@ end
 """
     unstretched_length(s::AKM)
 
-Getter for the unstretched tether reel-out lenght (at zero force).
+Getter for the unstretched tether reel-out length (at zero force).
 """
 function unstretched_length(s::AKM) s.l_tether end
 
@@ -234,7 +233,7 @@ end
 """
     tether_length(s::AKM)
 
-Calculate and return the real, stretched tether lenght.
+Calculate and return the real, stretched tether length.
 """
 function tether_length(s::AKM)
     length = 0.0

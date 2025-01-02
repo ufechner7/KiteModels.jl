@@ -23,9 +23,9 @@ SOFTWARE. =#
 #= Model of a kite-power system in implicit form: residual = f(y, yd)
 
 This model implements a 3D mass-spring system with reel-out. It uses six tether segments (the number can be
-configured in the file data/settings.yaml). The kite is modelled using 4 point masses and 3*n aerodynamic 
+configured in the file data/settings.yaml). The kite is modelled using 4 point masses and 2n aerodynamic 
 surfaces. The spring constant and the damping decrease with the segment length. The aerodynamic kite forces
-are acting on three of the four kite point masses. 
+are acting on the inertial kite point. 
 
 Four point kite model, included from KiteModels.jl.
 
@@ -75,16 +75,14 @@ end
 State of the kite power system, using a 3 point kite model and three steering lines to the ground. Parameters:
 - S: Scalar type, e.g. SimFloat
   In the documentation mentioned as Any, but when used in this module it is always SimFloat and not Any.
-- T: Vector type, e.g. KVec3
-- P: number of points of the system, segments+3
-- Q: number of springs in the system, P-1
-- SP: struct type, describing a spring
+- V: Vector type, e.g. KVec3
+- P: number of tether points of the system, 3segments+3
 Normally a user of this package will not have to access any of the members of this type directly,
 use the input and output functions instead.
 
 $(TYPEDFIELDS)
 """
-@with_kw mutable struct KPS4_3L{S, T, P, Q, SP} <: AbstractKiteModel # TODO: subdivide in kite-changing fields and non-kite-changing fields. combine this with fast caching
+@with_kw mutable struct KPS4_3L{S, V, P} <: AbstractKiteModel # TODO: subdivide in kite-changing fields and non-kite-changing fields. combine this with fast caching
     "Reference to the settings struct"
     set::Settings
     "Reference to the settings hash"
@@ -105,79 +103,58 @@ $(TYPEDFIELDS)
     c_te_interp::Function
     "Reference to the motor models as implemented in the package WinchModels. index 1: middle motor, index 2: left motor, index 3: right motor"
     motors::SizedArray{Tuple{3}, AbstractWinchModel}
-    "Iterations, number of calls to the function residual!"
-    iter:: Int64 = 0
     "wind vector at the height of the kite" 
-    v_wind::T =           zeros(S, 3)
+    v_wind::V =           zeros(S, 3)
     "wind vector at reference height" 
-    v_wind_gnd::T =       zeros(S, 3)
+    v_wind_gnd::V =       zeros(S, 3)
     "wind vector used for the calculation of the tether drag"
-    v_wind_tether::T =    zeros(S, 3)
+    v_wind_tether::V =    zeros(S, 3)
     "apparent wind vector at the kite"
-    v_apparent::T =       zeros(S, 3)
-    "a copy of the residual one (pos,vel) for debugging and unit tests"    
-    res1::SVector{P, T} = zeros(SVector{P, T})
-    "a copy of the residual two (vel,acc) for debugging and unit tests"
-    res2::SVector{P, T} = zeros(SVector{P, T})
-    "a copy of the actual positions as output for the user"
-    pos::SVector{P, T} = zeros(SVector{P, T})
-    vel::SVector{P, T} = zeros(SVector{P, T})
+    v_apparent::V =       zeros(S, 3)
+    "tether positions"
+    pos::Matrix{S} = zeros(3, P)
     "unstressed segment lengths of the three tethers [m]"
-    segment_lengths::T =           zeros(S, 3)
-    "azimuth angle in radian; inital value is zero"
-    psi::S =              zero(S)
+    segment_lengths::V =           zeros(S, 3)
     "relative start time of the current time interval"
     t_0::S =               0.0
     "unstretched tether length"
-    tether_lengths::T =          zeros(S, 3)
+    tether_lengths::V =          zeros(S, 3)
     "air density at the height of the kite"
     rho::S =               0.0
     "multiplier for the damping of all movement"
     damping_coeff::S =  50.0
-    "current masses, depending on the total tether length"
-    masses::MVector{P, S}         = zeros(P)
-    "vector of the springs, defined as struct"
-    springs::MVector{Q, SP}       = zeros(SP, Q)
+    "tether masses"
+    masses::V         = zeros(P)
     "unit spring coefficient"
-    c_spring::T = zeros(S, 3)
+    c_spring::V = zeros(S, 3)
     "unit damping coefficient"
-    damping::T = zeros(S, 3)
+    damping::V = zeros(S, 3)
     "whether or not to use torque control instead of speed control"
     torque_control::Bool = false
     "x vector of kite reference frame"
-    e_x::T =                 zeros(S, 3)
+    e_x::V =                 zeros(S, 3)
     "y vector of kite reference frame"
-    e_y::T =                 zeros(S, 3)
+    e_y::V =                 zeros(S, 3)
     "z vector of kite reference frame"
-    e_z::T =                 zeros(S, 3)
-    "Point number of C flap connection point"
-    num_flap_C::Int64 =           0
-    "Point number of D flap connection point"
-    num_flap_D::Int64 =           0
-    "Point number of E"
-    num_E::Int64 =           0
-    "Point number of C"
-    num_C::Int64 =           0
-    "Point number of D"
-    num_D::Int64 =           0
-    "Point number of A"
-    num_A::Int64 =           0
+    e_z::V =                 zeros(S, 3)
+    "Point index of A - trailing edge point"
+    i_A::Int64 =           0
+    "Point index of B - trailing edge point"
+    i_B::Int64 =           0
+    "Point index of C - middle tether last point"
+    i_C::Int64 =           0
     "Angle of left tip"
     α_l::S =     0.0
-    "Angle of right tip"
-    α_r::S =     0.0
     "Angle of point C"
-    α_C::S =     0.0
+    α_D::S =     0.0
     "Kite length at point C"
-    kite_length_C::S =     0.0
-    "Solution of the steady state problem"
-    steady_sol::Union{SciMLBase.NonlinearSolution, Nothing} = nothing
+    kite_length_D::S =     0.0
     "Simplified system of the mtk model"
     simple_sys::Union{ModelingToolkit.ODESystem, Nothing} = nothing
     "Velocity of the kite"
-    vel_kite::T =           zeros(S, 3)
+    vel_kite::V =           zeros(S, 3)
     "Initial torque or speed set values"
-    init_set_values::T =    zeros(S, 3)
+    init_set_values::V =    zeros(S, 3)
     "Smooth sign constant"
     ϵ::S =      1e-3
     "Relative damping for flaps"
@@ -185,15 +162,43 @@ $(TYPEDFIELDS)
     "Measured data points used to create an initial state"
     measure::Measurements = Measurements()
     "Buffer for expected kite pos and vel, defined as (pos, vel), (x, y, z), (value)"
-    expected_tether_pos_vel_buffer::Array{S, 3} = zeros(2, 3, (P ÷ 3)-1)
+    expected_tether_pos_vel_buffer::Array{S, 3} = zeros(2, 3, (P ÷ 3))
     "Buffers for Jacobian for expected tether point velocities relative to winch velocities and kite velocities"
-    J_buffer::Matrix{S} = zeros(3((P ÷ 3)-1), 2)
+    J_buffer::Matrix{S} = zeros(P, 2)
     "Makes autodiff faster"
     prep::Union{Nothing, Any} = nothing
     "Buffer for jacobian y values (vectorized velocities)"
-    y_buffer::Vector{SimFloat} = zeros(3*((P ÷ 3)-1))
+    y_buffer::V = zeros(P)
     "Buffer for jacobian x values (angle, distance)"
-    x_buffer::Vector{SimFloat} = zeros(2)
+    x_buffer::V = zeros(2)
+    "Inertia around kite x y and z axis"
+    I_kite::V = zeros(3)
+    "Damping of the kite rotation"
+    orient_damping::S = 0.0
+    "rotation from kite body frame to kite principal frame"
+    R_b_p::Matrix{S} = zeros(3, 3)
+    "center of mass point in kite reference frame"
+    com::V = zeros(3)
+    "center of the circle on which the kite lies and origin of kite reference frame"
+    O_k::V = zeros(3)
+    "aero points center of mass positions in principal frame"
+    seg_com_pos_p::Matrix{S} = zeros(3, 2set.aero_surfaces)
+    "aero points center of pressure positions in principal frame"
+    seg_cop_pos_p::Matrix{S} = zeros(3, 2set.aero_surfaces)
+    "cop pos in body frame"
+    seg_cop_pos_b::Matrix{S} = zeros(3, 2set.aero_surfaces)
+    "last middle tether point position in principal frame"
+    pos_C_p::V = zeros(3)
+    "rotation from kite body frame to world frame"
+    R_b_w::Matrix{S} = zeros(3, 3)
+    "distance from point O_k to point C"
+    OC_length::S = zero(S)
+    "mass of each kite segment"
+    seg_mass::V = zeros(2set.aero_surfaces)
+    "A point projected onto kite in z-axis in body frame"
+    pos_D_b::V = zeros(3)
+    "B point projected onto kite in z-axis in body frame"
+    pos_E_b::V = zeros(3)
 
     # set_values_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
     v_wind_gnd_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
@@ -201,8 +206,8 @@ $(TYPEDFIELDS)
     prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
     set_set_values::Union{SymbolicIndexingInterface.MultipleSetters, Nothing} = nothing
     get_pos::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
-    get_flap_angle::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
-    get_flap_acc::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
+    get_trailing_edge_angle::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
+    get_trailing_edge_α::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_vel_kite::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_tether_forces::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_tether_lengths::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
@@ -213,11 +218,7 @@ $(TYPEDFIELDS)
     get_D_D::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     get_heading::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
     integrator::Union{Sundials.CVODEIntegrator, OrdinaryDiffEqCore.ODEIntegrator, Nothing} = nothing
-    u0:: Vector{SimFloat} = [0.0]
-end
-
-function show(io::IO, s::KPS4_3L)
-    print(io, "KPS4_3L")
+    u0::V = [0.0]
 end
 
 """
@@ -226,7 +227,6 @@ end
 Initialize the kite power model.
 """
 function clear!(s::KPS4_3L)
-    s.iter = 0
     s.t_0 = 0.0                              # relative start time of the current time interval
     # s.last_reel_out_speeds = zeros(3)
     s.v_wind_gnd    .= [s.set.v_wind, 0.0, 0.0]    # wind vector at reference height
@@ -239,20 +239,15 @@ function clear!(s::KPS4_3L)
     s.e_z .= 0.0
     s.tether_lengths .= [s.set.l_tether for _ in 1:3]
     s.α_l = π/2 - s.set.min_steering_line_distance/(2*s.set.radius)
-    s.α_r = π/2 + s.set.min_steering_line_distance/(2*s.set.radius)
     s.segment_lengths .= s.tether_lengths ./ s.set.segments
-    s.num_flap_C = s.set.segments*3+3-2
-    s.num_flap_D = s.set.segments*3+3-1
-    s.num_E = s.set.segments*3+3
-    s.num_C = s.set.segments*3+3+1
-    s.num_D = s.set.segments*3+3+2
-    s.num_A = s.set.segments*3+3+3
+    s.i_A = s.set.segments*3+1
+    s.i_B = s.set.segments*3+2
+    s.i_C = s.set.segments*3+3
     s.rho = s.set.rho_0
     c_spring = s.set.e_tether * (s.set.d_tether/2000.0)^2 * pi
     s.c_spring .= [c_spring, c_spring, 2c_spring]
     s.damping .= (s.set.damping / s.set.c_spring) * s.c_spring
     init_masses!(s)
-    init_springs!(s)
 end
 
 # include(joinpath(@__DIR__, "CreatePolars.jl"))
@@ -266,19 +261,19 @@ function KPS4_3L(kcu::KCU)
         end
     end
 
-    alphas, d_flap_angles, cl_matrix, cd_matrix, c_te_matrix = deserialize(joinpath(dirname(get_data_path()), set.polar_file))
+    alphas, d_trailing_edge_angles, cl_matrix, cd_matrix, c_te_matrix = deserialize(joinpath(dirname(get_data_path()), set.polar_file))
     replace_nan!(cl_matrix)
     replace_nan!(cd_matrix)
     replace_nan!(c_te_matrix)
-    cl_struct = extrapolate(scale(interpolate(cl_matrix, BSpline(Quadratic())), alphas, d_flap_angles), NaN)
-    cd_struct = extrapolate(scale(interpolate(cd_matrix, BSpline(Quadratic())), alphas, d_flap_angles), NaN)
-    c_te_struct = extrapolate(scale(interpolate(c_te_matrix, BSpline(Quadratic())), alphas, d_flap_angles), NaN)
+    cl_struct = extrapolate(scale(interpolate(cl_matrix, BSpline(Quadratic())), alphas, d_trailing_edge_angles), NaN)
+    cd_struct = extrapolate(scale(interpolate(cd_matrix, BSpline(Quadratic())), alphas, d_trailing_edge_angles), NaN)
+    c_te_struct = extrapolate(scale(interpolate(c_te_matrix, BSpline(Quadratic())), alphas, d_trailing_edge_angles), NaN)
     cl_interp(a, d) = cl_struct(a, d)
     cd_interp(a, d) = cd_struct(a, d)
     c_te_interp(a, d) = c_te_struct(a, d)
     
     if set.winch_model == "TorqueControlledMachine"
-        s = KPS4_3L{SimFloat, KVec3, set.segments*3+2+KITE_PARTICLES_3L, set.segments*3+KITE_SPRINGS_3L, SP}(
+        s = KPS4_3L{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
             set=kcu.set, 
             motors=[TorqueControlledMachine(set) for _ in 1:3],
             cl_interp = cl_interp,
@@ -286,7 +281,7 @@ function KPS4_3L(kcu::KCU)
             c_te_interp = c_te_interp,)
         s.torque_control = true
     else
-        s = KPS4_3L{SimFloat, KVec3, set.segments*3+2+KITE_PARTICLES_3L, set.segments*3+KITE_SPRINGS_3L, SP}(
+        s = KPS4_3L{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
             set=kcu.set, 
             motors=[AsyncMachine(set) for _ in 1:3],
             cl_interp = cl_interp,
@@ -332,8 +327,8 @@ function update_sys_state!(ss::SysState, s::KPS4_3L, zoom=1.0)
     ss.v_app = norm(s.v_apparent)
     ss.l_tether = s.tether_lengths[3]
     ss.v_reelout = s.get_tether_vels(s.integrator)[3]
-    ss.depower = rad2deg(s.get_flap_angle(s.integrator)[1] + s.get_flap_angle(s.integrator)[2])
-    ss.steering = rad2deg(s.get_flap_angle(s.integrator)[2] - s.get_flap_angle(s.integrator)[1])
+    ss.depower = rad2deg(s.get_trailing_edge_angle(s.integrator)[1] + s.get_trailing_edge_angle(s.integrator)[2])
+    ss.steering = rad2deg(s.get_trailing_edge_angle(s.integrator)[2] - s.get_trailing_edge_angle(s.integrator)[1])
     ss.vel_kite .= s.vel_kite
     nothing
 end
@@ -359,8 +354,8 @@ function SysState(s::KPS4_3L, zoom=1.0) # TODO: add left and right lines, stop u
     course = calc_course(s)
     v_app_norm = norm(s.v_apparent)
     t_sim = 0
-    depower = rad2deg(s.get_flap_angle(s.integrator)[1] + s.get_flap_angle(s.integrator)[2])
-    steering = rad2deg(s.get_flap_angle(s.integrator)[2] - s.get_flap_angle(s.integrator)[1])
+    depower = rad2deg(s.get_trailing_edge_angle(s.integrator)[1] + s.get_trailing_edge_angle(s.integrator)[2])
+    steering = rad2deg(s.get_trailing_edge_angle(s.integrator)[2] - s.get_trailing_edge_angle(s.integrator)[1])
     ss = SysState{P}()
     ss.time = s.t_0
     ss.t_sim = t_sim
@@ -456,8 +451,8 @@ function init_sim!(s::KPS4_3L; damping_coeff=s.damping_coeff, prn=false,
         pos, vel = init_pos_vel(s)
         pos, vel = convert_pos_vel(s, pos, vel)
         defaults = vcat(
-                    vcat([s.simple_sys.pos[j, i] => pos[j, i] for i in 1:s.num_flap_C-1 for j in 1:3]), 
-                    vcat([s.simple_sys.pos[j, i] => pos[j, i] for i in s.num_flap_D+1:s.num_A for j in 1:3]),
+                    vcat([s.simple_sys.pos[j, i] => pos[j, i] for i in 1:s.i_A-1 for j in 1:3]), 
+                    vcat([s.simple_sys.pos[j, i] => pos[j, i] for i in s.i_B+1:s.i_A for j in 1:3]),
                     vcat([s.simple_sys.tether_length[i] => s.tether_lengths[i] for i in 1:3]),
                         )
         s.prob = ODEProblem(s.simple_sys, defaults, tspan)
@@ -485,9 +480,9 @@ function generate_getters!(s)
         s.v_wind_idx = parameter_index(s.integrator.f, :v_wind)
         s.set_set_values = setu(s.integrator.sol, s.simple_sys.set_values)
         s.get_pos = getu(s.integrator.sol, s.simple_sys.pos[:,:])
-        s.get_flap_angle = getu(s.integrator.sol, s.simple_sys.flap_angle)
-        s.get_flap_acc = getu(s.integrator.sol, s.simple_sys.flap_acc)
-        s.get_vel_kite = getu(s.integrator.sol, s.simple_sys.vel[:,s.num_A])
+        s.get_trailing_edge_angle = getu(s.integrator.sol, s.simple_sys.trailing_edge_angle)
+        s.get_trailing_edge_α = getu(s.integrator.sol, s.simple_sys.trailing_edge_α)
+        s.get_vel_kite = getu(s.integrator.sol, s.simple_sys.vel[:,s.i_A])
         s.get_tether_forces = getu(s.integrator.sol, s.simple_sys.tether_force)
         s.get_L_C = getu(s.integrator.sol, s.simple_sys.L_C)
         s.get_L_D = getu(s.integrator.sol, s.simple_sys.L_D)
@@ -501,7 +496,6 @@ function generate_getters!(s)
 end
 
 function next_step!(s::KPS4_3L; set_values=zeros(KVec3), v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2, dt=1/s.set.sample_freq)
-    s.iter = 0
     set_v_wind_ground!(s, calc_height(s), v_wind_gnd; upwind_dir)
     generate_getters!(s)
     s.set_set_values(s.integrator, set_values)
@@ -517,34 +511,34 @@ function next_step!(s::KPS4_3L; set_values=zeros(KVec3), v_wind_gnd=s.set.v_wind
     s.integrator.t
 end
 
-function calc_pre_tension(s::KPS4_3L)
-    forces = spring_forces(s)
-    avg_force = 0.0
-    for i in 1:s.num_A
-        avg_force += forces[i]
-    end
-    avg_force /= s.num_A
-    res = avg_force/s.c_spring[3]
-    if res < 0.0 res = 0.0 end
-    if isnan(res) res = 0.0 end
-    return res + 1.0
-end
+# function calc_pre_tension(s::KPS4_3L)
+#     forces = spring_forces(s)
+#     avg_force = 0.0
+#     for i in 1:s.i_A
+#         avg_force += forces[i]
+#     end
+#     avg_force /= s.i_A
+#     res = avg_force/s.c_spring[3]
+#     if res < 0.0 res = 0.0 end
+#     if isnan(res) res = 0.0 end
+#     return res + 1.0
+# end
 
 """
     unstretched_length(s::KPS4_3L)
 
-Getter for the unstretched tether reel-out lenght (at zero force).
+Getter for the unstretched tether reel-out length (at zero force).
 """
 function unstretched_length(s::KPS4_3L) s.tether_lengths[3] end
 
 """
     tether_length(s::KPS4_3L)
 
-Calculate and return the real, stretched tether lenght.
+Calculate and return the real, stretched tether length.
 """
 function tether_length(s::KPS4_3L)
     length = 0.0
-    for i in 3:3:s.num_flap_C-1
+    for i in 3:3:s.i_A-1
         length += norm(s.pos[i+3] - s.pos[i])
     end
     return length
@@ -613,7 +607,7 @@ Tether vel: left - middle - right tether vel
 
 Return: an expected vel for all kite pos
 """
-function calc_expected_pos_vel(s::KPS4_3L, kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, tether_length, tether_force, c_spring) # TODO: remove the 123 caused by this issue: https://github.com/SciML/ModelingToolkit.jl/issues/3003
+function calc_expected_pos_vel(s::KPS4_3L, kite_pos1, kite_pos2, kite_pos3, kitrailing_edge_ω, tether_vel, tether_length, tether_force, c_spring) # TODO: remove the 123 caused by this issue: https://github.com/SciML/ModelingToolkit.jl/issues/3003
     kite_pos = [kite_pos1, kite_pos2, kite_pos3]
     s.expected_tether_pos_vel_buffer .= 0.0
     expected_pos = @views s.expected_tether_pos_vel_buffer[1, :, :]
@@ -623,8 +617,8 @@ function calc_expected_pos_vel(s::KPS4_3L, kite_pos1, kite_pos2, kite_pos3, kite
 
     stretched_tether_length = tether_length + tether_force / (c_spring/tether_length)
 
-    if any(isnan.((kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, tether_length, tether_force, c_spring))) || 
-            any(isa.((kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, tether_length, tether_force, c_spring), ForwardDiff.Dual)) ||
+    if any(isnan.((kite_pos1, kite_pos2, kite_pos3, kitrailing_edge_ω, tether_vel, tether_length, tether_force, c_spring))) || 
+            any(isa.((kite_pos1, kite_pos2, kite_pos3, kitrailing_edge_ω, tether_vel, tether_length, tether_force, c_spring), ForwardDiff.Dual)) ||
             distance >= stretched_tether_length
         expected_pos .= NaN
         expected_vel .= NaN
@@ -645,7 +639,7 @@ function calc_expected_pos_vel(s::KPS4_3L, kite_pos1, kite_pos2, kite_pos3, kite
         s.prep = prepare_jacobian(f_jac!, y, backend, x)
     end
     DifferentiationInterface.jacobian!(f_jac!, y, J, s.prep, backend, x)
-    expected_vel .= reshape(J * [kite_vel, tether_vel], size(expected_vel))
+    expected_vel .= reshape(J * [kitrailing_edge_ω, tether_vel], size(expected_vel))
     return s.expected_tether_pos_vel_buffer
 end
 const FD = ForwardDiff.Dual
@@ -653,7 +647,7 @@ function calc_expected_pos_vel(s::KPS4_3L, _::FD, _::FD, _::FD, _::FD, _::FD, _:
     s.expected_tether_pos_vel_buffer .= NaN
     return s.expected_tether_pos_vel_buffer
 end
-@register_array_symbolic calc_expected_pos_vel(s::KPS4_3L, kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, tether_length, tether_force, c_spring) begin
+@register_array_symbolic calc_expected_pos_vel(s::KPS4_3L, kite_pos1, kite_pos2, kite_pos3, kitrailing_edge_ω, tether_vel, tether_length, tether_force, c_spring) begin
     size = size(s.expected_tether_pos_vel_buffer)
     eltype = SimFloat
 end

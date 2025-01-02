@@ -1,4 +1,4 @@
-const KITE_ANGLE = 3.83 # angle between the kite and the last tether segment due to the mass of the control pod
+const KItrailing_edge_angle = 3.83 # angle between the kite and the last tether segment due to the mass of the control pod
 const PRE_STRESS  = 0.9998   # Multiplier for the initial spring lengths.
 
 # Functions to calculate the inital state vector, the inital masses and initial springs
@@ -30,32 +30,21 @@ function init_springs!(s::KPS4)
     s.springs
 end
 
-function init_springs!(s::KPS4_3L)
-    l_0 = s.set.l_tether / s.set.segments
+# function init_springs!(s::KPS4_3L)
+#     l_0 = s.set.l_tether / s.set.segments
     
-    E, C, D, A, _, _ = KiteUtils.get_particles_3l(s.set.width, s.set.radius, 
-        s.set.middle_length, s.set.tip_length, s.set.bridle_center_distance)
-    particles = [E, C, D, A]
+#     E, C, D, A, _, _ = KiteUtils.get_particles_3l(s.set.width, s.set.radius, 
+#         s.set.middle_length, s.set.tip_length, s.set.bridle_center_distance)
+#     particles = [E, C, D, A]
     
-    # build the tether segments of the three tethers
-    k = s.set.e_tether * (s.set.d_tether/2000.0)^2 * pi  / l_0  # Spring stiffness for this spring [N/m]
-    c = s.set.damping/l_0                                       # Damping coefficient [Ns/m]
-    for i in 1:s.set.segments*3
-        s.springs[i] = SP(i, i+3, l_0, k, c)
-    end
-    
-    # build the bridle segments
-    for i in 1:KITE_SPRINGS_3L
-        p0, p1 = SPRINGS_INPUT_3L[i, 1], SPRINGS_INPUT_3L[i, 2] # bridle points
-        l_0 = norm(particles[Int(p1)] - particles[Int(p0)]) * PRE_STRESS
-        k = s.set.e_tether * (s.set.d_line/2000.0)^2 * pi / l_0
-        p0 += s.num_flap_D # correct the index for the start and end particles of the bridle
-        p1 += s.num_flap_D
-        c = s.set.damping/ l_0
-        s.springs[i+s.set.segments*3] = SP(Int(p0), Int(p1), l_0, k, c)
-    end
-    return s.springs
-end
+#     # build the tether segments of the three tethers
+#     k = s.set.e_tether * (s.set.d_tether/2000.0)^2 * pi  / l_0  # Spring stiffness for this spring [N/m]
+#     c = s.set.damping/l_0                                       # Damping coefficient [Ns/m]
+#     for i in 1:s.set.segments*3
+#         s.springs[i] = SP(i, i+3, l_0, k, c)
+#     end
+#     return s.springs
+# end
 
 
 function init_masses!(s::KPS4)
@@ -78,13 +67,13 @@ end
 
 
 function init_masses!(s::KPS4_3L)
-    s.masses = zeros(s.num_C)
+    s.masses = zeros(s.i_C)
     l_0 = s.set.l_tether / s.set.segments 
     mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
-    for i in 4:s.num_C
+    for i in 4:s.i_C
         s.masses[i]   += l_0 * mass_per_meter
     end
-    [s.masses[i] += 0.5 * l_0 * mass_per_meter for i in s.num_A:s.num_C]
+    [s.masses[i] += 0.5 * l_0 * mass_per_meter for i in s.i_A:s.i_C]
     return s.masses
 end
 
@@ -106,7 +95,7 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
     if old
         particles = KiteUtils.get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k)
     else
-        particles = KiteUtils.get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k, pos[s.set.segments+1], rotate_around_y(vec_c, -deg2rad(KITE_ANGLE)), s.v_apparent)
+        particles = KiteUtils.get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k, pos[s.set.segments+1], rotate_around_y(vec_c, -deg2rad(KItrailing_edge_angle)), s.v_apparent)
     end
     j = 1
     for i in [1,2,3] # set p8, p9, p10
@@ -129,74 +118,99 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
     pos, vel, acc
 end
 
-# function calc_inertia!(s::KPS4_3L)
-#     segs = 100
-#     mass_per_area = s.set.mass / ((s.set.middle_length + s.set.tip_length) * 0.5 * s.set.width)
-#     s.I_kite .= 0.0
-#     for α in range(s.α_l, π-s.α_l, segs)
-#         if α < π/2
-#             kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (α - s.α_l) / (π/2 - s.α_l)
-#         else
-#             kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (π - s.α_l - α) / (π/2 - s.α_l)
-#         end
-#         area = kite_length * s.set.width/segs
-#         mass = area * mass_per_area
-#         x = 0.0 # TODO: improve x location
-#         y = cos(α) * s.set.radius
-#         z = -sin(α) * s.set.radius
-#         @show area mass x y z
-#         s.I_kite[1] += mass * (y^2 + z^2)
-#         s.I_kite[2] += mass * (x^2 + z^2)
-#         s.I_kite[3] += mass * (x^2 + y^2)
-#     end
-#     @show I_kite
-#     return nothing
-# end
 function calc_inertia!(s::KPS4_3L)
     segs = 100
     mass_per_area = s.set.mass / ((s.set.middle_length + s.set.tip_length) * 0.5 * s.set.width)
     
     # First pass - calculate COM
     total_mass = 0.0
-    com = zeros(3)
-    for α in range(s.α_l, π-s.α_l, segs)
-        if α < π/2
-            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (α - s.α_l) / (π/2 - s.α_l)
-        else
-            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (π - s.α_l - α) / (π/2 - s.α_l)
-        end
-        area = kite_length * s.set.width/segs
-        mass = area * mass_per_area
-        pos = [0.0,                   
-               cos(α) * s.set.radius,
-               -sin(α) * s.set.radius]
-        com .+= mass * pos
-        total_mass += mass
-    end
-    @show total_mass s.set.mass
-    com ./= total_mass
-    @show com
+    s.com .= zeros(3)
+    pos = zeros(3, 2segs)
+    mass = zeros(2segs)
     
-    # Second pass - calculate inertia relative to COM
-    s.I_kite .= 0.0
-    for α in range(s.α_l, π-s.α_l, segs)
-        if α < π/2
-            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (α - s.α_l) / (π/2 - s.α_l)
+    @assert s.α_l != 0.0
+    α_middle    = π/2
+    dα          = (α_middle - s.α_l) / segs
+    for i in 1:2segs
+        if i <= segs
+            α = s.α_l + -dα/2 + i * dα
+            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (α - s.α_l) / (π/2 - s.α_l) # TODO: kite length gets less with flap turning
         else
+            α = pi - (s.α_l + -dα/2 + (i-segs) * dα)
             kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (π - s.α_l - α) / (π/2 - s.α_l)
         end
-        area = kite_length * s.set.width/segs
-        mass = area * mass_per_area
-        pos = [0.0,                    # x
-               cos(α) * s.set.radius,  # y
-               -sin(α) * s.set.radius] # z
-        r = pos .- com
-        # Add inertia contribution using parallel axis theorem
-        s.I_kite[1] += mass * (r[2]^2 + r[3]^2)  # x
-        s.I_kite[2] += mass * (r[1]^2 + r[3]^2)  # y
-        s.I_kite[3] += mass * (r[1]^2 + r[2]^2)  # z
+        
+        area = kite_length * s.set.width/(2segs)
+        mass[i] = area * mass_per_area
+        pos[:, i] = [-0.5 * kite_length, cos(α) * s.set.radius, sin(α) * s.set.radius]
+        s.com .+= mass[i] * pos[:, i]
     end
-    @show s.I_kite
+    s.com ./= sum(mass)
+    
+    # Calculate full inertia tensor relative to COM
+    I = zeros(3,3)
+    for i in eachindex(mass)
+        pos[:, i] .-= s.com
+        r = @views pos[:, i]
+        m = mass[i]
+        
+        # Diagonal terms
+        I[1,1] += m * (r[2]^2 + r[3]^2)  # Ixx
+        I[2,2] += m * (r[1]^2 + r[3]^2)  # Iyy
+        I[3,3] += m * (r[1]^2 + r[2]^2)  # Izz
+        
+        # Products of inertia
+        I[1,2] = I[2,1] -= m * r[1] * r[2]  # Ixy
+        I[1,3] = I[3,1] -= m * r[1] * r[3]  # Ixz
+        I[2,3] = I[3,2] -= m * r[2] * r[3]  # Iyz
+    end
+    
+    # Find principal axes
+    eigenvals, eigenvecs = eigen(I)
+    
+    # Sort by magnitude
+    p = sortperm(eigenvals)
+    eigenvals = eigenvals[p]
+    eigenvecs = eigenvecs[:, p]
+    
+    # Ensure right-handed coordinate system
+    if det(eigenvecs) < 0
+        eigenvecs[:, 3] *= -1
+    end
+
+    # Store results
+    s.I_kite .= eigenvals
+    s.R_b_p .= eigenvecs
+    @show s.com
+    @show s.I_kite eigenvals eigenvecs
+    @show s.R_b_p
+    return nothing
+end
+
+function calc_pos_principal!(s::KPS4_3L)
+    # pos in principal frame relative to com
+    mass_per_area = s.set.mass / ((s.set.middle_length + s.set.tip_length) * 0.5 * s.set.width)
+    n = s.set.aero_surfaces
+    s.α_l       = π/2 - s.set.width/2/s.set.radius
+    α_middle    = π/2
+    dα          = (α_middle - s.α_l) / n
+    for i in 1:2n
+        if i <= n
+            α = s.α_l + -dα/2 + i * dα
+            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (α - s.α_l) / (π/2 - s.α_l) # TODO: kite length gets less with flap turning
+        else
+            α = pi - (s.α_l + -dα/2 + (i-n) * dα)
+            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (π - s.α_l - α) / (π/2 - s.α_l)
+        end
+        area = kite_length * s.set.width/(2n)
+        s.seg_mass[i] = area * mass_per_area
+
+        s.seg_com_pos_p[:, i] .= s.R_b_p * ([-0.5 * kite_length, cos(α) * s.set.radius, sin(α) * s.set.radius] .- s.com)
+        s.seg_cop_pos_b[:, i] .= [-0.75 * kite_length, cos(α) * s.set.radius, sin(α) * s.set.radius]
+        s.seg_cop_pos_p[:, i] .= s.R_b_p * (s.seg_cop_pos_b[:, i] .- s.com)
+    end
+    @show s.seg_mass
+    s.pos_C_p .= s.R_b_p * ([-0.75 * s.set.middle_length, 0.0, -s.OC_length] .- s.com)
     return nothing
 end
 
@@ -206,68 +220,51 @@ function init_pos!(s::KPS4_3L; new=true, α = 5.0)
 
     width, radius, tip_length, middle_length = s.set.width, s.set.radius, s.set.tip_length, s.set.middle_length
     s.α_l = pi/2 - width/2/radius
-    s.α_C = s.α_l + width*(-2*tip_length + sqrt(2*middle_length^2 + 2*tip_length^2)) /
+    s.α_D = s.α_l + width*(-2*tip_length + sqrt(2*middle_length^2 + 2*tip_length^2)) /
         (4*(middle_length - tip_length)) / radius
-    s.kite_length_C = tip_length + (middle_length-tip_length) * (s.α_C - s.α_l) / (π/2 - s.α_l)
-    
-    # kite points
-    distance_E_Pc_z = (sin(s.α_C) * s.set.radius + (s.set.bridle_center_distance - s.set.radius))
-    s.O_k .= rotate_around_z(rotate_around_y([s.measure.distance + s.set.bridle_center_distance - radius, 0, 0], -s.measure.elevation_left), s.measure.azimuth_left)
+    s.kite_length_D = tip_length + (middle_length-tip_length) * (s.α_D - s.α_l) / (π/2 - s.α_l)
+
     calc_inertia!(s)
+    calc_pos_principal!(s)
     
-    # build tether connection points
-    E_c = s.pos[s.num_E] + s.e_z * (-s.set.bridle_center_distance + s.set.radius) 
-    e_r_C = (E_c - s.pos[s.num_C]) / norm(E_c - s.pos[s.num_C])
-    e_r_D = (E_c - s.pos[s.num_D]) / norm(E_c - s.pos[s.num_D])
-    flap_length = s.kite_length_C/4
-    angle_flap_c = 0.0 # distance between c and left flap
-    angle_flap_d = 0.0
-    # distance_c_l = s.set.tip_length/2 # distance between c and left steering line
-    s.pos[s.num_flap_C] .= s.pos[s.num_C] - s.e_x * flap_length * cos(angle_flap_c) + e_r_C * flap_length * sin(angle_flap_c) +
-        s.e_z * distance_E_Pc_z
-    s.pos[s.num_flap_D] .= s.pos[s.num_D] - s.e_x * flap_length * cos(angle_flap_d) + e_r_D * flap_length * sin(angle_flap_d) +
-        s.e_z * distance_E_Pc_z
+    # init last tether points
+    s.pos[:, s.i_A] .= rotate_around_z(rotate_around_y([s.measure.distance, 0, 0], -s.measure.elevation_left), s.measure.azimuth_left)
+    s.pos[:, s.i_B] .= rotate_around_z(rotate_around_y([s.measure.distance, 0, 0], -s.measure.elevation_right), s.measure.azimuth_right)
+    s.pos[:, s.i_C] .= 0.5s.pos[:, s.i_A] + 0.5s.pos[:, s.i_C]
+    s.e_y .= normalize(s.pos[:, s.i_A] - s.pos[:, s.i_B])
 
-    if new
-        angular_acc = s.measure.tether_acc / s.set.drum_radius
-        net_torque = angular_acc * s.set.inertia_total # TODO: check if inertia is correct
-        tether_force = (net_torque - s.measure.winch_torque) / s.set.drum_radius
-        @show tether_force
-        for i in 1:3
-            expected_pos = calc_expected_pos_vel(s, s.pos[i+s.num_flap_C-1][1], s.pos[i+s.num_flap_C-1][2], s.pos[i+s.num_flap_C-1][3], 
-                0, 0, s.measure.tether_length[i], tether_force[i], s.c_spring[i])[1, :, :]
-            [s.pos[3(k-1)+i][j] = expected_pos[j, k] for j in 1:3 for k in 1:(s.num_E ÷ 3)]
-        end
-        return s.pos
-    else
-        # middle tether
-        for (i, j) in enumerate(range(6, step=3, length=s.set.segments))
-            s.pos[j] .= E / s.set.segments * i
-        end
+    # init middle tether
+    angular_acc = s.measure.tether_acc / s.set.drum_radius
+    net_torque = angular_acc * s.set.inertia_total # TODO: check if inertia is correct
+    tether_force = (net_torque - s.measure.winch_torque) / s.set.drum_radius
+    @show tether_force
+    expected_pos = calc_expected_pos_vel(s, s.pos[:, s.i_C][1], s.pos[:, s.i_C][2], s.pos[:, s.i_C][3], 
+        0, 0, s.measure.tether_length[3], tether_force[3], s.c_spring[3])[1, :, :]
+    # [s.pos[j, 3(k-1)+i] = expected_pos[j, k] for j in 1:3 for k in 1:(s.i_C ÷ 3)]
+    s.pos[:, 3:3:s.i_C] .= expected_pos[:, :]
+    s.e_z .= normalize(s.pos[:, s.i_C] - s.pos[:, s.i_C-3])
+    s.e_x .= s.e_y × s.e_z
+    s.O_k .= s.pos[:, s.i_C] + (s.OC_length) * s.e_z
+    
+    # init tether connection points
+    s.pos_D_b = [0.0, cos(s.α_D) * s.set.radius, -sin(α) * s.set.radius]
+    s.pos_E_b = [0.0, -cos(s.α_D) * s.set.radius, -sin(α) * s.set.radius]
+    e_r_C = -normalize(s.pos_D_b)
+    e_r_D = -normalize(s.pos_E_b)
+    trailing_edge_length = s.kite_length_D/4
+    angle_te_c = 0.0
+    angle_te_d = 0.0
+    s.pos[:, s.i_A] .= s.pos[:, s.i_C] + s.e_y * s.pos_D_b[2] + s.e_x * trailing_edge_length * cos(angle_te_c) + e_r_C * trailing_edge_length * sin(angle_te_c)
+    s.pos[:, s.i_B] .= s.pos[:, s.i_C] + s.e_y * s.pos_E_b[2] + s.e_x * trailing_edge_length * cos(angle_te_d) + e_r_D * trailing_edge_length * sin(angle_te_d)
 
-        # build left and right tether points with degrees of bend α
-        s.tether_lengths[3] = norm(s.pos[s.num_E])
-        s.tether_lengths[1] = 0.0
-        l = s.tether_lengths[3]
-        α = deg2rad(α)
-        h = l/(2tan(α))
-        r = l/(2sin(α))
-        for (i, j) in enumerate(range(4, step=3, length=s.set.segments-1))
-            # s.pos[j] .= s.pos[s.num_flap_C] ./ s.set.segments .* i .+ [(middle_distance)*s.tether_lengths[3]*0.5, 0.0, 0.0]
-            γ = -α + 2α*i / s.set.segments
-            local_z_minus = l/2 + r * sin(γ)
-            local_x = h - r * cos(γ)
-            s.pos[j] .= local_z_minus * normalize(C) + local_x * s.e_x
-            s.pos[j+1] .= local_z_minus * normalize(D) + local_x * s.e_x
-
-            s.tether_lengths[1] += norm(s.pos[j] - s.pos[j-3])
-            s.tether_lengths[2] += norm(s.pos[j+1] - s.pos[j-2])
-        end
-        s.tether_lengths[1] += norm(s.pos[s.num_flap_C] - s.pos[s.num_flap_C-3])
-        s.tether_lengths[2] = s.tether_lengths[1]
-
-        return s.pos
-    end
+    # init left and right tether
+    expected_pos = calc_expected_pos_vel(s, s.pos[:, s.i_A][1], s.pos[:, s.i_A][2], s.pos[:, s.i_A][3], 
+        0, 0, s.measure.tether_length[3], tether_force[3], s.c_spring[3])[1, :, :]
+    expected_pos = calc_expected_pos_vel(s, s.pos[:, s.i_B][1], s.pos[:, s.i_B][2], s.pos[:, s.i_B][3], 
+        0, 0, s.measure.tether_length[3], tether_force[3], s.c_spring[3])[1, :, :]
+    s.pos[:, 1:3:s.i_A] .= expected_pos[:, :]
+    s.pos[:, 2:3:s.i_B] .= expected_pos[:, :]
+    return s.pos
 end
 
 
@@ -288,20 +285,20 @@ function init_inner(s::KPS4_3L; delta=0.0)
     pos_, vel_, acc_ = init_pos_vel_acc(s; delta=delta)
     # remove last left and right tether point and replace them by the length from C and D
     pos = vcat(
-        pos_[4:s.num_flap_C-1], 
-        pos_[s.num_E:end],
+        pos_[4:s.i_A-1], 
+        pos_[s.i_E:end],
     )
     len = vcat( # connection length
-        norm(pos_[s.num_C]-pos_[s.num_flap_C]), # left line connection distance
-        norm(pos_[s.num_D]-pos_[s.num_flap_D]), # right line connection distance
+        norm(pos_[s.i_C]-pos_[s.i_A]), # left line connection distance
+        norm(pos_[s.i_D]-pos_[s.i_B]), # right line connection distance
     )
     vel = vcat(
-        vel_[4:s.num_flap_C-1], 
-        vel_[s.num_E:end],
+        vel_[4:s.i_A-1], 
+        vel_[s.i_E:end],
     )
     acc = vcat(
-        acc_[4:s.num_flap_C-1],
-        acc_[s.num_E:end],
+        acc_[4:s.i_A-1],
+        acc_[s.i_E:end],
     )
     vcat(pos, vel, len, [0,0]), vcat(vel, acc, [0,0], [0,0])
 end
@@ -319,7 +316,7 @@ function init(s::KPS4_3L; delta=0.0)
     y_, yd_ = init_inner(s; delta = delta)
     y = vcat(reduce(vcat, y_), reduce(vcat,[s.tether_lengths, zeros(3)]))
     yd = vcat(reduce(vcat, yd_), zeros(6))
-    MVector{6*(s.num_A-5)+4+6, SimFloat}(y), MVector{6*(s.num_A-5)+4+6, SimFloat}(yd)
+    MVector{6*(s.i_A-5)+4+6, SimFloat}(y), MVector{6*(s.i_A-5)+4+6, SimFloat}(yd)
 end
 
 # rotate a 3d vector around the y axis in the xz plane - following the right hand rule
