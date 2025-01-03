@@ -119,7 +119,6 @@ function calc_kite_forces!(s::KPS4_3L, seqs, force_eqs, force, torque_p, q, kite
         seg_aero_torque_p(t)[1:3, 1:2n]
         seg_gravity_torque_p(t)[1:3, 1:2n]
         C_torque_p(t)[1:3] # torque on point C in principal reference frame
-        total_torque_p(t)[1:3]
         seg_vel(t)[1:3, 1:2n]
         F(t)[1:3, 1:2n]
         r(t)[1:3, 1:2n]
@@ -152,7 +151,7 @@ function calc_kite_forces!(s::KPS4_3L, seqs, force_eqs, force, torque_p, q, kite
             e_r[:, i]       ~ normalize(circle_origin - aero_pos[:, i])
             seg_vel[:, i]   ~ kite_vel + rotate_by_quaternion(cross(ω_p, s.seg_cop_pos_p[:, i]), q)
             v_a[:, i]       ~ v_wind .- seg_vel[:, i]
-            e_drift[:, i]   ~ (e_r[:, i] × -e_x)
+            e_drift[:, i]   ~ (e_x × e_r[:, i])
             v_a_xr[:, i]    ~ v_a[:, i] .- (v_a[:, i] ⋅ e_drift[:, i]) .* e_drift[:, i]
 
             α < α_m_l ?
@@ -161,7 +160,7 @@ function calc_kite_forces!(s::KPS4_3L, seqs, force_eqs, force, torque_p, q, kite
                 seg_trailing_edge_angle[i] ~ trailing_edge_angle[2] :
                 seg_trailing_edge_angle[i] ~ ((trailing_edge_angle[2] - trailing_edge_angle[1]) / (α_m_r - α_m_l) * (α - α_m_l) + trailing_edge_angle[1])
 
-            aoa[i]      ~ -asin2((v_a_xr[:, i] / norm(v_a_xr[:, i])) ⋅ e_r[:, i]) + deg2rad(s.set.alpha_zero)
+            aoa[i]      ~ -asin2(normalize(v_a_xr[:, i]) ⋅ e_r[:, i]) + deg2rad(s.set.alpha_zero) # TODO: check if correct
             seg_cl[i]   ~ sym_interp(s.cl_interp, aoa[i], seg_trailing_edge_angle[i])
             seg_cd[i]   ~ sym_interp(s.cd_interp, aoa[i], seg_trailing_edge_angle[i])
 
@@ -195,7 +194,7 @@ function calc_kite_forces!(s::KPS4_3L, seqs, force_eqs, force, torque_p, q, kite
         total_kite_force ~ [sum(seg_aero_force[i, :]) + sum(seg_g_force[i, :]) + force[i, s.i_C] for i in 1:3]
         kite_acc ~ total_kite_force / s.set.mass
         C_torque_p ~ rotate_by_quaternion(s.pos_C_p, q) × (s.R_b_p * force[:, s.i_C])
-        total_torque_p ~ [sum(seg_aero_torque_p[i, :]) + sum(seg_gravity_torque_p[i, :]) + C_torque_p[i] for i in 1:3]
+        torque_p ~ [sum(seg_aero_torque_p[i, :]) + sum(seg_gravity_torque_p[i, :]) + C_torque_p[i] for i in 1:3]
         F_te_C ~ [sum(seg_te_force[i, 1:n]) for i in 1:3]
         F_te_D ~ [sum(seg_te_force[i, n+1:2n]) for i in 1:3]
     ]
@@ -367,7 +366,7 @@ function scalar_eqs!(s, seqs, pos, vel, q, ω_p, ω_b, kite_pos, kite_vel, trail
         ω_b ~ s.R_b_p' * ω_p
         
         # last tether point pos
-        pos[:, s.i_C]    ~ kite_pos - e_z * s.C_t
+        pos[:, s.i_C]    ~ kite_pos + e_z * s.C_t
         pos[:, s.i_A]    ~ pos[:, s.i_C] + e_y * s.pos_D_b[2] + e_x * te_length * cos(trailing_edge_angle[1]) + 
             e_r_D * te_length * sin(trailing_edge_angle[1])
         pos[:, s.i_B]    ~ pos[:, s.i_C] + e_y * s.pos_E_b[2] + e_x * te_length * cos(trailing_edge_angle[2]) + 
@@ -520,14 +519,14 @@ function create_sys!(s::KPS4_3L)
         [D(kite_pos[i]) ~ kite_vel[i] for i in 1:3]
         [D(kite_vel[i]) ~ kite_acc[i] for i in 1:3]
 
-        [pos[:, i] .~ 0.0 for i in 1:3]
-        [D.(pos[:, i]) .~ vel[:, i] for i in 4:s.i_A-1]
+        [pos[:, i]              .~ 0.0 for i in 1:3]
+        [D.(pos[:, i])          .~ vel[:, i] for i in 4:s.i_A-1]
         D(trailing_edge_angle)   ~ trailing_edge_ω
-        [vel[:, i] .~ 0.0 for i in 1:3]
-        [D.(vel[:, i]) .~ acc[:, i] for i in 4:s.i_A-1]
-        D(trailing_edge_ω)   ~ trailing_edge_α
-        D.(tether_length) .~ tether_vel
-        D.(tether_vel) .~ tether_acc
+        [vel[:, i]              .~ 0.0 for i in 1:3]
+        [D.(vel[:, i])          .~ acc[:, i] for i in 4:s.i_A-1]
+        D(trailing_edge_ω)       ~ trailing_edge_α
+        D.(tether_length)       .~ tether_vel
+        D.(tether_vel)          .~ tether_acc
     ]
 
     # Compute the masses and forces
@@ -573,6 +572,7 @@ function create_sys!(s::KPS4_3L)
         seqs
         vcat(force_eqs[:, s.i_A])
         vcat(force_eqs[:, s.i_B])
+        vcat(force_eqs[:, s.i_C])
          # TODO: add turning drag instead of damping
         trailing_edge_α[1] ~ (force[:, s.i_A]) ⋅ e_te_C * te_length / te_I - critical_damping * trailing_edge_ω[1]
             # (damping_coeff*200) * trailing_edge_ω[1]
@@ -600,6 +600,8 @@ function model!(s::KPS4_3L; real=true)
     # pos, vel = init_pos_vel(s)
     init_pos!(s; α = 10.0)
     sys, inputs = create_sys!(s)
+    @show inputs
+    structural_simplify(sys, (inputs, []))
     (sys, _) = structural_simplify(sys, (inputs, []); fully_determined=false)
     s.simple_sys = sys
 
