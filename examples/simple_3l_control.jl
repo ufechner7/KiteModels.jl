@@ -54,17 +54,17 @@ for i in 1:steps
     #     steering .= 0.0
     # end
 
-    sys_state.var_01 =  rad2deg(s.get_flap_angle(s.integrator)[1])
-    sys_state.var_02 =  rad2deg(s.get_flap_angle(s.integrator)[2])
+    sys_state.var_01 =  rad2deg(s.get_trailing_edge_angle(s.integrator)[1])
+    sys_state.var_02 =  rad2deg(s.get_trailing_edge_angle(s.integrator)[2])
     sys_state.var_03 =  rad2deg(s.integrator[s.simple_sys.power_angle])
     sys_state.var_04 =  s.tether_lengths[1]
     sys_state.var_05 =  s.tether_lengths[2]
     sys_state.var_06 =  s.tether_lengths[3]
     sys_state.var_07 =  s.integrator[s.simple_sys.turn_rate_y]
     sys_state.var_08 =  s.integrator[s.simple_sys.heading_y]
-    sys_state.var_09 =  s.integrator[s.simple_sys.turn_rate_y] / (s.get_flap_angle(s.integrator)[2] - s.get_flap_angle(s.integrator)[1])
-    sys_state.var_10 =  (s.integrator[s.simple_sys.flap_vel][2] - s.integrator[s.simple_sys.flap_vel][1])
-    sys_state.var_11 =  clamp((s.integrator[s.simple_sys.flap_vel][1] - s.integrator[s.simple_sys.flap_vel][2]) /
+    sys_state.var_09 =  s.integrator[s.simple_sys.turn_rate_y] / (s.get_trailing_edge_angle(s.integrator)[2] - s.get_trailing_edge_angle(s.integrator)[1])
+    sys_state.var_10 =  (s.integrator[s.simple_sys.trailing_edge_ω][2] - s.integrator[s.simple_sys.trailing_edge_ω][1])
+    sys_state.var_11 =  clamp((s.integrator[s.simple_sys.trailing_edge_ω][1] - s.integrator[s.simple_sys.trailing_edge_ω][2]) /
                             (s.get_tether_vels(s.integrator)[1] - s.get_tether_vels(s.integrator)[2]) * 100, -20, 10)
 
     step_time = @elapsed next_step!(s; set_values=steering, dt=dt)

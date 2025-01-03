@@ -59,7 +59,7 @@ Good: `norm1        ~ norm(segment)`
 - if you need to refer to the settings you can use `se()` which will load the settings of the active project. To define the active project use a line like `set = se("system_3l.yaml")` at the beginning of your program.
 - use the `\cdot` operator for the dot product for improved readability
 - use a space after a comma, e.g. `force_eqs[j, i]`
-- enclose operators like `+` and `*` in single spaces, like `0.5 * (s.pos[s.num_C] + s.pos[s.num_D])`;  
+- enclose operators like `+` and `*` in single spaces, like `0.5 * (s.pos[s.i_C] + s.pos[s.i_D])`;  
   exception: `mass_tether_particle[i-1]`
 - try to align the equation signs for improved readability like this:
 ```julia

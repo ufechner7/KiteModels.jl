@@ -5,7 +5,7 @@ if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
 end
 using ControlPlots, KiteUtils
 
-alphas, d_flap_angles, cl_matrix, cd_matrix, c_te_matrix = deserialize(joinpath(dirname(get_data_path()), se("system_3l.yaml").polar_file))
+alphas, d_trailing_edge_angles, cl_matrix, cd_matrix, c_te_matrix = deserialize(joinpath(dirname(get_data_path()), se("system_3l.yaml").polar_file))
 
 function replace_nan!(matrix)
     rows, cols = size(matrix)
@@ -47,22 +47,22 @@ replace_nan!(cl_matrix) # TODO: RAD2DEG
 replace_nan!(cd_matrix)
 replace_nan!(c_te_matrix)
 
-cl_interp = extrapolate(scale(interpolate(cl_matrix, BSpline(Quadratic())), alphas, d_flap_angles), NaN)
-cd_interp = extrapolate(scale(interpolate(cd_matrix, BSpline(Quadratic())), alphas, d_flap_angles), NaN)
-c_te_interp = extrapolate(scale(interpolate(c_te_matrix, BSpline(Quadratic())), alphas, d_flap_angles), NaN)
+cl_interp = extrapolate(scale(interpolate(cl_matrix, BSpline(Quadratic())), alphas, d_trailing_edge_angles), NaN)
+cd_interp = extrapolate(scale(interpolate(cd_matrix, BSpline(Quadratic())), alphas, d_trailing_edge_angles), NaN)
+c_te_interp = extrapolate(scale(interpolate(c_te_matrix, BSpline(Quadratic())), alphas, d_trailing_edge_angles), NaN)
 
-function plot_values(alphas, d_flap_angles, matrix, interp, name)
+function plot_values(alphas, d_trailing_edge_angles, matrix, interp, name)
     fig = plt.figure()
     ax = fig.add_subplot(projection="3d")
 
-    X_data = collect(d_flap_angles) .+ zeros(length(alphas))'
-    Y_data = collect(alphas)' .+ zeros(length(d_flap_angles))
+    X_data = collect(d_trailing_edge_angles) .+ zeros(length(alphas))'
+    Y_data = collect(alphas)' .+ zeros(length(d_trailing_edge_angles))
 
     interp_matrix = similar(matrix)
-    int_alphas, int_d_flap_angles = alphas .+ deg2rad(0.5), d_flap_angles .+ deg2rad(0.5)
-    interp_matrix .= [interp(alpha, d_flap_angle) for alpha in int_alphas, d_flap_angle in int_d_flap_angles]
-    X_int = collect(int_d_flap_angles) .+ zeros(length(int_alphas))'
-    Y_int = collect(int_alphas)' .+ zeros(length(int_d_flap_angles))
+    int_alphas, int_d_trailing_edge_angles = alphas .+ deg2rad(0.5), d_trailing_edge_angles .+ deg2rad(0.5)
+    interp_matrix .= [interp(alpha, d_trailing_edge_angle) for alpha in int_alphas, d_trailing_edge_angle in int_d_trailing_edge_angles]
+    X_int = collect(int_d_trailing_edge_angles) .+ zeros(length(int_alphas))'
+    Y_int = collect(int_alphas)' .+ zeros(length(int_d_trailing_edge_angles))
 
     ax.plot_wireframe(X_data, Y_data, matrix, edgecolor="royalblue", lw=0.5, rstride=5, cstride=5, alpha=0.6)
     ax.plot_wireframe(X_int, Y_int, interp_matrix, edgecolor="orange", lw=0.5, rstride=5, cstride=5, alpha=0.6)
@@ -76,9 +76,9 @@ function plot_values(alphas, d_flap_angles, matrix, interp, name)
 end
 
 
-plot_values(alphas, d_flap_angles, cl_matrix, cl_interp, "Cl")
-plot_values(alphas, d_flap_angles, cd_matrix, cd_interp, "Cd")
-plot_values(alphas, d_flap_angles, c_te_matrix, c_te_interp, "C_te")
+plot_values(alphas, d_trailing_edge_angles, cl_matrix, cl_interp, "Cl")
+plot_values(alphas, d_trailing_edge_angles, cd_matrix, cd_interp, "Cd")
+plot_values(alphas, d_trailing_edge_angles, c_te_matrix, c_te_interp, "C_te")
 display(plot(alphas, cd_interp.(alphas, 0.0)))
 # @show gradient(cd_interp, 10, 0)
 

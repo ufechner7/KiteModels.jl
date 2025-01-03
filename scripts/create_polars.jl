@@ -61,12 +61,12 @@ end
         nothing
     end
 
-    function calculate_constants(d_flap_angle_, x_, y_, cp, lower, upper)
-        d_flap_angle = deg2rad(d_flap_angle_)
+    function calculate_constants(d_trailing_edge_angle_, x_, y_, cp, lower, upper)
+        d_trailing_edge_angle = deg2rad(d_trailing_edge_angle_)
         x = deepcopy(x_)
         y = deepcopy(y_)
         c_te = 0.0
-        if d_flap_angle > 0
+        if d_trailing_edge_angle > 0
             x_ref, y_ref = 0.75, upper
         else
             x_ref, y_ref = 0.75, lower
@@ -76,8 +76,8 @@ end
         for i in eachindex(x)
             x_rel = x[i] - x_ref
             y_rel = y[i] - y_ref
-            x[i] = x_ref + x_rel * cos(-d_flap_angle) + y_rel * sin(-d_flap_angle)
-            y[i] = y_ref - x_rel * sin(-d_flap_angle) + y_rel * cos(-d_flap_angle)
+            x[i] = x_ref + x_rel * cos(-d_trailing_edge_angle) + y_rel * sin(-d_trailing_edge_angle)
+            y[i] = y_ref - x_rel * sin(-d_trailing_edge_angle) + y_rel * cos(-d_trailing_edge_angle)
         end
         
         x2 = []
@@ -94,14 +94,14 @@ end
         return c_te
     end
 
-    function solve_alpha!(cls, cds, c_tes, alphas, alpha_idxs, d_flap_angle, re, x_, y_, lower, upper, kite_speed, speed_of_sound)
+    function solve_alpha!(cls, cds, c_tes, alphas, alpha_idxs, d_trailing_edge_angle, re, x_, y_, lower, upper, kite_speed, speed_of_sound)
         x = deepcopy(x_)
         y = deepcopy(y_)
-        turn_flap!(d_flap_angle, x, y, lower, upper)
+        turn_flap!(d_trailing_edge_angle, x, y, lower, upper)
         Xfoil.set_coordinates(x, y)
         x, y = Xfoil.pane(npan=140)
         times_not_converged = 0
-        @show d_flap_angle
+        @show d_trailing_edge_angle
         reinit = true
         for (alpha, alpha_idx) in zip(alphas, alpha_idxs)
             converged = false
@@ -117,7 +117,7 @@ end
             if converged
                 # times_not_converged = 0
                 _, cp = Xfoil.cpdump()
-                c_te = calculate_constants(d_flap_angle, x, y, cp, lower, upper)
+                c_te = calculate_constants(d_trailing_edge_angle, x, y, cp, lower, upper)
                 cls[alpha_idx] = cl
                 cds[alpha_idx] = cd
                 c_tes[alpha_idx] = c_te
@@ -126,7 +126,7 @@ end
         return nothing
     end
 
-    function run_solve_alpha(alphas, d_flap_angle, re, x_, y_, lower, upper, kite_speed, speed_of_sound)
+    function run_solve_alpha(alphas, d_trailing_edge_angle, re, x_, y_, lower, upper, kite_speed, speed_of_sound)
         cls = Float64[NaN for _ in alphas]
         cds = Float64[NaN for _ in alphas]
         c_tes = Float64[NaN for _ in alphas]
@@ -134,9 +134,9 @@ end
         neg_alphas = alphas[neg_idxs]
         pos_idxs = sort(findall(alphas .>= 0.0))
         pos_alphas = alphas[pos_idxs]
-        solve_alpha!(cls, cds, c_tes, neg_alphas, neg_idxs, d_flap_angle, 
+        solve_alpha!(cls, cds, c_tes, neg_alphas, neg_idxs, d_trailing_edge_angle, 
                             re, x_, y_, lower, upper, kite_speed, speed_of_sound)
-        solve_alpha!(cls, cds, c_tes, pos_alphas, pos_idxs, d_flap_angle, 
+        solve_alpha!(cls, cds, c_tes, pos_alphas, pos_idxs, d_trailing_edge_angle, 
                             re, x_, y_, lower, upper, kite_speed, speed_of_sound)
         return cls, cds, c_tes
     end
@@ -186,10 +186,10 @@ function create_polars(foil_file=se.foil_file, polar_file=se.polar_file)
     foil_file = joinpath(dirname(get_data_path()), foil_file)
 
     alphas = -90:1.0:90
-    d_flap_angles = -90:1.0:90
-    cl_matrix = SharedArray{Float64}((length(alphas), length(d_flap_angles)), init = (a) -> fill!(a, NaN))
-    cd_matrix = SharedArray{Float64}((length(alphas), length(d_flap_angles)), init = (a) -> fill!(a, NaN))
-    c_te_matrix = SharedArray{Float64}((length(alphas), length(d_flap_angles)), init = (a) -> fill!(a, NaN))
+    d_trailing_edge_angles = -90:1.0:90
+    cl_matrix = SharedArray{Float64}((length(alphas), length(d_trailing_edge_angles)), init = (a) -> fill!(a, NaN))
+    cd_matrix = SharedArray{Float64}((length(alphas), length(d_trailing_edge_angles)), init = (a) -> fill!(a, NaN))
+    c_te_matrix = SharedArray{Float64}((length(alphas), length(d_trailing_edge_angles)), init = (a) -> fill!(a, NaN))
     
     kite_speed = se.v_wind
     speed_of_sound = 343
@@ -215,8 +215,8 @@ function create_polars(foil_file=se.foil_file, polar_file=se.polar_file)
     lower, upper = get_lower_upper(x, y)
 
     try
-        @sync @distributed for j in eachindex(d_flap_angles)
-            cl_matrix[:, j], cd_matrix[:, j], c_te_matrix[:, j] = run_solve_alpha(alphas, d_flap_angles[j], 
+        @sync @distributed for j in eachindex(d_trailing_edge_angles)
+            cl_matrix[:, j], cd_matrix[:, j], c_te_matrix[:, j] = run_solve_alpha(alphas, d_trailing_edge_angles[j], 
                             reynolds_number, x, y, lower, upper, kite_speed, speed_of_sound)
         end
     catch e
@@ -233,7 +233,7 @@ function create_polars(foil_file=se.foil_file, polar_file=se.polar_file)
     println("Reynolds number for flying speed of $kite_speed is $reynolds_number")
 
     # TODO: serialize the splines
-    serialize(polar_file, (alphas, d_flap_angles, Matrix(cl_matrix), Matrix(cd_matrix), Matrix(c_te_matrix)))
+    serialize(polar_file, (alphas, d_trailing_edge_angles, Matrix(cl_matrix), Matrix(cd_matrix), Matrix(c_te_matrix)))
 
     open(foil_file, "r+") do f
         lines = readlines(f)

@@ -26,7 +26,7 @@ set_defaults()
 global initial_pos
 @testset "test_init         " begin
     set_defaults()
-    [k3l.pos[i] .= 0 for i in 1:k3l.num_A]
+    [k3l.pos[i] .= 0 for i in 1:k3l.i_A]
 
     # initial_pos = [
     #     [1.956416680572584e-18 -3.125513814477895e-21 -5.720339822309706e-19]
@@ -64,19 +64,19 @@ global initial_pos
     for i in 1:3
         @test isapprox(initial_pos[i], [0.0, 0.0, 0.0], atol=tol, rtol=tol)
     end
-    for i in 1:3:k3l.num_A
+    for i in 1:3:k3l.i_A
         @test isapprox(initial_pos[i][2], -initial_pos[i+1][2], atol=tol, rtol=tol)
         @test isapprox(initial_pos[i+2][2], 0.0, atol=tol, rtol=tol)
     end
-    for i in 4:3:k3l.num_A
+    for i in 4:3:k3l.i_A
         @test initial_pos[i][2] > initial_pos[i-3][2]
     end
-    for i in 4:k3l.num_flap_D
+    for i in 4:k3l.i_B
         @test initial_pos[i][3] > initial_pos[i-3][3]
     end
-    @test initial_pos[k3l.num_A][3] < initial_pos[k3l.num_D][3]
-    @test isapprox(norm(initial_pos[k3l.num_E]), k3l.set.l_tether, rtol=0.1)
-    @test isapprox(norm(initial_pos[k3l.num_E]), k3l.tether_lengths[3], rtol=0.1)
+    @test initial_pos[k3l.i_A][3] < initial_pos[k3l.i_D][3]
+    @test isapprox(norm(initial_pos[k3l.i_E]), k3l.set.l_tether, rtol=0.1)
+    @test isapprox(norm(initial_pos[k3l.i_E]), k3l.tether_lengths[3], rtol=0.1)
 
     if !prn
         # init after changing settings
@@ -85,7 +85,7 @@ global initial_pos
         KiteModels.init_sim!(k3l; prn=false, torque_control=false)
         pos2 = deepcopy(k3l.pos)
         @test isapprox(k3l.tether_lengths[3], 51.0, atol=0.2)
-        for i in 4:k3l.num_A
+        for i in 4:k3l.i_A
             @test !isapprox(pos2[i], initial_pos[i], atol=tol, rtol=tol)
         end
 
@@ -103,7 +103,7 @@ global initial_pos
         KiteModels.init_sim!(k3l; prn=false, torque_control=false)
         pos4 = deepcopy(k3l.pos)
         @test isapprox(rad2deg(calc_elevation(k3l)), 84.0, atol=2.0)
-        for i in 4:k3l.num_A
+        for i in 4:k3l.i_A
             @test !isapprox(pos4[i], initial_pos[i], atol=tol, rtol=tol)
         end
 
@@ -151,7 +151,7 @@ end
     #     [4.343941000937282 -8.824891226050073e-11 53.83912305750433]
     # ]
     # prn && println("pos2")
-    for i in 4:k3l.num_A
+    for i in 4:k3l.i_A
         @test !isapprox(k3l.pos[i], initial_pos[i], atol = 1e-4)
         # prn ? println(k3l.pos[i]') : @test isapprox(pos2[i,:], k3l.pos[i], atol=tol, rtol=tol)
     end

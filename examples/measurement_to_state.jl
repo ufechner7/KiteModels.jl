@@ -29,7 +29,7 @@ prob, sol, ss, u0map = model!(s; real=true)
 sys_state = KiteModels.SysState(s)
 
 pos = sol[ss.pos]
-pos = [[pos[j, i] for j in 1:3] for i in 1:s.num_A]
+pos = [[pos[j, i] for j in 1:3] for i in 1:s.i_A]
 
 l = s.set.l_tether+10
 plot2d(pos, 0.0; zoom=true, front=false, xlim=(-l/2, l/2), ylim=(0, l))
@@ -49,7 +49,7 @@ try
         t = next_step!(s; set_values=s.measure.winch_torque, dt)
         KiteModels.update_sys_state!(sys_state, s)
         sys_state.var_01 = s.get_tether_vels(s.integrator)[3]
-        sys_state.var_02 = mean(norm.([s.integrator[ss.acc[:, i]] for i in vcat(4:s.num_flap_C-1, s.num_flap_D+1:s.num_A)]))
+        sys_state.var_02 = mean(norm.([s.integrator[ss.acc[:, i]] for i in vcat(4:s.i_A-1, s.i_B+1:s.i_A)]))
         sys_state.var_03 = angle_between_vectors(s.pos[6], s.pos[6+3]-s.pos[6])
         sys_state.var_04 = norm(s.integrator[ss.vel])
         log!(logger, sys_state)
@@ -73,7 +73,7 @@ p=plotx(logger.time_vec,
         fig="Steering and heading MTK model")
 display(p)
 
-println("End elevation C: ", rad2deg(KiteModels.calc_elevation(s.pos[s.num_C])))
-println("End elevation D: ", rad2deg(KiteModels.calc_elevation(s.pos[s.num_D])))
-println("End distance: ", norm(s.pos[s.num_E]))
+println("End elevation C: ", rad2deg(KiteModels.calc_elevation(s.pos[s.i_C])))
+println("End elevation D: ", rad2deg(KiteModels.calc_elevation(s.pos[s.i_D])))
+println("End distance: ", norm(s.pos[s.i_E]))
 nothing

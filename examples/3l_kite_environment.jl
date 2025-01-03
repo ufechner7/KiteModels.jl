@@ -11,7 +11,7 @@ const StateVec = MVector{11, Float32}
     s::KPS4_3L = KPS4_3L(kcu)
     max_render_length::Int = 10000
     i::Int = 1
-    logger::Logger = Logger(s.num_A, max_render_length)
+    logger::Logger = Logger(s.i_A, max_render_length)
     integrator::ODEIntegrator = KiteModels.init_sim!(s; prn=false, torque_control=true)
     sys_state::SysState = SysState(s)
     state::StateVec = zeros(StateVec)
@@ -56,7 +56,7 @@ function reset(e::Env, name="sim_log", elevation=0.0, azimuth=0.0, tether_length
         save_log(e.logger, basename(name))
     end
     update_settings()
-    e.logger = Logger(e.s.num_A, e.max_render_length)
+    e.logger = Logger(e.s.i_A, e.max_render_length)
     e.integrator = KiteModels.init_sim!(e.s; prn=false, torque_control=true)
     e.sys_state = SysState(e.s)
     e.i = 1
