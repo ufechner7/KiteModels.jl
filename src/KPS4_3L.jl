@@ -174,25 +174,31 @@ $(TYPEDFIELDS)
     "Inertia around kite x y and z axis"
     I_kite::V = zeros(3)
     "Damping of the kite rotation"
-    orient_damping::S = 0.0
+    orient_damping::S = zero(S)
     "rotation from kite body frame to kite principal frame"
     R_b_p::Matrix{S} = zeros(3, 3)
-    "center of mass point in kite reference frame"
-    com::V = zeros(3)
-    "center of the circle on which the kite lies and origin of kite reference frame"
-    O_k::V = zeros(3)
+    "translation from kite point to circle center in body frame along positive z"
+    circle_center_t::S = zero(S)
+    "center of mass of the kite"
+    kite_pos::V = zeros(3)
+    "quaternion orientation of the kite"
+    q::V = zeros(4)
     "aero points center of mass positions in principal frame"
     seg_com_pos_p::Matrix{S} = zeros(3, 2set.aero_surfaces)
     "aero points center of pressure positions in principal frame"
     seg_cop_pos_p::Matrix{S} = zeros(3, 2set.aero_surfaces)
     "cop pos in body frame"
     seg_cop_pos_b::Matrix{S} = zeros(3, 2set.aero_surfaces)
+    "last left tether point position in principal frame"
+    pos_A_p::V = zeros(3)
+    "last right tether point position in principal frame"
+    pos_B_p::V = zeros(3)
     "last middle tether point position in principal frame"
     pos_C_p::V = zeros(3)
     "rotation from kite body frame to world frame"
     R_b_w::Matrix{S} = zeros(3, 3)
-    "distance from point O_k to point C"
-    OC_length::S = zero(S)
+    "translation from kite_point to point C along positive body z frame"
+    C_t::S = zero(S)
     "mass of each kite segment"
     seg_mass::V = zeros(2set.aero_surfaces)
     "A point projected onto kite in z-axis in body frame"
@@ -607,7 +613,7 @@ Tether vel: left - middle - right tether vel
 
 Return: an expected vel for all kite pos
 """
-function calc_expected_pos_vel(s::KPS4_3L, kite_pos1, kite_pos2, kite_pos3, kitrailing_edge_ω, tether_vel, tether_length, tether_force, c_spring) # TODO: remove the 123 caused by this issue: https://github.com/SciML/ModelingToolkit.jl/issues/3003
+function calc_expected_pos_vel(s::KPS4_3L, kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, tether_length, tether_force, c_spring) # TODO: remove the 123 caused by this issue: https://github.com/SciML/ModelingToolkit.jl/issues/3003
     kite_pos = [kite_pos1, kite_pos2, kite_pos3]
     s.expected_tether_pos_vel_buffer .= 0.0
     expected_pos = @views s.expected_tether_pos_vel_buffer[1, :, :]
@@ -617,8 +623,8 @@ function calc_expected_pos_vel(s::KPS4_3L, kite_pos1, kite_pos2, kite_pos3, kitr
 
     stretched_tether_length = tether_length + tether_force / (c_spring/tether_length)
 
-    if any(isnan.((kite_pos1, kite_pos2, kite_pos3, kitrailing_edge_ω, tether_vel, tether_length, tether_force, c_spring))) || 
-            any(isa.((kite_pos1, kite_pos2, kite_pos3, kitrailing_edge_ω, tether_vel, tether_length, tether_force, c_spring), ForwardDiff.Dual)) ||
+    if any(isnan.((kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, tether_length, tether_force, c_spring))) || 
+            any(isa.((kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, tether_length, tether_force, c_spring), ForwardDiff.Dual)) ||
             distance >= stretched_tether_length
         expected_pos .= NaN
         expected_vel .= NaN
@@ -639,7 +645,7 @@ function calc_expected_pos_vel(s::KPS4_3L, kite_pos1, kite_pos2, kite_pos3, kitr
         s.prep = prepare_jacobian(f_jac!, y, backend, x)
     end
     DifferentiationInterface.jacobian!(f_jac!, y, J, s.prep, backend, x)
-    expected_vel .= reshape(J * [kitrailing_edge_ω, tether_vel], size(expected_vel))
+    expected_vel .= reshape(J * [kite_vel, tether_vel], size(expected_vel))
     return s.expected_tether_pos_vel_buffer
 end
 const FD = ForwardDiff.Dual
@@ -647,7 +653,7 @@ function calc_expected_pos_vel(s::KPS4_3L, _::FD, _::FD, _::FD, _::FD, _::FD, _:
     s.expected_tether_pos_vel_buffer .= NaN
     return s.expected_tether_pos_vel_buffer
 end
-@register_array_symbolic calc_expected_pos_vel(s::KPS4_3L, kite_pos1, kite_pos2, kite_pos3, kitrailing_edge_ω, tether_vel, tether_length, tether_force, c_spring) begin
+@register_array_symbolic calc_expected_pos_vel(s::KPS4_3L, kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, tether_length, tether_force, c_spring) begin
     size = size(s.expected_tether_pos_vel_buffer)
     eltype = SimFloat
 end

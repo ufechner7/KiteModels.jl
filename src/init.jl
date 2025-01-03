@@ -124,7 +124,7 @@ function calc_inertia!(s::KPS4_3L)
     
     # First pass - calculate COM
     total_mass = 0.0
-    s.com .= zeros(3)
+    s.circle_center_t = 0.0 # translation along positive z axis to circle origin
     pos = zeros(3, 2segs)
     mass = zeros(2segs)
     
@@ -143,14 +143,15 @@ function calc_inertia!(s::KPS4_3L)
         area = kite_length * s.set.width/(2segs)
         mass[i] = area * mass_per_area
         pos[:, i] = [-0.5 * kite_length, cos(α) * s.set.radius, sin(α) * s.set.radius]
-        s.com .+= mass[i] * pos[:, i]
+        s.circle_center_t -= mass[i] * pos[3, i]
     end
-    s.com ./= sum(mass)
+    s.circle_center_t /= sum(mass)
+    s.C_t = s.circle_center_t - s.set.bridle_center_distance + s.set.radius
     
     # Calculate full inertia tensor relative to COM
     I = zeros(3,3)
     for i in eachindex(mass)
-        pos[:, i] .-= s.com
+        pos[3, i] -= s.circle_center_t
         r = @views pos[:, i]
         m = mass[i]
         
@@ -181,7 +182,6 @@ function calc_inertia!(s::KPS4_3L)
     # Store results
     s.I_kite .= eigenvals
     s.R_b_p .= eigenvecs
-    @show s.com
     @show s.I_kite eigenvals eigenvecs
     @show s.R_b_p
     return nothing
@@ -205,18 +205,21 @@ function calc_pos_principal!(s::KPS4_3L)
         area = kite_length * s.set.width/(2n)
         s.seg_mass[i] = area * mass_per_area
 
-        s.seg_com_pos_p[:, i] .= s.R_b_p * ([-0.5 * kite_length, cos(α) * s.set.radius, sin(α) * s.set.radius] .- s.com)
-        s.seg_cop_pos_b[:, i] .= [-0.75 * kite_length, cos(α) * s.set.radius, sin(α) * s.set.radius]
-        s.seg_cop_pos_p[:, i] .= s.R_b_p * (s.seg_cop_pos_b[:, i] .- s.com)
+        s.seg_com_pos_p[:, i] .= s.R_b_p * ([-0.5 * kite_length, cos(α) * s.set.radius, sin(α) * s.set.radius + s.circle_center_t])
+        s.seg_cop_pos_b[:, i] .= [-0.75 * kite_length, cos(α) * s.set.radius, sin(α) * s.set.radius + s.circle_center_t]
+        s.seg_cop_pos_p[:, i] .= s.R_b_p * s.seg_cop_pos_b[:, i]
     end
     @show s.seg_mass
-    s.pos_C_p .= s.R_b_p * ([-0.75 * s.set.middle_length, 0.0, -s.OC_length] .- s.com)
+    s.pos_A_p .= s.R_b_p * ([0.0, cos(s.α_D), s.C_t])
+    s.pos_B_p .= s.R_b_p * ([0.0, -cos(s.α_D), s.C_t])
+    s.pos_C_p .= s.R_b_p * ([-0.75 * s.set.middle_length, 0.0, s.C_t])
     return nothing
 end
 
 function init_pos!(s::KPS4_3L; new=true, α = 5.0)
     # ground points
-    s.pos[:, 1:3] .= 0
+    s.pos .= 0.0
+    s.kite_pos .= 0.0
 
     width, radius, tip_length, middle_length = s.set.width, s.set.radius, s.set.tip_length, s.set.middle_length
     s.α_l = pi/2 - width/2/radius
@@ -230,8 +233,9 @@ function init_pos!(s::KPS4_3L; new=true, α = 5.0)
     # init last tether points
     s.pos[:, s.i_A] .= rotate_around_z(rotate_around_y([s.measure.distance, 0, 0], -s.measure.elevation_left), s.measure.azimuth_left)
     s.pos[:, s.i_B] .= rotate_around_z(rotate_around_y([s.measure.distance, 0, 0], -s.measure.elevation_right), s.measure.azimuth_right)
-    s.pos[:, s.i_C] .= 0.5s.pos[:, s.i_A] + 0.5s.pos[:, s.i_C]
+    s.pos[:, s.i_C] .= 0.5s.pos[:, s.i_A] + 0.5s.pos[:, s.i_B]
     s.e_y .= normalize(s.pos[:, s.i_A] - s.pos[:, s.i_B])
+    @show s.pos[:, s.i_A:s.i_C]
 
     # init middle tether
     angular_acc = s.measure.tether_acc / s.set.drum_radius
@@ -244,26 +248,30 @@ function init_pos!(s::KPS4_3L; new=true, α = 5.0)
     s.pos[:, 3:3:s.i_C] .= expected_pos[:, :]
     s.e_z .= normalize(s.pos[:, s.i_C] - s.pos[:, s.i_C-3])
     s.e_x .= s.e_y × s.e_z
-    s.O_k .= s.pos[:, s.i_C] + (s.OC_length) * s.e_z
+    s.q .= rotation_matrix_to_quaternion(hcat(s.e_x, s.e_y, s.e_z))
+    s.kite_pos .= s.pos[:, s.i_C] + s.e_z * -s.C_t
     
     # init tether connection points
-    s.pos_D_b = [0.0, cos(s.α_D) * s.set.radius, -sin(α) * s.set.radius]
-    s.pos_E_b = [0.0, -cos(s.α_D) * s.set.radius, -sin(α) * s.set.radius]
-    e_r_C = -normalize(s.pos_D_b)
-    e_r_D = -normalize(s.pos_E_b)
+    s.pos_D_b = [0.0, cos(s.α_D) * s.set.radius, sin(α) * s.set.radius]
+    s.pos_E_b = [0.0, -cos(s.α_D) * s.set.radius, sin(α) * s.set.radius]
+    e_r_D = -normalize(s.pos_D_b)
+    e_r_E = -normalize(s.pos_E_b)
     trailing_edge_length = s.kite_length_D/4
     angle_te_c = 0.0
     angle_te_d = 0.0
-    s.pos[:, s.i_A] .= s.pos[:, s.i_C] + s.e_y * s.pos_D_b[2] + s.e_x * trailing_edge_length * cos(angle_te_c) + e_r_C * trailing_edge_length * sin(angle_te_c)
-    s.pos[:, s.i_B] .= s.pos[:, s.i_C] + s.e_y * s.pos_E_b[2] + s.e_x * trailing_edge_length * cos(angle_te_d) + e_r_D * trailing_edge_length * sin(angle_te_d)
+    s.pos[:, s.i_A] .= s.pos[:, s.i_C] + s.e_y * s.pos_D_b[2] + s.e_x * trailing_edge_length * cos(angle_te_c) + e_r_D * trailing_edge_length * sin(angle_te_c)
+    s.pos[:, s.i_B] .= s.pos[:, s.i_C] + s.e_y * s.pos_E_b[2] + s.e_x * trailing_edge_length * cos(angle_te_d) + e_r_E * trailing_edge_length * sin(angle_te_d)
+
+    @show s.pos[:, s.i_A:s.i_B]
 
     # init left and right tether
     expected_pos = calc_expected_pos_vel(s, s.pos[:, s.i_A][1], s.pos[:, s.i_A][2], s.pos[:, s.i_A][3], 
         0, 0, s.measure.tether_length[3], tether_force[3], s.c_spring[3])[1, :, :]
+    s.pos[:, 1:3:s.i_A] .= expected_pos[:, :]
     expected_pos = calc_expected_pos_vel(s, s.pos[:, s.i_B][1], s.pos[:, s.i_B][2], s.pos[:, s.i_B][3], 
         0, 0, s.measure.tether_length[3], tether_force[3], s.c_spring[3])[1, :, :]
-    s.pos[:, 1:3:s.i_A] .= expected_pos[:, :]
     s.pos[:, 2:3:s.i_B] .= expected_pos[:, :]
+    @show s.pos[:, s.i_A:s.i_B]
     return s.pos
 end
 
