@@ -180,7 +180,7 @@ $(TYPEDFIELDS)
     "rotation from kite body frame to kite principal frame"
     R_b_p::Matrix{S} = zeros(3, 3)
     "translation from kite point to circle center in body frame along positive z"
-    circle_center_t::S = zero(S)
+    circle_center_t::V = zeros(3)
     "center of mass of the kite"
     kite_pos::V = zeros(3)
     "quaternion orientation of the kite"
@@ -200,7 +200,7 @@ $(TYPEDFIELDS)
     "rotation from kite body frame to world frame"
     R_b_w::Matrix{S} = zeros(3, 3)
     "translation from kite_point to point C along positive body z frame"
-    C_t::S = zero(S)
+    C_t::V = zeros(3)
     "mass of each kite segment"
     seg_mass::V = zeros(2set.aero_surfaces)
     "A point projected onto kite in z-axis in body frame"

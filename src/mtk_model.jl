@@ -82,7 +82,7 @@ end
 """
 Calculate the forces acting on the kite inertia particle.
 """
-function calc_kite_forces!(s::KPS4_3L, seqs, force_eqs, force, torque_p, q, kite_pos, kite_vel, kite_acc, ω_p, t, e_x, e_z, rho, v_wind, trailing_edge_angle)
+function calc_kite_forces!(s::KPS4_3L, seqs, force_eqs, force, torque_p, q, kite_pos, kite_vel, kite_acc, ω_p, ω_b, t, e_x, e_z, rho, v_wind, trailing_edge_angle)
     n = s.set.aero_surfaces
 
     # integrating loop variables, iterating over 2n segments
@@ -134,11 +134,11 @@ function calc_kite_forces!(s::KPS4_3L, seqs, force_eqs, force, torque_p, q, kite
             kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (π - s.α_l - α) / (π/2 - s.α_l)
         end
         seg_flap_height = kite_length * s.set.flap_height
-        circle_origin = (kite_pos + s.circle_center_t * e_z)
+        circle_origin = (kite_pos + rotate_by_quaternion(s.circle_center_t, q))
         seqs = [
             seqs
             e_r[:, i]       ~ rotate_v_around_k(e_z, e_x, 0.5π + α)
-            seg_vel[:, i]   ~ kite_vel + rotate_by_quaternion(cross(ω_p, s.seg_cop_pos_p[:, i]), q)
+            seg_vel[:, i]   ~ kite_vel + rotate_by_quaternion(cross(ω_b, s.seg_cop_pos_b[:, i]), q)
             v_a[:, i]       ~ v_wind .- seg_vel[:, i]
             e_drift[:, i]   ~ (e_x × e_r[:, i])
             v_a_xr[:, i]    ~ v_a[:, i] .- (v_a[:, i] ⋅ e_drift[:, i]) .* e_drift[:, i]
@@ -154,7 +154,7 @@ function calc_kite_forces!(s::KPS4_3L, seqs, force_eqs, force, torque_p, q, kite
             seg_cd[i]   ~ sym_interp(s.cd_interp, aoa[i], seg_trailing_edge_angle[i])
 
             seg_L[:, i] ~ 0.5 * rho * (norm(v_a_xr[:, i]))^2 * s.set.radius * dα * kite_length * seg_cl[i] * 
-                                ((v_a_xr[:, i] × e_drift[:, i]) / norm(v_a_xr[:, i] × e_drift[:, i]))
+                                normalize(v_a_xr[:, i] × e_drift[:, i])
             seg_D[:, i] ~ 0.5 * rho * norm(v_a_xr[:, i]) * s.set.radius * dα * kite_length * seg_cd[i] *
                                 v_a_xr[:, i]
 
@@ -310,7 +310,6 @@ end
 
 function expected_pos_vel(s, seqs, pos, kite_pos, kite_vel, tether_vel, tether_length, tether_force, norm1)
     @variables begin
-        stretched_tether_length(t)[1:3]
         expected_pos(t)[1:3, 1:s.i_C]
         tether_move_vel(t)[1:3, 1:s.i_C]
         tether_kite_vel(t)[1:3, 1:s.i_C]
@@ -318,7 +317,6 @@ function expected_pos_vel(s, seqs, pos, kite_pos, kite_vel, tether_vel, tether_l
     end
     seqs = [
         seqs
-        [stretched_tether_length[i] ~ sum([norm1[j] for j in range(i, step=3, length=s.set.segments)]) for i in 1:3]
         [expected_pos[j, 3(k-1)+i] ~ 
             calc_expected_pos_vel(s, pos[1, i+s.i_A-1], pos[2, i+s.i_A-1], pos[3, i+s.i_A-1], 
                 kite_vel[i], tether_vel[i], tether_length[i], tether_force[i], s.c_spring[i])[1, j, k]
@@ -349,7 +347,7 @@ function scalar_eqs!(s, seqs, pos, vel, q, ω_p, ω_b, kite_pos, kite_vel, trail
         ω_b ~ s.R_b_p' * ω_p
         
         # last tether point pos
-        pos[:, s.i_C]    ~ kite_pos + e_z * s.C_t
+        pos[:, s.i_C]    ~ kite_pos + rotate_by_quaternion(s.C_t, q)
         pos[:, s.i_A]    ~ pos[:, s.i_C] + e_y * s.pos_D_b[2] + e_x * te_length * cos(trailing_edge_angle[1]) + # TODO: fix pos
             e_r_D * te_length * sin(trailing_edge_angle[1])
         pos[:, s.i_B]    ~ pos[:, s.i_C] + e_y * s.pos_E_b[2] + e_x * te_length * cos(trailing_edge_angle[2]) + 
@@ -400,9 +398,7 @@ function scalar_eqs!(s, seqs, pos, vel, q, ω_p, ω_b, kite_pos, kite_vel, trail
         left_diff(t)
         right_diff(t)
     end
-    # println(size([(vel[:, i] ⋅ normalize(pos[:, i]) for i in s.i_A: s.i_E)]))
-    # println([kite_vel[i] ~ vel[:, j] ⋅ normalize(pos[:, j]) for (i, j) in enumerate(s.i_A: s.i_E)])
-    seqs = expected_pos_vel(s, seqs, pos, kite_pos, kite_vel, tether_vel, tether_length, tether_force, norm1)
+    # seqs = expected_pos_vel(s, seqs, pos, kite_pos, kite_vel, tether_vel, tether_length, tether_force, norm1)
     seqs = [
         seqs
         tether_force     ~ [norm(force[:, i]) for i in 1:3]
@@ -508,9 +504,9 @@ function create_sys!(s::KPS4_3L)
         D(ω_p[1]) ~ α_p[1]
         D(ω_p[2]) ~ α_p[2]
         D(ω_p[3]) ~ α_p[3]
-        α_p[1] ~ (torque_p[1] + (s.I_kite[2] - s.I_kite[3]) * ω_p[2] * ω_p[3]) / s.I_kite[1] - s.orient_damping*ω_p[1]
-        α_p[2] ~ (torque_p[2] + (s.I_kite[3] - s.I_kite[1]) * ω_p[3] * ω_p[1]) / s.I_kite[2] - s.orient_damping*ω_p[2]
-        α_p[3] ~ (torque_p[3] + (s.I_kite[1] - s.I_kite[2]) * ω_p[1] * ω_p[2]) / s.I_kite[3] - s.orient_damping*ω_p[3]
+        α_p[1] ~ (torque_p[1] + (s.I_kite[2] - s.I_kite[3]) * ω_p[2] * ω_p[3]) / s.I_kite[1] - 10s.orient_damping*ω_p[1]
+        α_p[2] ~ (torque_p[2] + (s.I_kite[3] - s.I_kite[1]) * ω_p[3] * ω_p[1]) / s.I_kite[2] - 10s.orient_damping*ω_p[2]
+        α_p[3] ~ (torque_p[3] + (s.I_kite[1] - s.I_kite[2]) * ω_p[1] * ω_p[2]) / s.I_kite[3] - 10s.orient_damping*ω_p[3]
 
         [D(kite_pos[i]) ~ kite_vel[i] for i in 1:3]
         [D(kite_vel[i]) ~ kite_acc[i] for i in 1:3]
@@ -533,7 +529,7 @@ function create_sys!(s::KPS4_3L)
     seqs            = scalar_eqs!(s, seqs, pos, vel, q, ω_p, ω_b, kite_pos, kite_vel, trailing_edge_angle, trailing_edge_ω, segment_length, mass_tether_particle, damping, c_spring, 
                         e_y, e_z, e_x, e_r_D, e_r_E, e_te_A, e_te_B, rho_kite, damping_coeff, tether_length, tether_vel,
                         mass_per_meter, force, set_values, norm1)
-    seqs, force_eqs = calc_kite_forces!(s, seqs, force_eqs, force, torque_p, q, kite_pos, kite_vel, kite_acc, ω_p, t, e_x, e_z, rho_kite, v_wind, trailing_edge_angle)
+    seqs, force_eqs = calc_kite_forces!(s, seqs, force_eqs, force, torque_p, q, kite_pos, kite_vel, kite_acc, ω_p, ω_b, t, e_x, e_z, rho_kite, v_wind, trailing_edge_angle)
     seqs, force_eqs = calc_tether_forces!(s, seqs, force_eqs, t, force, pos, vel, segment_length, c_spring, damping, v_wind_gnd, norm1)
     
     if s.torque_control
@@ -562,6 +558,7 @@ function create_sys!(s::KPS4_3L)
     # 3. calculate acceleration from force flap c in e_flap_c direction
 
     te_I = (1/3 * (s.set.mass/8) * te_length^2)
+
     critical_damping = 2.0 * sqrt(te_I)
     seqs = [
         seqs
@@ -569,10 +566,8 @@ function create_sys!(s::KPS4_3L)
         vcat(force_eqs[:, s.i_B])
         vcat(force_eqs[:, s.i_C])
          # TODO: add turning drag instead of damping
-        trailing_edge_α[1] ~ (force[:, s.i_A]) ⋅ e_te_A * te_length / te_I - critical_damping * trailing_edge_ω[1]
-            # (damping_coeff*200) * trailing_edge_ω[1]
-        trailing_edge_α[2] ~ (force[:, s.i_B]) ⋅ e_te_B * te_length / te_I - critical_damping * trailing_edge_ω[2]
-            # (damping_coeff*200) * trailing_edge_ω[1]
+        trailing_edge_α[1] ~ (force[:, s.i_A]) ⋅ e_te_A * te_length / te_I - 100critical_damping * trailing_edge_ω[1]
+        trailing_edge_α[2] ~ (force[:, s.i_B]) ⋅ e_te_B * te_length / te_I - 100critical_damping * trailing_edge_ω[2]
     ]
     
     eqs = vcat(deqs, seqs)
@@ -659,15 +654,15 @@ function model!(s::KPS4_3L; real=true)
         # sys.gust_factor => 1.0
         ]
     p0map = [sys.set_values[j] => s.measure.winch_torque[j] for j in 1:3]
-    println("making prob")
-    @time prob = ModelingToolkit.InitializationProblem(sys, 0.0, u0map, p0map; guesses, fully_determined=true)
+    # println("making prob")
+    # @time prob = ModelingToolkit.InitializationProblem(sys, 0.0, u0map, p0map; guesses, fully_determined=true)
 
-    @show typeof(prob)
-    tol = 1e-3
-    # @time remake(prob; u0=u0map)
-    println("solving")
-    @time sol = NonlinearSolve.solve(prob)
-    println(sol.resid)
+    # @show typeof(prob)
+    # tol = 1e-3
+    # # @time remake(prob; u0=u0map)
+    # println("solving")
+    # @time sol = NonlinearSolve.solve(prob)
+    # println(sol.resid)
     # @show norm(sol.resid)
     # @show norm(sol[sys.q])
     
@@ -680,8 +675,8 @@ function model!(s::KPS4_3L; real=true)
     dt = 1/s.set.sample_freq
     tspan   = (0.0, dt)
     # @time s.prob = ODEProblem(sys, u0map, tspan; guesses, fully_determined=real, check_length=real)
-    u0 = collect(unknowns(sys) .=> sol[unknowns(sys)])
-    p0 = collect(sys.set_values .=> sol[sys.set_values])
+    # u0 = collect(unknowns(sys) .=> sol[unknowns(sys)])
+    # p0 = collect(sys.set_values .=> sol[sys.set_values])
     s.prob = ODEProblem(sys, u0map, tspan, p0map)
 
     # idxs = ModelingToolkit.variable_index(s.prob, sys.q)
@@ -696,5 +691,5 @@ function model!(s::KPS4_3L; real=true)
 
     solver = QNDF(autodiff=false) # https://docs.sciml.ai/scimlbenchmarksoutput/stable/#results
     s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
-    return prob, sol, sys, u0map
+    return s.prob, sys, u0map
 end

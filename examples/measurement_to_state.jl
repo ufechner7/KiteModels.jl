@@ -6,8 +6,8 @@ function angle_between_vectors(v1, v2)
     return rad2deg(θ)  # Angle in radians
 end
 
-dt = 0.001
-total_time = 0.2
+dt = 0.01
+total_time = 7.76
 steps = Int(round(total_time / dt))
 
 set = se("system_3l.yaml")
@@ -17,36 +17,28 @@ set.segments = 3
 set.aero_surfaces = 2
 logger = Logger(3*set.segments + 4, steps)
 s = KPS4_3L(KCU(set))
-s.measure.winch_torque = [-0.0, -0.0, 0.0]
+s.measure.winch_torque = [-0.1, -0.05, -40.0]
 s.measure.tether_acc = [0, 0, 0]
 s.measure.tether_length = [52., 52., 49.]
-s.measure.distance = 48.9
-s.measure.elevation_left = deg2rad(80)
-s.measure.elevation_right = deg2rad(80)
+s.measure.distance = 49.
+s.measure.elevation_left = deg2rad(86)
+s.measure.elevation_right = deg2rad(86)
 s.measure.azimuth_left = deg2rad(1)
 s.measure.azimuth_right = deg2rad(-1)
 # s.measure.distance_acc = s.measure.tether_acc[3]
 
-prob, sol, ss, u0map = model!(s; real=true)
+prob, ss, u0map = model!(s; real=true)
 sys_state = KiteModels.SysState(s)
-
-pos = sol[ss.pos]
-pos = [[pos[j, i] for j in 1:3] for i in 1:s.i_C]
-
-l = s.set.l_tether+10
-plot2d(pos, 0.0; zoom=true, front=false, xlim=(-l/2, l/2), ylim=(0, l))
-
-# next_step!(s)
-@show sol.retcode
-# for (u, e) in zip(sol.resid, equations(prob.f.sys))
-#     println(u, "\t", e)
-# end
-
+l = s.set.l_tether + 10
 t = 0
+runtime = 0.0
 try
     while t < total_time
-        global t
-        t = next_step!(s; set_values=s.measure.winch_torque, dt)
+        global t, runtime
+        local pos = [[sys_state.X[i], sys_state.Y[i], sys_state.Z[i]] for i in 1:s.i_C+1]
+        plot2d(pos, t; zoom=false, front=false, xlim=(-l/2, l/2), ylim=(0, l))
+        steptime = @elapsed t = next_step!(s; set_values=s.measure.winch_torque, dt)
+        if (t > total_time/2); runtime += steptime; end
         KiteModels.update_sys_state!(sys_state, s)
         sys_state.var_01 = s.integrator[ss.ω_p[1]]
         sys_state.var_02 = s.integrator[ss.ω_p[2]]
@@ -57,8 +49,6 @@ try
         sys_state.var_07 = s.integrator[ss.trailing_edge_angle[1]]
         sys_state.var_08 = s.integrator[ss.trailing_edge_angle[2]]
         log!(logger, sys_state)
-        local pos = [[sys_state.X[i], sys_state.Y[i], sys_state.Z[i]] for i in 1:s.i_C+1]
-        plot2d(pos, t; zoom=false, front=false, xlim=(-l/2, l/2), ylim=(0, l))
     end
 catch e
     if isa(e, AssertionError)
@@ -85,5 +75,7 @@ p=plotx(logger.time_vec,
             ],
         fig="Steering and heading MTK model")
 display(p)
+
+println("Times realtime: ", (total_time/2) / runtime)
 
 nothing
