@@ -182,8 +182,6 @@ function calc_inertia!(s::KPS4_3L)
     # Store results
     s.I_kite .= eigenvals
     s.R_b_p .= eigenvecs
-    @show s.I_kite eigenvals eigenvecs
-    @show s.R_b_p
     return nothing
 end
 
@@ -209,7 +207,6 @@ function calc_pos_principal!(s::KPS4_3L)
         s.seg_cop_pos_b[:, i] .= [-0.75 * kite_length, cos(α) * s.set.radius, sin(α) * s.set.radius + s.circle_center_t]
         s.seg_cop_pos_p[:, i] .= s.R_b_p * s.seg_cop_pos_b[:, i]
     end
-    @show s.seg_mass
     s.pos_A_p .= s.R_b_p * ([0.0, cos(s.α_D), s.C_t])
     s.pos_B_p .= s.R_b_p * ([0.0, -cos(s.α_D), s.C_t])
     s.pos_C_p .= s.R_b_p * ([-0.75 * s.set.middle_length, 0.0, s.C_t])
@@ -235,13 +232,11 @@ function init_pos!(s::KPS4_3L; new=true, α = 5.0)
     s.pos[:, s.i_B] .= rotate_around_z(rotate_around_y([s.measure.distance, 0, 0], -s.measure.elevation_right), s.measure.azimuth_right)
     s.pos[:, s.i_C] .= 0.5s.pos[:, s.i_A] + 0.5s.pos[:, s.i_B]
     s.e_y .= normalize(s.pos[:, s.i_A] - s.pos[:, s.i_B])
-    @show s.pos[:, s.i_A:s.i_C]
 
     # init middle tether
     angular_acc = s.measure.tether_acc / s.set.drum_radius
     net_torque = angular_acc * s.set.inertia_total # TODO: check if inertia is correct
     tether_force = (net_torque - s.measure.winch_torque) / s.set.drum_radius
-    @show tether_force
     expected_pos = calc_expected_pos_vel(s, s.pos[:, s.i_C][1], s.pos[:, s.i_C][2], s.pos[:, s.i_C][3], 
         0, 0, s.measure.tether_length[3], tether_force[3], s.c_spring[3])[1, :, :]
     # [s.pos[j, 3(k-1)+i] = expected_pos[j, k] for j in 1:3 for k in 1:(s.i_C ÷ 3)]
@@ -256,22 +251,19 @@ function init_pos!(s::KPS4_3L; new=true, α = 5.0)
     s.pos_E_b = [0.0, -cos(s.α_D) * s.set.radius, sin(α) * s.set.radius]
     e_r_D = -normalize(s.pos_D_b)
     e_r_E = -normalize(s.pos_E_b)
-    trailing_edge_length = s.kite_length_D/4
+    te_length = s.kite_length_D/4
     angle_te_c = 0.0
     angle_te_d = 0.0
-    s.pos[:, s.i_A] .= s.pos[:, s.i_C] + s.e_y * s.pos_D_b[2] + s.e_x * trailing_edge_length * cos(angle_te_c) + e_r_D * trailing_edge_length * sin(angle_te_c)
-    s.pos[:, s.i_B] .= s.pos[:, s.i_C] + s.e_y * s.pos_E_b[2] + s.e_x * trailing_edge_length * cos(angle_te_d) + e_r_E * trailing_edge_length * sin(angle_te_d)
-
-    @show s.pos[:, s.i_A:s.i_B]
+    s.pos[:, s.i_A] .= s.pos[:, s.i_C] + s.e_y * s.pos_D_b[2] + s.e_x * te_length * cos(angle_te_c) + e_r_D * te_length * sin(angle_te_c)
+    s.pos[:, s.i_B] .= s.pos[:, s.i_C] + s.e_y * s.pos_E_b[2] + s.e_x * te_length * cos(angle_te_d) + e_r_E * te_length * sin(angle_te_d)
 
     # init left and right tether
     expected_pos = calc_expected_pos_vel(s, s.pos[:, s.i_A][1], s.pos[:, s.i_A][2], s.pos[:, s.i_A][3], 
-        0, 0, s.measure.tether_length[3], tether_force[3], s.c_spring[3])[1, :, :]
+        0, 0, s.measure.tether_length[1], tether_force[1], s.c_spring[1])[1, :, :]
     s.pos[:, 1:3:s.i_A] .= expected_pos[:, :]
     expected_pos = calc_expected_pos_vel(s, s.pos[:, s.i_B][1], s.pos[:, s.i_B][2], s.pos[:, s.i_B][3], 
-        0, 0, s.measure.tether_length[3], tether_force[3], s.c_spring[3])[1, :, :]
+        0, 0, s.measure.tether_length[2], tether_force[2], s.c_spring[2])[1, :, :]
     s.pos[:, 2:3:s.i_B] .= expected_pos[:, :]
-    @show s.pos[:, s.i_A:s.i_B]
     return s.pos
 end
 

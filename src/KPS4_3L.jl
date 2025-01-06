@@ -69,6 +69,8 @@ const MeasureFloat = Float32
     dd_elevation_right::MeasureFloat  = 0.0
 end
 
+const Getter = Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing}
+
 """
     mutable struct KPS4_3L{S, T, P, Q, SP} <: AbstractKiteModel
 
@@ -211,20 +213,25 @@ $(TYPEDFIELDS)
     v_wind_idx::Union{ModelingToolkit.ParameterIndex, Nothing} = nothing
     prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
     set_set_values::Union{SymbolicIndexingInterface.MultipleSetters, Nothing} = nothing
-    get_pos::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
-    get_trailing_edge_angle::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
-    get_trailing_edge_α::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
-    get_vel_kite::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
-    get_tether_forces::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
-    get_tether_lengths::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
-    get_tether_vels::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
-    get_L_C::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
-    get_L_D::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
-    get_D_C::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
-    get_D_D::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
-    get_heading::Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing} = nothing
-    integrator::Union{Sundials.CVODEIntegrator, OrdinaryDiffEqCore.ODEIntegrator, Nothing} = nothing
+    get_pos::Getter = nothing
+    get_kite_pos::Getter = nothing
+    get_trailing_edge_angle::Getter = nothing
+    get_trailing_edge_α::Getter = nothing
+    get_kite_vel::Getter = nothing
+    get_kite_acc::Getter = nothing
+    get_q::Getter = nothing
+    get_tether_forces::Getter = nothing
+    get_tether_lengths::Getter = nothing
+    get_tether_vels::Getter = nothing
+    get_kite_force::Getter = nothing
+    get_kite_torque_p::Getter = nothing
+    get_heading::Getter = nothing
+    integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Nothing} = nothing
     u0::V = [0.0]
+end
+
+function get_kite_torque_b(s)
+    return s.R_b_p' * s.get_kite_torque_p(s.integrator)
 end
 
 """
@@ -317,14 +324,20 @@ end
 
 function update_sys_state!(ss::SysState, s::KPS4_3L, zoom=1.0)
     ss.time = s.t_0
-    pos = s.pos
-    P = length(pos)
+    pos = cat(s.get_pos(s.integrator), s.get_kite_pos(s.integrator); dims=2)
+    P = s.i_C + 1
     for i in 1:P
-        ss.X[i] = pos[i][1] * zoom
-        ss.Y[i] = pos[i][2] * zoom
-        ss.Z[i] = pos[i][3] * zoom
+        ss.X[i] = pos[1, i] * zoom
+        ss.Y[i] = pos[2, i] * zoom
+        ss.Z[i] = pos[3, i] * zoom
     end
-    ss.orient .= calc_orient_quat(s)
+    tether_vels = s.get_tether_vels(s.integrator)
+    # TODO
+    # ss.kite_acc      .= s.get_kite_acc(s.integrator)
+    # ss.left_tether_vel = tether_vels[1]
+    # ss.right_tether_vel = tether_vels[2]
+    ss.acc = norm(s.get_kite_acc(s.integrator))
+    ss.orient .= s.get_q(s.integrator)
     ss.elevation = calc_elevation(s)
     ss.azimuth = calc_azimuth(s)
     ss.force = tether_force(s)[3]
@@ -340,16 +353,17 @@ function update_sys_state!(ss::SysState, s::KPS4_3L, zoom=1.0)
 end
 
 function SysState(s::KPS4_3L, zoom=1.0) # TODO: add left and right lines, stop using getters and setters
+    isnothing(s.integrator) && @warn "Initialize kite first!"
     generate_getters!(s)
-    pos = s.pos
-    P = length(pos)
+    pos = cat(s.get_pos(s.integrator), s.get_kite_pos(s.integrator); dims=2)
+    P = s.i_C + 1
     X = zeros(MVector{P, MyFloat})
     Y = zeros(MVector{P, MyFloat})
     Z = zeros(MVector{P, MyFloat})
     for i in 1:P
-        X[i] = pos[i][1] * zoom
-        Y[i] = pos[i][2] * zoom
-        Z[i] = pos[i][3] * zoom
+        X[i] = pos[1, i] * zoom
+        Y[i] = pos[2, i] * zoom
+        Z[i] = pos[3, i] * zoom
     end
     
     orient = MVector{4, Float32}(calc_orient_quat(s))
@@ -476,7 +490,6 @@ function init_sim!(s::KPS4_3L; damping_coeff=s.damping_coeff, prn=false,
     s.last_init_tether_length = s.set.l_tether
     s.last_set_hash = s.set_hash
     s.init_set_values .= init_set_values
-    update_state!(s)
     return nothing
 end
 
@@ -488,14 +501,15 @@ function generate_getters!(s)
         s.get_pos = getu(s.integrator.sol, s.simple_sys.pos[:,:])
         s.get_trailing_edge_angle = getu(s.integrator.sol, s.simple_sys.trailing_edge_angle)
         s.get_trailing_edge_α = getu(s.integrator.sol, s.simple_sys.trailing_edge_α)
-        s.get_vel_kite = getu(s.integrator.sol, s.simple_sys.vel[:,s.i_A])
+        s.get_kite_pos = getu(s.integrator.sol, s.simple_sys.kite_pos)
+        s.get_kite_vel = getu(s.integrator.sol, s.simple_sys.kite_vel)
+        s.get_kite_acc = getu(s.integrator.sol, s.simple_sys.kite_acc)
+        s.get_q = getu(s.integrator.sol, s.simple_sys.q)
         s.get_tether_forces = getu(s.integrator.sol, s.simple_sys.tether_force)
-        s.get_L_C = getu(s.integrator.sol, s.simple_sys.L_C)
-        s.get_L_D = getu(s.integrator.sol, s.simple_sys.L_D)
-        s.get_D_C = getu(s.integrator.sol, s.simple_sys.D_C)
-        s.get_D_D = getu(s.integrator.sol, s.simple_sys.D_D)
         s.get_tether_lengths = getu(s.integrator.sol, s.simple_sys.tether_length)
         s.get_tether_vels = getu(s.integrator.sol, s.simple_sys.tether_vel)
+        s.get_kite_force = getu(s.integrator.sol, s.simple_sys.total_kite_force)
+        s.get_kite_torque_p = getu(s.integrator.sol, s.simple_sys.torque_p)
         s.get_heading = getu(s.integrator.sol, s.simple_sys.heading_y)
     end
     nothing
@@ -513,7 +527,6 @@ function next_step!(s::KPS4_3L; set_values=zeros(KVec3), v_wind_gnd=s.set.v_wind
         println("Return code for solution: ", s.integrator.sol.retcode)
     end
     @assert successful_retcode(s.integrator.sol)
-    update_state!(s)
     s.integrator.t
 end
 
@@ -592,7 +605,11 @@ function tether_from_distance_length!(pos, distance::SimFloat, tether_length::Si
         cost[] = d[] - distance
         return cost[]
     end
-    Roots.find_zero(f_zero!, (0, 2π); atol=1e-6)
+    try
+        Roots.find_zero(f_zero!, (0, 2π); atol=1e-6)
+    catch e
+        println("Distance: ", distance, " Tether length: ", tether_length)
+    end
     rotate!(pos, quat)
     nothing
 end
@@ -620,12 +637,12 @@ function calc_expected_pos_vel(s::KPS4_3L, kite_pos1, kite_pos2, kite_pos3, kite
     expected_vel = @views s.expected_tether_pos_vel_buffer[2, :, :]
     J, y, x, segments = s.J_buffer, s.y_buffer, s.x_buffer, s.set.segments
     distance = norm(kite_pos)
-
     stretched_tether_length = tether_length + tether_force / (c_spring/tether_length)
 
-    if any(isnan.((kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, tether_length, tether_force, c_spring))) || 
-            any(isa.((kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, tether_length, tether_force, c_spring), ForwardDiff.Dual)) ||
-            distance >= stretched_tether_length
+    if any(isa.((kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, tether_length, tether_force, c_spring), ForwardDiff.Dual)) ||
+            !all(0.0 .< (distance, stretched_tether_length) .< Inf) || 
+            distance >= stretched_tether_length ||
+            distance <= 0.1stretched_tether_length
         expected_pos .= NaN
         expected_vel .= NaN
         return s.expected_tether_pos_vel_buffer
@@ -640,6 +657,7 @@ function calc_expected_pos_vel(s::KPS4_3L, kite_pos1, kite_pos2, kite_pos3, kite
 
     x[1] = distance
     x[2] = stretched_tether_length
+
     backend = ADTypes.AutoFiniteDiff()
     if isnothing(s.prep)
         s.prep = prepare_jacobian(f_jac!, y, backend, x)
@@ -676,7 +694,7 @@ end
 Return the position of the kite (top particle).
 """
 function pos_kite(s::KPS4_3L)
-    s.pos[end]
+    s.kite_pos
 end
 
 """

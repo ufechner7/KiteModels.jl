@@ -34,7 +34,7 @@ Scientific background: http://arxiv.org/abs/1406.6218 =#
 module KiteModels
 
 using PrecompileTools: @setup_workload, @compile_workload 
-using Dierckx, Interpolations, Serialization, StaticArrays, LinearAlgebra, Parameters, NLsolve, Roots, ForwardDiff,
+using Dierckx, Interpolations, Serialization, StaticArrays, LinearAlgebra, Parameters, NLsolve, Roots, ForwardDiff, DiffEqCallbacks,
       DocStringExtensions, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK, NonlinearSolve, FiniteDiff, DifferentiationInterface
 import Sundials
 using Reexport, Pkg
