@@ -177,10 +177,14 @@ $(TYPEDFIELDS)
     I_kite::V = zeros(3)
     "Damping of the kite rotation"
     orient_damping::S = zero(S)
+    "rotation from kite body frame to world frame"
+    Q_p_w::V = zeros(4)
+    "rotation from kite principal frame to body frame"
+    Q_p_b::V = zeros(4)
     "rotation from kite body frame to kite principal frame"
     R_b_p::Matrix{S} = zeros(3, 3)
     "translation from kite point to circle center in body frame along positive z"
-    circle_center_t::V = zeros(3)
+    pos_circle_center_b::V = zeros(3)
     "center of mass of the kite"
     kite_pos::V = zeros(3)
     "quaternion orientation of the kite"
@@ -191,16 +195,14 @@ $(TYPEDFIELDS)
     seg_cop_pos_p::Matrix{S} = zeros(3, 2set.aero_surfaces)
     "cop pos in body frame"
     seg_cop_pos_b::Matrix{S} = zeros(3, 2set.aero_surfaces)
-    "last left tether point position in principal frame"
-    pos_A_p::V = zeros(3)
-    "last right tether point position in principal frame"
-    pos_B_p::V = zeros(3)
+    "last left tether point position in body frame"
+    pos_A_b::V = zeros(3)
+    "last right tether point position in body frame"
+    pos_B_b::V = zeros(3)
+    "last middle tether point position in body frame"
+    pos_C_b::V = zeros(3)
     "last middle tether point position in principal frame"
     pos_C_p::V = zeros(3)
-    "rotation from kite body frame to world frame"
-    R_b_w::Matrix{S} = zeros(3, 3)
-    "translation from kite_point to point C along positive body z frame"
-    C_t::V = zeros(3)
     "mass of each kite segment"
     seg_mass::V = zeros(2set.aero_surfaces)
     "A point projected onto kite in z-axis in body frame"
@@ -219,7 +221,11 @@ $(TYPEDFIELDS)
     get_trailing_edge_α::Getter = nothing
     get_kite_vel::Getter = nothing
     get_kite_acc::Getter = nothing
-    get_q::Getter = nothing
+    get_R_b_w::Getter = nothing
+    get_Q_p_w::Getter = nothing
+    get_e_x::Getter = nothing
+    get_e_y::Getter = nothing
+    get_e_z::Getter = nothing
     get_tether_forces::Getter = nothing
     get_tether_lengths::Getter = nothing
     get_tether_vels::Getter = nothing
@@ -231,7 +237,7 @@ $(TYPEDFIELDS)
 end
 
 function get_kite_torque_b(s)
-    return s.R_b_p' * s.get_kite_torque_p(s.integrator)
+    return rotate_by_quaternion(s.get_kite_torque_p(s.integrator), s.Q_p_b)
 end
 
 """
@@ -337,11 +343,11 @@ function update_sys_state!(ss::SysState, s::KPS4_3L, zoom=1.0)
     # ss.left_tether_vel = tether_vels[1]
     # ss.right_tether_vel = tether_vels[2]
     ss.acc = norm(s.get_kite_acc(s.integrator))
-    ss.orient .= s.get_q(s.integrator)
+    ss.orient .= quaternion_multiply(s.Q_p_b, s.get_Q_p_w(s.integrator))
     ss.elevation = calc_elevation(s)
     ss.azimuth = calc_azimuth(s)
     ss.force = tether_force(s)[3]
-    ss.heading = calc_heading_y(s.e_x)
+    ss.heading = calc_heading_y(s.get_e_x(s.integrator))
     ss.course = calc_course(s)
     ss.v_app = norm(s.v_apparent)
     ss.l_tether = s.tether_lengths[3]
@@ -370,7 +376,7 @@ function SysState(s::KPS4_3L, zoom=1.0) # TODO: add left and right lines, stop u
     elevation = calc_elevation(s)
     azimuth = calc_azimuth(s)
     forces = tether_force(s)
-    heading = calc_heading_y(s.e_x)
+    heading = calc_heading_y(s.get_e_x(s.integrator))
     course = calc_course(s)
     v_app_norm = norm(s.v_apparent)
     t_sim = 0
@@ -504,7 +510,9 @@ function generate_getters!(s)
         s.get_kite_pos = getu(s.integrator.sol, s.simple_sys.kite_pos)
         s.get_kite_vel = getu(s.integrator.sol, s.simple_sys.kite_vel)
         s.get_kite_acc = getu(s.integrator.sol, s.simple_sys.kite_acc)
-        s.get_q = getu(s.integrator.sol, s.simple_sys.q)
+        s.get_R_b_w = getu(s.integrator.sol, s.simple_sys.R_b_w)
+        s.get_Q_p_w = getu(s.integrator.sol, s.simple_sys.R_b_w)
+        s.get_e_x = getu(s.integrator.sol, s.simple_sys.e_x)
         s.get_tether_forces = getu(s.integrator.sol, s.simple_sys.tether_force)
         s.get_tether_lengths = getu(s.integrator.sol, s.simple_sys.tether_length)
         s.get_tether_vels = getu(s.integrator.sol, s.simple_sys.tether_vel)

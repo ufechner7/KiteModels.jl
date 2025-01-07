@@ -51,7 +51,7 @@ kite:
     cd_list:   [   0.5,    0.5,    0.5,   1.0,   0.2, 0.1,  0.2,  1.0,   0.5,   0.5,   0.5]
     
 kps4: 
-    alpha_zero:   6.0      # should be 4..10                      [degrees]
+    alpha_zero:   4.0      # should be 4..10                      [degrees]
     alpha_ztip:   10.0      #                                      [degrees]
     m_k:           0.2      # relative nose distance; increasing m_k increases C2 of the turn-rate law
     rel_nose_mass: 0.47     # relative nose mass

@@ -124,7 +124,7 @@ function calc_inertia!(s::KPS4_3L)
     
     # First pass - calculate COM
     total_mass = 0.0
-    s.circle_center_t .= 0.0 # translation along positive z axis to circle origin
+    s.pos_circle_center_b .= 0.0 # translation from kite COM to kite circle center
     pos = zeros(3, 2segs)
     mass = zeros(2segs)
     
@@ -134,7 +134,7 @@ function calc_inertia!(s::KPS4_3L)
     for i in 1:2segs
         if i <= segs
             α = s.α_l + -dα/2 + i * dα
-            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (α - s.α_l) / (π/2 - s.α_l) # TODO: kite length gets less with flap turning
+            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (α - s.α_l) / (π/2 - s.α_l)
         else
             α = pi - (s.α_l + -dα/2 + (i-segs) * dα)
             kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (π - s.α_l - α) / (π/2 - s.α_l)
@@ -143,15 +143,14 @@ function calc_inertia!(s::KPS4_3L)
         area = kite_length * s.set.width/(2segs)
         mass[i] = area * mass_per_area
         pos[:, i] = [-0.5 * kite_length, cos(α) * s.set.radius, sin(α) * s.set.radius]
-        s.circle_center_t .-= mass[i] * pos[:, i]
+        s.pos_circle_center_b .-= mass[i] * pos[:, i]
     end
-    s.circle_center_t ./= sum(mass)
-    s.C_t = s.circle_center_t .- [0.0, 0.0, s.set.bridle_center_distance + s.set.radius]
+    s.pos_circle_center_b ./= sum(mass)
     
     # Calculate full inertia tensor relative to COM
     I = zeros(3,3)
     for i in eachindex(mass)
-        pos[:, i] -= s.circle_center_t
+        pos[:, i] -= s.pos_circle_center_b
         r = @views pos[:, i]
         m = mass[i]
         
@@ -182,6 +181,7 @@ function calc_inertia!(s::KPS4_3L)
     # Store results
     s.I_kite .= eigenvals
     s.R_b_p .= eigenvecs
+    s.Q_p_b .= rotation_matrix_to_quaternion(s.R_b_p')
     return nothing
 end
 
@@ -203,13 +203,14 @@ function calc_pos_principal!(s::KPS4_3L)
         area = kite_length * s.set.width/(2n)
         s.seg_mass[i] = area * mass_per_area
 
-        s.seg_com_pos_p[:, i] .= s.R_b_p * ([-0.5 * kite_length, cos(α) * s.set.radius, sin(α) * s.set.radius] + s.circle_center_t)
-        s.seg_cop_pos_b[:, i] .= [-0.75 * kite_length, cos(α) * s.set.radius, sin(α) * s.set.radius] + s.circle_center_t
+        s.seg_com_pos_p[:, i] .= s.R_b_p * ([-0.5 * kite_length, cos(α) * s.set.radius, sin(α) * s.set.radius] .+ s.pos_circle_center_b)
+        s.seg_cop_pos_b[:, i] .= [-0.75 * kite_length, cos(α) * s.set.radius, sin(α) * s.set.radius] + s.pos_circle_center_b
         s.seg_cop_pos_p[:, i] .= s.R_b_p * s.seg_cop_pos_b[:, i]
     end
-    s.pos_A_p .= s.R_b_p * ([0.0, cos(s.α_D), 0.0] .+ s.C_t)
-    s.pos_B_p .= s.R_b_p * ([0.0, -cos(s.α_D), 0.0] .+ s.C_t)
-    s.pos_C_p .= s.R_b_p * ([-0.75 * s.set.middle_length, 0.0, 0.0] + s.C_t)
+    s.pos_C_b = s.pos_circle_center_b .+ [-0.75s.kite_length_D, 0.0, s.set.radius - s.set.bridle_center_distance]
+    s.pos_C_p .= s.R_b_p * s.pos_C_b
+    s.pos_A_b .= [0.0, cos(s.α_D), 0.0] .+ s.pos_C_b
+    s.pos_B_b .= [0.0, -cos(s.α_D), 0.0] .+ s.pos_C_b
     return nothing
 end
 
@@ -243,8 +244,9 @@ function init_pos!(s::KPS4_3L; new=true, α = 5.0)
     s.pos[:, 3:3:s.i_C] .= expected_pos[:, :]
     s.e_z .= normalize(s.pos[:, s.i_C] - s.pos[:, s.i_C-3])
     s.e_x .= s.e_y × s.e_z
-    s.q .= rotation_matrix_to_quaternion(hcat(s.e_x, s.e_y, s.e_z))
-    s.kite_pos .= s.pos[:, s.i_C] - rotate_by_quaternion(s.C_t, s.q)
+    R_b_w = hcat(s.e_x, s.e_y, s.e_z)
+    s.Q_p_w .= rotation_matrix_to_quaternion(R_b_w * s.R_b_p')
+    s.kite_pos .= s.pos[:, s.i_C] - R_b_w * s.pos_C_b
     
     # init tether connection points
     s.pos_D_b = [0.0, cos(s.α_D) * s.set.radius, sin(α) * s.set.radius]
