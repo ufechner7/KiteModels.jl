@@ -12,7 +12,7 @@ function angle_between_vectors(v1, v2)
 end
 
 dt = 0.01
-total_time = 2.0
+total_time = 1.5
 steps = Int(round(total_time / dt))
 
 set = se("system_3l.yaml")
@@ -41,7 +41,7 @@ try
         local pos = [[sys_state.X[i], sys_state.Y[i], sys_state.Z[i]] for i in 1:s.i_C+1]
         plot && plot2d(pos, t; zoom=false, front=false, xlim=(-l/2, l/2), ylim=(0, l), segments=10)
         set_values = -s.set.drum_radius * s.get_tether_forces(s.integrator)
-        if t < 3; set_values[1] -= 1.0; end
+        if t < 3; set_values[1] -= 10.0; end
         steptime = @elapsed t = next_step!(s; set_values, dt)
         if (t > total_time/2); runtime += steptime; end
         KiteModels.update_sys_state!(sys_state, s)

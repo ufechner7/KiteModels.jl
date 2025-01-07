@@ -518,9 +518,9 @@ function create_sys!(s::KPS4_3L)
         D(ω_p[1]) ~ α_p[1]
         D(ω_p[2]) ~ α_p[2]
         D(ω_p[3]) ~ α_p[3]
-        α_p[1] ~ (torque_p[1] + (s.I_kite[2] - s.I_kite[3]) * ω_p[2] * ω_p[3]) / s.I_kite[1] - 100s.orient_damping*ω_p[1]
-        α_p[2] ~ (torque_p[2] + (s.I_kite[3] - s.I_kite[1]) * ω_p[3] * ω_p[1]) / s.I_kite[2] - 100s.orient_damping*ω_p[2]
-        α_p[3] ~ (torque_p[3] + (s.I_kite[1] - s.I_kite[2]) * ω_p[1] * ω_p[2]) / s.I_kite[3] - 100s.orient_damping*ω_p[3]
+        α_p[1] ~ (torque_p[1] + (s.I_kite[2] - s.I_kite[3]) * ω_p[2] * ω_p[3]) / s.I_kite[1] - 10s.orient_damping*ω_p[1]
+        α_p[2] ~ (torque_p[2] + (s.I_kite[3] - s.I_kite[1]) * ω_p[3] * ω_p[1]) / s.I_kite[2] - 10s.orient_damping*ω_p[2]
+        α_p[3] ~ (torque_p[3] + (s.I_kite[1] - s.I_kite[2]) * ω_p[1] * ω_p[2]) / s.I_kite[3] - 10s.orient_damping*ω_p[3]
 
         [D(kite_pos[i]) ~ kite_vel[i] for i in 1:3]
         [D(kite_vel[i]) ~ kite_acc[i] for i in 1:3]
