@@ -56,7 +56,7 @@ function simulate(integrator, steps, plot=false)
         if plot
             reltime = i*dt-dt
             if mod(i, 5) == 1
-                plot2d(kps4.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, xlim=(35,75),
+                plot2d(kps4.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, xlim=(35,100),
                                         segments=set.segments, fig="side_view")            
             end
         end
@@ -65,7 +65,7 @@ function simulate(integrator, steps, plot=false)
 end
 
 integrator = KiteModels.init_sim!(kps4; delta=0, stiffness_factor=1, prn=STATISTIC)
-kps4.sync_speed = 0.0
+kps4.sync_speed = set.v_reel_out
 
 if PLOT
     av_steps = simulate(integrator, STEPS, true)

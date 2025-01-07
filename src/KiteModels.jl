@@ -607,7 +607,9 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.5, delta=0.001, upwind_
         roll, pitch, yaw = orient_euler(s)
         s.pitch_rate = 0
         s.pitch = pitch
+        set_initial_velocity!(s)
     end
+    s.v_reel_out = s.set.v_reel_out
     return integrator
 end
 
