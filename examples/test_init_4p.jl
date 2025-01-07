@@ -21,6 +21,7 @@ V_WIND = 14.5
 # the following values can be changed to match your interest
 dt = 0.05
 set.solver="DFBDF" # IDA or DFBDF
+set.v_reel_out = 1.0 # initial reel-out speed [m/s]
 STEPS = 1
 PLOT = true
 PRINT = true
@@ -37,6 +38,9 @@ logger::Logger = Logger(set.segments + 5, STEPS)
 kcu::KCU = KCU(set)
 kps4::KPS4 = KPS4(kcu)
 integrator = KiteModels.init_sim!(kps4; delta=0.03, stiffness_factor=0.01, upwind_dir=UPWIND_DIR, prn=STATISTIC)
+for i=1:80
+    KiteModels.next_step!(kps4, integrator; set_speed=kps4.set.v_reel_out, dt)
+end
 lift, drag = lift_drag(kps4)
 sys_state = KiteModels.SysState(kps4)
 log!(logger, sys_state)
