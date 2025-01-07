@@ -95,7 +95,7 @@ end
 
 function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1); old=false, delta = 0.0)
     pos = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
-    vel = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
+    vel = zeros(MVector{s.set.segments+1+KITE_PARTICLES, KVec3})
     acc = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
     pos[1] .= [0.0, delta, 0.0]
     vel[1] .= [delta, delta, delta]
@@ -131,6 +131,13 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
     pos[s.set.segments+1+4][2] = -pos[s.set.segments+1+3][2] # Y position of point D
     for i in eachindex(pos)
         s.pos[i] .= pos[i]
+    end
+    for i in 2:s.set.segments+1
+        vel[i] .+= (pos[i+1] - pos[i]) * (s.set.v_reel_out*(i-1)/s.set.segments)
+    end
+    # the velocity vector of the kite particles is the same as the velocity of the last tether pointj
+    for i in s.set.segments+2:s.set.segments+KITE_PARTICLES+1
+        vel[i] .+= vel[s.set.segments+1] 
     end
     pos, vel, acc
 end

@@ -207,8 +207,8 @@ Initialize the kite power model.
 """
 function clear!(s::KPS4)
     s.t_0 = 0.0                              # relative start time of the current time interval
-    s.v_reel_out = 0.0
-    s.last_v_reel_out = 0.0
+    s.v_reel_out = s.set.v_reel_out
+    s.last_v_reel_out = s.set.v_reel_out
     s.v_wind_gnd    .= [s.set.v_wind, 0, 0]    # wind vector at reference height
     s.v_wind_tether .= [s.set.v_wind, 0, 0]
     s.v_apparent    .= [s.set.v_wind, 0, 0]
@@ -242,6 +242,7 @@ function KPS4(kcu::KCU)
     elseif kcu.set.winch_model == "TorqueControlledMachine"
         wm = TorqueControlledMachine(kcu.set)
     end
+    wm.last_set_speed = kcu.set.v_reel_out
     s = KPS4{SimFloat, KVec3, kcu.set.segments+KITE_PARTICLES+1, kcu.set.segments+KITE_SPRINGS, SP}(set=kcu.set, 
              kcu=kcu, wm=wm, calc_cl = Spline1D(kcu.set.alpha_cl, kcu.set.cl_list), 
              calc_cd=Spline1D(kcu.set.alpha_cd, kcu.set.cd_list) )    
