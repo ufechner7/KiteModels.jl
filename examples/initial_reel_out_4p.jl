@@ -1,5 +1,5 @@
 using Printf
-using KiteModels
+using KiteModels, LinearAlgebra
 
 set = deepcopy(load_settings("system.yaml"))
 
@@ -67,7 +67,7 @@ function simulate(integrator, steps, plot=false)
     iter / steps
 end
 
-integrator = KiteModels.init_sim!(kps4; delta=0, stiffness_factor=1, prn=STATISTIC)
+integrator = KiteModels.init_sim!(kps4; delta=0.002, stiffness_factor=0.25, prn=STATISTIC)
 kps4.sync_speed = set.v_reel_out
 
 if PLOT
