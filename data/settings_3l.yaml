@@ -39,7 +39,7 @@ kite:
     model: "data/kite.obj" # 3D model of the kite
     foil_file: "data/MH82.dat"  # filename for the foil shape
     polar_file: "data/polars.bin"   # filename for the polars
-    physical_model: "KPS4_3L" # name of the kite model to use (KPS3 or KPS4)
+    physical_model: "KPSQ" # name of the kite model to use (KPS3, KPS4 or KPSQ)
     version: 2             # version of the model to use
     mass:  0.9             # kite mass [kg]
     area: 10.18            # projected kite area         [m²]
@@ -58,14 +58,17 @@ kps4:
     rel_top_mass:  0.4      # mass of the top particle relative to the sum of top and side particles
 
 kps4_3l:
-    radius: 2.0
-    bridle_center_distance: 4.0
-    middle_length: 1.5
-    tip_length: 0.62
-    min_steering_line_distance: 1.0
-    width:         4.1     # width of the kite                          [m]
-    aero_surfaces: 5      # number of aerodynamic surfaces in 3 line model
-    flap_height: 0.044     # height at the start of the flap of a normalized kite segment
+    radius:                 2.0     # the radius of the circle shape on which the kite lines, viewed 
+                                    #     from the front                                              [m]
+    bridle_center_distance: 4.0     # the distance from point the center bridle connection point of 
+                                    #     the middle line to the kite                                 [m]
+    middle_length:          1.5     # the cord length of the kite in the middle                       [m]
+    tip_length:             0.62    # the cord length of the kite at the tips                         [m]
+    min_steering_line_distance: 1.0 # the distance between the left and right steering bridle         [m]
+                                    #     line connections on the kite that are closest to each other [m]
+    width:                  4.1     # width of the kite                          [m]
+    aero_surfaces:          5       # number of aerodynamic surfaces in 3 line model
+    flap_height:            0.044   # height at the start of the flap of a normalized kite segment
 
 kcu:
     kcu_mass: 8.4                # mass of the kite control unit   [kg]

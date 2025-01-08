@@ -5,7 +5,7 @@ using REPL
 
 update_settings()
 kcu = KCU(se())
-s = KPS4_3L(kcu)
+s = KPSQ(kcu)
 integrator = KiteModels.init_sim!(s, stiffness_factor=0.04, prn=true, integrator_history=nothing)
 
 # Run listener as separate task using channels, put keypresses in channel for main loop

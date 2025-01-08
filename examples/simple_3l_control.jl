@@ -15,7 +15,7 @@ total_time = 10.0
 steps = Int(round(total_time / dt))
 logger = Logger(3*set.segments + 6, steps)
 
-if !@isdefined(s) s::KPS4_3L = KPS4_3L(KCU(set)) end
+if !@isdefined(s) s::KPSQ = KPSQ(KCU(set)) end
 s.set = update_settings()
 s.set.abs_tol = 0.0006
 s.set.rel_tol = 0.001

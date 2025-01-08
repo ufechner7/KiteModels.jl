@@ -26,7 +26,7 @@ function normalize(vec)
 end
 @register_symbolic normalize(vec)
 
-function convert_pos_vel(s::KPS4_3L, pos_, vel_)
+function convert_pos_vel(s::KPSQ, pos_, vel_)
     pos = Array{Union{Nothing, Float64}}(nothing, 3, s.i_A)
     vel = Array{Union{Nothing, Float64}}(nothing, 3, s.i_A)
     [pos[:,i] .= pos_[i] for i in 1:s.i_A-1]
@@ -100,7 +100,7 @@ end
 """
 Calculate the forces acting on the kite inertia particle.
 """
-function calc_kite_forces!(s::KPS4_3L, seqs, force_eqs, force, torque_p, R_b_w, kite_vel, kite_acc, ω_b, t, e_x, e_z, rho, v_wind, trailing_edge_angle)
+function calc_kite_forces!(s::KPSQ, seqs, force_eqs, force, torque_p, R_b_w, kite_vel, kite_acc, ω_b, t, e_x, e_z, rho, v_wind, trailing_edge_angle)
     n = s.set.aero_surfaces
 
     # integrating loop variables, iterating over 2n segments
@@ -216,7 +216,7 @@ function calc_kite_forces!(s::KPS4_3L, seqs, force_eqs, force, torque_p, R_b_w, 
 end
 
 """ 
-    calc_particle_forces!(s::KPS4_3L, seqs, force_eqs, force, pos1, pos2, vel1, vel2, length, c_spring, damping, 
+    calc_particle_forces!(s::KPSQ, seqs, force_eqs, force, pos1, pos2, vel1, vel2, length, c_spring, damping, 
                           rho, i, l_0, k, c, segment, rel_vel, av_vel, norm1, unit_vector, k2, c1, spring_vel,
                           spring_force, v_apparent, v_wind_tether, area, v_app_perp, half_drag_force)
 
@@ -224,7 +224,7 @@ Calculate the drag force and spring force of the tether segment, defined by the 
 and distribute it equally on the two particles, that are attached to the segment.
 The result is stored in the array s.forces. 
 """
-function calc_particle_forces!(s::KPS4_3L, seqs, force_eqs, force, p1, p2, pos1, pos2, vel1, vel2, length, c_spring, 
+function calc_particle_forces!(s::KPSQ, seqs, force_eqs, force, p1, p2, pos1, pos2, vel1, vel2, length, c_spring, 
     damping, rho, i, l_0, k, c, segment, rel_vel, av_vel, norm1, unit_vector, k2, c1, c2, spring_vel, perp_vel,
             spring_force, v_apparent, v_wind_tether, area, v_app_perp, half_drag_force)
     d_tether = s.set.d_tether/1000.0
@@ -279,7 +279,7 @@ end
 """
 Calculate the forces, acting on all tether particles.
 """
-@inline function calc_tether_forces!(s::KPS4_3L, seqs, force_eqs, t, force, pos, vel, length, c_spring, damping, v_wind_gnd, norm1)
+@inline function calc_tether_forces!(s::KPSQ, seqs, force_eqs, t, force, pos, vel, length, c_spring, damping, v_wind_gnd, norm1)
     @variables begin
         height(t)[1:s.i_C-3]
         rho(t)[1:s.i_C-3]
@@ -447,7 +447,7 @@ function scalar_eqs!(s, seqs, pos, vel, R_b_w, ω_p, ω_b, kite_pos, kite_vel, t
     return seqs
 end
 
-function create_sys!(s::KPS4_3L)
+function create_sys!(s::KPSQ)
     if s.torque_control
         [s.motors[i] = TorqueControlledMachine(s.set) for i in 1:3]
     else
@@ -606,7 +606,7 @@ The distance/vel/acc of the kite cannot be measured directly, but the average ac
 
 Assume distance_acc = tether_acc[3] for convenience
 """
-function model!(s::KPS4_3L; real=true)
+function model!(s::KPSQ; real=true)
     s.ϵ = 1e-6
     # pos, vel = init_pos_vel(s)
     init_pos!(s; α = 10.0)

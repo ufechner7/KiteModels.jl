@@ -72,9 +72,9 @@ end
 const Getter = Union{SymbolicIndexingInterface.MultipleGetters, SymbolicIndexingInterface.TimeDependentObservedFunction, Nothing}
 
 """
-    mutable struct KPS4_3L{S, T, P, Q, SP} <: AbstractKiteModel
+    mutable struct KPSQ{S, T, P, Q, SP} <: AbstractKiteModel
 
-State of the kite power system, using a 3 point kite model and three steering lines to the ground. Parameters:
+State of the kite power system, using a quaternion kite model and three steering lines to the ground. Parameters:
 - S: Scalar type, e.g. SimFloat
   In the documentation mentioned as Any, but when used in this module it is always SimFloat and not Any.
 - V: Vector type, e.g. KVec3
@@ -84,7 +84,7 @@ use the input and output functions instead.
 
 $(TYPEDFIELDS)
 """
-@with_kw mutable struct KPS4_3L{S, V, P} <: AbstractKiteModel # TODO: subdivide in kite-changing fields and non-kite-changing fields. combine this with fast caching
+@with_kw mutable struct KPSQ{S, V, P} <: AbstractKiteModel # TODO: subdivide in kite-changing fields and non-kite-changing fields. combine this with fast caching
     "Reference to the settings struct"
     set::Settings
     "Reference to the settings hash"
@@ -241,11 +241,11 @@ function get_kite_torque_b(s)
 end
 
 """
-    clear!(s::KPS4_3L)
+    clear!(s::KPSQ)
 
 Initialize the kite power model.
 """
-function clear!(s::KPS4_3L)
+function clear!(s::KPSQ)
     s.t_0 = 0.0                              # relative start time of the current time interval
     # s.last_reel_out_speeds = zeros(3)
     s.v_wind_gnd    .= [s.set.v_wind, 0.0, 0.0]    # wind vector at reference height
@@ -270,7 +270,7 @@ function clear!(s::KPS4_3L)
 end
 
 # include(joinpath(@__DIR__, "CreatePolars.jl"))
-function KPS4_3L(kcu::KCU)
+function KPSQ(kcu::KCU)
     set = kcu.set
     @assert set.foil_file != "" "No foil file specified in settings."
     open(joinpath(dirname(get_data_path()), set.foil_file), "r") do f
@@ -292,7 +292,7 @@ function KPS4_3L(kcu::KCU)
     c_te_interp(a, d) = c_te_struct(a, d)
     
     if set.winch_model == "TorqueControlledMachine"
-        s = KPS4_3L{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
+        s = KPSQ{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
             set=kcu.set, 
             motors=[TorqueControlledMachine(set) for _ in 1:3],
             cl_interp = cl_interp,
@@ -300,7 +300,7 @@ function KPS4_3L(kcu::KCU)
             c_te_interp = c_te_interp,)
         s.torque_control = true
     else
-        s = KPS4_3L{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
+        s = KPSQ{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
             set=kcu.set, 
             motors=[AsyncMachine(set) for _ in 1:3],
             cl_interp = cl_interp,
@@ -312,7 +312,7 @@ function KPS4_3L(kcu::KCU)
     return s
 end
 
-function calc_kite_ref_frame!(s::KPS4_3L, E, C, D)
+function calc_kite_ref_frame!(s::KPSQ, E, C, D)
     P_c = 0.5 .* (C+D)
     s.e_y .= normalize(C - D)
     s.e_z .= normalize(E - P_c)
@@ -320,15 +320,15 @@ function calc_kite_ref_frame!(s::KPS4_3L, E, C, D)
     return nothing
 end
 
-function calc_tether_elevation(s::KPS4_3L)
+function calc_tether_elevation(s::KPSQ)
     KiteUtils.calc_elevation(s.pos[6])
 end
 
-function calc_tether_azimuth(s::KPS4_3L)
+function calc_tether_azimuth(s::KPSQ)
     KiteUtils.azimuth_east(s.pos[6])
 end
 
-function update_sys_state!(ss::SysState, s::KPS4_3L, zoom=1.0)
+function update_sys_state!(ss::SysState, s::KPSQ, zoom=1.0)
     ss.time = s.t_0
     pos = cat(s.get_pos(s.integrator), s.get_kite_pos(s.integrator); dims=2)
     P = s.i_C + 1
@@ -358,7 +358,7 @@ function update_sys_state!(ss::SysState, s::KPS4_3L, zoom=1.0)
     nothing
 end
 
-function SysState(s::KPS4_3L, zoom=1.0) # TODO: add left and right lines, stop using getters and setters
+function SysState(s::KPSQ, zoom=1.0) # TODO: add left and right lines, stop using getters and setters
     isnothing(s.integrator) && @warn "Initialize kite first!"
     generate_getters!(s)
     pos = cat(s.get_pos(s.integrator), s.get_kite_pos(s.integrator); dims=2)
@@ -418,7 +418,7 @@ end
 @register_symbolic calc_heading_y(e_x)
 
 """
-    init_sim!(s::KPS4_3L; damping_coeff=50.0, prn=false, torque_control=true)
+    init_sim!(s::KPSQ; damping_coeff=50.0, prn=false, torque_control=true)
 
 Initialises the integrator of the model.
 
@@ -431,7 +431,7 @@ Parameters:
 Returns:
 Nothing.
 """
-function init_sim!(s::KPS4_3L; damping_coeff=s.damping_coeff, prn=false, 
+function init_sim!(s::KPSQ; damping_coeff=s.damping_coeff, prn=false, 
                    torque_control=s.torque_control, init_set_values=s.init_set_values, ϵ=s.ϵ, flap_damping=s.flap_damping)
     clear!(s)
     
@@ -455,7 +455,7 @@ function init_sim!(s::KPS4_3L; damping_coeff=s.damping_coeff, prn=false,
     init_new_pos = new_inital_conditions && !isnothing(s.get_pos)
 
     dt0 = 1.0
-    function stabilize_kite(s::KPS4_3L)
+    function stabilize_kite(s::KPSQ)
         set_values = copy(init_set_values)
         for _ in 0:dt:dt0
             next_step!(s; set_values, dt) # step to get stable state
@@ -523,7 +523,7 @@ function generate_getters!(s)
     nothing
 end
 
-function next_step!(s::KPS4_3L; set_values=zeros(KVec3), v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2, dt=1/s.set.sample_freq)
+function next_step!(s::KPSQ; set_values=zeros(KVec3), v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2, dt=1/s.set.sample_freq)
     set_v_wind_ground!(s, calc_height(s), v_wind_gnd; upwind_dir)
     generate_getters!(s)
     s.set_set_values(s.integrator, set_values)
@@ -538,7 +538,7 @@ function next_step!(s::KPS4_3L; set_values=zeros(KVec3), v_wind_gnd=s.set.v_wind
     s.integrator.t
 end
 
-# function calc_pre_tension(s::KPS4_3L)
+# function calc_pre_tension(s::KPSQ)
 #     forces = spring_forces(s)
 #     avg_force = 0.0
 #     for i in 1:s.i_A
@@ -552,18 +552,18 @@ end
 # end
 
 """
-    unstretched_length(s::KPS4_3L)
+    unstretched_length(s::KPSQ)
 
 Getter for the unstretched tether reel-out length (at zero force).
 """
-function unstretched_length(s::KPS4_3L) s.tether_lengths[3] end
+function unstretched_length(s::KPSQ) s.tether_lengths[3] end
 
 """
-    tether_length(s::KPS4_3L)
+    tether_length(s::KPSQ)
 
 Calculate and return the real, stretched tether length.
 """
-function tether_length(s::KPS4_3L)
+function tether_length(s::KPSQ)
     length = 0.0
     for i in 3:3:s.i_A-1
         length += norm(s.pos[i+3] - s.pos[i])
@@ -638,7 +638,7 @@ Tether vel: left - middle - right tether vel
 
 Return: an expected vel for all kite pos
 """
-function calc_expected_pos_vel(s::KPS4_3L, kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, tether_length, tether_force, c_spring) # TODO: remove the 123 caused by this issue: https://github.com/SciML/ModelingToolkit.jl/issues/3003
+function calc_expected_pos_vel(s::KPSQ, kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, tether_length, tether_force, c_spring) # TODO: remove the 123 caused by this issue: https://github.com/SciML/ModelingToolkit.jl/issues/3003
     kite_pos = [kite_pos1, kite_pos2, kite_pos3]
     s.expected_tether_pos_vel_buffer .= 0.0
     expected_pos = @views s.expected_tether_pos_vel_buffer[1, :, :]
@@ -675,11 +675,11 @@ function calc_expected_pos_vel(s::KPS4_3L, kite_pos1, kite_pos2, kite_pos3, kite
     return s.expected_tether_pos_vel_buffer
 end
 const FD = ForwardDiff.Dual
-function calc_expected_pos_vel(s::KPS4_3L, _::FD, _::FD, _::FD, _::FD, _::FD, _::FD, _::FD, _::FD) # dummy function for forwarddiff compatibility
+function calc_expected_pos_vel(s::KPSQ, _::FD, _::FD, _::FD, _::FD, _::FD, _::FD, _::FD, _::FD) # dummy function for forwarddiff compatibility
     s.expected_tether_pos_vel_buffer .= NaN
     return s.expected_tether_pos_vel_buffer
 end
-@register_array_symbolic calc_expected_pos_vel(s::KPS4_3L, kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, tether_length, tether_force, c_spring) begin
+@register_array_symbolic calc_expected_pos_vel(s::KPSQ, kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, tether_length, tether_force, c_spring) begin
     size = size(s.expected_tether_pos_vel_buffer)
     eltype = SimFloat
 end
@@ -688,39 +688,39 @@ end
 # =================== getter functions ====================================================
 
 """
-    calc_height(s::KPS4_3L)
+    calc_height(s::KPSQ)
 
 Determine the height of the topmost kite particle above ground.
 """
-function calc_height(s::KPS4_3L)
+function calc_height(s::KPSQ)
     pos_kite(s)[3]
 end
 
 """
-    pos_kite(s::KPS4_3L)
+    pos_kite(s::KPSQ)
 
 Return the position of the kite (top particle).
 """
-function pos_kite(s::KPS4_3L)
+function pos_kite(s::KPSQ)
     s.kite_pos
 end
 
 """
-    kite_ref_frame(s::KPS4_3L; one_point=false)
+    kite_ref_frame(s::KPSQ; one_point=false)
 
 Returns a tuple of the x, y, and z vectors of the kite reference frame.
 The parameter one_point is not used in this model.
 """
-function kite_ref_frame(s::KPS4_3L; one_point=false)
+function kite_ref_frame(s::KPSQ; one_point=false)
     s.e_x, s.e_y, s.e_z
 end
 
 """
-    tether_force(s::KPS4_3L)
+    tether_force(s::KPSQ)
 
 Return the absolute value of the force at the winch as calculated during the last timestep. 
 """
-function tether_force(s::KPS4_3L) s.get_tether_forces(s.integrator) end
+function tether_force(s::KPSQ) s.get_tether_forces(s.integrator) end
 
 
 # ====================== helper functions ====================================

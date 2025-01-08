@@ -5,7 +5,7 @@ old_path = get_data_path()
 set_data_path(joinpath(dirname(dirname(pathof(KiteModels))), "data"))
 kcu_3l::KCU = KCU(se("system_3l.yaml"))
 kcu_3l.set.winch_model = "AsyncMachine"
-k3l::KPS4_3L = KPS4_3L(kcu_3l)
+k3l::KPSQ = KPSQ(kcu_3l)
 
 pos, vel = nothing, nothing
 
@@ -175,11 +175,11 @@ end
     prn && println(av_steps)
     if Sys.isapple()
         result = av_steps < 100
-        !result && println("isapple, KPS4_3L, steps: $av_steps")
+        !result && println("isapple, KPSQ, steps: $av_steps")
         prn || @test result
     else
         result = av_steps < 100
-        !result && println("not apple, KPS4_3L, steps: $av_steps")
+        !result && println("not apple, KPSQ, steps: $av_steps")
         prn || @test result
     end
   

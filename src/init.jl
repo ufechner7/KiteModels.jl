@@ -30,7 +30,7 @@ function init_springs!(s::KPS4)
     s.springs
 end
 
-# function init_springs!(s::KPS4_3L)
+# function init_springs!(s::KPSQ)
 #     l_0 = s.set.l_tether / s.set.segments
     
 #     E, C, D, A, _, _ = KiteUtils.get_particles_3l(s.set.width, s.set.radius, 
@@ -66,7 +66,7 @@ function init_masses!(s::KPS4)
 end
 
 
-function init_masses!(s::KPS4_3L)
+function init_masses!(s::KPSQ)
     s.masses = zeros(s.i_C)
     l_0 = s.set.l_tether / s.set.segments 
     mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
@@ -118,7 +118,7 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
     pos, vel, acc
 end
 
-function calc_inertia!(s::KPS4_3L)
+function calc_inertia!(s::KPSQ)
     segs = 100
     mass_per_area = s.set.mass / ((s.set.middle_length + s.set.tip_length) * 0.5 * s.set.width)
     
@@ -185,7 +185,7 @@ function calc_inertia!(s::KPS4_3L)
     return nothing
 end
 
-function calc_pos_principal!(s::KPS4_3L)
+function calc_pos_principal!(s::KPSQ)
     # pos in principal frame relative to com
     mass_per_area = s.set.mass / ((s.set.middle_length + s.set.tip_length) * 0.5 * s.set.width)
     n = s.set.aero_surfaces
@@ -214,7 +214,7 @@ function calc_pos_principal!(s::KPS4_3L)
     return nothing
 end
 
-function init_pos!(s::KPS4_3L; new=true, α = 5.0)
+function init_pos!(s::KPSQ; new=true, α = 5.0)
     # ground points
     s.pos .= 0.0
     s.kite_pos .= 0.0
@@ -283,7 +283,7 @@ function init_inner(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); o
     vcat(pos[2:end], vel[2:end]), vcat(vel[2:end], acc[2:end])
 end
 
-function init_inner(s::KPS4_3L; delta=0.0)
+function init_inner(s::KPSQ; delta=0.0)
     pos_, vel_, acc_ = init_pos_vel_acc(s; delta=delta)
     # remove last left and right tether point and replace them by the length from C and D
     pos = vcat(
@@ -314,7 +314,7 @@ end
 
 
 
-function init(s::KPS4_3L; delta=0.0)
+function init(s::KPSQ; delta=0.0)
     y_, yd_ = init_inner(s; delta = delta)
     y = vcat(reduce(vcat, y_), reduce(vcat,[s.tether_lengths, zeros(3)]))
     yd = vcat(reduce(vcat, yd_), zeros(6))

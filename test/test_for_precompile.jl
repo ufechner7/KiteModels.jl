@@ -113,7 +113,7 @@ if ! haskey(ENV, "NO_MTK")
 
     logger = Logger(3*set.segments + 6, 5)
 
-    if ! @isdefined mtk_kite; mtk_kite = KPS4_3L(KCU(set)); end
+    if ! @isdefined mtk_kite; mtk_kite = KPSQ(KCU(set)); end
     KiteModels.init_sim!(mtk_kite; prn=false, torque_control=false)
 
     for i in 1:5
