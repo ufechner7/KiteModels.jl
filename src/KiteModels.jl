@@ -60,7 +60,7 @@ export init_sim!, reset_sim!, next_step!, init_pos_vel, init_pos, model!        
 export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, calc_orient_quat  # getters
 export calc_azimuth_north, calc_azimuth_east
 export winch_force, lift_drag, cl_cd, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
-export kite_ref_frame, orient_euler, spring_forces, upwind_dir, copy_model_settings
+export kite_ref_frame, orient_euler, spring_forces, upwind_dir, copy_model_settings, menu2
 import LinearAlgebra: norm
 
 set_zero_subnormals(true)       # required to avoid drastic slow down on Intel CPUs when numbers become very small
@@ -118,7 +118,11 @@ include("KPS4.jl") # include code, specific for the four point kite model
 include("KPSQ.jl") # include code, specific for the four point 3 line kite model
 include("mtk_model.jl")
 include("KPS3.jl") # include code, specific for the one point kite model
-include("init.jl") # functions to calculate the inital state vector, the inital masses and initial springs
+include("init.jl") # functions to calculate the initial state vector, the initial masses and initial springs
+
+function menu2()
+    Main.include("examples/menu2.jl")
+end
 
 # Calculate the lift and drag coefficient as a function of the angle of attack alpha.
 function set_cl_cd!(s::AKM, alpha)
@@ -451,6 +455,37 @@ function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
     ss.vel_kite .= s.vel_kite
     ss.t_sim = 0.0
     ss.AoA = deg2rad(s.alpha_2)
+    if isa(s, KPS4)
+        ss.alpha3 = deg2rad(s.alpha_3)
+        ss.alpha4 = deg2rad(s.alpha_4)
+        if isnothing(s.set_force)
+            ss.set_force = NaN
+        else
+            ss.set_force = s.set_force
+        end
+        if isnothing(s.bearing)
+            ss.bearing = NaN
+        else
+            ss.bearing = s.bearing
+        end
+        if isnothing(s.attractor)
+            ss.attractor = [NaN, NaN]
+        else
+            ss.attractor = s.attractor
+        end
+    end
+    ss.set_steering = s.kcu.set_steering
+    if isnothing(s.set_torque)
+        ss.set_torque = NaN
+    else
+        ss.set_torque = s.set_torque
+    end
+    if isnothing(s.sync_speed)
+        ss.set_speed = NaN
+    else
+        ss.set_speed = s.sync_speed
+    end
+    ss.roll, ss.pitch, ss.yaw = orient_euler(s)
     cl, cd = cl_cd(s)
     ss.CL2 = cl
     ss.CD2 = cd
@@ -488,7 +523,7 @@ function calc_pre_tension(s::AKM)
 end
 
 """
-    init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.5, delta=0.001, prn=false)
+    init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.5, delta=0.001, upwind_dir=-pi/2, prn=false)
 
 Initialises the integrator of the model.
 
@@ -497,21 +532,23 @@ Parameters:
 - t_end: end time of the simulation; normally not needed
 - stiffness_factor: factor applied to the tether stiffness during initialisation
 - delta: initial stretch of the tether during the steady state calculation
+- upwind_dir: upwind direction in radians, the direction the wind is coming from. Zero is at north; 
+              clockwise positive. Default: -pi/2, wind from west.
 - prn: if set to true, print the detailed solver results
 
 Returns:
 An instance of a DAE integrator.
 """
-function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.5, delta=0.001, prn=false)
+function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.5, delta=0.001, upwind_dir=-pi/2, prn=false)
     clear!(s)
     s.stiffness_factor = stiffness_factor
     
     try
-        y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor, delta, prn)
+        y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor, delta, upwind_dir, prn)
     catch e
         if e isa AssertionError
             println("ERROR: Failure to find initial steady state in find_steady_state! function!\n"*
-                    "Try to increase the delta parameter or to decrease the inital_stiffness of the init_sim! function.")
+                    "Try to increase the delta parameter or to decrease the initial_stiffness of the init_sim! function.")
             return nothing
         else
             rethrow(e)
@@ -548,8 +585,8 @@ end
 
 
 """
-    next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2, 
-               dt=1/s.set.sample_freq)
+    next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, set_force=nothing, bearing = nothing
+               attractor=nothing, v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2, dt=1/s.set.sample_freq)
 
 Calculates the next simulation step. Either `set_speed` or `set_torque` must be provided.
 
@@ -558,6 +595,9 @@ Parameters:
 - integrator:   an integrator instance as returned by the function [`init_sim!`](@ref)
 - set_speed:         set value of reel out speed in m/s or nothing
 - set_torque:   set value of the torque in Nm or nothing
+- set_force:    set value of the force in N or nothing (only for logging, not used otherwise)
+- bearing:      set value of heading/ course in radian or nothing (only for logging, not used otherwise)
+- attractor:    the attractor coordinates [azimuth, elevation] in radian or nothing (only for logging)
 - `v_wind_gnd`: wind speed at reference height in m/s
 - `upwind_dir`: upwind direction in radians, the direction the wind is coming from. Zero is at north; 
                 clockwise positive. Default: -pi/2, wind from west.
@@ -566,12 +606,17 @@ Parameters:
 Returns:
 The end time of the time step in seconds.
 """
-function next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2, 
-                    dt=1/s.set.sample_freq)
+function next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, set_force=nothing, bearing = nothing,
+                    attractor=nothing, v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2, dt=1/s.set.sample_freq)
     KitePodModels.on_timer(s.kcu)
     KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
     s.sync_speed = set_speed
     s.set_torque = set_torque
+    if isa(s, KPS4)
+        s.set_force = set_force
+        s.bearing = bearing
+        s.attractor = attractor
+    end
     s.t_0 = integrator.t
     set_v_wind_ground!(s, calc_height(s), v_wind_gnd; upwind_dir)
     s.iter = 0

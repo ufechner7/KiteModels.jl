@@ -10,7 +10,7 @@ end
 
 set.abs_tol=0.00006
 set.rel_tol=0.000001
-set.v_wind = 12
+set.v_wind = 10
 set.elevation = 69.4
 set.l_tether = 200
 set.depower = set.depower_offset # fully powered kite
@@ -20,9 +20,10 @@ set.depower = set.depower_offset # fully powered kite
 
 # the following values can be changed to match your interest
 set.sample_freq = 50
+# set.smc = 0
 set.solver="DFBDF" # IDA or DFBDF
 if set.kcu_model == "KCU2"
-    STEPS = 2600
+    STEPS = 3200 # 2600
 else
     STEPS = 2400
 end
@@ -86,6 +87,8 @@ function simulate(integrator, steps; plot=false)
         iter += kps4.iter
         sys_state = SysState(kps4)
         sys_state.var_15 = rad2deg(heading - last_heading) / dt
+        sys_state.var_01 = kps4.alpha_3
+        sys_state.var_02 = kps4.alpha_4
         log!(logger, sys_state)
         
         if plot
@@ -172,11 +175,20 @@ function plot_turnrate_law(c1, c2, time, v_app, psi, beta, psi_dot, steering)
     display(p1)
 end
 
+function plot_aoa()
+    lg = load_log("tmp")
+    sl = lg.syslog
+    p1 = plot(sl.time, [sl.var_01, sl.var_02]; ylabel="AoA [°]", labels=["aoa_3", "aoa_4"], 
+              fig="aoa side plates")
+    display(p1)
+end
+
 save_log(logger, "tmp")
 time, v_app, psi, beta, psi_dot, steering = plot_steering_vs_turn_rate()
 c1, c2 = calc_c1_c2(v_app, psi, beta, psi_dot, steering)
 println("Result: c1 = $(round(c1, digits=4)) c2 = $(round(c2, digits=3))")
 plot_turnrate_law(c1, c2, time, v_app, psi, beta, psi_dot, steering)
+plot_aoa()
 
 # delay of turnrate: 0.72 s
 # mean turnrate_law factor: 1.4 °/m ± 20.4 %

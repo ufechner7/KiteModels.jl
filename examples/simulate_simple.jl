@@ -4,7 +4,7 @@ using Printf
 
 using KiteModels, LinearAlgebra
 
-set = deepcopy(load_settings("system_v9.yaml"))
+set = deepcopy(load_settings("system.yaml"))
 
 set.abs_tol=0.0006
 set.rel_tol=0.00001
@@ -18,6 +18,7 @@ FRONT_VIEW = false
 ZOOM = true
 PRINT = false
 STATISTIC = false
+UPWIND_DIR = -pi/2 +deg2rad(10)
 # end of user parameter section #
 
 kcu::KCU = KCU(set)
@@ -42,7 +43,7 @@ function simulate(integrator, steps, plot=false)
             println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
         end
 
-        KiteModels.next_step!(kps4, integrator; set_speed=0, dt)
+        KiteModels.next_step!(kps4, integrator; set_speed=0, upwind_dir=UPWIND_DIR, dt)
         iter += kps4.iter    
         if plot
             reltime = i*dt-dt
@@ -58,7 +59,7 @@ function simulate(integrator, steps, plot=false)
     iter / steps
 end
 
-integrator = KiteModels.init_sim!(kps4;  delta=0.0, stiffness_factor=1, prn=STATISTIC)
+integrator = KiteModels.init_sim!(kps4;  delta=0.0, stiffness_factor=1, upwind_dir=UPWIND_DIR, prn=STATISTIC)
 
 if PLOT
     global flight_log

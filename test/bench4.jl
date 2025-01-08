@@ -105,14 +105,14 @@ for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1
 end
 t = @benchmark KiteModels.calc_aero_forces!($kps4, $pos, $vel, $rho, $alpha_depower, $rel_steering)
 push!(msg, ("Mean time calc_aero_forces!:    $(round(mean(t.times), digits=1)) ns"))
-@test t.memory <= 64
+@test t.memory <= 128
 
 # benchmark loop!
 init2()
 pos, vel, posd, veld = init2()
 t = @benchmark KiteModels.loop!($kps4, $pos, $vel, $posd, $veld)
 push!(msg, ("Mean time loop!:                $(round(mean(t.times), digits=1)) ns"))
-@test t.memory <= 64
+@test t.memory <= 128
 
 # benchmark residual!
 init2()

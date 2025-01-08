@@ -177,6 +177,12 @@ $(TYPEDFIELDS)
     sync_speed::Union{S, Nothing} =        0.0
     "set_torque of the motor/generator"
     set_torque::Union{S, Nothing} = nothing
+    "set value of the force at the winch, for logging only"
+    set_force::Union{S, Nothing} = nothing
+    "set value of the bearing angle in radians, for logging only"
+    bearing::Union{S, Nothing} = nothing
+    "coordinates of the attractor point [azimuth, elevation] in radian, for logging only"
+    attractor::Union{SVector{2, S}, Nothing} = nothing
     "x vector of kite reference frame"
     x::T =                 zeros(S, 3)
     "y vector of kite reference frame"
@@ -368,10 +374,11 @@ Updates the vector s.forces of the first parameter.
         s.drag_force .= D2 + D3 + D4
         s.forces[s.set.segments + 3] .+= (L2 + D2)
     end
-    f_d = 0.5 * rho * s.set.area * norm(va_xz1)^2 * (s.set.cmq * (s.pitch_rate) * s.set.cord_length) * z
+    f_d = 0.5 * rho * s.set.area * norm(va_xz1)^2 * (s.set.cmq * s.pitch_rate * s.set.cord_length) * z
+    f_s = 0.5 * rho * s.set.area * (0.5*(norm(va_xy3)+norm(va_xy4)))^2 * (s.set.smc * rel_steering * s.ks) * x
     s.forces[s.set.segments + 2] .+= f_d
-    s.forces[s.set.segments + 4] .+= (L3 + D3 -0.5*f_d)
-    s.forces[s.set.segments + 5] .+= (L4 + D4 -0.5*f_d)
+    s.forces[s.set.segments + 4] .+= (L3 + D3 -0.5*f_d + 0.5*f_s)
+    s.forces[s.set.segments + 5] .+= (L4 + D4 -0.5*f_d - 0.5*f_s)
     s.side_force .= (L3 + L4)
 end
 
@@ -615,13 +622,27 @@ function spring_forces(s::KPS4; prn=true)
     forces
 end
 
-"""
-    find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0.035)
+function turn(res, upwind_dir)
+    turnangle = upwind_dir + pi/2
+    res2 = zeros(SimFloat, length(res))
+    for i in 1:div(length(res), 3)
+        x = res[3*(i-1)+1]
+        y = res[3*(i-1)+2]
+        res2[3*(i-1)+1] = cos(turnangle) * x + sin(turnangle) * y
+        res2[3*(i-1)+2] = cos(turnangle) * y - sin(turnangle) * x
+        res2[3*(i-1)+3] = res[3*(i-1)+3]
+    end
+    res2
+end
 
-Find an initial equilibrium, based on the inital parameters
+"""
+    find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0.035, upwind_dir=-pi/2))
+
+Find an initial equilibrium, based on the initial parameters
 `l_tether`, elevation and `v_reel_out`.
 """
-function find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0.035)
+function find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0.035, upwind_dir=-pi/2)
+    set_v_wind_ground!(s, calc_height(s), s.set.v_wind; upwind_dir=-pi/2)
     s.stiffness_factor = stiffness_factor
     res = zeros(MVector{6*(s.set.segments+KITE_PARTICLES)+2, SimFloat})
     iter = 0
@@ -647,6 +668,8 @@ function find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0
         F[end-1]                               = res[1 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)] 
         # copy the acceleration of point C in y direction
         i = s.set.segments+3 
+        x = res[1 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)]
+        y = res[2 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)]
         F[end]                                 = res[2 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)] 
         iter += 1
         return nothing 
@@ -655,5 +678,8 @@ function find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0
     X00 = zeros(SimFloat, 2*(s.set.segments+KITE_PARTICLES-1)+2)
     results = nlsolve(test_initial_condition!, X00, autoscale=true, xtol=4e-7, ftol=4e-7, iterations=s.set.max_iter)
     if prn println("\nresult: $results") end
-    init(s, results.zero)
+    y0, yd0 = init(s, results.zero; upwind_dir)
+    set_v_wind_ground!(s, calc_height(s), s.set.v_wind; upwind_dir)
+    residual!(res, yd0, y0, s, 0.0)
+    y0, yd0
 end

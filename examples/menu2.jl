@@ -4,9 +4,10 @@ options = ["plot_cl_cd_plate = include(\"plot_cl_cd_plate.jl\")",
            "plot_side_cl = include(\"plot_side_cl.jl\")",
            "steering_test_4p = include(\"steering_test_4p.jl\")",
            "plot_parking_test = include(\"plot_parking_test.jl\")",
+           "calculate_rot_inertia = include(\"calculate_rotational_inertia.jl\")",
            "quit"]
 
-function menu()
+function extra_menu()
     active = true
     while active
         menu = RadioMenu(options, pagesize=8)
@@ -21,4 +22,4 @@ function menu()
     end
 end
 
-menu()
+extra_menu()

@@ -48,20 +48,21 @@ end
 
 
 function init_masses!(s::KPS4)
+    MASS_FACTOR = 1.0
     s.masses = zeros(s.set.segments+KITE_PARTICLES+1)
     l_0 = s.set.l_tether / s.set.segments 
     for i in 1:s.set.segments
         s.masses[i]   += 0.5 * l_0 * s.set.rho_tether * (s.set.d_tether/2000.0)^2 * pi
         s.masses[i+1] += 0.5 * l_0 * s.set.rho_tether * (s.set.d_tether/2000.0)^2 * pi
     end
-    s.masses[s.set.segments+1] += s.set.kcu_mass
+    s.masses[s.set.segments+1] += s.set.kcu_mass * MASS_FACTOR
     k2 = s.set.rel_top_mass * (1.0 - s.set.rel_nose_mass)
     k3 = 0.5 * (1.0 - s.set.rel_top_mass) * (1.0 - s.set.rel_nose_mass)
     k4 = 0.5 * (1.0 - s.set.rel_top_mass) * (1.0 - s.set.rel_nose_mass)
-    s.masses[s.set.segments+2] += s.set.rel_nose_mass * s.set.mass
-    s.masses[s.set.segments+3] += k2 * s.set.mass
-    s.masses[s.set.segments+4] += k3 * s.set.mass
-    s.masses[s.set.segments+5] += k4 * s.set.mass  
+    s.masses[s.set.segments+2] += s.set.rel_nose_mass * s.set.mass * MASS_FACTOR
+    s.masses[s.set.segments+3] += k2 * s.set.mass * MASS_FACTOR
+    s.masses[s.set.segments+4] += k3 * s.set.mass * MASS_FACTOR
+    s.masses[s.set.segments+5] += k4 * s.set.mass * MASS_FACTOR
     s.masses 
 end
 
@@ -95,7 +96,8 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
     if old
         particles = KiteUtils.get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k)
     else
-        particles = KiteUtils.get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k, pos[s.set.segments+1], rotate_around_y(vec_c, -deg2rad(KItrailing_edge_angle)), s.v_apparent)
+        particles = KiteUtils.get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k, 
+                              pos[s.set.segments+1], rotate_in_xz(vec_c, deg2rad(KITE_ANGLE)), s.v_apparent)
     end
     j = 1
     for i in [1,2,3] # set p8, p9, p10
@@ -306,13 +308,17 @@ function init_inner(s::KPSQ; delta=0.0)
 end
 
 # same as above, but returns a tuple of two one dimensional arrays
-function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false, delta=0.0)
+function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=false, delta=0.0, upwind_dir=nothing)
     res1_, res2_ = init_inner(s, X; old=old, delta = delta)
-    res1, res2  = vcat(reduce(vcat, res1_), [s.l_tether, 0]), vcat(reduce(vcat, res2_),[0,0])
+    res1__ = reduce(vcat, res1_)
+    res2__ = reduce(vcat, res2_)
+    if !isnothing(upwind_dir)
+        res1__ = turn(res1__, upwind_dir)
+        res2__ = turn(res2__, upwind_dir)
+    end
+    res1, res2  = vcat(res1__, [s.l_tether, 0]),  vcat(res2__,[0,0])
     MVector{6*(s.set.segments+KITE_PARTICLES)+2, SimFloat}(res1), MVector{6*(s.set.segments+KITE_PARTICLES)+2, SimFloat}(res2)
 end
-
-
 
 function init(s::KPSQ; delta=0.0)
     y_, yd_ = init_inner(s; delta = delta)

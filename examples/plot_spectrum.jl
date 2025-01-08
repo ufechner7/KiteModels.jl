@@ -22,7 +22,21 @@ function plot_spectrum(name)
         read(file, "spectrum")
     end
     plt.figure("spectrum")
-    plt.plot(spectrum.f_ex, todb.(spectrum.aoa_eff); label=name)
+    f_min = 1.5 # Hz
+    f_max = 4.0 # Hz
+    f_ex = []
+    aoa_eff = []
+    for i in 1:length(spectrum.f_ex)
+        if spectrum.f_ex[i] < f_min
+            continue
+        end
+        if spectrum.f_ex[i] > f_max
+            break
+        end
+        push!(f_ex, spectrum.f_ex[i])
+        push!(aoa_eff, spectrum.aoa_eff[i])
+    end
+    plt.plot(f_ex, todb.(aoa_eff); label=name)
     plt.xlabel("f_ex [Hz]")
     plt.ylabel("AOA amplitude [dB°]")
     plt.gca().set_xscale("log")
