@@ -225,7 +225,7 @@ and distribute it equally on the two particles, that are attached to the segment
 The result is stored in the array s.forces. 
 """
 function calc_particle_forces!(s::KPS4_3L, seqs, force_eqs, force, p1, p2, pos1, pos2, vel1, vel2, length, c_spring, 
-    damping, rho, i, l_0, k, c, segment, rel_vel, av_vel, norm1, unit_vector, k2, c1, c2, spring_vel,
+    damping, rho, i, l_0, k, c, segment, rel_vel, av_vel, norm1, unit_vector, k2, c1, c2, spring_vel, perp_vel,
             spring_force, v_apparent, v_wind_tether, area, v_app_perp, half_drag_force)
     d_tether = s.set.d_tether/1000.0
     seqs = [
@@ -240,8 +240,9 @@ function calc_particle_forces!(s::KPS4_3L, seqs, force_eqs, force, p1, p2, pos1,
         unit_vector .~ segment / norm1
         k2           ~ 0.1 * k  # compression stiffness tether segments
         c1           ~ 6.0 * c  # damping kite segments
-        c2           ~ 0.0 * c  # damping perpendicular
+        c2           ~ 0.05 * c  # damping perpendicular
         spring_vel   ~ rel_vel ⋅ unit_vector
+        perp_vel    .~ rel_vel .- spring_vel * unit_vector
     ]
 
     for j in 1:3
@@ -249,7 +250,8 @@ function calc_particle_forces!(s::KPS4_3L, seqs, force_eqs, force, p1, p2, pos1,
             seqs
             spring_force[j] ~
                 ((k  * (l_0 - norm1) - c * spring_vel) * unit_vector[j]) * (1 + smooth_sign_ϵ(norm1 - l_0; s.ϵ)) / 2 +
-                ((k2 * (l_0 - norm1) - c * spring_vel) * unit_vector[j]) * (1 - smooth_sign_ϵ(norm1 - l_0; s.ϵ)) / 2
+                ((k2 * (l_0 - norm1) - c * spring_vel) * unit_vector[j]) * (1 - smooth_sign_ϵ(norm1 - l_0; s.ϵ)) / 2 -
+                c2 * perp_vel[j]
         ]
     end
     seqs = [
@@ -294,6 +296,7 @@ Calculate the forces, acting on all tether particles.
         c1(t)[1:s.i_C-3]
         c2(t)[1:s.i_C-3]
         spring_vel(t)[1:s.i_C-3]
+        perp_vel(t)[1:3, 1:s.i_C-3]
         spring_force(t)[1:3, 1:s.i_C-3]
         v_apparent(t)[1:3, 1:s.i_C-3]
         area(t)[1:s.i_C-3]
@@ -315,7 +318,7 @@ Calculate the forces, acting on all tether particles.
 
         seqs, force_eqs = calc_particle_forces!(s, seqs, force_eqs, force, p1, p2, pos[:, p1], pos[:, p2], vel[:, p1], 
                           vel[:, p2], length, c_spring, damping, rho[i], i, l_0[i], k[i], c[i], segment[:, i], 
-                          rel_vel[:, i], av_vel[:, i], norm1[i], unit_vector[:, i], k2[i], c1[i], c2[i], spring_vel[i],
+                          rel_vel[:, i], av_vel[:, i], norm1[i], unit_vector[:, i], k2[i], c1[i], c2[i], spring_vel[i], perp_vel[:, i],
                           spring_force[:, i], v_apparent[:, i], v_wind_tether[:, i], area[i], v_app_perp[:, i], 
                           half_drag_force[:, i])
     end
@@ -349,7 +352,7 @@ function expected_pos_vel(s, seqs, pos, kite_pos, kite_vel, tether_vel, tether_l
 end
 
 function scalar_eqs!(s, seqs, pos, vel, R_b_w, ω_p, ω_b, kite_pos, kite_vel, trailing_edge_angle, trailing_edge_ω, segment_length, mass_tether_particle, damping, c_spring, 
-        e_y, e_z, e_x, e_r_D, e_r_E, e_te_A, e_te_B, rho_kite, damping_coeff, tether_length, tether_vel,
+        e_y, e_z, e_x, e_r_D, e_r_E, e_te_A, e_te_B, rho_kite, tether_length, tether_vel,
         mass_per_meter, force, set_values)
     
     te_length = s.kite_length_D/4
@@ -387,7 +390,6 @@ function scalar_eqs!(s, seqs, pos, vel, R_b_w, ω_p, ω_b, kite_pos, kite_vel, t
         e_te_A  ~ -e_x * sin(trailing_edge_angle[1]) + e_r_D * cos(trailing_edge_angle[1])
         e_te_B  ~ -e_x * sin(trailing_edge_angle[2]) + e_r_E * cos(trailing_edge_angle[2])
         rho_kite        ~ calc_rho(s.am, pos[3,s.i_A])
-        damping_coeff   ~ max(1.0 - t, 0.0) * s.damping_coeff
     ]
 
     @variables begin
@@ -479,7 +481,6 @@ function create_sys!(s::KPS4_3L)
         segment_length(t)[1:3]
         mass_tether_particle(t)[1:3]
         damping(t)[1:3]
-        damping_coeff(t)
         c_spring(t)[1:3]
         e_x(t)[1:3]
         e_y(t)[1:3]
@@ -518,9 +519,9 @@ function create_sys!(s::KPS4_3L)
         D(ω_p[1]) ~ α_p[1]
         D(ω_p[2]) ~ α_p[2]
         D(ω_p[3]) ~ α_p[3]
-        α_p[1] ~ (torque_p[1] + (s.I_kite[2] - s.I_kite[3]) * ω_p[2] * ω_p[3]) / s.I_kite[1] - 10s.orient_damping*ω_p[1]
-        α_p[2] ~ (torque_p[2] + (s.I_kite[3] - s.I_kite[1]) * ω_p[3] * ω_p[1]) / s.I_kite[2] - 10s.orient_damping*ω_p[2]
-        α_p[3] ~ (torque_p[3] + (s.I_kite[1] - s.I_kite[2]) * ω_p[1] * ω_p[2]) / s.I_kite[3] - 10s.orient_damping*ω_p[3]
+        α_p[1] ~ (torque_p[1] + (s.I_kite[2] - s.I_kite[3]) * ω_p[2] * ω_p[3]) / s.I_kite[1] - 0.0s.orient_damping*ω_p[1]
+        α_p[2] ~ (torque_p[2] + (s.I_kite[3] - s.I_kite[1]) * ω_p[3] * ω_p[1]) / s.I_kite[2] - 0.0s.orient_damping*ω_p[2]
+        α_p[3] ~ (torque_p[3] + (s.I_kite[1] - s.I_kite[2]) * ω_p[1] * ω_p[2]) / s.I_kite[3] - 0.0s.orient_damping*ω_p[3]
 
         [D(kite_pos[i]) ~ kite_vel[i] for i in 1:3]
         [D(kite_vel[i]) ~ kite_acc[i] for i in 1:3]
@@ -541,7 +542,7 @@ function create_sys!(s::KPS4_3L)
     
     seqs = []
     seqs            = scalar_eqs!(s, seqs, pos, vel, R_b_w, ω_p, ω_b, kite_pos, kite_vel, trailing_edge_angle, trailing_edge_ω, segment_length, mass_tether_particle, damping, c_spring, 
-                        e_y, e_z, e_x, e_r_D, e_r_E, e_te_A, e_te_B, rho_kite, damping_coeff, tether_length, tether_vel,
+                        e_y, e_z, e_x, e_r_D, e_r_E, e_te_A, e_te_B, rho_kite, tether_length, tether_vel,
                         mass_per_meter, force, set_values)
     seqs, force_eqs = calc_kite_forces!(s, seqs, force_eqs, force, torque_p, R_b_w, kite_vel, kite_acc, ω_b, t, e_x, e_z, rho_kite, v_wind, trailing_edge_angle)
     seqs, force_eqs = calc_tether_forces!(s, seqs, force_eqs, t, force, pos, vel, segment_length, c_spring, damping, v_wind_gnd, norm1)
@@ -559,7 +560,7 @@ function create_sys!(s::KPS4_3L)
     end
     for i in 4:s.i_A-1
         seqs = vcat(seqs, vcat(force_eqs[:, i]))
-        seqs = vcat(seqs, acc[:, i] .~ [0.0; 0.0; -G_EARTH] .+ (force[:, i] ./ mass_tether_particle[(i-1)%3+1]) .- damping_coeff * vel[:, i])
+        seqs = vcat(seqs, acc[:, i] .~ [0.0, 0.0, -G_EARTH] + (force[:, i] / mass_tether_particle[(i-1)%3+1]))
     end
 
     # torque = I * trailing_edge_α
@@ -572,16 +573,19 @@ function create_sys!(s::KPS4_3L)
     # 3. calculate acceleration from force flap c in e_flap_c direction
 
     te_I = (1/3 * (s.set.mass/8) * te_length^2)
+    # -damping / I * ω = α_damping
+    # solve for c: (c * (k*m/s^2) / (k*m^2)) * (m/s)=m/s^2 in wolframalpha
+    # damping should be N*m*s
+    rot_damping = 0.1s.damping * te_length
 
-    critical_damping = 2.0 * sqrt(te_I)
     seqs = [
         seqs
         vcat(force_eqs[:, s.i_A])
         vcat(force_eqs[:, s.i_B])
         vcat(force_eqs[:, s.i_C])
          # TODO: add turning drag instead of damping
-        trailing_edge_α[1] ~ (force[:, s.i_A]) ⋅ e_te_A * te_length / te_I - 100critical_damping * trailing_edge_ω[1]
-        trailing_edge_α[2] ~ (force[:, s.i_B]) ⋅ e_te_B * te_length / te_I - 100critical_damping * trailing_edge_ω[2]
+        trailing_edge_α[1] ~ (force[:, s.i_A]) ⋅ e_te_A * te_length / te_I - (rot_damping[1] / te_I) * trailing_edge_ω[1]
+        trailing_edge_α[2] ~ (force[:, s.i_B]) ⋅ e_te_B * te_length / te_I - (rot_damping[2] / te_I) * trailing_edge_ω[2]
     ]
     
     eqs = vcat(deqs, seqs)
@@ -603,6 +607,7 @@ The distance/vel/acc of the kite cannot be measured directly, but the average ac
 Assume distance_acc = tether_acc[3] for convenience
 """
 function model!(s::KPS4_3L; real=true)
+    s.ϵ = 1e-6
     # pos, vel = init_pos_vel(s)
     init_pos!(s; α = 10.0)
     sys, inputs = create_sys!(s)
@@ -667,7 +672,7 @@ function model!(s::KPS4_3L; real=true)
         # [sys.tether_vel[j] => 0 for j in 1:3]
         # [sys.tether_acc[j] => 0 for j in 1:3]
 
-        # sys.gust_factor => 1.0
+        # sys.gust_factor => 1.0natural
         ]
     p0map = [sys.set_values[j] => s.measure.winch_torque[j] for j in 1:3]
     # println("making prob")
