@@ -5,7 +5,7 @@ old_path = get_data_path()
 set_data_path(joinpath(dirname(dirname(pathof(KiteModels))), "data"))
 kcu_3l::KCU = KCU(se("system_3l.yaml"))
 kcu_3l.set.winch_model = "AsyncMachine"
-k3l::KPSQ = KPSQ(kcu_3l)
+kq::KPSQ = KPSQ(kcu_3l)
 
 pos, vel = nothing, nothing
 
@@ -15,10 +15,10 @@ tol::Float32 = 1e-5
 prn::Bool = false
 
 function set_defaults()
-    k3l.set = update_settings()
-    k3l.set.abs_tol = tol
-    k3l.set.rel_tol = tol
-    KiteModels.clear!(k3l)
+    kq.set = update_settings()
+    kq.set.abs_tol = tol
+    kq.set.rel_tol = tol
+    KiteModels.clear!(kq)
 end
 
 set_defaults()
@@ -26,7 +26,7 @@ set_defaults()
 global initial_pos
 @testset "test_init         " begin
     set_defaults()
-    [k3l.pos[i] .= 0 for i in 1:k3l.i_A]
+    [kq.pos[i] .= 0 for i in 1:kq.i_A]
 
     # initial_pos = [
     #     [1.956416680572584e-18 -3.125513814477895e-21 -5.720339822309706e-19]
@@ -56,61 +56,61 @@ global initial_pos
     # ]
 
     # initial init
-    k3l.set.mass = 0.9
-    k3l.set.l_tether = 50.0
-    KiteModels.init_sim!(k3l; prn=false, torque_control=false)
-    initial_pos = deepcopy(k3l.pos)
+    kq.set.mass = 0.9
+    kq.set.l_tether = 50.0
+    KiteModels.init_sim!(kq; prn=false, torque_control=false)
+    initial_pos = deepcopy(kq.pos)
     prn && println("initial_pos")
     for i in 1:3
         @test isapprox(initial_pos[i], [0.0, 0.0, 0.0], atol=tol, rtol=tol)
     end
-    for i in 1:3:k3l.i_A
+    for i in 1:3:kq.i_A
         @test isapprox(initial_pos[i][2], -initial_pos[i+1][2], atol=tol, rtol=tol)
         @test isapprox(initial_pos[i+2][2], 0.0, atol=tol, rtol=tol)
     end
-    for i in 4:3:k3l.i_A
+    for i in 4:3:kq.i_A
         @test initial_pos[i][2] > initial_pos[i-3][2]
     end
-    for i in 4:k3l.i_B
+    for i in 4:kq.i_B
         @test initial_pos[i][3] > initial_pos[i-3][3]
     end
-    @test initial_pos[k3l.i_A][3] < initial_pos[k3l.i_D][3]
-    @test isapprox(norm(initial_pos[k3l.i_E]), k3l.set.l_tether, rtol=0.1)
-    @test isapprox(norm(initial_pos[k3l.i_E]), k3l.tether_lengths[3], rtol=0.1)
+    @test initial_pos[kq.i_A][3] < initial_pos[kq.i_D][3]
+    @test isapprox(norm(initial_pos[kq.i_E]), kq.set.l_tether, rtol=0.1)
+    @test isapprox(norm(initial_pos[kq.i_E]), kq.tether_lengths[3], rtol=0.1)
 
     if !prn
         # init after changing settings
-        k3l.set.mass = 1.0
-        k3l.set.l_tether = 51.0
-        KiteModels.init_sim!(k3l; prn=false, torque_control=false)
-        pos2 = deepcopy(k3l.pos)
-        @test isapprox(k3l.tether_lengths[3], 51.0, atol=0.2)
-        for i in 4:k3l.i_A
+        kq.set.mass = 1.0
+        kq.set.l_tether = 51.0
+        KiteModels.init_sim!(kq; prn=false, torque_control=false)
+        pos2 = deepcopy(kq.pos)
+        @test isapprox(kq.tether_lengths[3], 51.0, atol=0.2)
+        for i in 4:kq.i_A
             @test !isapprox(pos2[i], initial_pos[i], atol=tol, rtol=tol)
         end
 
         # init after changing settings back
-        k3l.set.mass = 0.9
-        k3l.set.l_tether = 50.0
-        KiteModels.init_sim!(k3l; prn=false, torque_control=false)
-        pos3 = deepcopy(k3l.pos)
+        kq.set.mass = 0.9
+        kq.set.l_tether = 50.0
+        KiteModels.init_sim!(kq; prn=false, torque_control=false)
+        pos3 = deepcopy(kq.pos)
         for i in eachindex(initial_pos)
             @test isapprox(pos3[i], initial_pos[i], atol=tol, rtol=tol)
         end
 
         # init after changing only initial conditions
-        k3l.set.elevation = 84.0
-        KiteModels.init_sim!(k3l; prn=false, torque_control=false)
-        pos4 = deepcopy(k3l.pos)
-        @test isapprox(rad2deg(calc_elevation(k3l)), 84.0, atol=2.0)
-        for i in 4:k3l.i_A
+        kq.set.elevation = 84.0
+        KiteModels.init_sim!(kq; prn=false, torque_control=false)
+        pos4 = deepcopy(kq.pos)
+        @test isapprox(rad2deg(calc_elevation(kq)), 84.0, atol=2.0)
+        for i in 4:kq.i_A
             @test !isapprox(pos4[i], initial_pos[i], atol=tol, rtol=tol)
         end
 
         # init after just stepping
-        KiteModels.next_step!(k3l)
-        KiteModels.init_sim!(k3l; prn=false, torque_control=false)
-        pos5 = deepcopy(k3l.pos)
+        KiteModels.next_step!(kq)
+        KiteModels.init_sim!(kq; prn=false, torque_control=false)
+        pos5 = deepcopy(kq.pos)
         for i in eachindex(initial_pos)
             @test isapprox(pos5[i], pos4[i], atol=tol, rtol=tol)
         end
@@ -121,9 +121,9 @@ end
 
 @testset "test_step         " begin
     set_defaults()
-    KiteModels.init_sim!(k3l; prn=false, torque_control=false)
+    KiteModels.init_sim!(kq; prn=false, torque_control=false)
 
-    KiteModels.next_step!(k3l)
+    KiteModels.next_step!(kq)
     # pos2 = [
     #     [2.1851584894939454e-18 -7.505816782042582e-20 4.859625427074995e-18]
     #     [-3.921896020850223e-18 5.946955100867209e-21 6.089875242607995e-19]
@@ -151,25 +151,25 @@ end
     #     [4.343941000937282 -8.824891226050073e-11 53.83912305750433]
     # ]
     # prn && println("pos2")
-    for i in 4:k3l.i_A
-        @test !isapprox(k3l.pos[i], initial_pos[i], atol = 1e-4)
-        # prn ? println(k3l.pos[i]') : @test isapprox(pos2[i,:], k3l.pos[i], atol=tol, rtol=tol)
+    for i in 4:kq.i_A
+        @test !isapprox(kq.pos[i], initial_pos[i], atol = 1e-4)
+        # prn ? println(kq.pos[i]') : @test isapprox(pos2[i,:], kq.pos[i], atol=tol, rtol=tol)
     end
 end
 
 function simulate(steps)
-    av_L_C = k3l.get_L_C(k3l.integrator)
+    av_L_C = kq.get_L_C(kq.integrator)
     for i in 1:steps
-        KiteModels.next_step!(k3l; set_values=[0.0, 0.0, 0.0])
-        av_L_C .+= k3l.get_L_C(k3l.integrator)
+        KiteModels.next_step!(kq; set_values=[0.0, 0.0, 0.0])
+        av_L_C .+= kq.get_L_C(kq.integrator)
     end
     av_L_C ./= steps
-    return k3l.integrator.iter/steps, av_L_C
+    return kq.integrator.iter/steps, av_L_C
 end
 
 @testset "test_simulate     " begin
     STEPS = 10
-    KiteModels.init_sim!(k3l; prn=false, torque_control=false)
+    KiteModels.init_sim!(kq; prn=false, torque_control=false)
     # println("\nStarting simulation...")
     av_steps, av_L_C = simulate(STEPS)
     prn && println(av_steps)
@@ -184,17 +184,17 @@ end
     end
   
     if prn
-        @show k3l.get_L_C(k3l.integrator)
-        @show k3l.get_tether_vels(k3l.integrator)
+        @show kq.get_L_C(kq.integrator)
+        @show kq.get_tether_vels(kq.integrator)
     else
         @test isapprox(av_L_C, [4.205557424653014, 113.23736209049324, 238.29250730249586], rtol=0.1)
-        @test isapprox(normalize(k3l.get_L_C(k3l.integrator)) ⋅ normalize(k3l.v_wind), 0.0, atol=0.02)
-        @test isapprox(k3l.get_tether_vels(k3l.integrator), [0.0, 0.0, 0.0], atol=0.2)
-        @test isapprox(k3l.get_L_C(k3l.integrator)[2], -k3l.get_L_D(k3l.integrator)[2], atol=1e-1)
-        @test isapprox(k3l.get_heading(k3l.integrator), 0.0, atol=tol)
+        @test isapprox(normalize(kq.get_L_C(kq.integrator)) ⋅ normalize(kq.v_wind), 0.0, atol=0.02)
+        @test isapprox(kq.get_tether_vels(kq.integrator), [0.0, 0.0, 0.0], atol=0.2)
+        @test isapprox(kq.get_L_C(kq.integrator)[2], -kq.get_L_D(kq.integrator)[2], atol=1e-1)
+        @test isapprox(kq.get_heading(kq.integrator), 0.0, atol=tol)
     end
 
-    ss = SysState(k3l)
+    ss = SysState(kq)
     @test isapprox(ss.v_reelout, 0, atol=0.2)
     
     # TODO Add testcase with varying reelout speed 

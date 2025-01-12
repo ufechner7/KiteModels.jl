@@ -1,4 +1,4 @@
-const KItrailing_edge_angle = 3.83 # angle between the kite and the last tether segment due to the mass of the control pod
+const KITE_ANGLE = 3.83 # angle between the kite and the last tether segment due to the mass of the control pod
 const PRE_STRESS  = 0.9998   # Multiplier for the initial spring lengths.
 
 # Functions to calculate the inital state vector, the inital masses and initial springs
@@ -97,7 +97,7 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
         particles = KiteUtils.get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k)
     else
         particles = KiteUtils.get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k, 
-                              pos[s.set.segments+1], rotate_in_xz(vec_c, deg2rad(KITE_ANGLE)), s.v_apparent)
+                              pos[s.set.segments+1], rotate_around_y(vec_c, deg2rad(KITE_ANGLE)), s.v_apparent)
     end
     j = 1
     for i in [1,2,3] # set p8, p9, p10
@@ -216,34 +216,23 @@ function calc_pos_principal!(s::KPSQ)
     return nothing
 end
 
-function init_pos!(s::KPSQ; new=true, α = 5.0)
+function init_pos!(s::KPSQ; distance=s.measure.tether_length[3])
     # ground points
     s.pos .= 0.0
     s.kite_pos .= 0.0
 
-    width, radius, tip_length, middle_length = s.set.width, s.set.radius, s.set.tip_length, s.set.middle_length
-    s.α_l = pi/2 - width/2/radius
-    s.α_D = s.α_l + width*(-2*tip_length + sqrt(2*middle_length^2 + 2*tip_length^2)) /
-        (4*(middle_length - tip_length)) / radius
-    s.kite_length_D = tip_length + (middle_length-tip_length) * (s.α_D - s.α_l) / (π/2 - s.α_l)
-
-    calc_inertia!(s)
-    calc_pos_principal!(s)
-    
     # init last tether points
-    s.pos[:, s.i_A] .= rotate_around_z(rotate_around_y([s.measure.distance, 0, 0], -s.measure.elevation_left), s.measure.azimuth_left)
-    s.pos[:, s.i_B] .= rotate_around_z(rotate_around_y([s.measure.distance, 0, 0], -s.measure.elevation_right), s.measure.azimuth_right)
+    s.pos[:, s.i_A] .= rotate_around_z(rotate_around_y([distance, 0, 0], -s.measure.elevation_left), s.measure.azimuth_left)
+    s.pos[:, s.i_B] .= rotate_around_z(rotate_around_y([distance, 0, 0], -s.measure.elevation_right), s.measure.azimuth_right)
     s.pos[:, s.i_C] .= 0.5s.pos[:, s.i_A] + 0.5s.pos[:, s.i_B]
     s.e_y .= normalize(s.pos[:, s.i_A] - s.pos[:, s.i_B])
 
     # init middle tether
     angular_acc = s.measure.tether_acc / s.set.drum_radius
     net_torque = angular_acc * s.set.inertia_total # TODO: check if inertia is correct
-    tether_force = (net_torque - s.measure.winch_torque) / s.set.drum_radius
-    expected_pos = calc_expected_pos_vel(s, s.pos[:, s.i_C][1], s.pos[:, s.i_C][2], s.pos[:, s.i_C][3], 
+    tether_force = (net_torque - s.measure.set_values) / s.set.drum_radius
+    s.pos[:, 3:3:s.i_C] .= calc_expected_pos_vel(s, s.pos[:, s.i_C][1], s.pos[:, s.i_C][2], s.pos[:, s.i_C][3], 
         0, 0, s.measure.tether_length[3], tether_force[3], s.c_spring[3])[1, :, :]
-    # [s.pos[j, 3(k-1)+i] = expected_pos[j, k] for j in 1:3 for k in 1:(s.i_C ÷ 3)]
-    s.pos[:, 3:3:s.i_C] .= expected_pos[:, :]
     s.e_z .= normalize(s.pos[:, s.i_C] - s.pos[:, s.i_C-3])
     s.e_x .= s.e_y × s.e_z
     R_b_w = hcat(s.e_x, s.e_y, s.e_z)
@@ -251,8 +240,8 @@ function init_pos!(s::KPSQ; new=true, α = 5.0)
     s.kite_pos .= s.pos[:, s.i_C] - R_b_w * s.pos_C_b
     
     # init tether connection points
-    s.pos_D_b = [0.0, cos(s.α_D) * s.set.radius, sin(α) * s.set.radius]
-    s.pos_E_b = [0.0, -cos(s.α_D) * s.set.radius, sin(α) * s.set.radius]
+    s.pos_D_b .= [0.0, cos(s.α_D) * s.set.radius, sin(s.α_D) * s.set.radius]
+    s.pos_E_b .= [0.0, -cos(s.α_D) * s.set.radius, sin(s.α_D) * s.set.radius]
     e_r_D = -normalize(s.pos_D_b)
     e_r_E = -normalize(s.pos_E_b)
     te_length = s.kite_length_D/4
@@ -262,12 +251,10 @@ function init_pos!(s::KPSQ; new=true, α = 5.0)
     s.pos[:, s.i_B] .= s.pos[:, s.i_C] + s.e_y * s.pos_E_b[2] + s.e_x * te_length * cos(angle_te_d) + e_r_E * te_length * sin(angle_te_d)
 
     # init left and right tether
-    expected_pos = calc_expected_pos_vel(s, s.pos[:, s.i_A][1], s.pos[:, s.i_A][2], s.pos[:, s.i_A][3], 
+    s.pos[:, 1:3:s.i_A] .= calc_expected_pos_vel(s, s.pos[:, s.i_A][1], s.pos[:, s.i_A][2], s.pos[:, s.i_A][3], 
         0, 0, s.measure.tether_length[1], tether_force[1], s.c_spring[1])[1, :, :]
-    s.pos[:, 1:3:s.i_A] .= expected_pos[:, :]
-    expected_pos = calc_expected_pos_vel(s, s.pos[:, s.i_B][1], s.pos[:, s.i_B][2], s.pos[:, s.i_B][3], 
+    s.pos[:, 2:3:s.i_B] .= calc_expected_pos_vel(s, s.pos[:, s.i_B][1], s.pos[:, s.i_B][2], s.pos[:, s.i_B][3], 
         0, 0, s.measure.tether_length[2], tether_force[2], s.c_spring[2])[1, :, :]
-    s.pos[:, 2:3:s.i_B] .= expected_pos[:, :]
     return s.pos
 end
 

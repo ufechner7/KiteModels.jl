@@ -225,7 +225,7 @@ and distribute it equally on the two particles, that are attached to the segment
 The result is stored in the array s.forces. 
 """
 function calc_particle_forces!(s::KPSQ, seqs, force_eqs, force, p1, p2, pos1, pos2, vel1, vel2, length, c_spring, 
-    damping, rho, i, l_0, k, c, segment, rel_vel, av_vel, norm1, unit_vector, k2, c1, c2, spring_vel, perp_vel,
+    damping, rho, i, l_0, k, c, segment, rel_vel, av_vel, norm1, unit_vector, k2, c1, c2, spring_vel,
             spring_force, v_apparent, v_wind_tether, area, v_app_perp, half_drag_force)
     d_tether = s.set.d_tether/1000.0
     seqs = [
@@ -242,7 +242,6 @@ function calc_particle_forces!(s::KPSQ, seqs, force_eqs, force, p1, p2, pos1, po
         c1           ~ 6.0 * c  # damping kite segments
         c2           ~ 0.05 * c  # damping perpendicular
         spring_vel   ~ rel_vel ⋅ unit_vector
-        perp_vel    .~ rel_vel .- spring_vel * unit_vector
     ]
 
     for j in 1:3
@@ -250,8 +249,7 @@ function calc_particle_forces!(s::KPSQ, seqs, force_eqs, force, p1, p2, pos1, po
             seqs
             spring_force[j] ~
                 ((k  * (l_0 - norm1) - c * spring_vel) * unit_vector[j]) * (1 + smooth_sign_ϵ(norm1 - l_0; s.ϵ)) / 2 +
-                ((k2 * (l_0 - norm1) - c * spring_vel) * unit_vector[j]) * (1 - smooth_sign_ϵ(norm1 - l_0; s.ϵ)) / 2 -
-                c2 * perp_vel[j]
+                ((k2 * (l_0 - norm1) - c * spring_vel) * unit_vector[j]) * (1 - smooth_sign_ϵ(norm1 - l_0; s.ϵ)) / 2
         ]
     end
     seqs = [
@@ -296,7 +294,6 @@ Calculate the forces, acting on all tether particles.
         c1(t)[1:s.i_C-3]
         c2(t)[1:s.i_C-3]
         spring_vel(t)[1:s.i_C-3]
-        perp_vel(t)[1:3, 1:s.i_C-3]
         spring_force(t)[1:3, 1:s.i_C-3]
         v_apparent(t)[1:3, 1:s.i_C-3]
         area(t)[1:s.i_C-3]
@@ -318,8 +315,8 @@ Calculate the forces, acting on all tether particles.
 
         seqs, force_eqs = calc_particle_forces!(s, seqs, force_eqs, force, p1, p2, pos[:, p1], pos[:, p2], vel[:, p1], 
                           vel[:, p2], length, c_spring, damping, rho[i], i, l_0[i], k[i], c[i], segment[:, i], 
-                          rel_vel[:, i], av_vel[:, i], norm1[i], unit_vector[:, i], k2[i], c1[i], c2[i], spring_vel[i], perp_vel[:, i],
-                          spring_force[:, i], v_apparent[:, i], v_wind_tether[:, i], area[i], v_app_perp[:, i], 
+                          rel_vel[:, i], av_vel[:, i], norm1[i], unit_vector[:, i], k2[i], c1[i], c2[i], spring_vel[i],
+                          spring_force[:, i], v_apparent[:, i], v_wind_tether[:, i], area[i], v_app_perp[:, i],
                           half_drag_force[:, i])
     end
 
@@ -351,7 +348,7 @@ function expected_pos_vel(s, seqs, pos, kite_pos, kite_vel, tether_vel, tether_l
     return seqs
 end
 
-function scalar_eqs!(s, seqs, pos, vel, R_b_w, ω_p, ω_b, kite_pos, kite_vel, trailing_edge_angle, trailing_edge_ω, segment_length, mass_tether_particle, damping, c_spring, 
+function scalar_eqs!(s, seqs, pos, vel, acc, R_b_w, ω_p, ω_b, kite_pos, kite_vel, kite_acc, trailing_edge_angle, trailing_edge_ω, segment_length, mass_tether_particle, damping, c_spring, 
         e_y, e_z, e_x, e_r_D, e_r_E, e_te_A, e_te_B, rho_kite, tether_length, tether_vel,
         mass_per_meter, force, set_values)
     
@@ -409,7 +406,6 @@ function scalar_eqs!(s, seqs, pos, vel, R_b_w, ω_p, ω_b, kite_pos, kite_vel, t
         distance(t)[1:s.i_C]
         distance_vel(t)
         distance_acc(t)
-        kite_acc(t)[1:3]
         x_acc(t)
         y_acc(t)
         left_diff(t)
@@ -541,7 +537,7 @@ function create_sys!(s::KPSQ)
     force_eqs[:, :] .= (force[:, :] .~ 0)
     
     seqs = []
-    seqs            = scalar_eqs!(s, seqs, pos, vel, R_b_w, ω_p, ω_b, kite_pos, kite_vel, trailing_edge_angle, trailing_edge_ω, segment_length, mass_tether_particle, damping, c_spring, 
+    seqs            = scalar_eqs!(s, seqs, pos, vel, acc, R_b_w, ω_p, ω_b, kite_pos, kite_vel, kite_acc, trailing_edge_angle, trailing_edge_ω, segment_length, mass_tether_particle, damping, c_spring, 
                         e_y, e_z, e_x, e_r_D, e_r_E, e_te_A, e_te_B, rho_kite, tether_length, tether_vel,
                         mass_per_meter, force, set_values)
     seqs, force_eqs = calc_kite_forces!(s, seqs, force_eqs, force, torque_p, R_b_w, kite_vel, kite_acc, ω_b, t, e_x, e_z, rho_kite, v_wind, trailing_edge_angle)
@@ -606,24 +602,15 @@ The distance/vel/acc of the kite cannot be measured directly, but the average ac
 
 Assume distance_acc = tether_acc[3] for convenience
 """
-function model!(s::KPSQ; real=true)
-    s.ϵ = 1e-6
-    # pos, vel = init_pos_vel(s)
+function model!(s::KPSQ)
     init_pos!(s; α = 10.0)
+    
     sys, inputs = create_sys!(s)
     # structural_simplify(sys, (inputs, []))
     (sys, _) = structural_simplify(sys, (inputs, []); fully_determined=false)
     s.simple_sys = sys
 
     u0map = [
-        # tether pos --> expected_pos
-        # tether vel --> s.tether_vel
-        # tether acc --> 0
-
-        # kite pos --> s.kite_pos
-        # kite vel --> whatever
-        # kite acc --> 0
-
         [sys.Q_p_w[i] => s.Q_p_w[i] for i in 1:4]
         # [sys.Q_vel[i] => 0 for i in 1:4]
         [sys.ω_p[i] => 0 for i in 1:3]
@@ -647,60 +634,6 @@ function model!(s::KPSQ; real=true)
         [sys.tether_vel[j] => 0 for j in 1:3]
         # [sys.tether_acc[i] => 0 for i in 1:3]
     ]
-    guesses = [
-        # [sys.q[i] => s.q[i] for i in 1:4]
-        # [sys.Q_vel[i] => 0 for i in 1:4]
-        # [sys.ω_p[i] => 0 for i in 1:3]
-        # [sys.α_p[i] => 0 for i in 1:3]
-
-        # [sys.kite_pos[i] => s.kite_pos[i] for i in 1:3]
-        # [sys.kite_vel[i] => 0 for i in 1:3]
-        # [sys.kite_acc[i] => 0 for i in 1:3]
-
-        # [sys.pos[j, i] => s.pos[j, i] for j in 1:3 for i in 4:s.i_C]
-        # [sys.vel[j, i] => 0 for j in 1:3 for i in 4:s.i_C]
-        # [sys.acc[j, i] => 0 for j in 1:3 for i in 4:s.i_C]
-
-        # [sys.expected_pos[j, i] => s.pos[j, i] for j in 1:3 for i in 4:s.i_C]
-        # [sys.expected_vel[j, i] => 0 for j in 1:3 for i in 4:s.i_C]
-
-        # [sys.trailing_edge_angle[j] => 0 for j in 1:2]
-        # [sys.trailing_edge_ω[j] => 0 for j in 1:2]
-        # [sys.trailing_edge_α[j] => 0 for j in 1:2]
-
-        # [sys.tether_length[j] => s.tether_lengths[j] for j in 1:3]
-        # [sys.tether_vel[j] => 0 for j in 1:3]
-        # [sys.tether_acc[j] => 0 for j in 1:3]
-
-        # sys.gust_factor => 1.0natural
-        ]
-    p0map = [sys.set_values[j] => s.measure.winch_torque[j] for j in 1:3]
-    # println("making prob")
-    # @time prob = ModelingToolkit.InitializationProblem(sys, 0.0, u0map, p0map; guesses, fully_determined=true)
-
-    # @show typeof(prob)
-    # tol = 1e-3
-    # # @time remake(prob; u0=u0map)
-    # println("solving")
-    # @time sol = NonlinearSolve.solve(prob)
-    # println(sol.resid)
-    # @show norm(sol.resid)
-    # @show norm(sol[sys.q])
-    
-    # println("remaking init prob")
-    # @time remake(prob; u0=[sys.gust_factor=>1.1])
-    # @time sol = solve(prob; maxiters=10_000, abstol=tol, reltol=tol)
-    # @time remake(prob; u0=[sys.gust_factor=>0.9])
-    # @time sol = solve(prob; maxiters=10_000, abstol=tol, reltol=tol)
-    
-    dt = 1/s.set.sample_freq
-    tspan   = (0.0, dt)
-    # @time s.prob = ODEProblem(sys, u0map, tspan; guesses, fully_determined=real, check_length=real)
-    # u0 = collect(unknowns(sys) .=> sol[unknowns(sys)])
-    # p0 = collect(sys.set_values .=> sol[sys.set_values])
-    s.prob = ODEProblem(sys, u0map, tspan, p0map)
-
-    solver = QNDF(autodiff=false) # https://docs.sciml.ai/scimlbenchmarksoutput/stable/#results
-    s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol)
-    return s.prob, sys, u0map
+    p0map = [sys.set_values[j] => s.measure.set_values[j] for j in 1:3]
+    return sys, u0map, p0map
 end

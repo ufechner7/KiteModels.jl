@@ -12,25 +12,26 @@ function angle_between_vectors(v1, v2)
 end
 
 dt = 0.05
-total_time = 8.0
+total_time = 1.0
 steps = Int(round(total_time / dt))
 
 set = se("system_3l.yaml")
-set.segments = 2
+set.segments = 6
 set.aero_surfaces = 6
 logger = Logger(3*set.segments + 4, steps)
-s = KPSQ(KCU(set))
-s.measure.winch_torque = [-1, -1, -50.0]
+if !@isdefined(s); s = KPSQ(KCU(set)); end
+s.measure.set_values = [-1, -1, -50.0]
 s.measure.tether_acc = [0, 0, 0]
 s.measure.tether_length = [51., 51., 49.]
 s.measure.distance = 49.2
-s.measure.elevation_left = deg2rad(86)
-s.measure.elevation_right = deg2rad(86)
+s.measure.elevation_left = deg2rad(80)
+s.measure.elevation_right = deg2rad(80)
 s.measure.azimuth_left = deg2rad(1)
 s.measure.azimuth_right = deg2rad(-1)
 # s.measure.distance_acc = s.measure.tether_acc[3]
 
-prob, ss, u0map = model!(s)
+@time init_sim!(s; force_new_sys=false, prn=true)
+# @assert false
 sys_state = KiteModels.SysState(s)
 l = s.set.l_tether + 10
 t = 0
@@ -40,21 +41,22 @@ try
         global t, runtime
         local pos = [[sys_state.X[i], sys_state.Y[i], sys_state.Z[i]] for i in 1:s.i_C+1]
         plot && plot2d(pos, t; zoom=false, front=false, xlim=(-l/2, l/2), ylim=(0, l), segments=10)
-        set_values = -s.set.drum_radius * s.get_tether_forces(s.integrator)
-        if t < 1.0; set_values[2] -= 10.0; end
+        # global set_values = -s.set.drum_radius * KiteModels.tether_force(s)
+        global set_values = s.measure.set_values
+        if t < 1.0; set_values[2] -= 0.0; end
         steptime = @elapsed t = next_step!(s; set_values, dt)
         if (t > total_time/2); runtime += steptime; end
+        @show KiteModels.distance_acc(s)
         KiteModels.update_sys_state!(sys_state, s)
-        sys_state.var_01 = s.integrator[ss.ω_b[1]]
-        sys_state.var_02 = s.integrator[ss.ω_b[2]]
-        sys_state.var_03 = s.integrator[ss.ω_b[3]]
-        sys_state.var_04 = s.integrator[ss.tether_length[1]]
-        sys_state.var_05 = s.integrator[ss.tether_length[2]]
-        sys_state.var_06 = s.integrator[ss.tether_length[3]]
-        sys_state.var_07 = s.integrator[ss.trailing_edge_angle[1]]
-        sys_state.var_08 = s.integrator[ss.trailing_edge_angle[2]]
-        sys_state.var_09 = s.integrator[ss.force[:, s.i_A]] ⋅s.integrator[ss.e_te_A]
-        sys_state.var_10 = s.integrator[ss.force[:, s.i_B]] ⋅s.integrator[ss.e_te_B]
+        sys_state.var_01 = KiteModels.ω_b(s)[1]
+        sys_state.var_02 = KiteModels.ω_b(s)[2]
+        sys_state.var_03 = KiteModels.ω_b(s)[3]
+        sys_state.var_04 = norm(KiteModels.kite_pos(s))
+        sys_state.var_05 = KiteModels.distance_acc(s)
+        sys_state.var_07 = KiteModels.trailing_edge_angle(s)[1]
+        sys_state.var_08 = KiteModels.trailing_edge_angle(s)[2]
+        sys_state.var_09 = KiteModels.force(s)[:, s.i_A] ⋅ KiteModels.e_te_A(s)
+        sys_state.var_10 = KiteModels.force(s)[:, s.i_B] ⋅ KiteModels.e_te_B(s)
         log!(logger, sys_state)
     end
 catch e
@@ -69,16 +71,18 @@ if plot
     p=plotx(logger.time_vec, 
             [logger.acc_vec],
             [logger.var_01_vec, logger.var_02_vec, logger.var_03_vec],
-            [logger.var_04_vec, logger.var_05_vec, logger.var_06_vec],
+            [logger.var_04_vec],
+            [logger.var_05_vec],
             [logger.var_07_vec, logger.var_08_vec],
             [logger.var_09_vec, logger.var_10_vec],
             [logger.heading_vec],
             ;
-        ylabels=["acc", "angular vel", "tether length", "trailing edge angle", "force", "heading"], 
+        ylabels=["acc", "α", "pos", "acc", "te angle", "force", "heading"], 
         labels=[
             ["acc"],
             ["ω_b[1]", "ω_b[2]", "ω_b[3]"],
-            ["left", "right", "middle"],
+            ["x kite"],
+            ["distance"],
             ["left", "right"],
             ["left", "right"],
             ["heading_y"]
