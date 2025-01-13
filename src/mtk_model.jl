@@ -603,7 +603,7 @@ The distance/vel/acc of the kite cannot be measured directly, but the average ac
 Assume distance_acc = tether_acc[3] for convenience
 """
 function model!(s::KPSQ)
-    init_pos!(s; α = 10.0)
+    init_pos!(s)
     
     sys, inputs = create_sys!(s)
     # structural_simplify(sys, (inputs, []))

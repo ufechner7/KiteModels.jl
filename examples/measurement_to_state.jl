@@ -5,12 +5,6 @@ if plot
     using ControlPlots
 end
 
-function angle_between_vectors(v1, v2)
-    cos_theta = dot(v1, v2) / (norm(v1) * norm(v2))
-    θ = acos(clamp(cos_theta, -1.0, 1.0))  # Clamp to handle numerical errors
-    return rad2deg(θ)  # Angle in radians
-end
-
 dt = 0.05
 total_time = 1.0
 steps = Int(round(total_time / dt))
@@ -23,7 +17,6 @@ if !@isdefined(s); s = KPSQ(KCU(set)); end
 s.measure.set_values = [-1, -1, -50.0]
 s.measure.tether_acc = [0, 0, 0]
 s.measure.tether_length = [51., 51., 49.]
-s.measure.distance = 49.2
 s.measure.elevation_left = deg2rad(80)
 s.measure.elevation_right = deg2rad(80)
 s.measure.azimuth_left = deg2rad(1)
@@ -46,17 +39,17 @@ try
         if t < 1.0; set_values[2] -= 0.0; end
         steptime = @elapsed t = next_step!(s; set_values, dt)
         if (t > total_time/2); runtime += steptime; end
-        @show KiteModels.distance_acc(s)
+        @show s.get_distance_acc()
         KiteModels.update_sys_state!(sys_state, s)
-        sys_state.var_01 = KiteModels.ω_b(s)[1]
-        sys_state.var_02 = KiteModels.ω_b(s)[2]
-        sys_state.var_03 = KiteModels.ω_b(s)[3]
-        sys_state.var_04 = norm(KiteModels.kite_pos(s))
-        sys_state.var_05 = KiteModels.distance_acc(s)
-        sys_state.var_07 = KiteModels.trailing_edge_angle(s)[1]
-        sys_state.var_08 = KiteModels.trailing_edge_angle(s)[2]
-        sys_state.var_09 = KiteModels.force(s)[:, s.i_A] ⋅ KiteModels.e_te_A(s)
-        sys_state.var_10 = KiteModels.force(s)[:, s.i_B] ⋅ KiteModels.e_te_B(s)
+        sys_state.var_01 = s.get_ω_b()[1]
+        sys_state.var_02 = s.get_ω_b()[2]
+        sys_state.var_03 = s.get_ω_b()[3]
+        sys_state.var_04 = norm(s.get_kite_pos())
+        sys_state.var_05 = s.get_distance_acc()
+        sys_state.var_07 = s.get_trailing_edge_angle()[1]
+        sys_state.var_08 = s.get_trailing_edge_angle()[2]
+        sys_state.var_09 = s.get_force()[:, s.i_A] ⋅ s.get_e_te_A()
+        sys_state.var_10 = s.get_force()[:, s.i_B] ⋅ s.get_e_te_B()
         log!(logger, sys_state)
     end
 catch e
