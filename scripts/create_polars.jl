@@ -22,7 +22,7 @@ end
 @everywhere begin
     using Xfoil, Statistics, SharedArrays
 
-    function turn_flap!(angle, x, y, lower_turn, upper_turn)
+    function turn_trailing_edge!(angle, x, y, lower_turn, upper_turn)
         theta = deg2rad(angle)
         x_turn = 0.75
         turn_distance = upper_turn - lower_turn
@@ -72,7 +72,7 @@ end
             x_ref, y_ref = 0.75, lower
         end
         
-        # straighten out the flap in order to find the trailing edge torque constant
+        # straighten out the trailing_edge in order to find the trailing edge torque constant
         for i in eachindex(x)
             x_rel = x[i] - x_ref
             y_rel = y[i] - y_ref
@@ -88,7 +88,7 @@ end
                 push!(y2, y[i])
                 dx = x[i+1] - x[i]
                 cp_avg = (cp[i] + cp[i+1]) / 2
-                c_te -= dx * cp_avg * (x[i] - x_ref) / (1 - x_ref) # clockwise flap force at trailing edge
+                c_te -= dx * cp_avg * (x[i] - x_ref) / (1 - x_ref) # clockwise trailing_edge force at trailing edge
             end
         end
         return c_te
@@ -97,7 +97,7 @@ end
     function solve_alpha!(cls, cds, c_tes, alphas, alpha_idxs, d_trailing_edge_angle, re, x_, y_, lower, upper, kite_speed, speed_of_sound)
         x = deepcopy(x_)
         y = deepcopy(y_)
-        turn_flap!(d_trailing_edge_angle, x, y, lower, upper)
+        turn_trailing_edge!(d_trailing_edge_angle, x, y, lower, upper)
         Xfoil.set_coordinates(x, y)
         x, y = Xfoil.pane(npan=140)
         times_not_converged = 0
@@ -143,8 +143,8 @@ end
 end
 
 function get_lower_upper(x, y)
-    lower_flap = 0.0
-    upper_flap = 0.0
+    lower_trailing_edge = 0.0
+    upper_trailing_edge = 0.0
     min_lower_distance = Inf
     min_upper_distance = Inf
     for (xi, yi) in zip(x, y)
@@ -152,17 +152,17 @@ function get_lower_upper(x, y)
             lower_distance = abs(xi - 0.75)
             if lower_distance < min_lower_distance
                 min_lower_distance = lower_distance
-                lower_flap = yi
+                lower_trailing_edge = yi
             end
         else
             upper_distance = abs(xi - 0.75)
             if upper_distance < min_upper_distance
                 min_upper_distance = upper_distance
-                upper_flap = yi
+                upper_trailing_edge = yi
             end
         end
     end
-    return lower_flap, upper_flap
+    return lower_trailing_edge, upper_trailing_edge
 end
 
 function remove_nothing(matrix)
@@ -229,7 +229,7 @@ function create_polars(foil_file=se.foil_file, polar_file=se.polar_file)
     println("cl_matrix")
     [println(cl_matrix[i, :]) for i in eachindex(alphas)]
 
-    println("Relative flap height: ", upper - lower)
+    println("Relative trailing_edge height: ", upper - lower)
     println("Reynolds number for flying speed of $kite_speed is $reynolds_number")
 
     # TODO: serialize the splines

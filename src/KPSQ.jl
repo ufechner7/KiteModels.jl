@@ -152,7 +152,7 @@ $(TYPEDFIELDS)
     "Initial torque or speed set values"
     init_set_values::V =    zeros(S, 3)
     "Smooth sign constant"
-    ϵ::S =      1e-6
+    ϵ::S =      0.0
     "Relative damping for flaps"
     flap_damping::S     = 0.75
     "Measured data points used to create an initial state"
@@ -227,6 +227,8 @@ $(TYPEDFIELDS)
 
     get_distance_acc::Function       = () -> nothing
     get_pos::Function               = () -> nothing
+    get_vel::Function               = () -> nothing
+    get_acc::Function               = () -> nothing
     get_trailing_edge_angle::Function = () -> nothing
     get_trailing_edge_α::Function    = () -> nothing
     get_kite_pos::Function          = () -> nothing
@@ -235,6 +237,8 @@ $(TYPEDFIELDS)
     get_R_b_w::Function             = () -> nothing
     get_Q_p_w::Function             = () -> nothing
     get_e_x::Function               = () -> nothing
+    get_e_y::Function               = () -> nothing
+    get_e_z::Function               = () -> nothing
     get_tether_force::Function      = () -> nothing
     get_tether_length::Function     = () -> nothing
     get_tether_vel::Function        = () -> nothing
@@ -249,7 +253,7 @@ $(TYPEDFIELDS)
     get_azimuth_vel::Function      = () -> nothing
 
     prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
-    integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Nothing} = nothing
+    integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Sundials.CVODEIntegrator, Nothing} = nothing
 end
 
 function kite_torque_b(s)
@@ -464,7 +468,9 @@ function init_sim!(s::KPSQ; prn=false, torque_control=s.torque_control,
         init_set_values=s.init_set_values, ϵ=s.ϵ, flap_damping=s.flap_damping, force_new_sys=false)
     dt = 1/s.set.sample_freq
     tspan   = (0.0, dt) 
-    solver = QNDF(autodiff=false) # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
+    solver = TRBDF2( # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
+        autodiff=AutoFiniteDiff()
+    )
     set_hash = struct_hash(s.set)
     measure_hash = struct_hash(s.measure)
     new_pos = s.last_measure_hash != measure_hash
@@ -485,28 +491,10 @@ function init_sim!(s::KPSQ; prn=false, torque_control=s.torque_control,
         s.prob = ODEProblem(sys, u0map, tspan, p0map)
         s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
         generate_getters!(s)
-    elseif new_pos || true
+        init_distance!(s)
+    elseif new_pos
         if prn; println("initializing with last model and new pos"); end
-        # Distance of the kite is difficult to measure precisely. So the distance is found by assuming
-        # that distance_acc ≈ tether_acc
-        function f_zero(distance)
-            init_pos!(s; distance)
-            s.set_Q_p_w(s.prob, s.Q_p_w)
-            s.set_ω_p(s.prob, zeros(3))
-            s.set_kite_pos(s.prob, s.kite_pos)
-            s.set_kite_vel(s.prob, zeros(3))
-            s.set_pos(s.prob, s.pos[:, 4:s.i_A-1])
-            s.set_vel(s.prob, zeros(3, s.i_A-4))
-            s.set_trailing_edge_angle(s.prob, [0.3, 0.3])
-            s.set_trailing_edge_ω(s.prob, zeros(2))
-            s.set_gust_factor(s.prob, 1.0)
-            s.set_tether_length(s.prob, s.measure.tether_length)
-            s.set_tether_vel(s.prob, zeros(3))
-            s.prob = remake(s.prob)
-            OrdinaryDiffEqCore.reinit!(s.integrator, s.prob.u0)
-            return s.get_distance_acc() - s.measure.tether_acc[3]
-        end
-        @time s.distance = find_zero(f_zero, s.measure.tether_length[3]; atol = 1e-2, maxiters = 10)
+        init_distance!(s)
     else
         if prn; println("initializing with last model and last pos"); end
         OrdinaryDiffEqCore.reinit!(s.integrator, s.prob.u0)
@@ -523,44 +511,91 @@ end
 function generate_getters!(s)
     sys = s.simple_sys
 
-    s.set_Q_p_w               = (val, prob) -> setu(prob, sys.Q_p_w)(prob, val)
-    s.set_ω_p                 = (val, prob) -> setu(prob, sys.ω_p)(prob, val)  
-    s.set_kite_pos            = (val, prob) -> setu(prob, sys.kite_pos)(prob, val)
-    s.set_kite_vel            = (val, prob) -> setu(prob, sys.kite_vel)(prob, val)
-    s.set_pos                 = (val, prob) -> setu(prob, sys.pos[:, 4:s.i_A-1])(prob, val)
-    s.set_vel                 = (val, prob) -> setu(prob, sys.vel[:, 4:s.i_A-1])(prob, val)
-    s.set_trailing_edge_angle = (val, prob) -> setu(prob, sys.trailing_edge_angle)(prob, val)
-    s.set_trailing_edge_ω     = (val, prob) -> setu(prob, sys.trailing_edge_ω)(prob, val)
-    s.set_gust_factor         = (val, prob) -> setu(prob, sys.gust_factor)(prob, val)
-    s.set_tether_length       = (val, prob) -> setu(prob, sys.tether_length)(prob, val)
-    s.set_tether_vel          = (val, prob) -> setu(prob, sys.tether_vel)(prob, val)
+    set_Q_p_w = setu(s.prob, sys.Q_p_w)
+    set_ω_p = setu(s.prob, sys.ω_p)  
+    set_kite_pos = setu(s.prob, sys.kite_pos)
+    set_kite_vel = setu(s.prob, sys.kite_vel)
+    set_pos = setu(s.prob, sys.pos[:, 4:s.i_A-1])
+    set_vel = setu(s.prob, sys.vel[:, 4:s.i_A-1])
+    set_trailing_edge_angle = setu(s.prob, sys.trailing_edge_angle)
+    set_trailing_edge_ω = setu(s.prob, sys.trailing_edge_ω)
+    set_gust_factor = setu(s.prob, sys.gust_factor)
+    set_tether_length = setu(s.prob, sys.tether_length)
+    set_tether_vel = setu(s.prob, sys.tether_vel)
 
-    s.set_v_wind_gnd          = val -> setp(s.integrator, sys.v_wind_gnd)(s.integrator, val)
-    s.set_v_wind              = val -> setp(s.integrator, sys.v_wind)(s.integrator, val)
-    s.set_set_values          = val -> setu(s.integrator, sys.set_values)(s.integrator, val)
+    s.set_Q_p_w               = (prob, val) -> set_Q_p_w(prob, val)
+    s.set_ω_p                 = (prob, val) -> set_ω_p(prob, val)  
+    s.set_kite_pos            = (prob, val) -> set_kite_pos(prob, val)
+    s.set_kite_vel            = (prob, val) -> set_kite_vel(prob, val)
+    s.set_pos                 = (prob, val) -> set_pos(prob, val)
+    s.set_vel                 = (prob, val) -> set_vel(prob, val)
+    s.set_trailing_edge_angle = (prob, val) -> set_trailing_edge_angle(prob, val)
+    s.set_trailing_edge_ω     = (prob, val) -> set_trailing_edge_ω(prob, val)
+    s.set_gust_factor         = (prob, val) -> set_gust_factor(prob, val)
+    s.set_tether_length       = (prob, val) -> set_tether_length(prob, val)
+    s.set_tether_vel          = (prob, val) -> set_tether_vel(prob, val)
 
-    s.get_pos                 = () -> getu(s.integrator, sys.pos)(s.integrator)
-    s.get_trailing_edge_angle = () -> getu(s.integrator, sys.trailing_edge_angle)(s.integrator)
-    s.get_trailing_edge_α     = () -> getu(s.integrator, sys.trailing_edge_α)(s.integrator)
-    s.get_kite_pos            = () -> getu(s.integrator, sys.kite_pos)(s.integrator)
-    s.get_kite_vel            = () -> getu(s.integrator, sys.kite_vel)(s.integrator)
-    s.get_kite_acc            = () -> getu(s.integrator, sys.kite_acc)(s.integrator)
-    s.get_R_b_w               = () -> getu(s.integrator, sys.R_b_w)(s.integrator)
-    s.get_Q_p_w               = () -> getu(s.integrator, sys.Q_p_w)(s.integrator)
-    s.get_e_x                 = () -> getu(s.integrator, sys.e_x)(s.integrator)
-    s.get_tether_force        = () -> getu(s.integrator, sys.tether_force)(s.integrator)
-    s.get_tether_length       = () -> getu(s.integrator, sys.tether_length)(s.integrator)
-    s.get_tether_vel          = () -> getu(s.integrator, sys.tether_vel)(s.integrator)
-    s.get_kite_force          = () -> getu(s.integrator, sys.total_kite_force)(s.integrator)
-    s.get_kite_torque_p       = () -> getu(s.integrator, sys.torque_p)(s.integrator)
-    s.get_heading             = () -> getu(s.integrator, sys.heading_y)(s.integrator)
-    s.get_ω_b                 = () -> getu(s.integrator, sys.ω_b)(s.integrator)
-    s.get_force               = () -> getu(s.integrator, sys.force)(s.integrator)
-    s.get_e_te_A              = () -> getu(s.integrator, sys.e_te_A)(s.integrator)
-    s.get_e_te_B              = () -> getu(s.integrator, sys.e_te_B)(s.integrator)
-    s.get_elevation_vel       = () -> getu(s.integrator, sys.elevation_vel)(s.integrator)
-    s.get_azimuth_vel         = () -> getu(s.integrator, sys.azimuth_vel)(s.integrator)
-    s.get_distance_acc        = () -> getu(s.integrator, sys.distance_acc)(s.integrator)
+    set_v_wind_gnd = setp(s.integrator, sys.v_wind_gnd)
+    set_v_wind = setp(s.integrator, sys.v_wind)
+    set_set_values = setu(s.integrator, sys.set_values)
+
+    s.set_v_wind_gnd          = val -> set_v_wind_gnd(s.integrator, val)
+    s.set_v_wind              = val -> set_v_wind(s.integrator, val)
+    s.set_set_values          = val -> set_set_values(s.integrator, val)
+
+    get_pos = getu(s.integrator, sys.pos)
+    get_vel = getu(s.integrator, sys.vel)
+    get_acc = getu(s.integrator, sys.acc)
+    get_trailing_edge_angle = getu(s.integrator, sys.trailing_edge_angle)
+    get_trailing_edge_α = getu(s.integrator, sys.trailing_edge_α)
+    get_kite_pos = getu(s.integrator, sys.kite_pos)
+    get_kite_vel = getu(s.integrator, sys.kite_vel)
+    get_kite_acc = getu(s.integrator, sys.kite_acc)
+    get_R_b_w = getu(s.integrator, sys.R_b_w)
+    get_Q_p_w = getu(s.integrator, sys.Q_p_w)
+    get_e_x = getu(s.integrator, sys.e_x)
+    get_e_y = getu(s.integrator, sys.e_y)
+    get_e_z = getu(s.integrator, sys.e_z)
+    get_tether_force = getu(s.integrator, sys.tether_force)
+    get_tether_length = getu(s.integrator, sys.tether_length)
+    get_tether_vel = getu(s.integrator, sys.tether_vel)
+    get_kite_force = getu(s.integrator, sys.total_kite_force)
+    get_kite_torque_p = getu(s.integrator, sys.torque_p)
+    get_heading = getu(s.integrator, sys.heading_y)
+    get_ω_b = getu(s.integrator, sys.ω_b)
+    get_force = getu(s.integrator, sys.force)
+    get_e_te_A = getu(s.integrator, sys.e_te_A)
+    get_e_te_B = getu(s.integrator, sys.e_te_B)
+    get_elevation_vel = getu(s.integrator, sys.elevation_vel)
+    get_azimuth_vel = getu(s.integrator, sys.azimuth_vel)
+    get_distance_acc = getu(s.integrator, sys.distance_acc)
+
+    s.get_pos                 = () -> get_pos(s.integrator)
+    s.get_vel                 = () -> get_vel(s.integrator)
+    s.get_acc                 = () -> get_acc(s.integrator)
+    s.get_trailing_edge_angle = () -> get_trailing_edge_angle(s.integrator)
+    s.get_trailing_edge_α     = () -> get_trailing_edge_α(s.integrator)
+    s.get_kite_pos            = () -> get_kite_pos(s.integrator)
+    s.get_kite_vel            = () -> get_kite_vel(s.integrator)
+    s.get_kite_acc            = () -> get_kite_acc(s.integrator)
+    s.get_R_b_w               = () -> get_R_b_w(s.integrator)
+    s.get_Q_p_w               = () -> get_Q_p_w(s.integrator)
+    s.get_e_x                 = () -> get_e_x(s.integrator)
+    s.get_e_y                 = () -> get_e_y(s.integrator)
+    s.get_e_z                 = () -> get_e_z(s.integrator)
+    s.get_tether_force        = () -> get_tether_force(s.integrator)
+    s.get_tether_length       = () -> get_tether_length(s.integrator)
+    s.get_tether_vel          = () -> get_tether_vel(s.integrator)
+    s.get_kite_force          = () -> get_kite_force(s.integrator)
+    s.get_kite_torque_p       = () -> get_kite_torque_p(s.integrator)
+    s.get_heading             = () -> get_heading(s.integrator)
+    s.get_ω_b                 = () -> get_ω_b(s.integrator)
+    s.get_force               = () -> get_force(s.integrator)
+    s.get_e_te_A              = () -> get_e_te_A(s.integrator)
+    s.get_e_te_B              = () -> get_e_te_B(s.integrator)
+    s.get_elevation_vel       = () -> get_elevation_vel(s.integrator)
+    s.get_azimuth_vel         = () -> get_azimuth_vel(s.integrator)
+    s.get_distance_acc        = () -> get_distance_acc(s.integrator)
     nothing
 end
 
@@ -737,7 +772,7 @@ Returns a tuple of the x, y, and z vectors of the kite reference frame.
 The parameter one_point is not used in this model.
 """
 function kite_ref_frame(s::KPSQ; one_point=false)
-    s.e_x, s.e_y, s.e_z
+    s.get_e_x(), s.get_e_y(), s.get_e_z()
 end
 
 """

@@ -2,7 +2,11 @@
 # Implementation of the three-line model using ModellingToolkit.jl
 
 function smooth_sign_ϵ(x; ϵ = 1e-3)
-    return x / √(x^2 + ϵ^2)
+    if ϵ == 0.0 
+        return sign(x)
+    else
+        return x / √(x^2 + ϵ^2)
+    end
 end
 @register_symbolic smooth_sign_ϵ(x)
 
@@ -100,7 +104,7 @@ end
 """
 Calculate the forces acting on the kite inertia particle.
 """
-function calc_kite_forces!(s::KPSQ, seqs, force_eqs, force, torque_p, R_b_w, kite_vel, kite_acc, ω_b, t, e_x, e_z, rho, v_wind, trailing_edge_angle)
+function calc_kite_forces!(s::KPSQ, seqs, force_eqs, force, torque_p, R_b_w, R_p_w, kite_vel, kite_acc, ω_b, t, e_x, e_z, rho, v_wind, trailing_edge_angle)
     n = s.set.aero_surfaces
 
     # integrating loop variables, iterating over 2n segments
@@ -186,8 +190,8 @@ function calc_kite_forces!(s::KPSQ, seqs, force_eqs, force, torque_p, R_b_w, kit
             
             seg_aero_force[:, i] ~ seg_L[:, i] + seg_D[:, i]
             seg_g_force[:, i] ~ [0.0, 0.0, -G_EARTH * s.seg_mass[i]]
-            seg_aero_torque_p[:, i] ~ s.seg_cop_pos_p[:, i] × (s.R_b_p * R_b_w' * seg_aero_force[:, i])
-            seg_gravity_torque_p[:, i] ~ s.seg_com_pos_p[:, i] × (s.R_b_p * R_b_w' * seg_g_force[:, i])
+            seg_aero_torque_p[:, i] ~ s.seg_cop_pos_p[:, i] × (R_p_w' * seg_aero_force[:, i])
+            seg_gravity_torque_p[:, i] ~ s.seg_com_pos_p[:, i] × (R_p_w' * seg_g_force[:, i])
         ]
     end
 
@@ -195,7 +199,7 @@ function calc_kite_forces!(s::KPSQ, seqs, force_eqs, force, torque_p, R_b_w, kit
         seqs
         total_kite_force ~ [sum(seg_aero_force[i, :]) + sum(seg_g_force[i, :]) + force[i, s.i_C] for i in 1:3]
         kite_acc ~ total_kite_force / s.set.mass
-        C_torque_p ~ s.pos_C_p × (s.R_b_p * R_b_w' * force[:, s.i_C])
+        C_torque_p ~ s.pos_C_p × (R_p_w' * force[:, s.i_C])
         torque_p ~ [sum(seg_aero_torque_p[i, :]) + sum(seg_gravity_torque_p[i, :]) + C_torque_p[i] for i in 1:3]
         F_te_C ~ [sum(seg_te_force[i, 1:n]) for i in 1:3]
         F_te_D ~ [sum(seg_te_force[i, n+1:2n]) for i in 1:3]
@@ -323,30 +327,30 @@ Calculate the forces, acting on all tether particles.
     return seqs, force_eqs
 end
 
-function expected_pos_vel(s, seqs, pos, kite_pos, kite_vel, tether_vel, tether_length, tether_force, norm1)
-    @variables begin
-        expected_pos(t)[1:3, 1:s.i_C]
-        tether_move_vel(t)[1:3, 1:s.i_C]
-        tether_kite_vel(t)[1:3, 1:s.i_C]
-        expected_vel(t)[1:3, 1:s.i_C]
-    end
-    seqs = [
-        seqs
-        [expected_pos[j, 3(k-1)+i] ~ 
-            calc_expected_pos_vel(s, pos[1, i+s.i_A-1], pos[2, i+s.i_A-1], pos[3, i+s.i_A-1], 
-                kite_vel[i], tether_vel[i], tether_length[i], tether_force[i], s.c_spring[i])[1, j, k]
-                    for i in 1:3 for j in 1:3 for k in 1:(s.i_C ÷ 3)]
-        [tether_move_vel[j, 3(k-1)+i] ~ 
-            calc_expected_pos_vel(s, pos[1, i+s.i_A-1], pos[2, i+s.i_A-1], pos[3, i+s.i_A-1], # TODO: A and B depend on trailing_edge_angle
-                kite_vel[i], tether_vel[i], tether_length[i], tether_force[i], s.c_spring[i])[2, j, k]
-                    for i in 1:3 for j in 1:3 for k in 1:(s.i_C ÷ 3)]
-        [tether_kite_vel[j, i] ~ (norm(pos[:, i]) / norm(kite_pos) * 
-            (kite_vel .- kite_vel ⋅ normalize(kite_pos) * normalize(kite_pos)))[j] 
-                for j in 1:3 for i in 1:s.i_C]
-        vec(expected_vel)                .~ vec(tether_move_vel) .+ vec(tether_kite_vel)
-    ]
-    return seqs
-end
+# function expected_pos_vel(s, seqs, pos, kite_pos, kite_vel, tether_vel, tether_length, tether_force, norm1)
+#     @variables begin
+#         expected_pos(t)[1:3, 1:s.i_C]
+#         tether_move_vel(t)[1:3, 1:s.i_C]
+#         tether_kite_vel(t)[1:3, 1:s.i_C]
+#         expected_vel(t)[1:3, 1:s.i_C]
+#     end
+#     seqs = [
+#         seqs
+#         [expected_pos[j, 3(k-1)+i] ~ 
+#             calc_expected_pos_vel(s, pos[1, i+s.i_A-1], pos[2, i+s.i_A-1], pos[3, i+s.i_A-1], 
+#                 kite_vel[i], tether_vel[i], tether_length[i], tether_force[i], s.c_spring[i])[1, j, k]
+#                     for i in 1:3 for j in 1:3 for k in 1:(s.i_C ÷ 3)]
+#         [tether_move_vel[j, 3(k-1)+i] ~ 
+#             calc_expected_pos_vel(s, pos[1, i+s.i_A-1], pos[2, i+s.i_A-1], pos[3, i+s.i_A-1], # TODO: A and B depend on trailing_edge_angle
+#                 kite_vel[i], tether_vel[i], tether_length[i], tether_force[i], s.c_spring[i])[2, j, k]
+#                     for i in 1:3 for j in 1:3 for k in 1:(s.i_C ÷ 3)]
+#         [tether_kite_vel[j, i] ~ (norm(pos[:, i]) / norm(kite_pos) * 
+#             (kite_vel .- kite_vel ⋅ normalize(kite_pos) * normalize(kite_pos)))[j] 
+#                 for j in 1:3 for i in 1:s.i_C]
+#         vec(expected_vel)                .~ vec(tether_move_vel) .+ vec(tether_kite_vel)
+#     ]
+#     return seqs
+# end
 
 function scalar_eqs!(s, seqs, pos, vel, acc, R_b_w, ω_p, ω_b, kite_pos, kite_vel, kite_acc, trailing_edge_angle, trailing_edge_ω, segment_length, mass_tether_particle, damping, c_spring, 
         e_y, e_z, e_x, e_r_D, e_r_E, e_te_A, e_te_B, rho_kite, tether_length, tether_vel,
@@ -354,9 +358,10 @@ function scalar_eqs!(s, seqs, pos, vel, acc, R_b_w, ω_p, ω_b, kite_pos, kite_v
     
     te_length = s.kite_length_D/4
     # last tether point vel without rotational trailing edge vel
-    vel_kite_A = kite_vel + R_b_w * (ω_b × s.pos_A_b)
-    vel_kite_B = kite_vel + R_b_w * (ω_b × s.pos_B_b)
-    vel_kite_C = kite_vel + R_b_w * (ω_b × s.pos_C_b)
+    kite_vel_A = kite_vel + R_b_w * (ω_b × s.pos_A_b)
+    kite_vel_B = kite_vel + R_b_w * (ω_b × s.pos_B_b)
+    kite_vel_C = kite_vel + R_b_w * (ω_b × s.pos_C_b)
+
     seqs = [
         seqs
         ω_b ~ s.R_b_p' * ω_p
@@ -369,9 +374,9 @@ function scalar_eqs!(s, seqs, pos, vel, acc, R_b_w, ω_p, ω_b, kite_pos, kite_v
             e_r_E * te_length * sin(trailing_edge_angle[2])
 
         # last tether point vel with rotational trailing edge vel
-        vel[:, s.i_C]   ~ vel_kite_C
-        vel[:, s.i_A]   ~ vel_kite_A + e_x * te_length * cos(trailing_edge_ω[1]) + e_r_D * te_length * sin(trailing_edge_ω[1])
-        vel[:, s.i_B]   ~ vel_kite_B + e_x * te_length * cos(trailing_edge_ω[2]) + e_r_E * te_length * sin(trailing_edge_ω[2])
+        vel[:, s.i_C]   ~ kite_vel_C
+        vel[:, s.i_A]   ~ kite_vel_A + e_x * te_length * cos(trailing_edge_ω[1]) + e_r_D * te_length * sin(trailing_edge_ω[1])
+        vel[:, s.i_B]   ~ kite_vel_B + e_x * te_length * cos(trailing_edge_ω[2]) + e_r_E * te_length * sin(trailing_edge_ω[2])
 
         segment_length          ~ tether_length  ./ s.set.segments
         mass_tether_particle    ~ mass_per_meter .* segment_length
@@ -457,11 +462,12 @@ function create_sys!(s::KPSQ)
         set_values(t)[1:3] # left right middle
         pos(t)[1:3, 1:s.i_C] # xyz pos of left right middle tether
         vel(t)[1:3, 1:s.i_C] 
-        acc(t)[1:3, 1:s.i_C]
+        acc(t)[1:3, 1:s.i_A-1]
         kite_pos(t)[1:3]    # xyz position of kite in world frame
         kite_vel(t)[1:3]
         kite_acc(t)[1:3]
-        R_b_w(t)[1:3, 1:3] # rotation of the kite relative to the world frame
+        R_b_w(t)[1:3, 1:3] # rotation of the kite body frame relative to the world frame
+        R_p_w(t)[1:3, 1:3] # rotation of the kite principal frame relative to the world frame
         Q_p_w(t)[1:4] # quaternion orientation of the kite principal frame relative to the world frame
         Q_vel(t)[1:4] # quaternion rate of change
         ω_p(t)[1:3] # turn rate in principal frame
@@ -499,10 +505,10 @@ function create_sys!(s::KPSQ)
     te_length = s.kite_length_D/4 # trailing edge length
     @assert te_length != 0
 
-    Ω = [0       -ω_p[1]   -ω_p[2]   -ω_p[3];
-         ω_p[1]    0       ω_p[3]    -ω_p[2];
-         ω_p[2]    -ω_p[3]   0       ω_p[1];
-         ω_p[3]    ω_p[2]    -ω_p[1]   0]
+    Ω = [0       -ω_p[1]  -ω_p[2]  -ω_p[3];
+         ω_p[1]   0        ω_p[3]  -ω_p[2];
+         ω_p[2]  -ω_p[3]   0        ω_p[1];
+         ω_p[3]   ω_p[2]  -ω_p[1]   0]
 
     s.orient_damping = 2.0 * sqrt(maximum(s.I_kite))
     Q_b_p = quaternion_conjugate(s.Q_p_b)
@@ -511,7 +517,7 @@ function create_sys!(s::KPSQ)
         [D(Q_p_w[i]) ~ Q_vel[i] for i in 1:4]
         [Q_vel[i] ~ 0.5 * sum(Ω[i, j] * Q_p_w[j] for j in 1:4) for i in 1:4]
         [R_b_w[:, i] ~ quaternion_to_rotation_matrix(quaternion_multiply(Q_p_w, Q_b_p))[:, i] for i in 1:3] # https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation#Performance_comparisons
-
+        [R_p_w[:, i] ~ quaternion_to_rotation_matrix(Q_p_w)[:, i] for i in 1:3]
         D(ω_p[1]) ~ α_p[1]
         D(ω_p[2]) ~ α_p[2]
         D(ω_p[3]) ~ α_p[3]
@@ -520,7 +526,7 @@ function create_sys!(s::KPSQ)
         α_p[3] ~ (torque_p[3] + (s.I_kite[1] - s.I_kite[2]) * ω_p[1] * ω_p[2]) / s.I_kite[3] - 0.0s.orient_damping*ω_p[3]
 
         [D(kite_pos[i]) ~ kite_vel[i] for i in 1:3]
-        [D(kite_vel[i]) ~ kite_acc[i] for i in 1:3]
+        [D(kite_vel[i]) ~ kite_acc[i] - 0.0kite_vel[i] for i in 1:3]
 
         [pos[:, i]              .~ 0.0 for i in 1:3]
         [D.(pos[:, i])          .~ vel[:, i] for i in 4:s.i_A-1]
@@ -540,7 +546,7 @@ function create_sys!(s::KPSQ)
     seqs            = scalar_eqs!(s, seqs, pos, vel, acc, R_b_w, ω_p, ω_b, kite_pos, kite_vel, kite_acc, trailing_edge_angle, trailing_edge_ω, segment_length, mass_tether_particle, damping, c_spring, 
                         e_y, e_z, e_x, e_r_D, e_r_E, e_te_A, e_te_B, rho_kite, tether_length, tether_vel,
                         mass_per_meter, force, set_values)
-    seqs, force_eqs = calc_kite_forces!(s, seqs, force_eqs, force, torque_p, R_b_w, kite_vel, kite_acc, ω_b, t, e_x, e_z, rho_kite, v_wind, trailing_edge_angle)
+    seqs, force_eqs = calc_kite_forces!(s, seqs, force_eqs, force, torque_p, R_b_w, R_p_w, kite_vel, kite_acc, ω_b, t, e_x, e_z, rho_kite, v_wind, trailing_edge_angle)
     seqs, force_eqs = calc_tether_forces!(s, seqs, force_eqs, t, force, pos, vel, segment_length, c_spring, damping, v_wind_gnd, norm1)
     
     if s.torque_control
@@ -607,7 +613,7 @@ function model!(s::KPSQ)
     
     sys, inputs = create_sys!(s)
     # structural_simplify(sys, (inputs, []))
-    (sys, _) = structural_simplify(sys, (inputs, []); fully_determined=false)
+    (sys, _) = structural_simplify(sys, (inputs, []); fully_determined=true)
     s.simple_sys = sys
 
     u0map = [
