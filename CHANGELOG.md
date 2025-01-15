@@ -5,6 +5,9 @@
 - bump versions in Project.toml
 - add upwind_dir to `settings.yaml` file, remove `v_wind_ref` vector
 - add `p_speed`, `i_speed` and `max_acc` to winch settings
+- replaced `autodiff=false` with `autodiff=AutoFiniteDiff()` to fix warnings
+- added package `ADTypes` to provide `AutoFiniteDiff()`
+- cleanup code
 
 ### KiteModels v0.6.13 2024-12-06
 #### Changed
