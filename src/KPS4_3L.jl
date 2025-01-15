@@ -376,7 +376,7 @@ function init_sim!(s::KPS4_3L; damping_coeff=s.damping_coeff, prn=false,
     
     dt = 1/s.set.sample_freq
     tspan   = (0.0, dt) 
-    solver = QNDF(autodiff=false) # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
+    solver = QNDF(autodiff=AutoFiniteDiff()) # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
     new_inital_conditions =     (s.last_init_elevation != s.set.elevation || 
                                 s.last_init_tether_length != s.set.l_tether) || 
                                 !all(s.init_set_values .== init_set_values)

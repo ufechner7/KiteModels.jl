@@ -3,6 +3,8 @@
 - crash due to a new version of `DierckX_jll`
 #### Changed
 - bump versions in Project.toml
+- add upwind_dir to `settings.yaml` file, remove `v_wind_ref` vector
+- add `p_speed`, `i_speed` and `max_acc` to winch settings
 
 ### KiteModels v0.6.13 2024-12-06
 #### Changed

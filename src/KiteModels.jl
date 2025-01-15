@@ -51,6 +51,7 @@ import OrdinaryDiffEqCore.init
 import OrdinaryDiffEqCore.step!
 using ModelingToolkit, SymbolicIndexingInterface, SteadyStateDiffEq
 using ModelingToolkit: t_nounits as t, D_nounits as D
+using ADTypes: AutoFiniteDiff
 import ModelingToolkit.SciMLBase: successful_retcode
 
 export KPS3, KPS4, KPS4_3L, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                     # constants and types
@@ -555,9 +556,9 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.5, delta=0.001, upwind_
     if s.set.solver=="IDA"
         solver  = Sundials.IDA(linear_solver=Symbol(s.set.linear_solver), max_order = s.set.max_order)
     elseif s.set.solver=="DImplicitEuler"
-        solver  = DImplicitEuler(autodiff=false)
+        solver  = DImplicitEuler(autodiff=AutoFiniteDiff())
     elseif s.set.solver=="DFBDF"
-        solver  = DFBDF(autodiff=false, max_order=Val{s.set.max_order}())        
+        solver  = DFBDF(autodiff=AutoFiniteDiff(), max_order=Val{s.set.max_order}())        
     else
         println("Error! Invalid solver in settings.yaml: $(s.set.solver)")
         return nothing
