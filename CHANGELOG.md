@@ -1,4 +1,4 @@
-### KiteModels v0.6.14 2024-01-16
+### KiteModels v0.6.14 2025-01-16
 #### Fixed
 - crash due to a new version of `DierckX_jll`
 #### Changed
