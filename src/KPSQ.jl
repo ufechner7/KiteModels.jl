@@ -49,20 +49,20 @@ const KITE_PARTICLES_3L = 4
 const MeasureFloat = Float32
 
 @with_kw mutable struct Measurements
-    set_values::MVector{3, MeasureFloat}    = zeros(3)
-    tether_length::MVector{3, MeasureFloat} = zeros(3)
+    set_values::MVector{3, MeasureFloat}    = [-1., -1., -50.]
+    tether_length::MVector{3, MeasureFloat} = [51., 51., 49.]
     tether_vel::MVector{3, MeasureFloat}    = zeros(3)
     tether_acc::MVector{3, MeasureFloat}    = zeros(3)
-    azimuth_left::MeasureFloat       = 0.0
+    azimuth_left::MeasureFloat       = deg2rad(1)
     d_azimuth_left::MeasureFloat     = 0.0
     dd_azimuth_left::MeasureFloat    = 0.0
-    azimuth_right::MeasureFloat       = 0.0
+    azimuth_right::MeasureFloat       = deg2rad(-1)
     d_azimuth_right::MeasureFloat     = 0.0
     dd_azimuth_right::MeasureFloat    = 0.0
-    elevation_left::MeasureFloat     = 0.0
+    elevation_left::MeasureFloat     = deg2rad(86)
     d_elevation_left::MeasureFloat   = 0.0
     dd_elevation_left::MeasureFloat  = 0.0
-    elevation_right::MeasureFloat     = 0.0
+    elevation_right::MeasureFloat     = deg2rad(86)
     d_elevation_right::MeasureFloat   = 0.0
     dd_elevation_right::MeasureFloat  = 0.0
 end
@@ -140,9 +140,9 @@ $(TYPEDFIELDS)
     "Point index of C - middle tether last point"
     i_C::Int64 =           0
     "Angle of left tip"
-    α_l::S =     0.0
+    γ_l::S =     0.0
     "Angle of point C"
-    α_D::S =     0.0
+    γ_D::S =     0.0
     "Kite length at point C"
     kite_length_D::S =     0.0
     "Simplified system of the mtk model"
@@ -285,7 +285,7 @@ function clear!(s::KPSQ)
     s.e_y .= 0.0
     s.e_z .= 0.0
     s.tether_lengths .= [s.set.l_tether for _ in 1:3]
-    s.α_l = π/2 - s.set.min_steering_line_distance/(2*s.set.radius)
+    s.γ_l = π/2 - s.set.min_steering_line_distance/(2*s.set.radius)
     s.segment_lengths .= s.tether_lengths ./ s.set.segments
     s.i_A = s.set.segments*3+1
     s.i_B = s.set.segments*3+2
@@ -297,10 +297,10 @@ function clear!(s::KPSQ)
     init_masses!(s)
 
     width, radius, tip_length, middle_length = s.set.width, s.set.radius, s.set.tip_length, s.set.middle_length
-    s.α_l = pi/2 - width/2/radius
-    s.α_D = s.α_l + width*(-2*tip_length + sqrt(2*middle_length^2 + 2*tip_length^2)) /
+    s.γ_l = pi/2 - width/2/radius
+    s.γ_D = s.γ_l + width*(-2*tip_length + sqrt(2*middle_length^2 + 2*tip_length^2)) /
         (4*(middle_length - tip_length)) / radius
-    s.kite_length_D = tip_length + (middle_length-tip_length) * (s.α_D - s.α_l) / (π/2 - s.α_l)
+    s.kite_length_D = tip_length + (middle_length-tip_length) * (s.γ_D - s.γ_l) / (π/2 - s.γ_l)
 
     calc_inertia!(s)
     calc_pos_principal!(s)

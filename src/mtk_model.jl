@@ -104,7 +104,7 @@ end
 """
 Calculate the forces acting on the kite inertia particle.
 """
-function calc_kite_forces!(s::KPSQ, seqs, force_eqs, force, torque_p, R_b_w, R_p_w, kite_vel, kite_acc, ω_b, t, e_x, e_z, rho, v_wind, trailing_edge_angle)
+function calc_kite_forces!(s::KPSQ, seqs, force_eqs, force, torque_p, R_b_w, R_p_w, kite_vel, kite_acc, ω_b, α_b, t, e_x, e_z, rho, v_wind, trailing_edge_angle)
     n = s.set.aero_surfaces
 
     # integrating loop variables, iterating over 2n segments
@@ -142,49 +142,49 @@ function calc_kite_forces!(s::KPSQ, seqs, force_eqs, force, torque_p, R_b_w, R_p
         F_te_D(t)[1:3]
     end
 
-    s.α_l         = π/2 - s.set.width/2/s.set.radius
-    α_middle    = π/2
-    dα          = (α_middle - s.α_l) / n
-    α_m_l = π/2 - s.set.min_steering_line_distance/s.set.radius # end of steering lines on left side
-    α_m_r = π/2 + s.set.min_steering_line_distance/s.set.radius # end of steering lines on right side
+    s.γ_l         = π/2 - s.set.width/2/s.set.radius
+    γ_middle    = π/2
+    dγ          = (γ_middle - s.γ_l) / n
+    γ_m_l = π/2 - s.set.min_steering_line_distance/s.set.radius # end of steering lines on left side
+    γ_m_r = π/2 + s.set.min_steering_line_distance/s.set.radius # end of steering lines on right side
     
     for i in 1:2n
         if i <= n
-            α = s.α_l + -dα/2 + i * dα
-            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (α - s.α_l) / (π/2 - s.α_l) # TODO: kite length gets less with flap turning
+            γ = s.γ_l + -dγ/2 + i * dγ
+            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (γ - s.γ_l) / (π/2 - s.γ_l) # TODO: kite length gets less with flap turning
         else
-            α = pi - (s.α_l + -dα/2 + (i-n) * dα)
-            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (π - s.α_l - α) / (π/2 - s.α_l)
+            γ = pi - (s.γ_l + -dγ/2 + (i-n) * dγ)
+            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (π - s.γ_l - γ) / (π/2 - s.γ_l)
         end
         seg_flap_height = kite_length * s.set.flap_height
 
         seqs = [
             seqs
-            e_r[:, i]       ~ rotate_v_around_k(e_z, e_x, 0.5π + α)
+            e_r[:, i]       ~ rotate_v_around_k(e_z, e_x, 0.5π + γ)
             seg_vel[:, i]   ~ kite_vel + R_b_w * (ω_b × s.seg_cop_pos_b[:, i])
             v_a[:, i]       ~ v_wind .- seg_vel[:, i]
             e_drift[:, i]   ~ (e_x × e_r[:, i])
             v_a_xr[:, i]    ~ v_a[:, i] .- (v_a[:, i] ⋅ e_drift[:, i]) .* e_drift[:, i]
 
-            α < α_m_l ?
+            γ < γ_m_l ?
                 seg_trailing_edge_angle[i] ~ trailing_edge_angle[1]  :
-            α > α_m_r ?
+            γ > γ_m_r ?
                 seg_trailing_edge_angle[i] ~ trailing_edge_angle[2] :
-                seg_trailing_edge_angle[i] ~ ((trailing_edge_angle[2] - trailing_edge_angle[1]) / (α_m_r - α_m_l) * (α - α_m_l) + trailing_edge_angle[1])
+                seg_trailing_edge_angle[i] ~ ((trailing_edge_angle[2] - trailing_edge_angle[1]) / (γ_m_r - γ_m_l) * (γ - γ_m_l) + trailing_edge_angle[1])
 
             aoa[i]      ~ -asin2(normalize(v_a_xr[:, i]) ⋅ e_r[:, i]) + deg2rad(s.set.alpha_zero)
             seg_cl[i]   ~ sym_interp(s.cl_interp, aoa[i], seg_trailing_edge_angle[i])
             seg_cd[i]   ~ sym_interp(s.cd_interp, aoa[i], seg_trailing_edge_angle[i])
 
-            seg_L[:, i] ~ 0.5 * rho * (norm(v_a_xr[:, i]))^2 * s.set.radius * dα * kite_length * seg_cl[i] * 
+            seg_L[:, i] ~ 0.5 * rho * (norm(v_a_xr[:, i]))^2 * s.set.radius * dγ * kite_length * seg_cl[i] * 
                                 normalize(v_a_xr[:, i] × e_drift[:, i])
-            seg_D[:, i] ~ 0.5 * rho * norm(v_a_xr[:, i]) * s.set.radius * dα * kite_length * seg_cd[i] *
+            seg_D[:, i] ~ 0.5 * rho * norm(v_a_xr[:, i]) * s.set.radius * dγ * kite_length * seg_cd[i] *
                                 v_a_xr[:, i]
 
             e_te[:, i] ~ -e_x * sin(seg_trailing_edge_angle[i]) + e_r[:, i] * cos(seg_trailing_edge_angle[i])
             ram_force[i] ~ smooth_sign_ϵ(deg2rad(s.set.alpha_zero) - seg_trailing_edge_angle[i]; s.ϵ) *
-                        rho * norm(v_a[:, i])^2 * seg_flap_height * s.set.radius * dα * (seg_flap_height/2) / (kite_length/4)
-            te_force[i] ~ 0.5 * rho * (norm(v_a_xr[:, i]))^2 * s.set.radius * dα * kite_length * 
+                        rho * norm(v_a[:, i])^2 * seg_flap_height * s.set.radius * dγ * (seg_flap_height/2) / (kite_length/4)
+            te_force[i] ~ 0.5 * rho * (norm(v_a_xr[:, i]))^2 * s.set.radius * dγ * kite_length * 
                         sym_interp(s.c_te_interp, aoa[i], seg_trailing_edge_angle[i])
             seg_te_force[:, i] ~ (ram_force[i] + te_force[i]) * e_te[:, i]
             
@@ -208,14 +208,16 @@ function calc_kite_forces!(s::KPSQ, seqs, force_eqs, force, torque_p, R_b_w, R_p
     # longtitudinal force
     # F_inside_flap = P * A
     # F_inside_flap = rho * norm(v)^2 * flap_height * width
-    # F_inside_flap = rho * norm(v)^2 * flap_height * radius * dα
+    # F_inside_flap = rho * norm(v)^2 * flap_height * radius * dγ
     # F_trailing_edge = -F_inside_flap * (flap_height/2) / (kite_length/4) if trailing_edge_angle > 0 clockwise force
     # F_trailing_edge = F_inside_flap * (flap_height/2) / (kite_length/4) if trailing_edge_angle < 0 clockwise force
-    # dF_te_dα = rho * norm(v)^2 * flap_height * radius
+    # dF_te_dγ = rho * norm(v)^2 * flap_height * radius
     # flap_height = height_middle * kite_length / middle_length
     
-    force_eqs[:,s.i_A] .= (force[:, s.i_A] .~ F_te_C + [0.0, 0.0, -G_EARTH*(s.set.mass/8)])
-    force_eqs[:,s.i_B] .= (force[:, s.i_B] .~ F_te_D + [0.0, 0.0, -G_EARTH*(s.set.mass/8)])
+    kite_acc_A = kite_acc + R_b_w * (α_b × s.pos_A_b + ω_b × (ω_b × s.pos_A_b))
+    kite_acc_B = kite_acc + R_b_w * (α_b × s.pos_A_b + ω_b × (ω_b × s.pos_A_b))
+    force_eqs[:,s.i_A] .= (force[:, s.i_A] .~ F_te_C + ([0.0, 0.0, -G_EARTH*(s.set.mass/8)] - kite_acc_A) * (s.set.mass/8))
+    force_eqs[:,s.i_B] .= (force[:, s.i_B] .~ F_te_D + ([0.0, 0.0, -G_EARTH*(s.set.mass/8)] - kite_acc_B) * (s.set.mass/8))
     return seqs, force_eqs
 end
 
@@ -387,8 +389,8 @@ function scalar_eqs!(s, seqs, pos, vel, acc, R_b_w, ω_p, ω_b, kite_pos, kite_v
         e_x     ~ R_b_w * [1, 0, 0]
         e_y     ~ R_b_w * [0, 1, 0]
         e_z     ~ R_b_w * [0, 0, 1]
-        e_r_D   ~ rotate_v_around_k(e_z, e_x, 0.5π + s.α_D)
-        e_r_E   ~ rotate_v_around_k(e_z, e_x, 1.5π - s.α_D)
+        e_r_D   ~ rotate_v_around_k(e_z, e_x, 0.5π + s.γ_D)
+        e_r_E   ~ rotate_v_around_k(e_z, e_x, 1.5π - s.γ_D)
         e_te_A  ~ -e_x * sin(trailing_edge_angle[1]) + e_r_D * cos(trailing_edge_angle[1])
         e_te_B  ~ -e_x * sin(trailing_edge_angle[2]) + e_r_E * cos(trailing_edge_angle[2])
         rho_kite        ~ calc_rho(s.am, pos[3,s.i_A])
@@ -546,7 +548,7 @@ function create_sys!(s::KPSQ)
     seqs            = scalar_eqs!(s, seqs, pos, vel, acc, R_b_w, ω_p, ω_b, kite_pos, kite_vel, kite_acc, trailing_edge_angle, trailing_edge_ω, segment_length, mass_tether_particle, damping, c_spring, 
                         e_y, e_z, e_x, e_r_D, e_r_E, e_te_A, e_te_B, rho_kite, tether_length, tether_vel,
                         mass_per_meter, force, set_values)
-    seqs, force_eqs = calc_kite_forces!(s, seqs, force_eqs, force, torque_p, R_b_w, R_p_w, kite_vel, kite_acc, ω_b, t, e_x, e_z, rho_kite, v_wind, trailing_edge_angle)
+    seqs, force_eqs = calc_kite_forces!(s, seqs, force_eqs, force, torque_p, R_b_w, R_p_w, kite_vel, kite_acc, ω_b, α_b, t, e_x, e_z, rho_kite, v_wind, trailing_edge_angle)
     seqs, force_eqs = calc_tether_forces!(s, seqs, force_eqs, t, force, pos, vel, segment_length, c_spring, damping, v_wind_gnd, norm1)
     
     if s.torque_control

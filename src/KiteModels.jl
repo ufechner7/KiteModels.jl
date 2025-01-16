@@ -747,7 +747,7 @@ end
     kps4_::KPS4 = KPS4(KCU(set))
     kps3_::KPS3 = KPS3(KCU(se("system.yaml")))
     if ! haskey(ENV, "NO_MTK")    
-        kps4_3l_::KPSQ = KPSQ(KCU(se(SYS_3L)))
+        kpsq_::KPSQ = KPSQ(KCU(se(SYS_3L)))
     end
     @assert ! isnothing(kps4_.wm)
     @compile_workload begin
@@ -756,8 +756,8 @@ end
         integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
         integrator = KiteModels.init_sim!(kps4_; delta=0.03, stiffness_factor=0.05, prn=false) 
         if ! haskey(ENV, "NO_MTK")
-            # integrator = KiteModels.init_sim!(kps4_3l_)
-        end   
+            integrator = KiteModels.init_sim!(kpsq_)
+        end
         nothing
     end
 end

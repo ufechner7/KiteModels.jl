@@ -130,21 +130,21 @@ function calc_inertia!(s::KPSQ)
     pos = zeros(3, 2segs)
     mass = zeros(2segs)
     
-    @assert s.α_l != 0.0
-    α_middle    = π/2
-    dα          = (α_middle - s.α_l) / segs
+    @assert s.γ_l != 0.0
+    γ_middle    = π/2
+    dγ          = (γ_middle - s.γ_l) / segs
     for i in 1:2segs
         if i <= segs
-            α = s.α_l + -dα/2 + i * dα
-            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (α - s.α_l) / (π/2 - s.α_l)
+            γ = s.γ_l + -dγ/2 + i * dγ
+            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (γ - s.γ_l) / (π/2 - s.γ_l)
         else
-            α = pi - (s.α_l + -dα/2 + (i-segs) * dα)
-            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (π - s.α_l - α) / (π/2 - s.α_l)
+            γ = pi - (s.γ_l + -dγ/2 + (i-segs) * dγ)
+            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (π - s.γ_l - γ) / (π/2 - s.γ_l)
         end
         
         area = kite_length * s.set.width/(2segs)
         mass[i] = area * mass_per_area
-        pos[:, i] = [-0.5 * kite_length, cos(α) * s.set.radius, sin(α) * s.set.radius]
+        pos[:, i] = [-0.5 * kite_length, cos(γ) * s.set.radius, sin(γ) * s.set.radius]
         s.pos_circle_center_b .-= mass[i] * pos[:, i]
     end
     s.pos_circle_center_b ./= sum(mass)
@@ -191,28 +191,28 @@ function calc_pos_principal!(s::KPSQ)
     # pos in principal frame relative to com
     mass_per_area = s.set.mass / ((s.set.middle_length + s.set.tip_length) * 0.5 * s.set.width)
     n = s.set.aero_surfaces
-    s.α_l       = π/2 - s.set.width/2/s.set.radius
-    α_middle    = π/2
-    dα          = (α_middle - s.α_l) / n
+    s.γ_l       = π/2 - s.set.width/2/s.set.radius
+    γ_middle    = π/2
+    dγ          = (γ_middle - s.γ_l) / n
     for i in 1:2n
         if i <= n
-            α = s.α_l + -dα/2 + i * dα
-            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (α - s.α_l) / (π/2 - s.α_l) # TODO: kite length gets less with flap turning
+            γ = s.γ_l + -dγ/2 + i * dγ
+            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (γ - s.γ_l) / (π/2 - s.γ_l) # TODO: kite length gets less with flap turning
         else
-            α = pi - (s.α_l + -dα/2 + (i-n) * dα)
-            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (π - s.α_l - α) / (π/2 - s.α_l)
+            γ = pi - (s.γ_l + -dγ/2 + (i-n) * dγ)
+            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (π - s.γ_l - γ) / (π/2 - s.γ_l)
         end
         area = kite_length * s.set.width/(2n)
         s.seg_mass[i] = area * mass_per_area
 
-        s.seg_com_pos_p[:, i] .= s.R_b_p * ([-0.5 * kite_length, cos(α) * s.set.radius, sin(α) * s.set.radius] .+ s.pos_circle_center_b)
-        s.seg_cop_pos_b[:, i] .= [-0.75 * kite_length, cos(α) * s.set.radius, sin(α) * s.set.radius] + s.pos_circle_center_b
+        s.seg_com_pos_p[:, i] .= s.R_b_p * ([-0.5 * kite_length, cos(γ) * s.set.radius, sin(γ) * s.set.radius] .+ s.pos_circle_center_b)
+        s.seg_cop_pos_b[:, i] .= [-0.75 * kite_length, cos(γ) * s.set.radius, sin(γ) * s.set.radius] + s.pos_circle_center_b
         s.seg_cop_pos_p[:, i] .= s.R_b_p * s.seg_cop_pos_b[:, i]
     end
     s.pos_C_b = s.pos_circle_center_b .+ [-0.75s.kite_length_D, 0.0, s.set.radius - s.set.bridle_center_distance]
     s.pos_C_p .= s.R_b_p * s.pos_C_b
-    s.pos_A_b .= [0.0, cos(s.α_D), 0.0] .+ s.pos_C_b
-    s.pos_B_b .= [0.0, -cos(s.α_D), 0.0] .+ s.pos_C_b
+    s.pos_A_b .= [0.0, cos(s.γ_D), 0.0] .+ s.pos_C_b
+    s.pos_B_b .= [0.0, -cos(s.γ_D), 0.0] .+ s.pos_C_b
     return nothing
 end
 
@@ -240,8 +240,8 @@ function init_pos!(s::KPSQ; distance=s.measure.tether_length[3])
     s.kite_pos .= s.pos[:, s.i_C] - R_b_w * s.pos_C_b
     
     # init tether connection points
-    s.pos_D_b .= [0.0, cos(s.α_D) * s.set.radius, sin(s.α_D) * s.set.radius]
-    s.pos_E_b .= [0.0, -cos(s.α_D) * s.set.radius, sin(s.α_D) * s.set.radius]
+    s.pos_D_b .= [0.0, cos(s.γ_D) * s.set.radius, sin(s.γ_D) * s.set.radius]
+    s.pos_E_b .= [0.0, -cos(s.γ_D) * s.set.radius, sin(s.γ_D) * s.set.radius]
     e_r_D = -normalize(s.pos_D_b)
     e_r_E = -normalize(s.pos_E_b)
     te_length = s.kite_length_D/4
@@ -269,6 +269,7 @@ function init_distance!(s)
     net_torque = angular_acc * s.set.inertia_total
     tether_force = (net_torque - s.measure.set_values[3]) / s.set.drum_radius
     tether_length = s.measure.tether_length[3]
+    @assert tether_force > 0.0
     stretched_tether_length = tether_length + tether_force / (s.c_spring[3]/tether_length)
     function f_zero(distance)
         init_pos!(s; distance)
