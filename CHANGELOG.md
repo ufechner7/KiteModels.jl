@@ -1,3 +1,14 @@
+### KiteModels v0.6.14 2025-01-16
+#### Fixed
+- crash due to a new version of `DierckX_jll`
+#### Changed
+- bump versions in Project.toml
+- add upwind_dir to `settings.yaml` file, remove `v_wind_ref` vector
+- add `p_speed`, `i_speed` and `max_acc` to winch settings
+- replaced `autodiff=false` with `autodiff=AutoFiniteDiff()` to fix warnings
+- added package `ADTypes` to provide `AutoFiniteDiff()`
+- cleanup code
+
 ### KiteModels v0.6.13 2024-12-06
 #### Changed
 - update the fields `set_steering`, `bearing` and `attractor` of the `SysState` struct 

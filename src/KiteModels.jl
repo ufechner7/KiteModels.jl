@@ -51,6 +51,7 @@ import OrdinaryDiffEqCore.init
 import OrdinaryDiffEqCore.step!
 using ModelingToolkit, SymbolicIndexingInterface, SteadyStateDiffEq
 using ModelingToolkit: t_nounits as t, D_nounits as D
+using ADTypes: AutoFiniteDiff
 import ModelingToolkit.SciMLBase: successful_retcode
 
 export KPS3, KPS4, KPSQ, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                     # constants and types
@@ -245,27 +246,6 @@ function tether_length(s::AKM)
         length += norm(s.pos[i+1] - s.pos[i])
     end
     return length
-end
-
-
-"""
-    orient_euler_old(s::AKM)
-
-Calculate and return the orientation of the kite in euler angles (roll, pitch, yaw)
-as SVector. Does not give the correct result, use orient_euler instead.
-"""
-function orient_euler_old(s::AKM)
-    x, y, z = kite_ref_frame(s)
-    roll = atan(y[3], z[3]) - π/2
-    if roll < -π/2
-       roll += 2π
-    end
-    pitch = asin(-x[3])
-    yaw = -atan(x[2], x[1]) - π/2
-    if yaw < -π/2
-        yaw += 2π
-    end
-    SVector(roll, pitch, yaw)
 end
 
 """
@@ -525,12 +505,12 @@ end
 """
     init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.5, delta=0.001, upwind_dir=-pi/2, prn=false)
 
-Initialises the integrator of the model.
+Initializes the integrator of the model.
 
 Parameters:
 - s:     an instance of an abstract kite model
 - t_end: end time of the simulation; normally not needed
-- stiffness_factor: factor applied to the tether stiffness during initialisation
+- stiffness_factor: factor applied to the tether stiffness during initialization
 - delta: initial stretch of the tether during the steady state calculation
 - upwind_dir: upwind direction in radians, the direction the wind is coming from. Zero is at north; 
               clockwise positive. Default: -pi/2, wind from west.
@@ -560,9 +540,9 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.5, delta=0.001, upwind_
     if s.set.solver=="IDA"
         solver  = Sundials.IDA(linear_solver=Symbol(s.set.linear_solver), max_order = s.set.max_order)
     elseif s.set.solver=="DImplicitEuler"
-        solver  = DImplicitEuler(autodiff=false)
+        solver  = DImplicitEuler(autodiff=AutoFiniteDiff())
     elseif s.set.solver=="DFBDF"
-        solver  = DFBDF(autodiff=false, max_order=Val{s.set.max_order}())        
+        solver  = DFBDF(autodiff=AutoFiniteDiff(), max_order=Val{s.set.max_order}())        
     else
         println("Error! Invalid solver in settings.yaml: $(s.set.solver)")
         return nothing
