@@ -157,10 +157,11 @@ Parameters:
 This function sets the variables s.depower, s.steering and s.alpha_depower. 
 
 It takes the depower offset c0 and the dependency of the steering sensitivity from
-the depower settings into account.
+the depower settings into account. The raw steering value is stored in s.kcu_steering.
 """
 function set_depower_steering!(s::AKM, depower, steering)
     s.depower  = depower
+    s.kcu_steering = steering
     s.alpha_depower = calc_alpha_depower(s.kcu, depower)
     s.steering = (steering - s.set.c0) / (1.0 + s.set.k_ds * (s.alpha_depower / deg2rad(s.set.alpha_d_max)))
     nothing
@@ -427,6 +428,7 @@ function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
     ss.v_reelout = s.v_reel_out
     ss.depower = s.depower
     ss.steering = s.steering/s.set.cs_4p
+    ss.kcu_steering = s.kcu_steering/s.set.cs_4p
     ss.vel_kite .= s.vel_kite
     ss.t_sim = 0.0
     ss.AoA = deg2rad(s.alpha_2)
