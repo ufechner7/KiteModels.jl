@@ -11,4 +11,5 @@ KiteUtils.set_data_path("")
     include("bench3.jl")
     include("bench4.jl")
     include("test_helpers.jl")
+    include("test_inertia_calculation.jl")
 end
