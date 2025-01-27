@@ -163,6 +163,8 @@ $(TYPEDFIELDS)
     depower::S =           0.0
     "actual relative steering setting, must be between -1.0 .. 1.0"
     steering::S =          0.0
+    "steering after the kcu, before applying offset and depower sensitivity, -1.0 .. 1.0"
+    kcu_steering::S =      0.0
     "multiplier for the stiffniss of tether and bridle"
     stiffness_factor::S =  1.0
     "initial masses of the point masses"
