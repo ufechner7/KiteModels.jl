@@ -1,3 +1,8 @@
+### KiteModels v0.6.15 2025-01-27
+- log kcu_steering in SysState (output of KCU without applying corrections)
+- fix tests for Julia 1.11.3
+- cleanup `run_julia`
+
 ### KiteModels v0.6.14 2025-01-16
 #### Fixed
 - crash due to a new version of `DierckX_jll`
