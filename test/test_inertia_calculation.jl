@@ -9,7 +9,7 @@ S = KPS4(TEST_KCU)
 
 @testset verbose=true "test_rotational_inertia" begin
     @testset "kite including KCU around CoM " begin
-        Ixx, Ixy, Ixz, Iyy, Iyz, Izz = calculate_inertia_for_setting!(S, true, false)
+        Ixx, Ixy, Ixz, Iyy, Iyz, Izz = calculate_rotational_inertia!(S, true, false)
 
         @test isapprox(Ixx, 124.53,     rtol=0.005)
         @test isapprox(Ixy, 0,          rtol=0.001)
@@ -20,7 +20,7 @@ S = KPS4(TEST_KCU)
     end
 
     @testset "kite no KCU around CoM" begin
-        Ixx, Ixy, Ixz, Iyy, Iyz, Izz = calculate_inertia_for_setting!(S, false, false)
+        Ixx, Ixy, Ixz, Iyy, Iyz, Izz = calculate_rotational_inertia!(S, false, false)
 
         @test isapprox(Ixx, 21.5607,    rtol=0.001)
         @test isapprox(Ixy, 0,          rtol=0.001)
@@ -31,7 +31,7 @@ S = KPS4(TEST_KCU)
     end
 
     @testset "kite including KCU around KCU" begin
-        Ixx, Ixy, Ixz, Iyy, Iyz, Izz = calculate_inertia_for_setting!(S, true, true)
+        Ixx, Ixy, Ixz, Iyy, Iyz, Izz = calculate_rotational_inertia!(S, true, true)
 
         @test isapprox(Ixx, 200.533,    rtol=0.001) 
         @test isapprox(Ixy, 0,          rtol=0.001) 
@@ -42,7 +42,7 @@ S = KPS4(TEST_KCU)
     end
 
     @testset "kite no KCU around KCU" begin
-        Ixx, Ixy, Ixz, Iyy, Iyz, Izz = calculate_inertia_for_setting!(S, false, true)
+        Ixx, Ixy, Ixz, Iyy, Iyz, Izz = calculate_rotational_inertia!(S, false, true)
 
         @test isapprox(Ixx, 200.533,    rtol=0.001) 
         @test isapprox(Ixy, 0,          rtol=0.001) 
