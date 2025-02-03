@@ -31,12 +31,12 @@ end
 
 SETFILE = "system_v9.yaml"
 INCL_KCU = false
-ARROUND_KCU = false
+AROUND_KCU = false
 
 SET = deepcopy(load_settings(SETFILE))
 TEST_KCU = KCU(SET)
 S = KPS4(TEST_KCU)
 
-print_settings(INCL_KCU, ARROUND_KCU)
-ixx, ixy, ixz, iyy, iyz, izz = calculate_rotational_inertia!(S, INCL_KCU, ARROUND_KCU)
+print_settings(INCL_KCU, AROUND_KCU)
+ixx, ixy, ixz, iyy, iyz, izz = calculate_rotational_inertia!(S, INCL_KCU, AROUND_KCU)
 print_inertia_matrix(ixx, ixy, ixz, iyy, iyz, izz)
