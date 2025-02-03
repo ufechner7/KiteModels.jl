@@ -2,6 +2,8 @@
 - log kcu_steering in SysState (output of KCU without applying corrections)
 - fix tests for Julia 1.11.3
 - cleanup `run_julia`
+- add function `calculate_rotational_inertia!()`
+- add example `calculate_rotational_inertia.jl` and add it to the menu
 
 ### KiteModels v0.6.14 2025-01-16
 #### Fixed
