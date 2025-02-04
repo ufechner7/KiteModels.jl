@@ -416,6 +416,9 @@ end
         @test all(pos[i] .≈ poss[i])
         @test all(vel[i] .≈ vels[i])
     end
+    println("---->>>")
+    println("vels: ", vels)
+    println("vel:  ", vel)
     time = 0.0
     @test length(res) == length(y0)-2
     residual!(res, yd0, y0, kps4, time)
