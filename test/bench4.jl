@@ -1,12 +1,10 @@
 using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils
 using KiteModels, KitePodModels
 
-if ! @isdefined kcu
-    const kcu = KCU(se())
-end
-if ! @isdefined kps4
-    const kps4 = KPS4(kcu)
-end
+set_data_path(joinpath(dirname(dirname(pathof(KiteModels))), "data"))
+set = deepcopy(load_settings("system.yaml"))
+kcu::KCU = KCU(set)
+kps4::KPS4 = KPS4(kcu)
 
 msg = String[]
 @testset verbose = true "KPS4 benchmarking...     " begin
