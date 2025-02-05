@@ -245,7 +245,7 @@ function KPS4(kcu::KCU)
     elseif kcu.set.winch_model == "TorqueControlledMachine"
         wm = TorqueControlledMachine(kcu.set)
     end
-    wm.last_set_speed = kcu.set.v_reel_out
+    # wm.last_set_speed = kcu.set.v_reel_out
     s = KPS4{SimFloat, KVec3, kcu.set.segments+KITE_PARTICLES+1, kcu.set.segments+KITE_SPRINGS, SP}(set=kcu.set, 
              kcu=kcu, wm=wm, calc_cl = Spline1D(kcu.set.alpha_cl, kcu.set.cl_list), 
              calc_cd=Spline1D(kcu.set.alpha_cd, kcu.set.cd_list) )    
@@ -507,7 +507,9 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
 
     # winch calculations
     res[end-1] = lengthd - v_reel_out
-    res[end] = v_reel_outd - calc_acceleration(s.wm, v_reel_out, norm(s.forces[1]); set_speed=s.sync_speed, set_torque=s.set_torque, use_brake=true)
+    use_brake = s.wm isa AsyncMachine
+    res[end] = v_reel_outd - calc_acceleration(s.wm, v_reel_out, norm(s.forces[1]); set_speed=s.sync_speed, 
+               set_torque=s.set_torque, use_brake)
 
     # copy and flatten result
     for i in 2:div(T,6)+1
