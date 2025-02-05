@@ -6,7 +6,7 @@ set = deepcopy(load_settings("system.yaml"))
 # the following values can be changed to match your interest
 dt = 0.05
 set.solver="DFBDF" # IDA or DFBDF
-set.v_reel_out = 5e-10 # initial reel-out speed [m/s]
+set.v_reel_out = 5e-1 # initial reel-out speed [m/s]
 STEPS = 600
 PLOT = true
 FRONT_VIEW = false
