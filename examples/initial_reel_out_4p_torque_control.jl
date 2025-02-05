@@ -6,8 +6,8 @@ set = deepcopy(load_settings("system.yaml"))
 # the following values can be changed to match your interest
 dt = 0.05
 set.solver="DFBDF" # IDA or DFBDF
-set.v_reel_out = 5e-1 # initial reel-out speed [m/s]
-STEPS = 600
+set.v_reel_out = 0 # initial reel-out speed [m/s]
+STEPS = 4
 PLOT = true
 FRONT_VIEW = false
 ZOOM = true
@@ -45,19 +45,29 @@ function simulate(integrator, steps, plot=false)
             @printf "%.2f: " round(integrator.t, digits=2)
             println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
         end
-        dforce = 0.0
+        # dforce = 0.0
+        # if kps4.t_0 > 15.0
+        #     dforce = +4.5
+        # end
+        # force = norm(kps4.forces[1])
+        # r = set.drum_radius
+        # n = set.gear_ratio
+        # set_torque = -r/n * force + dforce
+
+        acc = 0.0
         if kps4.t_0 > 15.0
-            dforce = +4.5
+            acc = 0.1
         end
-        force = norm(kps4.forces[1])
-        r = set.drum_radius
-        n = set.gear_ratio
-        set_torque = -r/n * force + dforce
-        # println("set_torque: $set_torque")
+        set_speed = kps4.sync_speed+acc*dt
         v_time[i] = kps4.t_0
         v_speed[i] = kps4.v_reel_out
         v_force[i] = winch_force(kps4)
-        KiteModels.next_step!(kps4, integrator; set_torque, dt)
+
+        # println("set_torque: $set_torque")
+        # v_time[i] = kps4.t_0
+        # v_speed[i] = kps4.v_reel_out
+        # v_force[i] = winch_force(kps4)
+        KiteModels.next_step!(kps4, integrator; set_speed, dt)
         if ! SciMLBase.successful_retcode(integrator.sol)
             println("Solver failed at time $(integrator.t)")
             println("force: $(force)")
@@ -67,6 +77,7 @@ function simulate(integrator, steps, plot=false)
             SOL = integrator.sol
             break
         end
+        kps4.wm.last_set_speed = set_speed
         iter += kps4.iter
         
         if plot
@@ -80,8 +91,8 @@ function simulate(integrator, steps, plot=false)
     iter / steps
 end
 
-# kps4.sync_speed = set.v_reel_out
-# kps4.wm.last_set_speed = set.v_reel_out
+kps4.sync_speed = set.v_reel_out
+kps4.wm.last_set_speed = set.v_reel_out
 integrator = KiteModels.init_sim!(kps4; delta=0, stiffness_factor=1, prn=STATISTIC)
 
 if PLOT
