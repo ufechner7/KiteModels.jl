@@ -1,6 +1,9 @@
-### Unreleased
+### KiteModels v0.6.16 2025-02-06
 #### Changed
 - `initial_reel_out_4p.jl` shows a simulation that starts with an initial reel-out speed > 0
+- `initial_reel_out_4p_torque_control` runs a simulation with a torque controlled winch and an initial reel-out speed > 0
+#### Fixed
+- initial reel-out speed handled correctly
 
 ### KiteModels v0.6.15 2025-02-03
 - log kcu_steering in SysState (output of KCU without applying corrections)
