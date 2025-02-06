@@ -567,7 +567,7 @@ Parameters:
 Returns:
 An instance of a DAE integrator.
 """
-function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.5, delta=0.001, upwind_dir=-pi/2, prn=false)
+function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.5, delta=0.0001, upwind_dir=-pi/2, prn=false)
     clear!(s)
     s.stiffness_factor = stiffness_factor
     
@@ -602,12 +602,15 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.5, delta=0.001, upwind_
 
     differential_vars = ones(Bool, length(y0))
     prob    = DAEProblem{true}(residual!, yd0, y0, tspan, s; differential_vars)
-    integrator = OrdinaryDiffEqCore.init(prob, solver; abstol=abstol, reltol=s.set.rel_tol, save_everystep=false)
+    integrator = OrdinaryDiffEqCore.init(prob, solver; abstol=abstol, reltol=s.set.rel_tol, save_everystep=false,
+                                         initializealg=OrdinaryDiffEqCore.NoInit())
     if isa(s, KPS4)
         roll, pitch, yaw = orient_euler(s)
         s.pitch_rate = 0
         s.pitch = pitch
+        set_initial_velocity!(s)
     end
+    s.v_reel_out = s.set.v_reel_out
     return integrator
 end
 

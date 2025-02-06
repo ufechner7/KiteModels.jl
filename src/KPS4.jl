@@ -103,7 +103,7 @@ $(TYPEDFIELDS)
     v_apparent::T =       zeros(S, 3)
     "bridle_factor = set.l_bridle/bridle_length(set)"
     bridle_factor::S = 1.0
-    "side lift coefficient, the difference of the left and right lift coeficients"
+    "side lift coefficient, the difference of the left and right lift coefficients"
     side_cl::S = 0.0
     "drag force of kite and bridle; output of calc_aero_forces!"
     drag_force::T =       zeros(S, 3)
@@ -123,6 +123,8 @@ $(TYPEDFIELDS)
     res2::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     "a copy of the actual positions as output for the user"
     pos::SVector{P, KVec3} = zeros(SVector{P, KVec3})
+    "a copy of the actual velocities as output for the user"
+    vel::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     "velocity vector of the kite"
     vel_kite::T =          zeros(S, 3)
     "unstressed segment length [m]"
@@ -131,7 +133,7 @@ $(TYPEDFIELDS)
     param_cl::S =         0.2
     "drag coefficient of the kite, depending on the angle of attack"
     param_cd::S =         1.0
-    "azimuth angle in radian; inital value is zero"
+    "azimuth angle in radian; initial value is zero"
     psi::S =              zero(S)
     "depower angle [deg]"
     alpha_depower::S =     0.0
@@ -139,14 +141,14 @@ $(TYPEDFIELDS)
     pitch::S =            0.0
     "pitch rate [rad/s]"
     pitch_rate::S =       0.0
-    "aoa at paricle B"
+    "aoa at particle B"
     alpha_2::S =           0.0
-    "aoa at paricle B, corrected formula"
+    "aoa at particle B, corrected formula"
     alpha_2b::S =          0.0
-    "aoa at paricle C"
+    "aoa at particle C"
     alpha_3::S =           0.0
     alpha_3b::S =          0.0
-    "aoa at paricle D"
+    "aoa at particle D"
     alpha_4::S =           0.0
     alpha_4b::S =          0.0
     "relative start time of the current time interval"
@@ -207,8 +209,9 @@ Initialize the kite power model.
 """
 function clear!(s::KPS4)
     s.t_0 = 0.0                              # relative start time of the current time interval
-    s.v_reel_out = 0.0
-    s.last_v_reel_out = 0.0
+    s.v_reel_out = s.set.v_reel_out
+    s.last_v_reel_out = s.set.v_reel_out
+    s.sync_speed = s.set.v_reel_out
     s.v_wind_gnd    .= [s.set.v_wind, 0, 0]    # wind vector at reference height
     s.v_wind_tether .= [s.set.v_wind, 0, 0]
     s.v_apparent    .= [s.set.v_wind, 0, 0]
@@ -242,6 +245,7 @@ function KPS4(kcu::KCU)
     elseif kcu.set.winch_model == "TorqueControlledMachine"
         wm = TorqueControlledMachine(kcu.set)
     end
+    # wm.last_set_speed = kcu.set.v_reel_out
     s = KPS4{SimFloat, KVec3, kcu.set.segments+KITE_PARTICLES+1, kcu.set.segments+KITE_SPRINGS, SP}(set=kcu.set, 
              kcu=kcu, wm=wm, calc_cl = Spline1D(kcu.set.alpha_cl, kcu.set.cl_list), 
              calc_cd=Spline1D(kcu.set.alpha_cd, kcu.set.cd_list) )    
@@ -503,7 +507,9 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
 
     # winch calculations
     res[end-1] = lengthd - v_reel_out
-    res[end] = v_reel_outd - calc_acceleration(s.wm, v_reel_out, norm(s.forces[1]); set_speed=s.sync_speed, set_torque=s.set_torque, use_brake=true)
+    use_brake = s.wm isa AsyncMachine
+    res[end] = v_reel_outd - calc_acceleration(s.wm, v_reel_out, norm(s.forces[1]); set_speed=s.sync_speed, 
+               set_torque=s.set_torque, use_brake)
 
     # copy and flatten result
     for i in 2:div(T,6)+1
@@ -512,9 +518,10 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
             @inbounds res[3*(div(T,6))+3*(i-2)+j] = s.res2[i][j]
         end
     end
-    # copy the position vector for easy debugging
+    # copy the position and velocity vectors for easy debugging
     for i in 1:div(T,6)+1
         @inbounds s.pos[i] .= pos[i]
+        s.vel[i] .= vel[i]
     end
     s.vel_kite .= vel[end-2]
     s.v_reel_out = v_reel_out
