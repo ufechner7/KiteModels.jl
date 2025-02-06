@@ -88,7 +88,7 @@ end
                 push!(y2, y[i])
                 dx = x[i+1] - x[i]
                 cp_avg = (cp[i] + cp[i+1]) / 2
-                c_te -= dx * cp_avg * (x[i] - x_ref) / (1 - x_ref) # clockwise trailing_edge force at trailing edge
+                c_te -= dx * cp_avg * (x[i] - x_ref) # clockwise torque around (x_ref, y_ref)
             end
         end
         return c_te

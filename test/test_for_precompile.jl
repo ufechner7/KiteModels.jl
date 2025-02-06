@@ -111,7 +111,7 @@ if ! haskey(ENV, "NO_MTK")
     dt = 1/set.sample_freq
     tspan   = (0.0, dt)
 
-    logger = Logger(3*set.segments + 6, 5)
+    logger = Logger(3*set.segments + 4, 5)
 
     if ! @isdefined mtk_kite; mtk_kite = KPSQ(KCU(set)); end
     KiteModels.init_sim!(mtk_kite)

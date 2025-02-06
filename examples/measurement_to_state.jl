@@ -6,7 +6,7 @@ if plot
 end
 
 dt = 0.05
-total_time = 8.0
+total_time = 2.0
 steps = Int(round(total_time / dt))
 
 set = se("system_3l.yaml")
@@ -17,10 +17,10 @@ if !@isdefined(s); s = KPSQ(KCU(set)); end
 s.measure.set_values = [-1, -1, -50.0]
 s.measure.tether_acc = [0, 0, 0]
 s.measure.tether_length = [51., 51., 49.]
-s.measure.elevation_left = deg2rad(86)
-s.measure.elevation_right = deg2rad(86)
-s.measure.azimuth_left = deg2rad(1)
-s.measure.azimuth_right = deg2rad(-1)
+s.measure.sphere_pos[1, 1] = deg2rad(89)
+s.measure.sphere_pos[2, 1] = deg2rad(89)
+s.measure.sphere_pos[1, 2] = deg2rad(1)
+s.measure.sphere_pos[2, 2] = deg2rad(-1)
 s.set.abs_tol = 0.001
 s.set.rel_tol = 0.0006
 # s.measure.distance_acc = s.measure.tether_acc[3]
@@ -36,16 +36,15 @@ try
         global t, runtime
         local pos = [[sys_state.X[i], sys_state.Y[i], sys_state.Z[i]] for i in 1:s.i_C+1]
         plot && plot2d(pos, t; zoom=false, front=false, xlim=(-l/2, l/2), ylim=(0, l), segments=10)
-        global set_values = -s.set.drum_radius * KiteModels.tether_force(s)
-        # global set_values = s.measure.set_values
-        @show set_values
+        # global set_values = -s.set.drum_radius * KiteModels.tether_force(s)
+        global set_values = s.measure.set_values
         if t < 1.0; set_values[2] -= 0.0; end
         steptime = @elapsed t = next_step!(s; set_values, dt)
         if (t > total_time/2); runtime += steptime; end
         KiteModels.update_sys_state!(sys_state, s)
-        sys_state.var_01 = s.get_ω_b()[1]
-        sys_state.var_02 = s.get_ω_b()[2]
-        sys_state.var_03 = s.get_ω_b()[3]
+        sys_state.var_01 = s.get_α_b()[1]
+        sys_state.var_02 = s.get_α_b()[2]
+        sys_state.var_03 = s.get_α_b()[3]
         sys_state.var_04 = norm(s.get_kite_pos())
         sys_state.var_05 = s.get_distance_acc()
         sys_state.var_06 = norm(s.get_acc()[:, 6])
@@ -53,6 +52,7 @@ try
         sys_state.var_08 = s.get_trailing_edge_angle()[2]
         sys_state.var_09 = s.get_force()[:, s.i_A] ⋅ s.get_e_te_A()
         sys_state.var_10 = s.get_force()[:, s.i_B] ⋅ s.get_e_te_B()
+        sys_state.var_11 = s.get_tether_force()[3]
         log!(logger, sys_state)
     end
 catch e
@@ -70,17 +70,17 @@ if plot
             [logger.var_04_vec],
             [logger.var_05_vec, logger.var_06_vec],
             [logger.var_07_vec, logger.var_08_vec],
-            [logger.var_09_vec, logger.var_10_vec],
+            [logger.var_09_vec, logger.var_10_vec, logger.var_11_vec],
             [logger.heading_vec],
             ;
         ylabels=["acc", "α", "pos", "acc", "te angle", "force", "heading"], 
         labels=[
             ["acc"],
-            ["ω_b[1]", "ω_b[2]", "ω_b[3]"],
+            ["α_b[1]", "α_b[2]", "α_b[3]"],
             ["x kite"],
             ["distance", "middle tether"],
             ["left", "right"],
-            ["left", "right"],
+            ["left flap", "right flap", "middle tether"],
             ["heading_y"]
             ],
         fig="Steering and heading MTK model")

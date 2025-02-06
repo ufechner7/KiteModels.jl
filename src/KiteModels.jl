@@ -34,8 +34,9 @@ Scientific background: http://arxiv.org/abs/1406.6218 =#
 module KiteModels
 
 using PrecompileTools: @setup_workload, @compile_workload 
-using Dierckx, Interpolations, Serialization, StaticArrays, LinearAlgebra, Parameters, NLsolve, Roots, ForwardDiff, DiffEqCallbacks, HOODESolver,
-      DocStringExtensions, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK, NonlinearSolve, FiniteDiff, DifferentiationInterface
+using Dierckx, Interpolations, Serialization, StaticArrays, LinearAlgebra, Parameters, NLsolve, Roots, ForwardDiff, DiffEqCallbacks,
+      DocStringExtensions, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK, NonlinearSolve, FiniteDiff, DifferentiationInterface,
+      Optimization, OptimizationBBO, OptimizationOptimJL
 import Sundials
 using Reexport, Pkg
 @reexport using KitePodModels
@@ -715,30 +716,30 @@ function copy_bin()
     chmod(joinpath(PATH, "update_packages.jl"), 0o664)
 end
 
-@setup_workload begin
-    # Putting some things in `@setup_workload` instead of `@compile_workload` can reduce the size of the
-    # precompile file and potentially make loading faster.
-    # list = [OtherType("hello"), OtherType("world!")]
-    path = dirname(pathof(@__MODULE__))
-    set_data_path(joinpath(path, "..", "data"))
+# @setup_workload begin
+#     # Putting some things in `@setup_workload` instead of `@compile_workload` can reduce the size of the
+#     # precompile file and potentially make loading faster.
+#     # list = [OtherType("hello"), OtherType("world!")]
+#     path = dirname(pathof(@__MODULE__))
+#     set_data_path(joinpath(path, "..", "data"))
 
-    set = se("system.yaml")
-    set.kcu_diameter = 0
-    kps4_::KPS4 = KPS4(KCU(set))
-    kps3_::KPS3 = KPS3(KCU(se("system.yaml")))
-    if ! haskey(ENV, "NO_MTK")    
-        kpsq_::KPSQ = KPSQ(KCU(se(SYS_3L)))
-    end
-    @assert ! isnothing(kps4_.wm)
-    @compile_workload begin
-        # all calls in this block will be precompiled, regardless of whether
-        # they belong to your package or not (on Julia 1.8 and higher)
-        integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
-        integrator = KiteModels.init_sim!(kps4_; delta=0.03, stiffness_factor=0.05, prn=false) 
-        if ! haskey(ENV, "NO_MTK")
-            integrator = KiteModels.init_sim!(kpsq_)
-        end
-        nothing
-    end
-end
+#     set = se("system.yaml")
+#     set.kcu_diameter = 0
+#     kps4_::KPS4 = KPS4(KCU(set))
+#     kps3_::KPS3 = KPS3(KCU(se("system.yaml")))
+#     if ! haskey(ENV, "NO_MTK")    
+#         kpsq_::KPSQ = KPSQ(KCU(se(SYS_3L)))
+#     end
+#     @assert ! isnothing(kps4_.wm)
+#     @compile_workload begin
+#         # all calls in this block will be precompiled, regardless of whether
+#         # they belong to your package or not (on Julia 1.8 and higher)
+#         integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
+#         integrator = KiteModels.init_sim!(kps4_; delta=0.03, stiffness_factor=0.05, prn=false) 
+#         if ! haskey(ENV, "NO_MTK")
+#             integrator = KiteModels.init_sim!(kpsq_)
+#         end
+#         nothing
+#     end
+# end
 end

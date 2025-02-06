@@ -140,6 +140,8 @@ function calc_kite_forces!(s::KPSQ, seqs, force_eqs, force, torque_p, R_b_w, R_p
         D_D(t)[1:3]
         F_te_C(t)[1:3] # trailing edge clockwise force
         F_te_D(t)[1:3]
+        kite_acc_A(t)[1:3]
+        kite_acc_B(t)[1:3]
     end
 
     s.γ_l         = π/2 - s.set.width/2/s.set.radius
@@ -203,6 +205,8 @@ function calc_kite_forces!(s::KPSQ, seqs, force_eqs, force, torque_p, R_b_w, R_p
         torque_p ~ [sum(seg_aero_torque_p[i, :]) + sum(seg_gravity_torque_p[i, :]) + C_torque_p[i] for i in 1:3]
         F_te_C ~ [sum(seg_te_force[i, 1:n]) for i in 1:3]
         F_te_D ~ [sum(seg_te_force[i, n+1:2n]) for i in 1:3]
+        kite_acc_A ~ kite_acc + R_b_w * (α_b × s.pos_A_b + ω_b × (ω_b × s.pos_A_b))
+        kite_acc_B ~ kite_acc + R_b_w * (α_b × s.pos_A_b + ω_b × (ω_b × s.pos_A_b))
     ]
 
     # longtitudinal force
@@ -214,10 +218,8 @@ function calc_kite_forces!(s::KPSQ, seqs, force_eqs, force, torque_p, R_b_w, R_p
     # dF_te_dγ = rho * norm(v)^2 * flap_height * radius
     # flap_height = height_middle * kite_length / middle_length
     
-    kite_acc_A = kite_acc + R_b_w * (α_b × s.pos_A_b + ω_b × (ω_b × s.pos_A_b))
-    kite_acc_B = kite_acc + R_b_w * (α_b × s.pos_A_b + ω_b × (ω_b × s.pos_A_b))
-    force_eqs[:,s.i_A] .= (force[:, s.i_A] .~ F_te_C + ([0.0, 0.0, -G_EARTH*(s.set.mass/8)] - kite_acc_A) * (s.set.mass/8))
-    force_eqs[:,s.i_B] .= (force[:, s.i_B] .~ F_te_D + ([0.0, 0.0, -G_EARTH*(s.set.mass/8)] - kite_acc_B) * (s.set.mass/8))
+    force_eqs[:,s.i_A] .= (force[:, s.i_A] .~ F_te_C + ([0.0, 0.0, -G_EARTH*(s.set.mass/8)]) * (s.set.mass/8))
+    force_eqs[:,s.i_B] .= (force[:, s.i_B] .~ F_te_D + ([0.0, 0.0, -G_EARTH*(s.set.mass/8)]) * (s.set.mass/8))
     return seqs, force_eqs
 end
 
@@ -409,7 +411,9 @@ function scalar_eqs!(s, seqs, pos, vel, acc, R_b_w, ω_p, ω_b, kite_pos, kite_v
         azimuth(t)
         elevation(t)
         azimuth_vel(t)
+        azimuth_acc(t)
         elevation_vel(t)
+        elevation_acc(t)
         distance(t)[1:s.i_C]
         distance_vel(t)
         distance_acc(t)
@@ -419,6 +423,9 @@ function scalar_eqs!(s, seqs, pos, vel, acc, R_b_w, ω_p, ω_b, kite_pos, kite_v
         right_diff(t)
     end
     # seqs = expected_pos_vel(s, seqs, pos, kite_pos, kite_vel, tether_vel, tether_length, tether_force, norm1)
+    x, y, z = kite_pos
+    x´, y´, z´ = kite_vel
+    x´´, y´´, z´´ = kite_acc
     seqs = [
         seqs
         tether_force     ~ [norm(force[:, i]) for i in 1:3]
@@ -431,16 +438,18 @@ function scalar_eqs!(s, seqs, pos, vel, acc, R_b_w, ω_p, ω_b, kite_pos, kite_v
         tether_diff_vel     ~ tether_vel[2] - tether_vel[1]
         set_diff            ~ set_values[2] - set_values[1]
 
-        distance_vel        ~ kite_vel ⋅ normalize(kite_pos - pos[:, 3])
-        distance_acc        ~ kite_acc ⋅ normalize(kite_pos - pos[:, 3])
-        elevation           ~ atan(kite_pos[3] / kite_pos[1])
+        distance_vel        ~ kite_vel ⋅ normalize(pos[:, 3+3] - pos[:, 3])
+        distance_acc        ~ kite_acc ⋅ normalize(pos[:, 3+3] - pos[:, 3])
+        elevation           ~ atan(z / x)
         # elevation_vel = d/dt(atan(z/x)) = (x*ż' - z*ẋ')/(x^2 + z^2) according to wolframalpha
-        elevation_vel       ~ (kite_pos[1] * kite_vel[3] - kite_pos[3] * kite_vel[1]) / 
-                                (kite_pos[1]^2 + kite_pos[3]^2)
-        azimuth             ~ -atan(kite_pos[2] / kite_pos[1])
-        # azimuth_vel = d/dt(-atan(y/x)) = (y*x' - x*y')/(x^2 + y^2)
-        azimuth_vel         ~ (kite_pos[2] * kite_vel[1] - kite_pos[1] * kite_vel[2]) / 
-                                (kite_pos[1]^2 + kite_pos[2]^2)
+        elevation_vel       ~ (x*z´ - z*x´) / 
+                                (x^2 + z^2)
+        elevation_acc       ~ ((x^2 + z^2)*(x*z´´ - z*x´´) + 2(z*x´ - x*z´)*(x*x´ + z*z´))/(x^2 + z^2)^2
+        azimuth             ~ -atan(y / x)
+        # azimuth_vel = d/dt(-atan(y/x)) = (y*x´ - x*y´)/(x^2 + y^2)
+        azimuth_vel         ~ (y*x´ - x*y´) / 
+                                (x^2 + y^2)
+        azimuth_acc         ~ ((x^2 + y^2)*(y*x´´ - x*y´´) - 2(y*x´ - x*y´)*(x*x´ + y*y´))/(x^2 + y^2)^2
         x_acc               ~ kite_acc ⋅ e_x
         y_acc               ~ kite_acc ⋅ e_y
         left_diff           ~ tether_length[1] - tether_length[3]
@@ -450,7 +459,7 @@ function scalar_eqs!(s, seqs, pos, vel, acc, R_b_w, ω_p, ω_b, kite_pos, kite_v
     return seqs
 end
 
-function create_sys!(s::KPSQ)
+function create_sys!(s::KPSQ; init=false)
     if s.torque_control
         [s.motors[i] = TorqueControlledMachine(s.set) for i in 1:3]
     else
@@ -475,6 +484,7 @@ function create_sys!(s::KPSQ)
         ω_p(t)[1:3] # turn rate in principal frame
         ω_b(t)[1:3] # turn rate in body frame
         α_p(t)[1:3] # angular acceleration in principal frame
+        α_b(t)[1:3]
         torque_p(t)[1:3] # torque in principal frame
         trailing_edge_angle(t)[1:2]  # angle left right / C D
         trailing_edge_ω(t)[1:2]    # angular vel
@@ -522,10 +532,9 @@ function create_sys!(s::KPSQ)
         [R_p_w[:, i] ~ quaternion_to_rotation_matrix(Q_p_w)[:, i] for i in 1:3]
         D(ω_p[1]) ~ α_p[1]
         D(ω_p[2]) ~ α_p[2]
-        D(ω_p[3]) ~ α_p[3]
         α_p[1] ~ (torque_p[1] + (s.I_kite[2] - s.I_kite[3]) * ω_p[2] * ω_p[3]) / s.I_kite[1] - 0.0s.orient_damping*ω_p[1]
         α_p[2] ~ (torque_p[2] + (s.I_kite[3] - s.I_kite[1]) * ω_p[3] * ω_p[1]) / s.I_kite[2] - 0.0s.orient_damping*ω_p[2]
-        α_p[3] ~ (torque_p[3] + (s.I_kite[1] - s.I_kite[2]) * ω_p[1] * ω_p[2]) / s.I_kite[3] - 0.0s.orient_damping*ω_p[3]
+        α_b ~ s.R_b_p * α_p
 
         [D(kite_pos[i]) ~ kite_vel[i] for i in 1:3]
         [D(kite_vel[i]) ~ kite_acc[i] - 0.0kite_vel[i] for i in 1:3]
@@ -539,6 +548,19 @@ function create_sys!(s::KPSQ)
         D.(tether_length)       .~ tether_vel
         D.(tether_vel)          .~ tether_acc
     ]
+    if init
+        deqs = [
+            deqs
+            measure_axis[1]*ω_p[1] + measure_axis[2]*ω_p[2] + measure_axis[3]*ω_p[3] ~ omega_measured
+            ω_p[3] ~ (measure_omega - ax*ω_p[1] - ay*ω_p[2]) / az
+        ]
+    else
+        deqs = [
+            deqs
+            D(ω_p[3]) ~ α_p[3]
+            α_p[3] ~ (torque_p[3] + (s.I_kite[1] - s.I_kite[2]) * ω_p[1] * ω_p[2]) / s.I_kite[3] - 0.0s.orient_damping*ω_p[3]
+        ]
+    end
 
     # Compute the masses and forces
     force_eqs = SizedArray{Tuple{3, s.i_C}, Symbolics.Equation}(undef)
@@ -610,10 +632,10 @@ The distance/vel/acc of the kite cannot be measured directly, but the average ac
 
 Assume distance_acc = tether_acc[3] for convenience
 """
-function model!(s::KPSQ)
+function model!(s::KPSQ; init=false)
     init_pos!(s)
     
-    sys, inputs = create_sys!(s)
+    sys, inputs = create_sys!(s; init)
     # structural_simplify(sys, (inputs, []))
     (sys, _) = structural_simplify(sys, (inputs, []); fully_determined=true)
     s.simple_sys = sys
@@ -632,7 +654,7 @@ function model!(s::KPSQ)
         [sys.vel[j, i] => 0 for j in 1:3 for i in 4:s.i_A-1]
         # [sys.acc[j, i] => 0 for j in 1:3 for i in 4:s.i_A-1]
 
-        [sys.trailing_edge_angle[i] => 0.3 for i in 1:2]
+        [sys.trailing_edge_angle[i] => s.te_angle[i] for i in 1:2]
         [sys.trailing_edge_ω[i] => 0 for i in 1:2]
         # [sys.trailing_edge_α[i] => 0 for i in 1:2]
 

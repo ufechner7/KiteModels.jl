@@ -53,18 +53,10 @@ const MeasureFloat = Float32
     tether_length::MVector{3, MeasureFloat} = [51., 51., 49.]
     tether_vel::MVector{3, MeasureFloat}    = zeros(3)
     tether_acc::MVector{3, MeasureFloat}    = zeros(3)
-    azimuth_left::MeasureFloat       = deg2rad(1)
-    d_azimuth_left::MeasureFloat     = 0.0
-    dd_azimuth_left::MeasureFloat    = 0.0
-    azimuth_right::MeasureFloat       = deg2rad(-1)
-    d_azimuth_right::MeasureFloat     = 0.0
-    dd_azimuth_right::MeasureFloat    = 0.0
-    elevation_left::MeasureFloat     = deg2rad(86)
-    d_elevation_left::MeasureFloat   = 0.0
-    dd_elevation_left::MeasureFloat  = 0.0
-    elevation_right::MeasureFloat     = deg2rad(86)
-    d_elevation_right::MeasureFloat   = 0.0
-    dd_elevation_right::MeasureFloat  = 0.0
+    "elevation and azimuth in spherical coordinate system with rows (left, right) and columns (elevation, azimuth)"
+    sphere_pos::Matrix{SimFloat}            = deg2rad.([89.0 1.0; 89.0 -1.0])
+    sphere_vel::Matrix{SimFloat}            = zeros(SimFloat, 2, 2)
+    sphere_acc::Matrix{SimFloat}            = zeros(SimFloat, 2, 2)
 end
 
 """
@@ -209,6 +201,8 @@ $(TYPEDFIELDS)
     p0map::Union{Vector{Pair{Num, S}}, Nothing} = nothing
     "Distance of the kite com from winch"
     distance::S = zero(S)
+    "Angle of the trailing edges of the kite"
+    te_angle::V = zeros(S, 2)
 
     set_Q_p_w::Function             = (val, prob) -> nothing
     set_ω_p::Function               = (val, prob) -> nothing
@@ -242,15 +236,19 @@ $(TYPEDFIELDS)
     get_tether_force::Function      = () -> nothing
     get_tether_length::Function     = () -> nothing
     get_tether_vel::Function        = () -> nothing
+    get_tether_acc::Function        = () -> nothing
     get_kite_force::Function        = () -> nothing
     get_kite_torque_p::Function     = () -> nothing
     get_heading::Function           = () -> nothing
     get_ω_b::Function              = () -> nothing
+    get_α_b::Function              = () -> nothing
     get_force::Function            = () -> nothing
     get_e_te_A::Function           = () -> nothing
     get_e_te_B::Function           = () -> nothing
     get_elevation_vel::Function     = () -> nothing
+    get_elevation_acc::Function     = () -> nothing
     get_azimuth_vel::Function      = () -> nothing
+    get_azimuth_acc::Function      = () -> nothing
 
     prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
     integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Sundials.CVODEIntegrator, Nothing} = nothing
@@ -492,7 +490,7 @@ function init_sim!(s::KPSQ; prn=false, torque_control=s.torque_control,
         s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
         generate_getters!(s)
         init_distance!(s)
-    elseif new_pos
+    elseif new_pos || true
         if prn; println("initializing with last model and new pos"); end
         init_distance!(s)
     else
@@ -559,15 +557,19 @@ function generate_getters!(s)
     get_tether_force = getu(s.integrator, sys.tether_force)
     get_tether_length = getu(s.integrator, sys.tether_length)
     get_tether_vel = getu(s.integrator, sys.tether_vel)
+    get_tether_acc = getu(s.integrator, sys.tether_acc)
     get_kite_force = getu(s.integrator, sys.total_kite_force)
     get_kite_torque_p = getu(s.integrator, sys.torque_p)
     get_heading = getu(s.integrator, sys.heading_y)
     get_ω_b = getu(s.integrator, sys.ω_b)
+    get_α_b = getu(s.integrator, sys.α_b)
     get_force = getu(s.integrator, sys.force)
     get_e_te_A = getu(s.integrator, sys.e_te_A)
     get_e_te_B = getu(s.integrator, sys.e_te_B)
     get_elevation_vel = getu(s.integrator, sys.elevation_vel)
+    get_elevation_acc = getu(s.integrator, sys.elevation_acc)
     get_azimuth_vel = getu(s.integrator, sys.azimuth_vel)
+    get_azimuth_acc = getu(s.integrator, sys.azimuth_acc)
     get_distance_acc = getu(s.integrator, sys.distance_acc)
 
     s.get_pos                 = () -> get_pos(s.integrator)
@@ -586,15 +588,19 @@ function generate_getters!(s)
     s.get_tether_force        = () -> get_tether_force(s.integrator)
     s.get_tether_length       = () -> get_tether_length(s.integrator)
     s.get_tether_vel          = () -> get_tether_vel(s.integrator)
+    s.get_tether_acc          = () -> get_tether_acc(s.integrator)
     s.get_kite_force          = () -> get_kite_force(s.integrator)
     s.get_kite_torque_p       = () -> get_kite_torque_p(s.integrator)
     s.get_heading             = () -> get_heading(s.integrator)
     s.get_ω_b                 = () -> get_ω_b(s.integrator)
+    s.get_α_b                 = () -> get_α_b(s.integrator)
     s.get_force               = () -> get_force(s.integrator)
     s.get_e_te_A              = () -> get_e_te_A(s.integrator)
     s.get_e_te_B              = () -> get_e_te_B(s.integrator)
     s.get_elevation_vel       = () -> get_elevation_vel(s.integrator)
+    s.get_elevation_acc       = () -> get_elevation_acc(s.integrator)
     s.get_azimuth_vel         = () -> get_azimuth_vel(s.integrator)
+    s.get_azimuth_acc         = () -> get_azimuth_acc(s.integrator)
     s.get_distance_acc        = () -> get_distance_acc(s.integrator)
     nothing
 end
