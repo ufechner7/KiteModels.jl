@@ -584,9 +584,9 @@ function create_sys!(s::KPSQ; init=false)
             ω_p ~ s.R_b_p * ω_b
             torque_b ~ s.R_b_p' * torque_p
             # α_b[1] ~ 0
-            α_b[1] ~ (torque_b[1] + (s.I_b[2] - s.I_b[3]) * ω_b[2] * ω_b[3]) / s.I_b[1] - 10ω_b[1]
+            α_b[1] ~ (torque_b[1]) / s.I_b[1] - 10ω_b[1]
             # α_b[2] ~ 0
-            α_b[2] ~ (torque_b[2] + (s.I_b[3] - s.I_b[1]) * ω_b[3] * ω_b[1]) / s.I_b[2] - 10ω_b[2]
+            α_b[2] ~ (torque_b[2]) / s.I_b[2] - 10ω_b[2]
             α_b[3] ~ α_z
 
             kite_pos        ~ s.kite_pos

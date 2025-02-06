@@ -14,13 +14,14 @@ set.segments = 6
 set.aero_surfaces = 6
 logger = Logger(3*set.segments + 4, steps)
 if !@isdefined(s); s = KPSQ(KCU(set)); end
-s.measure.set_values = [-1, -1, -50.0]
+s.measure.set_values = [-1, -1, -60.0]
 s.measure.tether_acc = [0, 0, 0]
 s.measure.tether_length = [51., 51., 49.]
-s.measure.sphere_pos[1, 1] = deg2rad(86)
-s.measure.sphere_pos[1, 2] = deg2rad(86)
+s.measure.sphere_pos[1, 1] = deg2rad(80)
+s.measure.sphere_pos[1, 2] = deg2rad(80)
 s.measure.sphere_pos[2, 1] = deg2rad(1)
 s.measure.sphere_pos[2, 2] = deg2rad(-1)
+s.measure.sphere_vel .= [1 1; 0 0]
 s.set.abs_tol = 0.001
 s.set.rel_tol = 0.0006
 # s.measure.distance_acc = s.measure.tether_acc[3]
@@ -28,6 +29,7 @@ s.set.rel_tol = 0.0006
 @time init_sim!(s; force_new_sys=true, prn=true, ϵ=0.0)
 # @assert false
 sys_state = KiteModels.SysState(s)
+sys = s.simple_sys
 l = s.set.l_tether + 10
 t = 0
 runtime = 0.0
@@ -40,7 +42,7 @@ try
         global set_values = s.measure.set_values
         if t < 1.0; set_values[2] -= 0.0; end
         steptime = @elapsed t = next_step!(s; set_values, dt)
-        @show steptime
+        @show s.integrator[sys.torque_b]
         if (t > total_time/2); runtime += steptime; end
         KiteModels.update_sys_state!(sys_state, s)
         sys_state.var_01 = s.get_α_b()[1]
