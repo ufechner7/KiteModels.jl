@@ -17,9 +17,9 @@ if !@isdefined(s); s = KPSQ(KCU(set)); end
 s.measure.set_values = [-1, -1, -50.0]
 s.measure.tether_acc = [0, 0, 0]
 s.measure.tether_length = [51., 51., 49.]
-s.measure.sphere_pos[1, 1] = deg2rad(89)
-s.measure.sphere_pos[2, 1] = deg2rad(89)
-s.measure.sphere_pos[1, 2] = deg2rad(1)
+s.measure.sphere_pos[1, 1] = deg2rad(86)
+s.measure.sphere_pos[1, 2] = deg2rad(86)
+s.measure.sphere_pos[2, 1] = deg2rad(1)
 s.measure.sphere_pos[2, 2] = deg2rad(-1)
 s.set.abs_tol = 0.001
 s.set.rel_tol = 0.0006
@@ -40,6 +40,7 @@ try
         global set_values = s.measure.set_values
         if t < 1.0; set_values[2] -= 0.0; end
         steptime = @elapsed t = next_step!(s; set_values, dt)
+        @show steptime
         if (t > total_time/2); runtime += steptime; end
         KiteModels.update_sys_state!(sys_state, s)
         sys_state.var_01 = s.get_α_b()[1]

@@ -166,6 +166,8 @@ function calc_inertia!(s::KPSQ)
         I[1,3] = I[3,1] -= m * r[1] * r[3]  # Ixz
         I[2,3] = I[3,2] -= m * r[2] * r[3]  # Iyz
     end
+
+    s.I_b .= [I[1,1], I[2,2], I[3,3]]
     
     # Find principal axes
     eigenvals, eigenvecs = eigen(I)
@@ -181,7 +183,7 @@ function calc_inertia!(s::KPSQ)
     end
 
     # Store results
-    s.I_kite .= eigenvals
+    s.I_p .= eigenvals
     s.R_b_p .= eigenvecs
     s.Q_p_b .= rotation_matrix_to_quaternion(s.R_b_p')
     return nothing
@@ -222,8 +224,8 @@ function init_pos!(s::KPSQ; distance = s.measure.tether_length[3], te_angle = s.
     s.kite_pos .= 0.0
 
     # init last tether points
-    s.pos[:, s.i_A] .= rotate_around_z(rotate_around_y([distance, 0, 0], -s.measure.sphere_pos[1, 1]), s.measure.sphere_pos[1, 2])
-    s.pos[:, s.i_B] .= rotate_around_z(rotate_around_y([distance, 0, 0], -s.measure.sphere_pos[2, 1]), s.measure.sphere_pos[2, 2])
+    s.pos[:, s.i_A] .= rotate_around_z(rotate_around_y([distance, 0, 0], -s.measure.sphere_pos[1, 1]), s.measure.sphere_pos[2, 1])
+    s.pos[:, s.i_B] .= rotate_around_z(rotate_around_y([distance, 0, 0], -s.measure.sphere_pos[1, 2]), s.measure.sphere_pos[2, 2])
     s.pos[:, s.i_C] .= 0.5 .* s.pos[:, s.i_A] .+ 0.5 .* s.pos[:, s.i_B]
     s.e_y .= normalize(s.pos[:, s.i_A] .- s.pos[:, s.i_B])
 
@@ -264,66 +266,20 @@ Distance of the kite is difficult to measure precisely. So the distance is found
 TODO: use azimuth and elevation acc to approximate wind speed
 """
 function init_distance!(s)
-    angular_acc = s.measure.tether_acc[3] / s.set.drum_radius
-    net_torque = angular_acc * s.set.inertia_total
-    tether_force = (net_torque - s.measure.set_values[3]) / s.set.drum_radius
-    tether_length = s.measure.tether_length[3]
-    @assert tether_force > 0.0
-    stretched_tether_length = tether_length + tether_force / (s.c_spring[3]/tether_length)
-    function f_zero(u, p)
-        (distance, te_left, te_right, kite_angle) = u
-        init_pos!(s; distance, te_angle = [te_left, te_right], kite_angle)
-        s.set_Q_p_w(s.prob, s.Q_p_w)
-        s.set_ω_p(s.prob, zeros(3))
-        s.set_kite_pos(s.prob, s.kite_pos)
-        s.set_kite_vel(s.prob, zeros(3))
-        s.set_pos(s.prob, s.pos[:, 4:s.i_A-1])
-        s.set_vel(s.prob, zeros(3, s.i_A-4))
-        s.set_trailing_edge_angle(s.prob, [te_left, te_right])
-        s.set_trailing_edge_ω(s.prob, zeros(2))
-        s.set_gust_factor(s.prob, 1.0)
-        s.set_tether_length(s.prob, s.measure.tether_length)
-        s.set_tether_vel(s.prob, s.measure.tether_vel)
-        s.prob = remake(s.prob)
-        OrdinaryDiffEqCore.reinit!(s.integrator, s.prob.u0)
-        if p == true
-            @show s.get_distance_acc()
-            @show s.get_trailing_edge_α()[1]
-            @show s.get_trailing_edge_α()[2]
-            @show s.get_α_b()[2]
-        end
-        return norm([
-            s.get_distance_acc(),
-            s.get_trailing_edge_α()[1],
-            s.get_trailing_edge_α()[2],
-            s.get_α_b()[2]
-        ])
-    end
-    
-    # for a in -0.1:0.1:0.6
-    #     s.te_angle .= a
-    #     @show s.te_angle
-    #     for d in stretched_tether_length-0.001:0.0001:stretched_tether_length
-    #         f_zero([d, s.te_angle..., 0.0], nothing)
-    #         @show s.get_distance_acc()
-    #     end
-    # end
-    # @assert false
-    
-    s.te_angle .= 0.0
-    s.distance = copy(s.measure.tether_length[3])
-    solver = BFGS()
-    optf = OptimizationFunction(f_zero, AutoFiniteDiff())
-    prob = OptimizationProblem(optf, [stretched_tether_length - 5e-4, 0.3, 0.3, 0.0]; 
-        lb = [stretched_tether_length - 1e-3, 0.2, 0.2, -0.01], 
-        ub = [stretched_tether_length, 0.4, 0.4, 0.01],
-        )
-    @time sol = solve(prob, solver)
-    @time sol = solve(prob, solver)
-    @time sol = solve(prob, solver)
-    @show sol stretched_tether_length
-    println("but in the end:")
-    f_zero(sol.u, true)
+    # init_pos!(s; distance, te_angle = [te_left, te_right], kite_angle)
+    # s.set_Q_p_w(s.prob, s.Q_p_w)
+    # s.set_ω_p(s.prob, zeros(3))
+    # s.set_kite_pos(s.prob, s.kite_pos)
+    # s.set_kite_vel(s.prob, zeros(3))
+    # s.set_pos(s.prob, s.pos[:, 4:s.i_A-1])
+    # s.set_vel(s.prob, zeros(3, s.i_A-4))
+    # s.set_trailing_edge_angle(s.prob, [te_left, te_right])
+    # s.set_trailing_edge_ω(s.prob, zeros(2))
+    # s.set_gust_factor(s.prob, 1.0)
+    # s.set_tether_length(s.prob, s.measure.tether_length)
+    # s.set_tether_vel(s.prob, s.measure.tether_vel)
+    # s.prob = remake(s.prob)
+    OrdinaryDiffEqCore.reinit!(s.integrator, s.prob.u0)
     nothing
 end
 

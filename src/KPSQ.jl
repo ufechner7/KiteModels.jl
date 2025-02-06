@@ -53,8 +53,8 @@ const MeasureFloat = Float32
     tether_length::MVector{3, MeasureFloat} = [51., 51., 49.]
     tether_vel::MVector{3, MeasureFloat}    = zeros(3)
     tether_acc::MVector{3, MeasureFloat}    = zeros(3)
-    "elevation and azimuth in spherical coordinate system with rows (left, right) and columns (elevation, azimuth)"
-    sphere_pos::Matrix{SimFloat}            = deg2rad.([89.0 1.0; 89.0 -1.0])
+    "elevation and azimuth in spherical coordinate system with columns (left, right) and rows (elevation, azimuth)"
+    sphere_pos::Matrix{SimFloat}            = deg2rad.([89.0 89.0; 1.0 -1.0])
     sphere_vel::Matrix{SimFloat}            = zeros(SimFloat, 2, 2)
     sphere_acc::Matrix{SimFloat}            = zeros(SimFloat, 2, 2)
 end
@@ -159,8 +159,10 @@ $(TYPEDFIELDS)
     y_buffer::V = zeros(S, P)
     "Buffer for jacobian x values (angle, distance)"
     x_buffer::V = zeros(S, 2)
-    "Inertia around kite x y and z axis"
-    I_kite::V = zeros(S, 3)
+    "Inertia around kite x y and z axis of the principal frame"
+    I_p::V = zeros(S, 3)
+    "Inertia around kite x y and z axis of the body frame"
+    I_b::V = zeros(S, 3)
     "Damping of the kite rotation"
     orient_damping::S = zero(S)
     "rotation from kite body frame to world frame"
@@ -171,7 +173,7 @@ $(TYPEDFIELDS)
     R_b_p::Matrix{S} = zeros(S, 3, 3)
     "translation from kite point to circle center in body frame along positive z"
     pos_circle_center_b::V = zeros(S, 3)
-    "center of mass of the kite"
+    "center of mass position of the kite"
     kite_pos::V = zeros(S, 3)
     "quaternion orientation of the kite"
     q::V = zeros(S, 4)
@@ -468,7 +470,10 @@ function init_sim!(s::KPSQ; prn=false, torque_control=s.torque_control,
     tspan   = (0.0, dt) 
     solver = TRBDF2( # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
         autodiff=AutoFiniteDiff()
-    )
+    ) # the best
+    # solver = QBDF( # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
+    #     autodiff=AutoFiniteDiff()
+    # )
     set_hash = struct_hash(s.set)
     measure_hash = struct_hash(s.measure)
     new_pos = s.last_measure_hash != measure_hash
@@ -482,15 +487,16 @@ function init_sim!(s::KPSQ; prn=false, torque_control=s.torque_control,
     s.ϵ = ϵ
     s.flap_damping = flap_damping
 
-    if new_sys
+    if new_sys || true
         if prn; println("initializing with new model and new pos"); end
         clear!(s)
-        sys, u0map, p0map = model!(s)
+        init = true
+        sys, u0map, p0map = model!(s; init)
         s.prob = ODEProblem(sys, u0map, tspan, p0map)
         s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
-        generate_getters!(s)
+        generate_getters!(s; init)
         init_distance!(s)
-    elseif new_pos || true
+    elseif new_pos
         if prn; println("initializing with last model and new pos"); end
         init_distance!(s)
     else
@@ -506,32 +512,34 @@ function init_sim!(s::KPSQ; prn=false, torque_control=s.torque_control,
     return nothing
 end
 
-function generate_getters!(s)
+function generate_getters!(s; init=false)
     sys = s.simple_sys
 
-    set_Q_p_w = setu(s.prob, sys.Q_p_w)
-    set_ω_p = setu(s.prob, sys.ω_p)  
-    set_kite_pos = setu(s.prob, sys.kite_pos)
-    set_kite_vel = setu(s.prob, sys.kite_vel)
-    set_pos = setu(s.prob, sys.pos[:, 4:s.i_A-1])
-    set_vel = setu(s.prob, sys.vel[:, 4:s.i_A-1])
-    set_trailing_edge_angle = setu(s.prob, sys.trailing_edge_angle)
-    set_trailing_edge_ω = setu(s.prob, sys.trailing_edge_ω)
-    set_gust_factor = setu(s.prob, sys.gust_factor)
-    set_tether_length = setu(s.prob, sys.tether_length)
-    set_tether_vel = setu(s.prob, sys.tether_vel)
+    if !init
+        set_Q_p_w = setu(s.prob, sys.Q_p_w)
+        set_ω_p = setu(s.prob, sys.ω_p)  
+        set_kite_pos = setu(s.prob, sys.kite_pos)
+        set_kite_vel = setu(s.prob, sys.kite_vel)
+        set_pos = setu(s.prob, sys.pos[:, 4:s.i_A-1])
+        set_vel = setu(s.prob, sys.vel[:, 4:s.i_A-1])
+        set_trailing_edge_angle = setu(s.prob, sys.trailing_edge_angle)
+        set_trailing_edge_ω = setu(s.prob, sys.trailing_edge_ω)
+        set_gust_factor = setu(s.prob, sys.gust_factor)
+        set_tether_length = setu(s.prob, sys.tether_length)
+        set_tether_vel = setu(s.prob, sys.tether_vel)
 
-    s.set_Q_p_w               = (prob, val) -> set_Q_p_w(prob, val)
-    s.set_ω_p                 = (prob, val) -> set_ω_p(prob, val)  
-    s.set_kite_pos            = (prob, val) -> set_kite_pos(prob, val)
-    s.set_kite_vel            = (prob, val) -> set_kite_vel(prob, val)
-    s.set_pos                 = (prob, val) -> set_pos(prob, val)
-    s.set_vel                 = (prob, val) -> set_vel(prob, val)
-    s.set_trailing_edge_angle = (prob, val) -> set_trailing_edge_angle(prob, val)
-    s.set_trailing_edge_ω     = (prob, val) -> set_trailing_edge_ω(prob, val)
-    s.set_gust_factor         = (prob, val) -> set_gust_factor(prob, val)
-    s.set_tether_length       = (prob, val) -> set_tether_length(prob, val)
-    s.set_tether_vel          = (prob, val) -> set_tether_vel(prob, val)
+        s.set_Q_p_w               = (prob, val) -> set_Q_p_w(prob, val)
+        s.set_ω_p                 = (prob, val) -> set_ω_p(prob, val)  
+        s.set_kite_pos            = (prob, val) -> set_kite_pos(prob, val)
+        s.set_kite_vel            = (prob, val) -> set_kite_vel(prob, val)
+        s.set_pos                 = (prob, val) -> set_pos(prob, val)
+        s.set_vel                 = (prob, val) -> set_vel(prob, val)
+        s.set_trailing_edge_angle = (prob, val) -> set_trailing_edge_angle(prob, val)
+        s.set_trailing_edge_ω     = (prob, val) -> set_trailing_edge_ω(prob, val)
+        s.set_gust_factor         = (prob, val) -> set_gust_factor(prob, val)
+        s.set_tether_length       = (prob, val) -> set_tether_length(prob, val)
+        s.set_tether_vel          = (prob, val) -> set_tether_vel(prob, val)
+    end
 
     set_v_wind_gnd = setp(s.integrator, sys.v_wind_gnd)
     set_v_wind = setp(s.integrator, sys.v_wind)
