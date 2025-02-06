@@ -283,7 +283,7 @@ function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=fal
         res1__[3*(j-1)+1:3*j] .= s.vel[i+1]
         res2__[3*(i-1)+1:3*i] .= s.vel[i+1]
     end
-    res1, res2  = vcat(res1__, [s.l_tether, 0]),  vcat(res2__,[0,0])
+    res1, res2  = vcat(res1__, [s.l_tether, s.set.v_reel_out]),  vcat(res2__,[0,0])
     MVector{6*(s.set.segments+KITE_PARTICLES)+2, SimFloat}(res1), MVector{6*(s.set.segments+KITE_PARTICLES)+2, SimFloat}(res2)
 end
 
