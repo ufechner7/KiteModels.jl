@@ -218,22 +218,25 @@ function calc_pos_principal!(s::KPSQ)
     return nothing
 end
 
-function init_pos!(s::KPSQ; distance = s.measure.tether_length[3], te_angle = s.te_angle, kite_angle = 0.0)
+function init_pos!(s::KPSQ; distance = nothing, te_angle = s.te_angle, kite_angle = 0.0)
     # ground points
     s.pos .= 0.0
     s.kite_pos .= 0.0
 
     # init last tether points
+    angular_acc = s.measure.tether_acc / s.set.drum_radius
+    net_torque = angular_acc * s.set.inertia_total
+    tether_force = (net_torque - s.measure.set_values) / s.set.drum_radius # TODO: force is measurement and can be used for wind strength
+    if isnothing(distance)
+        distance = s.measure.tether_length[3] + tether_force[3] / (s.c_spring[3]/s.measure.tether_length[3]) - 1e-3
+    end
     s.pos[:, s.i_A] .= rotate_around_z(rotate_around_y([distance, 0, 0], -s.measure.sphere_pos[1, 1]), s.measure.sphere_pos[2, 1])
     s.pos[:, s.i_B] .= rotate_around_z(rotate_around_y([distance, 0, 0], -s.measure.sphere_pos[1, 2]), s.measure.sphere_pos[2, 2])
     s.pos[:, s.i_C] .= 0.5 .* s.pos[:, s.i_A] .+ 0.5 .* s.pos[:, s.i_B]
     s.e_y .= normalize(s.pos[:, s.i_A] .- s.pos[:, s.i_B])
 
     # init middle tether
-    angular_acc = s.measure.tether_acc / s.set.drum_radius
-    net_torque = angular_acc * s.set.inertia_total
-    tether_force = (net_torque - s.measure.set_values) / s.set.drum_radius
-    s.pos[:, 3:3:s.i_C] .= calc_expected_pos_vel(s, s.pos[:, s.i_C][1], s.pos[:, s.i_C][2], s.pos[:, s.i_C][3], 
+    s.pos[:, 3:3:s.i_C] .= calc_expected_pos_vel(s, s.pos[:, s.i_C], 
         0, 0, s.measure.tether_length[3], tether_force[3], s.c_spring[3])[1, :, :]
     s.e_z .= normalize(s.pos[:, s.i_C] - s.pos[:, s.i_C-3])
     s.e_z .= rotate_v_around_k(s.e_z, s.e_y, kite_angle)
@@ -252,9 +255,9 @@ function init_pos!(s::KPSQ; distance = s.measure.tether_length[3], te_angle = s.
     s.pos[:, s.i_B] .= s.pos[:, s.i_C] .+ s.e_y .* s.pos_E_b[2] .+ s.e_x .* te_length * cos(te_angle[2]) .+ e_r_E .* te_length * sin(te_angle[2])
 
     # init left and right tether
-    s.pos[:, 1:3:s.i_A] .= calc_expected_pos_vel(s, s.pos[:, s.i_A][1], s.pos[:, s.i_A][2], s.pos[:, s.i_A][3], 
+    s.pos[:, 1:3:s.i_A] .= calc_expected_pos_vel(s, s.pos[:, s.i_A], 
         0, 0, s.measure.tether_length[1], tether_force[1], s.c_spring[1])[1, :, :]
-    s.pos[:, 2:3:s.i_B] .= calc_expected_pos_vel(s, s.pos[:, s.i_B][1], s.pos[:, s.i_B][2], s.pos[:, s.i_B][3], 
+    s.pos[:, 2:3:s.i_B] .= calc_expected_pos_vel(s, s.pos[:, s.i_B], 
         0, 0, s.measure.tether_length[2], tether_force[2], s.c_spring[2])[1, :, :]
     return s.pos
 end

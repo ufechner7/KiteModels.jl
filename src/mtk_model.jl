@@ -554,7 +554,8 @@ function create_sys!(s::KPSQ; init=false)
             D.(tether_vel)          .~ tether_acc
         ]
     else
-        println("init system")
+        idamp = 50
+        # no movement around body z axis
         Ω = [0       -ω_b[1]  -ω_b[2]  -0     ;
              ω_b[1]   0        0       -ω_b[2];
              ω_b[2]  -0        0        ω_b[1];
@@ -570,8 +571,8 @@ function create_sys!(s::KPSQ; init=false)
         perp_r = [-r[2], r[1]]
         rot_vel = (s.measure.sphere_vel[:, 1] - s.measure.sphere_vel[:, 2]) ⋅ (perp_r / norm(r))
         rot_acc = (s.measure.sphere_acc[:, 1] - s.measure.sphere_acc[:, 2]) ⋅ (perp_r / norm(r))
-        @show ω_z = rot_vel / norm(r)
-        @show α_z = rot_acc / norm(r)
+        ω_z = rot_vel / norm(r)
+        α_z = rot_acc / norm(r)
         deqs = [
             deqs
             [D(Q_b_w[i]) ~ Q_vel[i] for i in 1:4]
@@ -579,14 +580,14 @@ function create_sys!(s::KPSQ; init=false)
             [Q_vel[i] ~ 0.5 * sum(Ω[i, j] * Q_b_w[j] for j in 1:4) for i in 1:4]
             [R_b_w[:, i] ~ quaternion_to_rotation_matrix(Q_b_w)[:, i] for i in 1:3] # https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation#Performance_comparisons
             [R_p_w[:, i] ~ quaternion_to_rotation_matrix(Q_p_w)[:, i] for i in 1:3]
-            D(ω_b[1:2]) ~ α_b[1:2]
+            D(ω_b[1:2]) ~ α_b[1:2] - idamp * ω_b[1:2]
             ω_b[3] ~ ω_z
             ω_p ~ s.R_b_p * ω_b
             torque_b ~ s.R_b_p' * torque_p
             # α_b[1] ~ 0
-            α_b[1] ~ (torque_b[1]) / s.I_b[1] - 10ω_b[1]
+            α_b[1] ~ (torque_b[1]) / s.I_b[1]
             # α_b[2] ~ 0
-            α_b[2] ~ (torque_b[2]) / s.I_b[2] - 10ω_b[2]
+            α_b[2] ~ (torque_b[2]) / s.I_b[2]
             α_b[3] ~ α_z
 
             kite_pos        ~ s.kite_pos
@@ -595,15 +596,15 @@ function create_sys!(s::KPSQ; init=false)
             kite_acc        ~ distance_acc * normalize(kite_pos - pos[:, 3]) + 
                                 rotate_around_z(rotate_around_y([0, azimuth_acc * distance, elevation_acc * distance], elevation), azimuth)
             D(distance)     ~ distance_vel
-            D(distance_vel) ~ distance_acc
-            distance_acc    ~ (s.measure.tether_acc[3] - tether_acc[3]) - 10distance_vel
+            D(distance_vel) ~ distance_acc - idamp * distance_vel
+            distance_acc    ~ (s.measure.tether_acc[3] - tether_acc[3])
 
             [pos[:, i]              .~ 0.0 for i in 1:3]
             [D.(pos[:, i])          .~ vel[:, i] for i in 4:s.i_A-1]
             D(trailing_edge_angle)   ~ trailing_edge_ω
             [vel[:, i]              .~ 0.0 for i in 1:3]
-            [D.(vel[:, i])          .~ acc[:, i] - 10vel[:, i] for i in 4:s.i_A-1]
-            D(trailing_edge_ω)       ~ trailing_edge_α - 10trailing_edge_ω
+            [D.(vel[:, i])          .~ acc[:, i] - idamp * vel[:, i] for i in 4:s.i_A-1]
+            D(trailing_edge_ω)       ~ trailing_edge_α - idamp * trailing_edge_ω
             tether_length           ~ s.measure.tether_length
             tether_vel              ~ s.measure.tether_vel
         ]

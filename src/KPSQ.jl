@@ -712,8 +712,7 @@ Tether vel: left - middle - right tether vel
 
 Return: an expected vel for all kite pos
 """
-function calc_expected_pos_vel(s::KPSQ, kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, tether_length, tether_force, c_spring) # TODO: remove the 123 caused by this issue: https://github.com/SciML/ModelingToolkit.jl/issues/3003
-    kite_pos = [kite_pos1, kite_pos2, kite_pos3]
+function calc_expected_pos_vel(s::KPSQ, kite_pos, kite_vel, tether_vel, tether_length, tether_force, c_spring) # TODO: remove the 123 caused by this issue: https://github.com/SciML/ModelingToolkit.jl/issues/3003
     s.expected_tether_pos_vel_buffer .= 0.0
     expected_pos = @views s.expected_tether_pos_vel_buffer[1, :, :]
     expected_vel = @views s.expected_tether_pos_vel_buffer[2, :, :]
@@ -721,8 +720,7 @@ function calc_expected_pos_vel(s::KPSQ, kite_pos1, kite_pos2, kite_pos3, kite_ve
     distance = norm(kite_pos)
     stretched_tether_length = tether_length + tether_force / (c_spring/tether_length)
 
-    if any(isa.((kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, tether_length, tether_force, c_spring), ForwardDiff.Dual)) ||
-            !all(0.0 .< (distance, stretched_tether_length) .< Inf) || 
+    if !all(0.0 .< (distance, stretched_tether_length) .< Inf) || 
             distance >= stretched_tether_length ||
             distance <= 0.1stretched_tether_length
         expected_pos .= NaN
@@ -747,15 +745,6 @@ function calc_expected_pos_vel(s::KPSQ, kite_pos1, kite_pos2, kite_pos3, kite_ve
     DifferentiationInterface.jacobian!(f_jac!, y, J, s.prep, backend, x)
     expected_vel .= reshape(J * [kite_vel, tether_vel], size(expected_vel))
     return s.expected_tether_pos_vel_buffer
-end
-const FD = ForwardDiff.Dual
-function calc_expected_pos_vel(s::KPSQ, _::FD, _::FD, _::FD, _::FD, _::FD, _::FD, _::FD, _::FD) # dummy function for forwarddiff compatibility
-    s.expected_tether_pos_vel_buffer .= NaN
-    return s.expected_tether_pos_vel_buffer
-end
-@register_array_symbolic calc_expected_pos_vel(s::KPSQ, kite_pos1, kite_pos2, kite_pos3, kite_vel, tether_vel, tether_length, tether_force, c_spring) begin
-    size = size(s.expected_tether_pos_vel_buffer)
-    eltype = SimFloat
 end
 
 

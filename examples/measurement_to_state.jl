@@ -5,8 +5,8 @@ if plot
     using ControlPlots
 end
 
-dt = 0.05
-total_time = 2.0
+dt = 0.1
+total_time = 20.0
 steps = Int(round(total_time / dt))
 
 set = se("system_3l.yaml")
@@ -21,7 +21,7 @@ s.measure.sphere_pos[1, 1] = deg2rad(80)
 s.measure.sphere_pos[1, 2] = deg2rad(80)
 s.measure.sphere_pos[2, 1] = deg2rad(1)
 s.measure.sphere_pos[2, 2] = deg2rad(-1)
-s.measure.sphere_vel .= [1 1; 0 0]
+s.measure.sphere_vel .= [0.4 0.4; 0 0]
 s.set.abs_tol = 0.001
 s.set.rel_tol = 0.0006
 # s.measure.distance_acc = s.measure.tether_acc[3]
@@ -40,9 +40,8 @@ try
         plot && plot2d(pos, t; zoom=false, front=false, xlim=(-l/2, l/2), ylim=(0, l), segments=10)
         # global set_values = -s.set.drum_radius * KiteModels.tether_force(s)
         global set_values = s.measure.set_values
-        if t < 1.0; set_values[2] -= 0.0; end
+        # if t < 1.0; set_values[2] -= 0.0; end
         steptime = @elapsed t = next_step!(s; set_values, dt)
-        @show s.integrator[sys.torque_b]
         if (t > total_time/2); runtime += steptime; end
         KiteModels.update_sys_state!(sys_state, s)
         sys_state.var_01 = s.get_α_b()[1]
