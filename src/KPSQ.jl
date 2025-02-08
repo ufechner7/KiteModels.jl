@@ -207,20 +207,25 @@ $(TYPEDFIELDS)
     "Angle of the trailing edges of the kite"
     te_angle::V = zeros(S, 2)
 
-    set_Q_p_w::Function             = (val, prob) -> nothing
-    set_ω_p::Function               = (val, prob) -> nothing
-    set_kite_pos::Function          = (val, prob) -> nothing 
-    set_kite_vel::Function          = (val, prob) -> nothing
-    set_pos::Function               = (val, prob) -> nothing
-    set_vel::Function               = (val, prob) -> nothing
-    set_trailing_edge_angle::Function = (val, prob) -> nothing
-    set_trailing_edge_ω::Function    = (val, prob) -> nothing
-    set_gust_factor::Function        = (val, prob) -> nothing
-    set_tether_length::Function      = (val, prob) -> nothing
-    set_tether_vel::Function         = (val, prob) -> nothing
-    set_v_wind_gnd::Function        = (val) -> nothing
-    set_v_wind::Function            = (val) -> nothing
-    set_set_values::Function        = (val) -> nothing
+    initialize_measure::Function     = () -> nothing
+    initialize_set_values::Function       = () -> nothing
+    get_diff_state::Function        = () -> nothing
+    set_diff_state::Function        = () -> nothing
+    
+    set_Q_p_w::Function             = () -> nothing
+    set_ω_p::Function               = () -> nothing
+    set_kite_pos::Function          = () -> nothing 
+    set_kite_vel::Function          = () -> nothing
+    set_pos::Function               = () -> nothing
+    set_vel::Function               = () -> nothing
+    set_trailing_edge_angle::Function = () -> nothing
+    set_trailing_edge_ω::Function    = () -> nothing
+    set_gust_factor::Function        = () -> nothing
+    set_tether_length::Function      = () -> nothing
+    set_tether_vel::Function         = () -> nothing
+    set_v_wind_gnd::Function        = () -> nothing
+    set_v_wind::Function            = () -> nothing
+    set_set_values::Function        = () -> nothing
 
     get_distance_acc::Function       = () -> nothing
     get_pos::Function               = () -> nothing
@@ -497,10 +502,10 @@ function init_sim!(s::KPSQ; prn=false, torque_control=s.torque_control,
         s.prob = ODEProblem(sys, u0map, tspan, p0map)
         s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
         generate_getters!(s; init)
-        reinit!(s)
+        if !init; reinit!(s; new_sys); end
     elseif new_pos
         if prn; println("initializing with last model and new pos"); end
-        reinit!(s)
+        if !init; reinit!(s; new_sys); else; OrdinaryDiffEqCore.reinit!(s.integrator, s.prob.u0); end;
     else
         if prn; println("initializing with last model and last pos"); end
         OrdinaryDiffEqCore.reinit!(s.integrator, s.prob.u0)

@@ -35,8 +35,7 @@ module KiteModels
 
 using PrecompileTools: @setup_workload, @compile_workload 
 using Dierckx, Interpolations, Serialization, StaticArrays, LinearAlgebra, Parameters, NLsolve, Roots, ForwardDiff, DiffEqCallbacks,
-      DocStringExtensions, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK, OrdinaryDiffEqVerner, NonlinearSolve, FiniteDiff, DifferentiationInterface,
-      Optimization, OptimizationBBO, OptimizationOptimJL
+      DocStringExtensions, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, NonlinearSolve, FiniteDiff, DifferentiationInterface
 import Sundials
 using Reexport, Pkg
 @reexport using KitePodModels
@@ -50,7 +49,7 @@ import KiteUtils.calc_course
 import KiteUtils.SysState
 import OrdinaryDiffEqCore.init
 import OrdinaryDiffEqCore.step!
-using ModelingToolkit, SymbolicIndexingInterface, SteadyStateDiffEq
+using ModelingToolkit, SymbolicIndexingInterface
 using ModelingToolkit: t_nounits as t, D_nounits as D
 using ADTypes: AutoFiniteDiff
 import ModelingToolkit.SciMLBase: successful_retcode

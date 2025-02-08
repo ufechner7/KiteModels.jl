@@ -21,12 +21,12 @@ s.measure.sphere_pos[1, 1] = deg2rad(80)
 s.measure.sphere_pos[1, 2] = deg2rad(80)
 s.measure.sphere_pos[2, 1] = deg2rad(1)
 s.measure.sphere_pos[2, 2] = deg2rad(-1)
-s.measure.sphere_vel .= [0.4 0.4; 0 0]
+s.measure.sphere_vel .= [0.2 0.2; 0 0]
 s.set.abs_tol = 0.001
 s.set.rel_tol = 0.0006
 # s.measure.distance_acc = s.measure.tether_acc[3]
 
-@time init_sim!(s; force_new_sys=true, prn=true, ϵ=0.0, init=true)
+@time init_sim!(s; force_new_sys=true, prn=true, ϵ=0.0, init=false)
 # @assert false
 sys_state = KiteModels.SysState(s)
 sys = s.simple_sys

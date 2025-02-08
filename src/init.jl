@@ -262,28 +262,46 @@ function init_pos!(s::KPSQ; distance = nothing, te_angle = s.te_angle, kite_angl
     return s.pos
 end
 
-function reinit!(s::KPSQ)
-    # init_pos!(s; distance, te_angle = [te_left, te_right], kite_angle)
-    if isnothing(s.init_integrator)
-        sys, u0map, p0map = model!(s; init=true)
-        s.init_prob = ODEProblem(sys, u0map, tspan, p0map)
-        dt = 20.0
+function reinit!(s::KPSQ; new_sys)
+    if new_sys
+        solver = QBDF( # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
+            autodiff=AutoFiniteDiff()
+        )
+        dt = 20.
+        tspan = (0., dt)
+        isys, u0map, p0map = model!(s; init=true)
+        s.init_prob = ODEProblem(isys, u0map, tspan, p0map)
         s.init_integrator = OrdinaryDiffEqCore.init(s.init_prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
-    end
-    OrdinaryDiffEqCore.reinit!(s.init_integrator, s.init_prob.u0)
-    
 
-    s.set_Q_p_w(s.prob, s.Q_p_w)
-    s.set_ω_p(s.prob, zeros(3))
-    s.set_kite_pos(s.prob, s.kite_pos)
-    s.set_kite_vel(s.prob, zeros(3))
-    s.set_pos(s.prob, s.pos[:, 4:s.i_A-1])
-    s.set_vel(s.prob, zeros(3, s.i_A-4))
-    s.set_trailing_edge_angle(s.prob, [te_left, te_right])
-    s.set_trailing_edge_ω(s.prob, zeros(2))
-    s.set_gust_factor(s.prob, 1.0)
-    s.set_tether_length(s.prob, s.measure.tether_length)
-    s.set_tether_vel(s.prob, s.measure.tether_vel)
+        s.initialize_measure = (prob, val) -> setp(s.init_prob, (
+            isys.measured_sphere_pos,
+            isys.measured_sphere_vel,
+            isys.measured_sphere_acc,
+            isys.measured_tether_length,
+            isys.measured_tether_vel,
+            isys.measured_tether_acc
+        ))(prob, val)
+        s.initialize_set_values = (prob, val) -> setu(isys, isys.set_values)(prob, val)
+        diff_state = ( isys.Q_p_w, isys.ω_p, isys.kite_pos, isys.kite_vel, isys.pos, isys.vel,
+            isys.trailing_edge_angle, isys.trailing_edge_ω, isys.tether_length, isys.tether_vel )
+        s.get_diff_state = (prob) -> getu(isys, diff_state)(prob)
+        s.set_diff_state = (prob, val) -> setu(s.simple_sys, diff_state)(prob, val)
+    end
+    s.initialize_measure(s.init_prob, (
+        s.measure.sphere_pos,
+        s.measure.sphere_vel,
+        s.measure.sphere_acc,
+        s.measure.tether_length,
+        s.measure.tether_vel,
+        s.measure.tether_acc,
+    ))
+    s.initialize_set_values(s.init_prob, s.measure.set_values)
+    s.init_prob = remake(s.init_prob)
+    OrdinaryDiffEqCore.reinit!(s.init_integrator, s.init_prob.u0)
+    OrdinaryDiffEqCore.step!(s.init_integrator, dt, true) # TODO: step until a certain amount of time has passed
+    diff_state = s.get_diff_state(s.init_integrator)
+    @show diff_state
+    s.set_diff_state(s.prob, diff_state)
     s.prob = remake(s.prob)
     OrdinaryDiffEqCore.reinit!(s.integrator, s.prob.u0)
     nothing

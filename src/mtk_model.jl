@@ -318,11 +318,11 @@ function create_sys!(s::KPSQ; init=false)
                 α_b[2] ~ (torque_b[2]) / s.I_b[2]
                 α_b[3] ~ α_z
 
-                kite_pos        ~ s.kite_pos
+                kite_pos        ~ rotate_around_z(rotate_around_y([distance, 0, 0], -elevation), azimuth)
                 kite_vel        ~ distance_vel * normalize(kite_pos - pos[:, 3]) + 
-                                    rotate_around_z(rotate_around_y([0, azimuth_vel * distance, elevation_vel * distance], elevation), azimuth)
+                                    rotate_around_z(rotate_around_y([0, azimuth_vel * distance, elevation_vel * distance], -elevation), azimuth)
                 kite_acc        ~ distance_acc * normalize(kite_pos - pos[:, 3]) + 
-                                    rotate_around_z(rotate_around_y([0, azimuth_acc * distance, elevation_acc * distance], elevation), azimuth)
+                                    rotate_around_z(rotate_around_y([0, azimuth_acc * distance, elevation_acc * distance], -elevation), azimuth)
                 D(distance)     ~ distance_vel
                 D(distance_vel) ~ distance_acc
                 distance_acc    ~ (measured_tether_acc[3] - tether_acc[3])
