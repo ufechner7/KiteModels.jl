@@ -282,8 +282,7 @@ function reinit!(s::KPSQ; new_sys)
             isys.measured_tether_acc
         ))(prob, val)
         s.initialize_set_values = (prob, val) -> setu(isys, isys.set_values)(prob, val)
-        diff_state = ( isys.Q_p_w, isys.ω_p, isys.kite_pos, isys.kite_vel, isys.pos, isys.vel,
-            isys.trailing_edge_angle, isys.trailing_edge_ω, isys.tether_length, isys.tether_vel )
+        diff_state = unknowns(s.simple_sys)
         s.get_diff_state = (prob) -> getu(isys, diff_state)(prob)
         s.set_diff_state = (prob, val) -> setu(s.simple_sys, diff_state)(prob, val)
     end

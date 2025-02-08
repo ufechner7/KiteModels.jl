@@ -267,7 +267,7 @@ function create_sys!(s::KPSQ; init=false)
                 distance            ~ norm(kite_pos - pos[:, 3])
                 distance_vel        ~ kite_vel ⋅ normalize(kite_pos - pos[:, 3])
                 distance_acc        ~ kite_acc ⋅ normalize(kite_pos - pos[:, 3])    
-                gust_factor ~ 1.0
+                D(gust_factor) ~ 0
 
                 [pos[:, i]              .~ 0.0 for i in 1:3]
                 [D.(pos[:, i])          .~ vel[:, i] for i in 4:s.i_A-1]
@@ -660,6 +660,8 @@ function model!(s::KPSQ; init=false)
 
             [sys.tether_length[i] => s.measure.tether_length[i] for i in 1:3]
             [sys.tether_vel[j] => 0 for j in 1:3]
+
+            sys.gust_factor => 1.0
         ]
     else
         Q_b_w = quaternion_multiply(s.Q_p_w, quaternion_conjugate(s.Q_p_b))
