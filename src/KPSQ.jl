@@ -51,12 +51,13 @@ const MeasureFloat = Float32
 @with_kw mutable struct Measurements
     set_values::MVector{3, MeasureFloat}    = [-1., -1., -50.]
     tether_length::MVector{3, MeasureFloat} = [51., 51., 49.]
-    tether_vel::MVector{3, MeasureFloat}    = zeros(3)
-    tether_acc::MVector{3, MeasureFloat}    = zeros(3)
+    tether_vel::MVector{3, MeasureFloat}    = zeros(MeasureFloat, 3)
+    tether_acc::MVector{3, MeasureFloat}    = zeros(MeasureFloat, 3)
+    tether_force::MVector{3, MeasureFloat}  = [3., 3., 540.]
     "elevation and azimuth in spherical coordinate system with columns (left, right) and rows (elevation, azimuth)"
-    sphere_pos::Matrix{SimFloat}            = deg2rad.([89.0 89.0; 1.0 -1.0])
-    sphere_vel::Matrix{SimFloat}            = zeros(SimFloat, 2, 2)
-    sphere_acc::Matrix{SimFloat}            = zeros(SimFloat, 2, 2)
+    sphere_pos::Matrix{MeasureFloat}            = deg2rad.([89.0 89.0; 1.0 -1.0])
+    sphere_vel::Matrix{MeasureFloat}            = zeros(MeasureFloat, 2, 2)
+    sphere_acc::Matrix{MeasureFloat}            = zeros(MeasureFloat, 2, 2)
 end
 
 """
@@ -253,7 +254,9 @@ $(TYPEDFIELDS)
     get_azimuth_acc::Function      = () -> nothing
 
     prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
+    init_prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
     integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Sundials.CVODEIntegrator, Nothing} = nothing
+    init_integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Sundials.CVODEIntegrator, Nothing} = nothing
 end
 
 function kite_torque_b(s)
@@ -465,15 +468,15 @@ Returns:
 Nothing.
 """
 function init_sim!(s::KPSQ; prn=false, torque_control=s.torque_control, 
-        init_set_values=s.init_set_values, ϵ=s.ϵ, flap_damping=s.flap_damping, force_new_sys=false)
+        init_set_values=s.init_set_values, ϵ=s.ϵ, flap_damping=s.flap_damping, force_new_sys=false, init=false)
     dt = 1/s.set.sample_freq
     tspan   = (0.0, dt) 
-    solver = TRBDF2( # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
-        autodiff=AutoFiniteDiff()
-    ) # the best
-    # solver = QBDF( # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
+    # solver = TRBDF2( # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
     #     autodiff=AutoFiniteDiff()
-    # )
+    # ) # the best
+    solver = QBDF( # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
+        autodiff=AutoFiniteDiff()
+    )
     set_hash = struct_hash(s.set)
     measure_hash = struct_hash(s.measure)
     new_pos = s.last_measure_hash != measure_hash
@@ -487,18 +490,17 @@ function init_sim!(s::KPSQ; prn=false, torque_control=s.torque_control,
     s.ϵ = ϵ
     s.flap_damping = flap_damping
 
-    if new_sys || true
+    if new_sys
         if prn; println("initializing with new model and new pos"); end
         clear!(s)
-        init = true
         sys, u0map, p0map = model!(s; init)
         s.prob = ODEProblem(sys, u0map, tspan, p0map)
         s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
         generate_getters!(s; init)
-        init_distance!(s)
+        reinit!(s)
     elseif new_pos
         if prn; println("initializing with last model and new pos"); end
-        init_distance!(s)
+        reinit!(s)
     else
         if prn; println("initializing with last model and last pos"); end
         OrdinaryDiffEqCore.reinit!(s.integrator, s.prob.u0)

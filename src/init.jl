@@ -226,7 +226,7 @@ function init_pos!(s::KPSQ; distance = nothing, te_angle = s.te_angle, kite_angl
     # init last tether points
     angular_acc = s.measure.tether_acc / s.set.drum_radius
     net_torque = angular_acc * s.set.inertia_total
-    tether_force = (net_torque - s.measure.set_values) / s.set.drum_radius # TODO: force is measurement and can be used for wind strength
+    tether_force = (net_torque - s.measure.set_values) / s.set.drum_radius
     if isnothing(distance)
         distance = s.measure.tether_length[3] + tether_force[3] / (s.c_spring[3]/s.measure.tether_length[3]) - 1e-3
     end
@@ -262,26 +262,29 @@ function init_pos!(s::KPSQ; distance = nothing, te_angle = s.te_angle, kite_angl
     return s.pos
 end
 
-"""
-Distance of the kite is difficult to measure precisely. So the distance is found by assuming
-    distance_acc ≈ tether_acc
-
-TODO: use azimuth and elevation acc to approximate wind speed
-"""
-function init_distance!(s)
+function reinit!(s::KPSQ)
     # init_pos!(s; distance, te_angle = [te_left, te_right], kite_angle)
-    # s.set_Q_p_w(s.prob, s.Q_p_w)
-    # s.set_ω_p(s.prob, zeros(3))
-    # s.set_kite_pos(s.prob, s.kite_pos)
-    # s.set_kite_vel(s.prob, zeros(3))
-    # s.set_pos(s.prob, s.pos[:, 4:s.i_A-1])
-    # s.set_vel(s.prob, zeros(3, s.i_A-4))
-    # s.set_trailing_edge_angle(s.prob, [te_left, te_right])
-    # s.set_trailing_edge_ω(s.prob, zeros(2))
-    # s.set_gust_factor(s.prob, 1.0)
-    # s.set_tether_length(s.prob, s.measure.tether_length)
-    # s.set_tether_vel(s.prob, s.measure.tether_vel)
-    # s.prob = remake(s.prob)
+    if isnothing(s.init_integrator)
+        sys, u0map, p0map = model!(s; init=true)
+        s.init_prob = ODEProblem(sys, u0map, tspan, p0map)
+        dt = 20.0
+        s.init_integrator = OrdinaryDiffEqCore.init(s.init_prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
+    end
+    OrdinaryDiffEqCore.reinit!(s.init_integrator, s.init_prob.u0)
+    
+
+    s.set_Q_p_w(s.prob, s.Q_p_w)
+    s.set_ω_p(s.prob, zeros(3))
+    s.set_kite_pos(s.prob, s.kite_pos)
+    s.set_kite_vel(s.prob, zeros(3))
+    s.set_pos(s.prob, s.pos[:, 4:s.i_A-1])
+    s.set_vel(s.prob, zeros(3, s.i_A-4))
+    s.set_trailing_edge_angle(s.prob, [te_left, te_right])
+    s.set_trailing_edge_ω(s.prob, zeros(2))
+    s.set_gust_factor(s.prob, 1.0)
+    s.set_tether_length(s.prob, s.measure.tether_length)
+    s.set_tether_vel(s.prob, s.measure.tether_vel)
+    s.prob = remake(s.prob)
     OrdinaryDiffEqCore.reinit!(s.integrator, s.prob.u0)
     nothing
 end

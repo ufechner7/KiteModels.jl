@@ -5,8 +5,8 @@ if plot
     using ControlPlots
 end
 
-dt = 0.1
-total_time = 20.0
+dt = 1.0
+total_time = 50.0
 steps = Int(round(total_time / dt))
 
 set = se("system_3l.yaml")
@@ -14,7 +14,7 @@ set.segments = 6
 set.aero_surfaces = 6
 logger = Logger(3*set.segments + 4, steps)
 if !@isdefined(s); s = KPSQ(KCU(set)); end
-s.measure.set_values = [-1, -1, -60.0]
+s.measure.set_values = [-0.5, -0.5, -60.0]
 s.measure.tether_acc = [0, 0, 0]
 s.measure.tether_length = [51., 51., 49.]
 s.measure.sphere_pos[1, 1] = deg2rad(80)
@@ -26,7 +26,7 @@ s.set.abs_tol = 0.001
 s.set.rel_tol = 0.0006
 # s.measure.distance_acc = s.measure.tether_acc[3]
 
-@time init_sim!(s; force_new_sys=true, prn=true, ϵ=0.0)
+@time init_sim!(s; force_new_sys=true, prn=true, ϵ=0.0, init=true)
 # @assert false
 sys_state = KiteModels.SysState(s)
 sys = s.simple_sys
@@ -42,12 +42,12 @@ try
         global set_values = s.measure.set_values
         # if t < 1.0; set_values[2] -= 0.0; end
         steptime = @elapsed t = next_step!(s; set_values, dt)
-        if (t > total_time/2); runtime += steptime; end
+        if (t > dt); runtime += steptime; end
         KiteModels.update_sys_state!(sys_state, s)
         sys_state.var_01 = s.get_α_b()[1]
         sys_state.var_02 = s.get_α_b()[2]
         sys_state.var_03 = s.get_α_b()[3]
-        sys_state.var_04 = norm(s.get_kite_pos())
+        sys_state.var_04 = s.integrator[s.simple_sys.gust_factor]
         sys_state.var_05 = s.get_distance_acc()
         sys_state.var_06 = norm(s.get_acc()[:, 6])
         sys_state.var_07 = s.get_trailing_edge_angle()[1]
@@ -79,7 +79,7 @@ if plot
         labels=[
             ["acc"],
             ["α_b[1]", "α_b[2]", "α_b[3]"],
-            ["x kite"],
+            ["gust factor"],
             ["distance", "middle tether"],
             ["left", "right"],
             ["left flap", "right flap", "middle tether"],
@@ -89,6 +89,7 @@ if plot
     display(p)
 end
 
-println("Times realtime: ", (total_time/2) / runtime)
+println("Total runtime: ", runtime)
+println("Times realtime: ", (total_time) / runtime)
 
 nothing
