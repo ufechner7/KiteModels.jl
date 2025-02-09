@@ -262,29 +262,42 @@ function init_pos!(s::KPSQ; distance = nothing, te_angle = s.te_angle, kite_angl
     return s.pos
 end
 
-function reinit!(s::KPSQ; new_sys)
+function reinit!(s::KPSQ; init=false, new_sys=true, initial_damping=0., damping_time=10)
+    dt = 20.
+    tspan = (0., dt)
     if new_sys
         solver = QBDF( # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
             autodiff=AutoFiniteDiff()
         )
-        dt = 20.
-        tspan = (0., dt)
-        isys, u0map, p0map = model!(s; init=true)
-        s.init_prob = ODEProblem(isys, u0map, tspan, p0map)
-        s.init_integrator = OrdinaryDiffEqCore.init(s.init_prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
+        if !init
+            isys, u0map, p0map = model!(s; init=true)
+            s.init_prob = ODEProblem(isys, u0map, tspan, p0map)
+            isys = s.init_prob.f.sys
+            s.init_integrator = OrdinaryDiffEqCore.init(s.init_prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
+        else
+            isys = s.prob.f.sys
+            s.init_prob = s.prob
+            s.init_integrator = s.integrator
+        end
 
-        s.initialize_measure = (prob, val) -> setp(s.init_prob, (
+        initialize_measure = setp(s.init_prob, (
             isys.measured_sphere_pos,
             isys.measured_sphere_vel,
             isys.measured_sphere_acc,
             isys.measured_tether_length,
             isys.measured_tether_vel,
-            isys.measured_tether_acc
-        ))(prob, val)
-        s.initialize_set_values = (prob, val) -> setu(isys, isys.set_values)(prob, val)
-        diff_state = unknowns(s.simple_sys)
-        s.get_diff_state = (prob) -> getu(isys, diff_state)(prob)
-        s.set_diff_state = (prob, val) -> setu(s.simple_sys, diff_state)(prob, val)
+            isys.measured_tether_acc,
+        ))
+        initialize_set_values = setu(isys, isys.set_values)
+        
+        s.initialize_measure = (prob, val) -> initialize_measure(prob, val)
+        s.initialize_set_values = (prob, val) -> initialize_set_values(prob, val)
+        
+        diff_state = unknowns(s.prob.f.sys)
+        get_diff_state = getu(isys, diff_state)
+        set_diff_state = setu(s.prob, diff_state)
+        s.get_diff_state = (prob) -> get_diff_state(prob)
+        s.set_diff_state = (prob, val) -> set_diff_state(prob, val)
     end
     s.initialize_measure(s.init_prob, (
         s.measure.sphere_pos,
@@ -299,7 +312,6 @@ function reinit!(s::KPSQ; new_sys)
     OrdinaryDiffEqCore.reinit!(s.init_integrator, s.init_prob.u0)
     OrdinaryDiffEqCore.step!(s.init_integrator, dt, true) # TODO: step until a certain amount of time has passed
     diff_state = s.get_diff_state(s.init_integrator)
-    @show diff_state
     s.set_diff_state(s.prob, diff_state)
     s.prob = remake(s.prob)
     OrdinaryDiffEqCore.reinit!(s.integrator, s.prob.u0)

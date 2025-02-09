@@ -238,6 +238,11 @@ function create_sys!(s::KPSQ; init=false)
     te_length = s.kite_length_D/4
 
     function diff_eqs!()
+        @parameters begin
+            idamp = 100
+            itime = 10
+        end
+
         te_length = s.kite_length_D/4 # trailing edge length
         @assert te_length != 0
         
@@ -279,7 +284,9 @@ function create_sys!(s::KPSQ; init=false)
                 D.(tether_vel)          .~ tether_acc
             ]
         else
-            idamp = 100
+            idamp = 10
+            scale = 1e-3
+
             # no movement around body z axis
             Ω = [0       -ω_b[1]  -ω_b[2]  -0     ;
                 ω_b[1]   0        0       -ω_b[2];
@@ -310,7 +317,7 @@ function create_sys!(s::KPSQ; init=false)
                 [Q_vel[i] ~ 0.5 * sum(Ω[i, j] * Q_b_w[j] for j in 1:4) for i in 1:4]
                 [R_b_w[:, i] ~ quaternion_to_rotation_matrix(Q_b_w)[:, i] for i in 1:3] # https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation#Performance_comparisons
                 [R_p_w[:, i] ~ quaternion_to_rotation_matrix(Q_p_w)[:, i] for i in 1:3]
-                D(ω_b[1:2]) ~ α_b[1:2] - idamp * ω_b[1:2]
+                D(ω_b[1:2]) ~ scale * α_b[1:2] - idamp * ω_b[1:2]
                 ω_b[3] ~ ω_z
                 ω_p ~ s.R_b_p * ω_b
                 torque_b ~ s.R_b_p' * torque_p
@@ -324,16 +331,16 @@ function create_sys!(s::KPSQ; init=false)
                 kite_acc        ~ distance_acc * normalize(kite_pos - pos[:, 3]) + 
                                     rotate_around_z(rotate_around_y([0, azimuth_acc * distance, elevation_acc * distance], -elevation), azimuth)
                 D(distance)     ~ distance_vel
-                D(distance_vel) ~ distance_acc
-                distance_acc    ~ (measured_tether_acc[3] - tether_acc[3])
-                D(gust_factor)  ~ 0.01(mean(measured_tether_force[1:2]) - mean(tether_force[1:2]))
+                D(distance_vel) ~ distance_acc - idamp * distance_vel
+                distance_acc    ~ scale * (measured_tether_acc[3] - tether_acc[3])
+                D(gust_factor)  ~ scale * (mean(measured_tether_force[1:2]) - mean(tether_force[1:2]))
 
                 [pos[:, i]              .~ 0.0 for i in 1:3]
                 [D.(pos[:, i])          .~ vel[:, i] for i in 4:s.i_A-1]
                 D(trailing_edge_angle)   ~ trailing_edge_ω
                 [vel[:, i]              .~ 0.0 for i in 1:3]
-                [D.(vel[:, i])          .~ acc[:, i] - idamp * vel[:, i] for i in 4:s.i_A-1]
-                D(trailing_edge_ω)       ~ trailing_edge_α - idamp * trailing_edge_ω
+                [D.(vel[:, i])          .~ scale * acc[:, i] - idamp * vel[:, i] for i in 4:s.i_A-1]
+                D(trailing_edge_ω)       ~ scale * trailing_edge_α - idamp * trailing_edge_ω
                 tether_length           ~ measured_tether_length
                 tether_vel              ~ measured_tether_vel
             ]
@@ -394,12 +401,13 @@ function create_sys!(s::KPSQ; init=false)
             azimuth_acc(t)
             elevation_vel(t)
             elevation_acc(t)
-            distance_vel(t)
-            distance_acc(t)
             x_acc(t)
             y_acc(t)
             left_diff(t)
             right_diff(t)
+            sphere_pos(t)[1:2, 1:2] # TODO: add equations for these, and think of a good measurement system, maybe rolling window?
+            sphere_vel(t)[1:2, 1:2]
+            sphere_acc(t)[1:2, 1:2]
         end
 
         x, y, z = kite_pos
@@ -642,7 +650,6 @@ function model!(s::KPSQ; init=false)
     sys, inputs = create_sys!(s; init)
     # structural_simplify(sys, (inputs, []))
     (sys, _) = structural_simplify(sys, (inputs, []); fully_determined=true)
-    s.simple_sys = sys
 
     if !init
         u0map = [

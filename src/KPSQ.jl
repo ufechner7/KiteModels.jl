@@ -207,8 +207,8 @@ $(TYPEDFIELDS)
     "Angle of the trailing edges of the kite"
     te_angle::V = zeros(S, 2)
 
-    initialize_measure::Function     = () -> nothing
-    initialize_set_values::Function       = () -> nothing
+    initialize_measure::Function    = () -> nothing
+    initialize_set_values::Function = () -> nothing
     get_diff_state::Function        = () -> nothing
     set_diff_state::Function        = () -> nothing
     
@@ -227,6 +227,8 @@ $(TYPEDFIELDS)
     set_v_wind::Function            = () -> nothing
     set_set_values::Function        = () -> nothing
 
+    get_distance::Function       = () -> nothing
+    get_distance_vel::Function       = () -> nothing
     get_distance_acc::Function       = () -> nothing
     get_pos::Function               = () -> nothing
     get_vel::Function               = () -> nothing
@@ -473,18 +475,19 @@ Returns:
 Nothing.
 """
 function init_sim!(s::KPSQ; prn=false, torque_control=s.torque_control, 
-        init_set_values=s.init_set_values, ϵ=s.ϵ, flap_damping=s.flap_damping, force_new_sys=false, init=false)
-    dt = 1/s.set.sample_freq
+        init_set_values=s.init_set_values, ϵ=s.ϵ, flap_damping=s.flap_damping, 
+        force_new_sys=false, force_new_pos=false, init=false)
+    dt = Float64(1/s.set.sample_freq)
     tspan   = (0.0, dt) 
-    # solver = TRBDF2( # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
-    #     autodiff=AutoFiniteDiff()
-    # ) # the best
-    solver = QBDF( # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
+    solver = TRBDF2( # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
         autodiff=AutoFiniteDiff()
-    )
+    ) # the best
+    # solver = QBDF( # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
+    #     autodiff=AutoFiniteDiff()
+    # )
     set_hash = struct_hash(s.set)
     measure_hash = struct_hash(s.measure)
-    new_pos = s.last_measure_hash != measure_hash
+    new_pos = s.last_measure_hash != measure_hash || force_new_pos
     new_sys = force_new_sys ||
                     isnothing(s.prob) || 
                     s.torque_control != torque_control || 
@@ -500,12 +503,13 @@ function init_sim!(s::KPSQ; prn=false, torque_control=s.torque_control,
         clear!(s)
         sys, u0map, p0map = model!(s; init)
         s.prob = ODEProblem(sys, u0map, tspan, p0map)
+        s.simple_sys = s.prob.f.sys
         s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
         generate_getters!(s; init)
-        if !init; reinit!(s; new_sys); end
+        if (!init) reinit!(s; new_sys) end
     elseif new_pos
         if prn; println("initializing with last model and new pos"); end
-        if !init; reinit!(s; new_sys); else; OrdinaryDiffEqCore.reinit!(s.integrator, s.prob.u0); end;
+        if (!init) reinit!(s; new_sys) end
     else
         if prn; println("initializing with last model and last pos"); end
         OrdinaryDiffEqCore.reinit!(s.integrator, s.prob.u0)
@@ -520,7 +524,7 @@ function init_sim!(s::KPSQ; prn=false, torque_control=s.torque_control,
 end
 
 function generate_getters!(s; init=false)
-    sys = s.simple_sys
+    sys = s.prob.f.sys
 
     if !init
         set_Q_p_w = setu(s.prob, sys.Q_p_w)
@@ -585,6 +589,8 @@ function generate_getters!(s; init=false)
     get_elevation_acc = getu(s.integrator, sys.elevation_acc)
     get_azimuth_vel = getu(s.integrator, sys.azimuth_vel)
     get_azimuth_acc = getu(s.integrator, sys.azimuth_acc)
+    get_distance = getu(s.integrator, sys.distance)
+    get_distance_vel = getu(s.integrator, sys.distance_vel)
     get_distance_acc = getu(s.integrator, sys.distance_acc)
 
     s.get_pos                 = () -> get_pos(s.integrator)
@@ -616,6 +622,8 @@ function generate_getters!(s; init=false)
     s.get_elevation_acc       = () -> get_elevation_acc(s.integrator)
     s.get_azimuth_vel         = () -> get_azimuth_vel(s.integrator)
     s.get_azimuth_acc         = () -> get_azimuth_acc(s.integrator)
+    s.get_distance            = () -> get_distance(s.integrator)
+    s.get_distance_vel        = () -> get_distance_vel(s.integrator)
     s.get_distance_acc        = () -> get_distance_acc(s.integrator)
     nothing
 end

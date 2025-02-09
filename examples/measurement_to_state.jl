@@ -6,7 +6,7 @@ if plot
 end
 
 dt = 1.0
-total_time = 50.0
+total_time = 100.
 steps = Int(round(total_time / dt))
 
 set = se("system_3l.yaml")
@@ -15,18 +15,20 @@ set.aero_surfaces = 6
 logger = Logger(3*set.segments + 4, steps)
 if !@isdefined(s); s = KPSQ(KCU(set)); end
 s.measure.set_values = [-0.5, -0.5, -60.0]
-s.measure.tether_acc = [0, 0, 0]
 s.measure.tether_length = [51., 51., 49.]
-s.measure.sphere_pos[1, 1] = deg2rad(80)
-s.measure.sphere_pos[1, 2] = deg2rad(80)
+s.measure.tether_vel = [0.015, 0.015, 0.782]
+s.measure.tether_acc = [0.18, 0.18, 4.12]
+s.measure.sphere_pos[1, 1] = deg2rad(81.36)
+s.measure.sphere_pos[1, 2] = deg2rad(81.36)
 s.measure.sphere_pos[2, 1] = deg2rad(1)
 s.measure.sphere_pos[2, 2] = deg2rad(-1)
-s.measure.sphere_vel .= [0.2 0.2; 0 0]
+s.measure.sphere_vel .= [0.13 0.13; 0 0]
+s.measure.sphere_acc .= [0.09 0.09; 0 0]
 s.set.abs_tol = 0.001
 s.set.rel_tol = 0.0006
 # s.measure.distance_acc = s.measure.tether_acc[3]
 
-@time init_sim!(s; force_new_sys=true, prn=true, ϵ=0.0, init=false)
+@time init_sim!(s; force_new_sys=false, force_new_pos=false, prn=true, ϵ=0.0, init=true)
 # @assert false
 sys_state = KiteModels.SysState(s)
 sys = s.simple_sys
@@ -49,7 +51,7 @@ try
         sys_state.var_03 = s.get_α_b()[3]
         sys_state.var_04 = s.integrator[s.simple_sys.gust_factor]
         sys_state.var_05 = s.get_distance_acc()
-        sys_state.var_06 = norm(s.get_acc()[:, 6])
+        sys_state.var_06 = s.get_distance()
         sys_state.var_07 = s.get_trailing_edge_angle()[1]
         sys_state.var_08 = s.get_trailing_edge_angle()[2]
         sys_state.var_09 = s.get_force()[:, s.i_A] ⋅ s.get_e_te_A()
@@ -65,29 +67,27 @@ catch e
         rethrow(e)
     end
 end
-if plot 
-    p=plotx(logger.time_vec, 
-            [logger.acc_vec],
-            [logger.var_01_vec, logger.var_02_vec, logger.var_03_vec],
-            [logger.var_04_vec],
-            [logger.var_05_vec, logger.var_06_vec],
-            [logger.var_07_vec, logger.var_08_vec],
-            [logger.var_09_vec, logger.var_10_vec, logger.var_11_vec],
-            [logger.heading_vec],
-            ;
-        ylabels=["acc", "α", "pos", "acc", "te angle", "force", "heading"], 
-        labels=[
-            ["acc"],
-            ["α_b[1]", "α_b[2]", "α_b[3]"],
-            ["gust factor"],
-            ["distance", "middle tether"],
-            ["left", "right"],
-            ["left flap", "right flap", "middle tether"],
-            ["heading_y"]
-            ],
-        fig="Steering and heading MTK model")
-    display(p)
-end
+p=plotx(logger.time_vec, 
+        [logger.acc_vec],
+        [logger.var_01_vec, logger.var_02_vec, logger.var_03_vec],
+        [ logger.var_06_vec],
+        [logger.var_05_vec],
+        [logger.var_07_vec, logger.var_08_vec],
+        [logger.var_09_vec, logger.var_10_vec, logger.var_11_vec],
+        [logger.heading_vec],
+        ;
+    ylabels=["acc", "α", "pos", "acc", "te angle", "force", "heading"], 
+    labels=[
+        ["acc"],
+        ["α_b[1]", "α_b[2]", "α_b[3]"],
+        ["distance"],
+        ["distance"],
+        ["left", "right"],
+        ["left flap", "right flap", "middle tether"],
+        ["heading_y"]
+        ],
+    fig="Steering and heading MTK model")
+display(p)
 
 println("Total runtime: ", runtime)
 println("Times realtime: ", (total_time) / runtime)
