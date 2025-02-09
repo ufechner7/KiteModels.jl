@@ -333,14 +333,14 @@ function create_sys!(s::KPSQ; init=false)
                 D(distance)     ~ distance_vel
                 D(distance_vel) ~ distance_acc - idamp * distance_vel
                 distance_acc    ~ scale * (measured_tether_acc[3] - tether_acc[3])
-                D(gust_factor)  ~ scale * (mean(measured_tether_force[1:2]) - mean(tether_force[1:2]))
+                D(gust_factor)  ~ 10scale * (mean(measured_tether_force[1:2]) - mean(tether_force[1:2]))
 
                 [pos[:, i]              .~ 0.0 for i in 1:3]
                 [D.(pos[:, i])          .~ vel[:, i] for i in 4:s.i_A-1]
                 D(trailing_edge_angle)   ~ trailing_edge_ω
                 [vel[:, i]              .~ 0.0 for i in 1:3]
                 [D.(vel[:, i])          .~ scale * acc[:, i] - idamp * vel[:, i] for i in 4:s.i_A-1]
-                D(trailing_edge_ω)       ~ scale * trailing_edge_α - idamp * trailing_edge_ω
+                D(trailing_edge_ω)       ~ 0.1scale * trailing_edge_α - idamp * trailing_edge_ω
                 tether_length           ~ measured_tether_length
                 tether_vel              ~ measured_tether_vel
             ]

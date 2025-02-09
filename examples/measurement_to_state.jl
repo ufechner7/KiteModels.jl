@@ -54,9 +54,8 @@ try
         sys_state.var_06 = s.get_distance()
         sys_state.var_07 = s.get_trailing_edge_angle()[1]
         sys_state.var_08 = s.get_trailing_edge_angle()[2]
-        sys_state.var_09 = s.get_force()[:, s.i_A] ⋅ s.get_e_te_A()
-        sys_state.var_10 = s.get_force()[:, s.i_B] ⋅ s.get_e_te_B()
-        sys_state.var_11 = s.get_tether_force()[3]
+        sys_state.var_09 = s.get_tether_force()[1]
+        sys_state.var_10 = s.get_tether_force()[2]
         log!(logger, sys_state)
     end
 catch e
@@ -70,10 +69,10 @@ end
 p=plotx(logger.time_vec, 
         [logger.acc_vec],
         [logger.var_01_vec, logger.var_02_vec, logger.var_03_vec],
-        [ logger.var_06_vec],
+        [ logger.var_04_vec],
         [logger.var_05_vec],
         [logger.var_07_vec, logger.var_08_vec],
-        [logger.var_09_vec, logger.var_10_vec, logger.var_11_vec],
+        [logger.var_09_vec, logger.var_10_vec],
         [logger.heading_vec],
         ;
     ylabels=["acc", "α", "pos", "acc", "te angle", "force", "heading"], 
@@ -83,7 +82,7 @@ p=plotx(logger.time_vec,
         ["distance"],
         ["distance"],
         ["left", "right"],
-        ["left flap", "right flap", "middle tether"],
+        ["left winch", "right winch"],
         ["heading_y"]
         ],
     fig="Steering and heading MTK model")
