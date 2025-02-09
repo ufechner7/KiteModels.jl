@@ -165,8 +165,7 @@ function create_sys!(s::KPSQ; init=false)
         [s.motors[i] = AsyncMachine(s.set) for i in 1:3]
     end
     @parameters begin
-        v_wind_gnd[1:3] = s.v_wind_gnd
-        v_wind[1:3] = s.v_wind
+        measured_wind_dir_gnd = s.measure.wind_dir_gnd
         measured_sphere_pos[1:2, 1:2] = s.measure.sphere_pos
         measured_sphere_vel[1:2, 1:2] = s.measure.sphere_vel
         measured_sphere_acc[1:2, 1:2] = s.measure.sphere_acc
@@ -187,7 +186,7 @@ function create_sys!(s::KPSQ; init=false)
         distance(t)
         distance_vel(t)
         distance_acc(t)
-        gust_factor(t)
+        wind_scale_gnd(t)
         ω_p(t)[1:3] # turn rate in principal frame
         ω_b(t)[1:3] # turn rate in body frame
         α_p(t)[1:3] # angular acceleration in principal frame
@@ -213,7 +212,7 @@ function create_sys!(s::KPSQ; init=false)
         e_te_A(t)[1:3]
         e_te_B(t)[1:3]
 
-        # forces and torques
+        # rest: forces, torques, vectors and scalar values
         torque_p(t)[1:3] # torque in principal frame
         torque_b(t)[1:3] # torque in body frame
         segment_length(t)[1:3]
@@ -225,6 +224,8 @@ function create_sys!(s::KPSQ; init=false)
         force(t)[1:3, 1:s.i_C]
         rho_kite(t)
         norm1(t)[1:s.i_C-3]
+        wind_vec_gnd(t)[1:3]
+        v_wind_kite(t)[1:3]
     end
     # Collect the arrays into variables
     pos = collect(pos)
@@ -238,15 +239,6 @@ function create_sys!(s::KPSQ; init=false)
     te_length = s.kite_length_D/4
 
     function diff_eqs!()
-        @parameters begin
-            idamp = 100
-            itime = 10
-        end
-
-        te_length = s.kite_length_D/4 # trailing edge length
-        @assert te_length != 0
-        
-        s.orient_damping = 2.0 * sqrt(maximum(s.I_p))
         Q_b_p = quaternion_conjugate(s.Q_p_b)
         if !init
             Ω = [0       -ω_p[1]  -ω_p[2]  -ω_p[3];
@@ -272,7 +264,7 @@ function create_sys!(s::KPSQ; init=false)
                 distance            ~ norm(kite_pos - pos[:, 3])
                 distance_vel        ~ kite_vel ⋅ normalize(kite_pos - pos[:, 3])
                 distance_acc        ~ kite_acc ⋅ normalize(kite_pos - pos[:, 3])    
-                D(gust_factor) ~ 0
+                D(wind_scale_gnd) ~ 0
 
                 [pos[:, i]              .~ 0.0 for i in 1:3]
                 [D.(pos[:, i])          .~ vel[:, i] for i in 4:s.i_A-1]
@@ -292,6 +284,8 @@ function create_sys!(s::KPSQ; init=false)
                 ω_b[1]   0        0       -ω_b[2];
                 ω_b[2]  -0        0        ω_b[1];
                 0        ω_b[2]  -ω_b[1]   0     ]
+            
+            # from measurements
             elevation     = mean(measured_sphere_pos[1, :])
             azimuth       = mean(measured_sphere_pos[2, :])
             elevation_vel = mean(measured_sphere_vel[1, :])
@@ -310,6 +304,7 @@ function create_sys!(s::KPSQ; init=false)
             net_torque = angular_acc * s.set.inertia_total
             measured_tether_force = (net_torque - set_values) / s.set.drum_radius
 
+            # scaled down, partially fixed, and damped equations to find unmeasured variables
             eqs = [
                 eqs
                 [D(Q_b_w[i]) ~ Q_vel[i] for i in 1:4]
@@ -333,7 +328,7 @@ function create_sys!(s::KPSQ; init=false)
                 D(distance)     ~ distance_vel
                 D(distance_vel) ~ distance_acc - idamp * distance_vel
                 distance_acc    ~ scale * (measured_tether_acc[3] - tether_acc[3])
-                D(gust_factor)  ~ 10scale * (mean(measured_tether_force[1:2]) - mean(tether_force[1:2]))
+                D(wind_scale_gnd)  ~ 100scale * (mean(measured_tether_force[1:2]) - mean(tether_force[1:2]))
 
                 [pos[:, i]              .~ 0.0 for i in 1:3]
                 [D.(pos[:, i])          .~ vel[:, i] for i in 4:s.i_A-1]
@@ -384,6 +379,8 @@ function create_sys!(s::KPSQ; init=false)
             e_te_A  ~ -e_x * sin(trailing_edge_angle[1]) + e_r_D * cos(trailing_edge_angle[1])
             e_te_B  ~ -e_x * sin(trailing_edge_angle[2]) + e_r_E * cos(trailing_edge_angle[2])
             rho_kite        ~ calc_rho(s.am, pos[3,s.i_A])
+            wind_vec_gnd ~ wind_scale_gnd * rotate_around_z([1, 0, 0], measured_wind_dir_gnd)
+            v_wind_kite     ~ AtmosphericModels.calc_wind_factor(s.am, kite_pos[3], s.set.profile_law) * wind_vec_gnd
         ]
 
         @variables begin
@@ -396,9 +393,9 @@ function create_sys!(s::KPSQ; init=false)
             tether_diff_vel(t)
             set_diff(t)
             azimuth(t)
-            elevation(t)
             azimuth_vel(t)
             azimuth_acc(t)
+            elevation(t)
             elevation_vel(t)
             elevation_acc(t)
             x_acc(t)
@@ -430,11 +427,11 @@ function create_sys!(s::KPSQ; init=false)
             elevation_vel       ~ (x*z´ - z*x´) / 
                                     (x^2 + z^2)
             elevation_acc       ~ ((x^2 + z^2)*(x*z´´ - z*x´´) + 2(z*x´ - x*z´)*(x*x´ + z*z´))/(x^2 + z^2)^2
-            azimuth             ~ -atan(y / x)
-            # azimuth_vel = d/dt(-atan(y/x)) = (y*x´ - x*y´)/(x^2 + y^2)
-            azimuth_vel         ~ (y*x´ - x*y´) / 
+            azimuth             ~ atan(y / x)
+            # azimuth_vel = d/dt(atan(y/x)) = (-y*x´ + x*y´)/(x^2 + y^2) # TODO: check if correct
+            azimuth_vel         ~ (-y*x´ + x*y´) / 
                                     (x^2 + y^2)
-            azimuth_acc         ~ ((x^2 + y^2)*(y*x´´ - x*y´´) - 2(y*x´ - x*y´)*(x*x´ + y*y´))/(x^2 + y^2)^2
+            azimuth_acc         ~ ((x^2 + y^2)*(-y*x´´ + x*y´´) + 2(y*x´ - x*y´)*(x*x´ + y*y´))/(x^2 + y^2)^2
             x_acc               ~ kite_acc ⋅ e_x
             y_acc               ~ kite_acc ⋅ e_y
             left_diff           ~ tether_length[1] - tether_length[3]
@@ -472,7 +469,7 @@ function create_sys!(s::KPSQ; init=false)
                 eqs
                 height[i]           ~ max(0.0, 0.5 * (pos[:, p1][3] + pos[:, p2][3]))
                 rho[i]              ~ calc_rho(s.am, height[i])
-                v_wind_tether[:, i] ~ AtmosphericModels.calc_wind_factor(s.am, height[i], s.set.profile_law) * v_wind_gnd * abs(gust_factor)
+                v_wind_tether[:, i] ~ AtmosphericModels.calc_wind_factor(s.am, height[i], s.set.profile_law) * wind_vec_gnd
             ]
     
             eqs, force_eqs = calc_particle_forces!(s, eqs, force_eqs, force, p1, p2, pos[:, p1], pos[:, p2], vel[:, p1], 
@@ -540,7 +537,7 @@ function create_sys!(s::KPSQ; init=false)
                 eqs
                 e_r[:, i]       ~ rotate_v_around_k(e_z, e_x, 0.5π + γ)
                 seg_vel[:, i]   ~ kite_vel + R_b_w * (ω_b × s.seg_cop_pos_b[:, i])
-                v_a[:, i]       ~ v_wind .- seg_vel[:, i]
+                v_a[:, i]       ~ v_wind_kite .- seg_vel[:, i]
                 e_drift[:, i]   ~ (e_x × e_r[:, i])
                 v_a_xr[:, i]    ~ v_a[:, i] .- (v_a[:, i] ⋅ e_drift[:, i]) .* e_drift[:, i]
 
@@ -668,7 +665,7 @@ function model!(s::KPSQ; init=false)
             [sys.tether_length[i] => s.measure.tether_length[i] for i in 1:3]
             [sys.tether_vel[j] => 0 for j in 1:3]
 
-            sys.gust_factor => 1.0
+            sys.wind_scale_gnd => s.set.v_wind
         ]
     else
         Q_b_w = quaternion_multiply(s.Q_p_w, quaternion_conjugate(s.Q_p_b))
@@ -685,7 +682,7 @@ function model!(s::KPSQ; init=false)
             [sys.trailing_edge_angle[i] => s.te_angle[i] for i in 1:2]
             [sys.trailing_edge_ω[i] => 0 for i in 1:2]
 
-            sys.gust_factor => 1.0
+            sys.wind_scale_gnd => s.set.v_wind
         ]
     end
     p0map = [sys.set_values[j] => s.measure.set_values[j] for j in 1:3]

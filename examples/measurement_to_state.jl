@@ -29,7 +29,6 @@ s.set.rel_tol = 0.0006
 # s.measure.distance_acc = s.measure.tether_acc[3]
 
 @time init_sim!(s; force_new_sys=false, force_new_pos=false, prn=true, ϵ=0.0, init=true)
-# @assert false
 sys_state = KiteModels.SysState(s)
 sys = s.simple_sys
 l = s.set.l_tether + 10
@@ -49,7 +48,7 @@ try
         sys_state.var_01 = s.get_α_b()[1]
         sys_state.var_02 = s.get_α_b()[2]
         sys_state.var_03 = s.get_α_b()[3]
-        sys_state.var_04 = s.integrator[s.simple_sys.gust_factor]
+        sys_state.var_04 = s.get_wind_scale_gnd()
         sys_state.var_05 = s.get_distance_acc()
         sys_state.var_06 = s.get_distance()
         sys_state.var_07 = s.get_trailing_edge_angle()[1]
@@ -69,7 +68,7 @@ end
 p=plotx(logger.time_vec, 
         [logger.acc_vec],
         [logger.var_01_vec, logger.var_02_vec, logger.var_03_vec],
-        [ logger.var_04_vec],
+        [logger.var_04_vec],
         [logger.var_05_vec],
         [logger.var_07_vec, logger.var_08_vec],
         [logger.var_09_vec, logger.var_10_vec],
@@ -79,7 +78,7 @@ p=plotx(logger.time_vec,
     labels=[
         ["acc"],
         ["α_b[1]", "α_b[2]", "α_b[3]"],
-        ["distance"],
+        ["wind speed"],
         ["distance"],
         ["left", "right"],
         ["left winch", "right winch"],

@@ -263,7 +263,7 @@ function init_pos!(s::KPSQ; distance = nothing, te_angle = s.te_angle, kite_angl
 end
 
 function reinit!(s::KPSQ; init=false, new_sys=true, initial_damping=0., damping_time=10)
-    dt = 20.
+    dt = 100.
     tspan = (0., dt)
     if new_sys
         solver = QBDF( # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
@@ -280,7 +280,8 @@ function reinit!(s::KPSQ; init=false, new_sys=true, initial_damping=0., damping_
             s.init_integrator = s.integrator
         end
 
-        initialize_measure = setp(s.init_prob, (
+        set_initial_measure = setp(s.init_prob, (
+            isys.measured_wind_dir_gnd,
             isys.measured_sphere_pos,
             isys.measured_sphere_vel,
             isys.measured_sphere_acc,
@@ -288,10 +289,10 @@ function reinit!(s::KPSQ; init=false, new_sys=true, initial_damping=0., damping_
             isys.measured_tether_vel,
             isys.measured_tether_acc,
         ))
-        initialize_set_values = setu(isys, isys.set_values)
+        set_initial_set_values = setu(isys, isys.set_values)
         
-        s.initialize_measure = (prob, val) -> initialize_measure(prob, val)
-        s.initialize_set_values = (prob, val) -> initialize_set_values(prob, val)
+        s.set_initial_measure = (prob, val) -> set_initial_measure(prob, val)
+        s.set_initial_set_values = (prob, val) -> set_initial_set_values(prob, val)
         
         diff_state = unknowns(s.prob.f.sys)
         get_diff_state = getu(isys, diff_state)
@@ -299,7 +300,8 @@ function reinit!(s::KPSQ; init=false, new_sys=true, initial_damping=0., damping_
         s.get_diff_state = (prob) -> get_diff_state(prob)
         s.set_diff_state = (prob, val) -> set_diff_state(prob, val)
     end
-    s.initialize_measure(s.init_prob, (
+    s.set_initial_measure(s.init_prob, (
+        s.measure.wind_dir_gnd,
         s.measure.sphere_pos,
         s.measure.sphere_vel,
         s.measure.sphere_acc,
@@ -307,7 +309,7 @@ function reinit!(s::KPSQ; init=false, new_sys=true, initial_damping=0., damping_
         s.measure.tether_vel,
         s.measure.tether_acc,
     ))
-    s.initialize_set_values(s.init_prob, s.measure.set_values)
+    s.set_initial_set_values(s.init_prob, s.measure.set_values)
     s.init_prob = remake(s.init_prob)
     OrdinaryDiffEqCore.reinit!(s.init_integrator, s.init_prob.u0)
     OrdinaryDiffEqCore.step!(s.init_integrator, dt, true) # TODO: step until a certain amount of time has passed
@@ -375,8 +377,8 @@ function init(s::KPSQ; delta=0.0)
 end
 
 # rotate a 3d vector around the y axis in the xz plane - following the right hand rule
-function rotate_around_y(vec, angle)
-    result = similar(vec)
+function rotate_around_y(vec, angle::T) where T
+    result = zeros(T, 3)
     result[1] = cos(angle) * vec[1] + sin(angle) * vec[3]
     result[2] = vec[2]
     result[3] = -sin(angle) * vec[1] + cos(angle) * vec[3]
@@ -384,8 +386,8 @@ function rotate_around_y(vec, angle)
 end
 
 # rotate a 3d vector around the z axis in the yx plane - following the right hand rule
-function rotate_around_z(vec, angle)
-    result = similar(vec)
+function rotate_around_z(vec, angle::T) where T
+    result = zeros(T, 3)
     result[1] = cos(angle) * vec[1] - sin(angle) * vec[2]
     result[2] = sin(angle) * vec[1] + cos(angle) * vec[2]
     result[3] = vec[3]
