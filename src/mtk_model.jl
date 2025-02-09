@@ -277,7 +277,7 @@ function create_sys!(s::KPSQ; init=false)
             ]
         else
             idamp = 10
-            scale = 1e-3
+            scale = 1e-2
 
             # no movement around body z axis
             Ω = [0       -ω_b[1]  -ω_b[2]  -0     ;
@@ -334,7 +334,7 @@ function create_sys!(s::KPSQ; init=false)
                 [D.(pos[:, i])          .~ vel[:, i] for i in 4:s.i_A-1]
                 D(trailing_edge_angle)   ~ trailing_edge_ω
                 [vel[:, i]              .~ 0.0 for i in 1:3]
-                [D.(vel[:, i])          .~ scale * acc[:, i] - idamp * vel[:, i] for i in 4:s.i_A-1]
+                [D.(vel[:, i])          .~ scale * acc[:, i] - idamp * vel[:, i] for i in 4:s.i_A-1] # TODO: ADD CENTRIFUGAL FORCE DUE TO KITE ROTATION
                 D(trailing_edge_ω)       ~ 0.1scale * trailing_edge_α - idamp * trailing_edge_ω
                 tether_length           ~ measured_tether_length
                 tether_vel              ~ measured_tether_vel

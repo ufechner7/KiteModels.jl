@@ -263,7 +263,7 @@ function init_pos!(s::KPSQ; distance = nothing, te_angle = s.te_angle, kite_angl
 end
 
 function reinit!(s::KPSQ; init=false, new_sys=true, initial_damping=0., damping_time=10)
-    dt = 100.
+    dt = 40.
     tspan = (0., dt)
     if new_sys
         solver = QBDF( # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results

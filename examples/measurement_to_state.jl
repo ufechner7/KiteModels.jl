@@ -6,7 +6,7 @@ if plot
 end
 
 dt = 1.0
-total_time = 100.
+total_time = 40.
 steps = Int(round(total_time / dt))
 
 set = se("system_3l.yaml")
@@ -28,12 +28,12 @@ s.set.abs_tol = 0.001
 s.set.rel_tol = 0.0006
 # s.measure.distance_acc = s.measure.tether_acc[3]
 
-@time init_sim!(s; force_new_sys=false, force_new_pos=false, prn=true, ϵ=0.0, init=true)
+@time init_sim!(s; force_new_sys=false, force_new_pos=false, prn=true, ϵ=0.0, init=false)
 sys_state = KiteModels.SysState(s)
 sys = s.simple_sys
 l = s.set.l_tether + 10
-t = 0
-runtime = 0.0
+t = 0.
+runtime = 0.
 try
     while t < total_time
         global t, runtime

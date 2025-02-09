@@ -552,15 +552,7 @@ function generate_getters!(s; init=false)
     end
 
     set_set_values = setu(sys, sys.set_values)
-    set_measure = setp(sys, (
-        sys.measured_wind_dir_gnd,
-        sys.measured_sphere_pos,
-        sys.measured_sphere_vel,
-        sys.measured_sphere_acc,
-        sys.measured_tether_length,
-        sys.measured_tether_vel,
-        sys.measured_tether_acc,
-    ))
+    set_measure = setp(sys, sys.measured_wind_dir_gnd)
     s.set_set_values = val -> set_set_values(s.integrator, val)
     s.set_measure = val -> set_measure(s.integrator, val)
 
@@ -643,7 +635,7 @@ function next_step!(s::KPSQ; set_values=nothing, measure::Union{Measurement, Not
         s.set_set_values(set_values)
     end
     if (!isnothing(measure))
-        s.set_measure(wind_scale_gnd)
+        s.set_measure(s.integrator, s.measure.wind_dir_gnd)
     end
     s.t_0 = s.integrator.t
     OrdinaryDiffEqCore.step!(s.integrator, dt, true)
