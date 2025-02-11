@@ -508,6 +508,10 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
     # winch calculations
     res[end-1] = lengthd - v_reel_out
     use_brake = s.wm isa AsyncMachine
+    if !isnothing(s.sync_speed) && s.sync_speed == 0.0
+        use_brake = true
+    end
+
     res[end] = v_reel_outd - calc_acceleration(s.wm, v_reel_out, norm(s.forces[1]); set_speed=s.sync_speed, 
                set_torque=s.set_torque, use_brake)
 
