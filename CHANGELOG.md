@@ -1,3 +1,7 @@
+### KiteModels v0.6.16 2025-02-11
+#### Changed
+- always use the brake if the `set_speed` is zero; this fixes the example `steering_test_4p.jl`
+
 ### KiteModels v0.6.16 2025-02-06
 #### Changed
 - `initial_reel_out_4p.jl` shows a simulation that starts with an initial reel-out speed > 0
