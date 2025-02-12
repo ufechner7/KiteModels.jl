@@ -200,6 +200,8 @@ $(TYPEDFIELDS)
     distance::S = zero(S)
     "Angle of the trailing edges of the kite"
     te_angle::V = zeros(S, 2)
+    "Function to get kite length from γ"
+    kite_length::Function = () -> nothing
 
     set_initial_measure::Function  = () -> nothing
     set_initial_set_values::Function = () -> nothing
@@ -293,6 +295,13 @@ function clear!(s::KPSQ)
     c_spring = s.set.e_tether * (s.set.d_tether/2000.0)^2 * pi
     s.c_spring .= [c_spring, c_spring, 2c_spring]
     s.damping .= (s.set.damping / s.set.c_spring) * s.c_spring
+    s.kite_length = function (γ)
+        if γ < π/2
+            return s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (γ - s.γ_l) / (π/2 - s.γ_l)
+        else
+            return s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (π - s.γ_l - γ) / (π/2 - s.γ_l)
+        end
+    end
     init_masses!(s)
 
     width, radius, tip_length, middle_length = s.set.width, s.set.radius, s.set.tip_length, s.set.middle_length

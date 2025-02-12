@@ -232,7 +232,6 @@ function create_polars(foil_file=se.foil_file, polar_file=se.polar_file)
     println("Relative trailing_edge height: ", upper - lower)
     println("Reynolds number for flying speed of $kite_speed is $reynolds_number")
 
-    # TODO: serialize the splines
     serialize(polar_file, (alphas, d_trailing_edge_angles, Matrix(cl_matrix), Matrix(cd_matrix), Matrix(c_te_matrix)))
 
     open(foil_file, "r+") do f

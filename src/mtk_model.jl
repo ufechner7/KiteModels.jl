@@ -1,15 +1,6 @@
 # ==================== mtk model functions ================================================
 # Implementation of the three-line model using ModellingToolkit.jl
 
-function smooth_sign_ϵ(x; ϵ = 1e-3)
-    if ϵ == 0.0 
-        return sign(x)
-    else
-        return x / √(x^2 + ϵ^2)
-    end
-end
-@register_symbolic smooth_sign_ϵ(x)
-
 function calc_acc_speed(motor::AsyncMachine, tether_vel, norm_, set_speed)
     calc_acceleration(motor, tether_vel, norm_; set_speed, set_torque=nothing, use_brake=false) # TODO: add brake setting
 end
@@ -35,8 +26,8 @@ function mean(vec)
 end
 
 function convert_pos_vel(s::KPSQ, pos_, vel_)
-    pos = Array{Union{Nothing, Float64}}(nothing, 3, s.i_A)
-    vel = Array{Union{Nothing, Float64}}(nothing, 3, s.i_A)
+    pos = Array{Union{Nothing, SimFloat}}(nothing, 3, s.i_A)
+    vel = Array{Union{Nothing, SimFloat}}(nothing, 3, s.i_A)
     [pos[:,i] .= pos_[i] for i in 1:s.i_A-1]
     [vel[:,i] .= vel_[i] for i in 1:s.i_A-1]
     [pos[:,i] .= pos_[i] for i in s.i_B+1:s.i_A]
@@ -105,60 +96,298 @@ function rotation_matrix_to_quaternion(R)
     return [w, x, y, z]
 end
 
-""" 
-Calculate the drag force and spring force of the tether segment, defined by the parameters pos1, pos2, vel1 and vel2
-and distribute it equally on the two particles, that are attached to the segment.
-The result is stored in the array s.forces. 
-"""
-function calc_particle_forces!(s::KPSQ, eqs, force_eqs, force, p1, p2, pos1, pos2, vel1, vel2, length, c_spring, 
-    damping, rho, i, l_0, k, c, segment, rel_vel, av_vel, norm1, unit_vector, k2, c1, c2, spring_vel,
-            spring_force, v_apparent, v_wind_tether, area, v_app_perp, half_drag_force)
-    d_tether = s.set.d_tether/1000.0
-    eqs = [
-        eqs
-        l_0 ~ length[(i-1) % 3 + 1] # Unstressed length
-        k   ~ c_spring[(i-1) % 3 + 1] # Spring constant
-        c   ~ damping[(i-1) % 3 + 1] # Damping coefficient    
-        segment     .~ pos1 - pos2
-        rel_vel     .~ vel1 - vel2
-        av_vel      .~ 0.5 * (vel1 + vel2)
-        norm1        ~ norm(segment)
-        unit_vector .~ segment / norm1
-        k2           ~ 0.1 * k  # compression stiffness tether segments
-        c1           ~ 6.0 * c  # damping kite segments
-        c2           ~ 0.05 * c  # damping perpendicular
-        spring_vel   ~ rel_vel ⋅ unit_vector
-    ]
+# """ 
+# Calculate the drag force and spring force of the tether segment, defined by the parameters pos1, pos2, vel1 and vel2
+# and distribute it equally on the two particles, that are attached to the segment.
+# The result is stored in the array s.forces. 
+# """
+# function calc_particle_forces!(s::KPSQ, eqs, force_eqs, force, p1, p2, pos1, pos2, vel1, vel2, length, c_spring, 
+#     damping, rho, i, l_0, k, c, segment, rel_vel, av_vel, norm1, unit_vector, k2, c1, c2, spring_vel,
+#             spring_force, v_apparent, v_wind_tether, area, v_app_perp, half_drag_force)
+#     d_tether = s.set.d_tether/1000.0
+#     eqs = [
+#         eqs
+#         l_0 ~ length[(i-1) % 3 + 1] # Unstressed length
+#         k   ~ c_spring[(i-1) % 3 + 1] # Spring constant
+#         c   ~ damping[(i-1) % 3 + 1] # Damping coefficient    
+#         segment     .~ pos1 - pos2
+#         rel_vel     .~ vel1 - vel2
+#         av_vel      .~ 0.5 * (vel1 + vel2)
+#         norm1        ~ norm(segment)
+#         unit_vector .~ segment / norm1
+#         k2           ~ 0.1 * k  # compression stiffness tether segments
+#         c1           ~ 6.0 * c  # damping kite segments
+#         c2           ~ 0.05 * c  # damping perpendicular
+#         spring_vel   ~ rel_vel ⋅ unit_vector
+#     ]
 
-    for j in 1:3
-        eqs = [
-            eqs
-            spring_force[j] ~
-                ((k  * (l_0 - norm1) - c * spring_vel) * unit_vector[j]) * (1 + smooth_sign_ϵ(norm1 - l_0; s.ϵ)) / 2 +
-                ((k2 * (l_0 - norm1) - c * spring_vel) * unit_vector[j]) * (1 - smooth_sign_ϵ(norm1 - l_0; s.ϵ)) / 2
-        ]
-    end
-    eqs = [
-        eqs
-        v_apparent       ~ v_wind_tether - av_vel
-        i >= s.i_A ?
-            area             ~ norm1 * d_tether * 10 : # 10 is the number of parallel lines in the bridle system
-            area             ~ norm1 * d_tether * (1 + (i%3 == 0)) # double area for middle tether
-        v_app_perp       ~ v_apparent - (v_apparent ⋅ unit_vector) * unit_vector
-        half_drag_force .~ (0.25 * rho * s.set.cd_tether * norm(v_app_perp) * area) .* v_app_perp
-    ]
+#     for j in 1:3
+#         eqs = [
+#             eqs
+#             spring_force[j] ~
+#                 ((k  * (l_0 - norm1) - c * spring_vel) * unit_vector[j]) * (1 + smooth_sign_ϵ(norm1 - l_0; s.ϵ)) / 2 +
+#                 ((k2 * (l_0 - norm1) - c * spring_vel) * unit_vector[j]) * (1 - smooth_sign_ϵ(norm1 - l_0; s.ϵ)) / 2
+#         ]
+#     end
+#     eqs = [
+#         eqs
+#         v_apparent       ~ v_wind_tether - av_vel
+#         i >= s.i_A ?
+#             area             ~ norm1 * d_tether * 10 : # 10 is the number of parallel lines in the bridle system
+#             area             ~ norm1 * d_tether * (1 + (i%3 == 0)) # double area for middle tether
+#         v_app_perp       ~ v_apparent - (v_apparent ⋅ unit_vector) * unit_vector
+#         half_drag_force .~ (0.25 * rho * s.set.cd_tether * norm(v_app_perp) * area) .* v_app_perp
+#     ]
 
-    for j in 1:3
-        force_eqs[j, p1] = 
-            (force[j, p1] ~ force_eqs[j, p1].rhs + (half_drag_force[j] + spring_force[j]))
-        force_eqs[j, p2] = 
-            (force[j, p2] ~ force_eqs[j, p2].rhs + (half_drag_force[j] - spring_force[j]))
-    end
+#     for j in 1:3
+#         force_eqs[j, p1] = 
+#             (force[j, p1] ~ force_eqs[j, p1].rhs + (half_drag_force[j] + spring_force[j]))
+#         force_eqs[j, p2] = 
+#             (force[j, p2] ~ force_eqs[j, p2].rhs + (half_drag_force[j] - spring_force[j]))
+#     end
     
-    return eqs, force_eqs
-end
+#     return eqs, force_eqs
+# end
+
 
 function create_sys!(s::KPSQ; init=false)
+    struct Point
+        idx::Int
+        type::String
+        position::Union{Vector{SimFloat}, Nothing} # position relative to kite COM in body frame
+    end
+    struct Tether
+        idx::Int
+        points::Tuple{Int, Int}
+        l0::Union{SimFloat, Nothing}
+        type::String
+    end
+    struct Pulley
+        idx
+        tethers::Tuple{Int, Int}
+        sum_length::Union{SimFloat, Nothing}
+    end
+
+    points = []
+    tethers = []
+    pulleys = []
+
+    # Bridle systems
+    bridle_pos_b = init_bridle_pos(s)
+    idx = 0
+    for i in 1:4
+        for j in 1:4
+            points = [
+                points
+                Point(idx, "kite", bridle_pos_b[:, j, i])
+            ]
+            idx += 1
+        end
+    end
+    
+
+    # Pulley systems
+    pulley_idx
+    for i in [0, 9]
+        points = [
+            points
+            Point(1+i, "tether", [0, 0, 0])
+            Point(2+i, "tether", [0, 0, 0])
+            Point(3+i, "tether", [0, 0, 0])
+            Point(4+i, "tether", [0, 0, 0])
+        
+            Point(5+i, "tether", [0, 0, -1])
+
+            Point(6+i, "tether", [0, 0, -2])
+            Point(7+i, "tether", [0, 0, -2])
+
+            Point(8+i, "tether", [0, 0, -5])
+            Point(9+i, "tether", [0, 0, -5])
+        ]
+    end
+    for j in [0, 9]
+        tethers = [
+            tethers
+            Tether(1+j, (1+j, 6+j), 2, "pulley")
+            Tether(2+j, (2+j, 5+j), 1, "pulley")
+            Tether(3+j, (3+j, 7+j), 2, "pulley")
+            Tether(4+j, (4+j, 9+j), 5, "pulley")
+            
+            Tether(5+j, (5+j, 6+j), 1, "pulley")
+            Tether(6+j, (5+j, 7+j), 1, "pulley")
+            
+            Tether(7+j, (6+j, 8+j), 3, "pulley")
+            Tether(8+j, (7+j, 8+j), 3, "pulley")
+            Tether(9+j, (7+j, 9+j), 3, "pulley")
+        ]
+    end
+    for k in [0, 2]
+        pulleys = [
+            pulleys
+            Pulley(1+k, (5, 6), nothing)
+            Pulley(2+k, (8, 9), nothing)
+        ]
+    end
+
+    # Tethers
+    idx = 1
+    for i in 1:4
+        for j in 1:s.set.segments
+            if j == 1
+                points = [
+                    points
+                    Point(idx, "tether", [0, 0, -5])
+                ]
+            else
+                last_pos = points[end].position
+                points = [
+                    points
+                    Point(idx, "tether", last_pos - [seg_len, 0, 0])
+                ]
+            end
+            idx += 1
+        end
+    end
+
+    eqs = []
+    function force_eqs!()
+        pulley_damping = 10
+        for pulley in pulleys
+            tether1, tether2 = tethers[pulley.tethers[1]], tethers[pulley.tethers[2]]
+            pulley.sum_length = tether1.l0 + tether2.l0
+            mass = pulley.sum_length * tether1.mass_per_meter
+            eqs = [
+                eqs
+                pulley_force[pulley.idx]    ~ spring_force[pulley.tethers[1]] - spring_force[pulley.tethers[2]]
+                pulley_acc[pulley.idx]      ~ pulley_force[pulley.idx] / mass - pulley_damping * pulley_vel[pulley.idx]
+            ]
+        end
+
+        @variables begin
+            segment(t)[1:3, eachindex(tethers)]
+            unit_vector(t)[1:3, eachindex(tethers)]
+            l_spring(t), c_spring(t), damping(t), m_tether_particle(t)
+            len(t)[eachindex(tethers)]
+            l0(t)[eachindex(tethers)]
+            rel_vel(t)[1:3, eachindex(tethers)]
+            spring_vel(t)[eachindex(tethers)]
+            spring_force(t)[eachindex(tethers)]
+            spring_force_vec(t)[1:3, eachindex(tethers)]
+        end
+        for tether in tethers
+            found = false
+            if tether.type == "pulley"
+                for pulley in pulleys
+                    if tether.idx == pulley.tethers[1] # each tether should only be part of one pulley
+                        eqs = [
+                            eqs
+                            l0[tether.idx] ~ pulley_l0[pulley.idx]
+                        ]
+                        found = true
+                        break
+                    elseif tether.idx == pulley.tethers[2]
+                        eqs = [
+                            eqs
+                            l0[tether.idx] ~ pulley.sum_length - pulley_l0[pulley.idx]
+                        ]
+                        found = true
+                        break
+                    end
+                end
+            end
+            if !found
+                eqs = [
+                    eqs
+                    l0[tether.idx] ~ tether.l0
+                ]
+            end
+
+            p1, p2 = tether.points[1], tether.points[2]
+
+            (tether.type == "pulley") && diameter = s.pulley_tether_diameter
+            (tether.type == "bridle") && diameter = s.bridle_tether_diameter
+            (tether.type == "power") && diameter = s.power_tether_diameter
+            (tether.type == "steering") && diameter = s.steering_tether_diameter
+
+            stiffness = s.set.e_tether * (diameter/2000)^2 * pi
+            (tether.type == "pulley") && compression_frac = 1.0
+            (tether.type == "bridle") && compression_frac = 1.0
+            (tether.type == "power") && compression_frac = 0.1
+            (tether.type == "steering") && compression_frac = 0.1
+            
+            damping = (s.set.damping / s.set.c_spring) * stiffness
+            @show damping
+            (tether.type == "pulley") && damping = 10damping
+            (tether.type == "bridle") && damping = 10damping
+
+            eqs = [
+                eqs
+
+                # spring force equations
+                segment[:, tether.idx]      ~ pos[:, p2] - pos[:, p1]
+                len[tether.idx]             ~ norm(segment[:, tether.idx])
+                unit_vector[:, tether.idx]  ~ segment[:, tether.idx]/len[tether.idx]
+                rel_vel[:, tether.idx]      ~ vel[:, p1] - vel[:, p2]
+                spring_vel[tether.idx]      ~ rel_vel[:, tether.idx] ⋅ unit_vector[:, tether.idx]
+                spring_force[tether.idx]    ~ (stiffness * tether.l0 * (len[tether.idx] - l0[tether.idx]) - 
+                                            damping * tether.l0 * spring_vel[tether.idx])
+                stiffness[tether.idx]       ~ ifelse(len[tether.idx] > l0[tether.idx],
+                                            stiffness / len[tether.idx],
+                                            compression_frac * stiffness / len[tether.idx]
+                )
+                damping[tether.idx]         ~ damping / len[tether.idx]
+                spring_force ~  (stiffness[tether.idx] * tether.l0 * (len[tether.idx] - l0[tether.idx]) - 
+                                damping[tether.idx] * tether.l0 * spring_vel[tether.idx])
+                spring_force_vec[:, tether.idx]  ~ spring_force[tether.idx] * unit_vector[:, tether.idx]
+
+                # drag force equations
+                height[tether.idx]          ~ max(0.0, 0.5(pos[:, p1][3] + pos[:, p2][3]))
+                tether_vel[:, tether.idx]   ~ 0.5(vel[:, p1] + vel[:, p2])
+                tether_rho[tether.idx]      ~ calc_rho(s.am, height[i])
+                wind_vel[:, tether.idx]     ~ AtmosphericModels.calc_wind_factor(s.am, height[i], s.set.profile_law) * wind_vec_gnd
+                app_wind_vel[:, tether.idx] ~ wind_vel - tether_vel
+                area[tether.idx]            ~ len[tether.idx] * tether.diameter
+                app_perp_vel[:, tether.idx] ~ app_wind_vel[:, tether.idx] - 
+                                            (app_wind_vel[:, tether.idx] ⋅ unit_vector[:, tether.idx]) * unit_vector[:, tether.idx]
+                drag_force                  ~ (0.5 * tether_rho[tether.idx] * s.set.cd_tether * norm(app_wind_vel[:, tether.idx]) * 
+                                            area[tether.idx]) * app_perp_vel[:, tether.idx]
+            ]
+        end
+    
+        for point in points
+            if point.fixed
+                eqs = [
+                    eqs
+                    force[:, point.idx]  ~ zeros(3)
+                    acc[:, point.idx]    ~ zeros(3)
+                ]
+            else
+                # tether - inverted
+                F::Vector{Num} = zeros(Num, 3)
+                mass_per_meter = s.set.rho_tether * π * (tether.diameter/2000)^2    
+                mass = 0.
+                for tether in tethers
+                    if point.idx in tether.points
+                        inverted = tether.points[2] == point.idx
+                        if inverted
+                            F .-= spring_force_vec[:, tether.idx]
+                        else
+                            F .+= spring_force_vec[:, tether.idx]
+                        end
+                        mass += mass_per_meter * tether.l0 / 2
+                        F .+= 0.5drag_force[:, tether.idx]
+                    end
+                end
+                eqs = [
+                    eqs
+                    force[:, point.idx]  ~ F
+                    acc[:, point.idx]    ~ force[:, point.idx] / mass + G_EARTH
+                ]
+            end
+        end
+    end
+
+
     if s.torque_control
         [s.motors[i] = TorqueControlledMachine(s.set) for i in 1:3]
     else
@@ -439,47 +668,47 @@ function create_sys!(s::KPSQ; init=false)
         ]
         return nothing
     end
-    function tether_forces!()
-        @variables begin
-            height(t)[1:s.i_C-3]
-            rho(t)[1:s.i_C-3]
-            v_wind_tether(t)[1:3, 1:s.i_C-3]
-            l_0(t)[1:s.i_C-3]
-            k(t)[1:s.i_C-3]
-            c(t)[1:s.i_C-3]
-            segment(t)[1:3, 1:s.i_C-3]
-            rel_vel(t)[1:3, 1:s.i_C-3]
-            av_vel(t)[1:3, 1:s.i_C-3] 
-            unit_vector(t)[1:3, 1:s.i_C-3]
-            k2(t)[1:s.i_C-3]
-            c1(t)[1:s.i_C-3]
-            c2(t)[1:s.i_C-3]
-            spring_vel(t)[1:s.i_C-3]
-            spring_force(t)[1:3, 1:s.i_C-3]
-            v_apparent(t)[1:3, 1:s.i_C-3]
-            area(t)[1:s.i_C-3]
-            v_app_perp(t)[1:3, 1:s.i_C-3]
-            half_drag_force(t)[1:3, 1:s.i_C-3]
-        end
+    # function tether_forces!()
+    #     @variables begin
+    #         height(t)[1:s.i_C-3]
+    #         rho(t)[1:s.i_C-3]
+    #         v_wind_tether(t)[1:3, 1:s.i_C-3]
+    #         l_0(t)[1:s.i_C-3]
+    #         k(t)[1:s.i_C-3]
+    #         c(t)[1:s.i_C-3]
+    #         segment(t)[1:3, 1:s.i_C-3]
+    #         rel_vel(t)[1:3, 1:s.i_C-3]
+    #         av_vel(t)[1:3, 1:s.i_C-3] 
+    #         unit_vector(t)[1:3, 1:s.i_C-3]
+    #         k2(t)[1:s.i_C-3]
+    #         c1(t)[1:s.i_C-3]
+    #         c2(t)[1:s.i_C-3]
+    #         spring_vel(t)[1:s.i_C-3]
+    #         spring_force(t)[1:3, 1:s.i_C-3]
+    #         v_apparent(t)[1:3, 1:s.i_C-3]
+    #         area(t)[1:s.i_C-3]
+    #         v_app_perp(t)[1:3, 1:s.i_C-3]
+    #         half_drag_force(t)[1:3, 1:s.i_C-3]
+    #     end
         
-        for i in 1:s.i_C-3
-            p1 = i  # First point nr.
-            p2 = i+3
-            eqs = [
-                eqs
-                height[i]           ~ max(0.0, 0.5 * (pos[:, p1][3] + pos[:, p2][3]))
-                rho[i]              ~ calc_rho(s.am, height[i])
-                v_wind_tether[:, i] ~ AtmosphericModels.calc_wind_factor(s.am, height[i], s.set.profile_law) * wind_vec_gnd
-            ]
+    #     for i in 1:s.i_C-3
+    #         p1 = i  # First point nr.
+    #         p2 = i+3
+    #         eqs = [
+    #             eqs
+    #             height[i]           ~ max(0.0, 0.5 * (pos[:, p1][3] + pos[:, p2][3]))
+    #             rho[i]              ~ calc_rho(s.am, height[i])
+    #             v_wind_tether[:, i] ~ AtmosphericModels.calc_wind_factor(s.am, height[i], s.set.profile_law) * wind_vec_gnd
+    #         ]
     
-            eqs, force_eqs = calc_particle_forces!(s, eqs, force_eqs, force, p1, p2, pos[:, p1], pos[:, p2], vel[:, p1], 
-                              vel[:, p2], segment_length, c_spring, damping, rho[i], i, l_0[i], k[i], c[i], segment[:, i], 
-                              rel_vel[:, i], av_vel[:, i], norm1[i], unit_vector[:, i], k2[i], c1[i], c2[i], spring_vel[i],
-                              spring_force[:, i], v_apparent[:, i], v_wind_tether[:, i], area[i], v_app_perp[:, i],
-                              half_drag_force[:, i])
-        end
-        return nothing
-    end
+    #         eqs, force_eqs = calc_particle_forces!(s, eqs, force_eqs, force, p1, p2, pos[:, p1], pos[:, p2], vel[:, p1], 
+    #                           vel[:, p2], segment_length, c_spring, damping, rho[i], i, l_0[i], k[i], c[i], segment[:, i], 
+    #                           rel_vel[:, i], av_vel[:, i], norm1[i], unit_vector[:, i], k2[i], c1[i], c2[i], spring_vel[i],
+    #                           spring_force[:, i], v_apparent[:, i], v_wind_tether[:, i], area[i], v_app_perp[:, i],
+    #                           half_drag_force[:, i])
+    #     end
+    #     return nothing
+    # end
     function kite_forces!()
         n = s.set.aero_surfaces
 

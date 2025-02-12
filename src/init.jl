@@ -120,6 +120,47 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
     pos, vel, acc
 end
 
+function find_chord_lenght(w, t, m)
+    total_area = w * (t + m) / 2
+    target_area = total_area / 4
+    function area(x)
+        return m * x - 0.5 * x * ((m - t) * x / w)
+    end
+    function equations!(F, x, p)
+        F[1] = area(x[1]) - target_area
+        F[2] = area(x[2]) - 3 * target_area
+    end
+
+    x0 = [w / 4, 3 * w / 4]
+    prob = NonlinearProblem(equations!, x0, nothing)
+
+    result = solve(prob, NewtonRaphson())
+
+    c1, c2 = result.u
+    return c1, c2
+end
+
+function init_bridle_pos!(s)
+    bridle_pos_b = zeros(SimFloat, 3, 4, 4) # xyz, length, width
+    bridle_γ = zeros(SimFloat, 4)
+
+    calc_inertia!(s)
+    c1, c2 = find_chord_length(s.set.width/2, s.set.tip_length, s.set.middle_length)
+    # s.γ_l       = π/2 - s.set.width/2/s.set.radius
+    bridle_γ[1] = π/2 - c2 / s.set.radius
+    bridle_γ[2] = π/2 - c1 / s.set.radius
+    bridle_γ[3] = π/2 + c1 / s.set.radius
+    bridle_γ[4] = π/2 + c2 / s.set.radius
+
+    for (i, γ) in enumerate(bridle_γ)
+        for (j, frac) in enumerate([0.1, 0.4, 0.6, 1.0])
+            bridle_pos_b[:, j, i] .= s.pos_circle_center_b + 
+                [-frac * s.kite_length(γ), cos(γ) * s.set.radius, sin(γ) * s.set.radius]
+        end
+    end
+    return bridle_pos_b
+end
+
 function calc_inertia!(s::KPSQ)
     segs = 100
     mass_per_area = s.set.mass / ((s.set.middle_length + s.set.tip_length) * 0.5 * s.set.width)
@@ -199,7 +240,7 @@ function calc_pos_principal!(s::KPSQ)
     for i in 1:2n
         if i <= n
             γ = s.γ_l + -dγ/2 + i * dγ
-            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (γ - s.γ_l) / (π/2 - s.γ_l) # TODO: kite length gets less with flap turning
+            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (γ - s.γ_l) / (π/2 - s.γ_l)
         else
             γ = pi - (s.γ_l + -dγ/2 + (i-n) * dγ)
             kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (π - s.γ_l - γ) / (π/2 - s.γ_l)
