@@ -36,8 +36,8 @@ depower:
     depower_offset: 23.6   # at rel_depower=0.236 the kite is fully powered [%]
 
 kite:
-    model: "data/kite.obj" # 3D model of the kite
-    foil_file: "data/MH82.dat"  # filename for the foil shape
+    model: "data/ram_kite.obj" # 3D model of the kite
+    foil_file: "data/foil_profile.dat"  # filename for the foil shape
     polar_file: "data/polars.bin"   # filename for the polars
     physical_model: "KPSQ" # name of the kite model to use (KPS3, KPS4 or KPSQ)
     version: 2             # version of the model to use
