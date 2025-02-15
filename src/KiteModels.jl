@@ -49,12 +49,9 @@ import KiteUtils.calc_course
 import KiteUtils.SysState
 import OrdinaryDiffEqCore.init
 import OrdinaryDiffEqCore.step!
-using ModelingToolkit, SymbolicIndexingInterface, SteadyStateDiffEq
-using ModelingToolkit: t_nounits as t, D_nounits as D
 using ADTypes: AutoFiniteDiff
-import ModelingToolkit.SciMLBase: successful_retcode
 
-export KPS3, KPS4, KPS4_3L, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                     # constants and types
+export KPS3, KPS4, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                     # constants and types
 export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                            # helper functions
 export clear!, find_steady_state!, residual!                                                  # low level workers
 export init_sim!, reset_sim!, next_step!, init_pos_vel, init_pos, model!                                 # high level workers
@@ -117,7 +114,6 @@ function __init__()
 end
 
 include("KPS4.jl") # include code, specific for the four point kite model
-include("KPS4_3L.jl") # include code, specific for the four point 3 line kite model
 include("KPS3.jl") # include code, specific for the one point kite model
 include("init.jl") # functions to calculate the initial state vector, the initial masses and initial springs
 
@@ -777,18 +773,12 @@ end
     set.kcu_diameter = 0
     kps4_::KPS4 = KPS4(KCU(set))
     kps3_::KPS3 = KPS3(KCU(se("system.yaml")))
-    if ! haskey(ENV, "NO_MTK")    
-        kps4_3l_::KPS4_3L = KPS4_3L(KCU(se(SYS_3L)))
-    end
     @assert ! isnothing(kps4_.wm)
     @compile_workload begin
         # all calls in this block will be precompiled, regardless of whether
         # they belong to your package or not (on Julia 1.8 and higher)
         integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
         integrator = KiteModels.init_sim!(kps4_; delta=0.03, stiffness_factor=0.05, prn=false) 
-        if ! haskey(ENV, "NO_MTK")
-            integrator = KiteModels.init_sim!(kps4_3l_)
-        end   
         nothing
     end
 end
