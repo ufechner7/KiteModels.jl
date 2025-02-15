@@ -5,7 +5,7 @@ if ! ("PackageCompiler" ∈ keys(Pkg.project().dependencies))
     Pkg.update()
 end
 @info "Loading packages ..."
-using Dierckx, StaticArrays, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, Sundials, KiteUtils, 
+using Dierckx, StaticArrays, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, KiteUtils, 
       KitePodModels, AtmosphericModels, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK,
       DSP, JLD2, Colors
 using PackageCompiler
@@ -14,7 +14,7 @@ using PackageCompiler
 push!(LOAD_PATH,joinpath(pwd(),"src"))
 
 PackageCompiler.create_sysimage(
-    [:Dierckx, :StaticArrays, :Parameters, :NLsolve, :DocStringExtensions, :Sundials, :KiteUtils, 
+    [:Dierckx, :StaticArrays, :Parameters, :NLsolve, :DocStringExtensions, :KiteUtils, 
      :KitePodModels, :AtmosphericModels, :OrdinaryDiffEqCore, :OrdinaryDiffEqBDF, :OrdinaryDiffEqSDIRK,
      :DSP, :JLD2, :Colors];
     sysimage_path="kps-image_tmp.so",
