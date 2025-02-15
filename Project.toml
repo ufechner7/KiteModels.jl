@@ -31,11 +31,9 @@ Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 SteadyStateDiffEq = "9672c7b4-1e72-59bd-8a11-6ac3964bc41f"
-Sundials = "c3572dad-4567-51f8-b174-8c6c989267f4"
 SymbolicIndexingInterface = "2efcf032-c050-4f8e-a9bb-153293bab1f5"
 Timers = "21f18d07-b854-4dab-86f0-c15a3821819a"
 WinchModels = "7dcfa46b-7979-4771-bbf4-0aee0da42e1f"
-Xfoil = "19641d66-a62d-11e8-2441-8f57a969a9c4"
 
 [compat]
 ADTypes = "1.11"
@@ -68,11 +66,9 @@ SciMLBase = "2.72"
 StaticArrays = "1.9"
 StatsBase = "0.34"
 SteadyStateDiffEq = "2.3.0"
-Sundials = "4.24"
 SymbolicIndexingInterface = "0.3.27"
 Timers = "0.1.5"
 WinchModels = "0.3.5"
-Xfoil = "0.5.0"
 julia = "1.10, 1.11"
 
 [extras]
