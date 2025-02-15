@@ -7,7 +7,7 @@ using KiteModels, KitePodModels, KiteUtils, LinearAlgebra
 set = deepcopy(load_settings("system.yaml"))
 
 using Pkg
-if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
+if ! ("Test" ∈ keys(Pkg.project().dependencies))
     using TestEnv; TestEnv.activate()
 end
 
