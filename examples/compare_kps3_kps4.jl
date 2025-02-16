@@ -24,7 +24,7 @@ kps3::KPS3 = KPS3(kcu)
 
 if PLOT
     using Pkg
-    if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
+    if ! ("Test" ∈ keys(Pkg.project().dependencies))
         using TestEnv; TestEnv.activate()
     end
     using ControlPlots

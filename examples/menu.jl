@@ -14,7 +14,6 @@ options = ["bench = include(\"bench.jl\")",
            "simulate_steering = include(\"simulate_steering.jl\")",
            "steering_test_1p = include(\"steering_test_1p.jl\")",
            "steering_test_4p = include(\"steering_test_4p.jl\")",
-           "simple_3l_control = include(\"simple_3l_control.jl\")",
            "calculate_rotational_inertia = include(\"calculate_rotational_inertia.jl\")",
            "quit"]
 
