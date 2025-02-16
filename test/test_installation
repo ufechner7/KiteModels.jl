@@ -7,5 +7,10 @@ cd /tmp/test
 export JULIA_DEPOT_PATH=/tmp/testdepot 
 export JULIA_PKG_SERVER_REGISTRY_PREFERANCE=eager
 git clone https://github.com/ufechner7/KiteModels.jl.git
-cd KiteModels.jl/bin
+cd KiteModels.jl
+git checkout compact
+rm -rf .git
+cd bin
 ./create_sys_image --update
+cd ..
+du -h .
