@@ -508,20 +508,20 @@ end
 @testset "test_simulate        " begin
     STEPS = 500
     kps4.set.depower = 23.6
-    kps4.set.solver = "IDA"
+    kps4.set.solver = "DFBDF"
     integrator = KiteModels.init_sim!(kps4; stiffness_factor=0.5, delta=0.0, prn=false)
     # println("\nStarting simulation...")
     simulate(integrator, 100)
     av_steps = simulate(integrator, STEPS-100)
     if Sys.isapple()
-        result = isapprox(av_steps, 300, rtol=0.6)
+        result = isapprox(av_steps, 81, rtol=0.6)
         if !result
             println("isapple $av_steps")
         end
         println("isapple $av_steps")
         @test result
-    else
-        result = isapprox(av_steps, 300, rtol=0.6)
+    else 
+        result = isapprox(av_steps, 81, rtol=0.6)
         if !result
             println("not apple $av_steps")
         end

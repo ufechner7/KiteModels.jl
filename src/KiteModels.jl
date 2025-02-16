@@ -675,8 +675,7 @@ function copy_examples()
 end
 
 function copy_model_settings()
-    files = ["settings.yaml", "MH82.dat", "polars.bin", "system.yaml", "settings_3l.yaml", 
-             "system_3l.yaml"]
+    files = ["settings.yaml", "system.yaml"]
     dst_path = abspath(joinpath(pwd(), "data"))
     copy_files("data", files)
     set_data_path(joinpath(pwd(), "data"))
