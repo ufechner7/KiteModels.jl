@@ -34,7 +34,7 @@ Scientific background: http://arxiv.org/abs/1406.6218 =#
 module KiteModels
 
 using PrecompileTools: @setup_workload, @compile_workload 
-using Dierckx, Interpolations, StaticArrays, LinearAlgebra, Parameters, NLsolve, 
+using Dierckx, StaticArrays, LinearAlgebra, Parameters, NLsolve, 
       DocStringExtensions, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK
 using Reexport, Pkg
 @reexport using KitePodModels
