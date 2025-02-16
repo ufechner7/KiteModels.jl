@@ -2,7 +2,7 @@
 
 #= MIT License
 
-Copyright (c) 2020, 2021, 2022, 2024 Uwe Fechner and Bart van de Lint
+Copyright (c) 2020, 2021, 2022, 2024, 2025 Uwe Fechner and Bart van de Lint
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -34,7 +34,7 @@ Scientific background: http://arxiv.org/abs/1406.6218 =#
 module KiteModels
 
 using PrecompileTools: @setup_workload, @compile_workload 
-using Dierckx, Interpolations, Serialization, StaticArrays, LinearAlgebra, Parameters, NLsolve, 
+using Dierckx, Interpolations, StaticArrays, LinearAlgebra, Parameters, NLsolve, 
       DocStringExtensions, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK
 using Reexport, Pkg
 @reexport using KitePodModels
