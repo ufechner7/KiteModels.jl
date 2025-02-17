@@ -120,24 +120,23 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
     pos, vel, acc
 end
 
-function find_chord_lenght(w, t, m)
-    total_area = w * (t + m) / 2
+function find_bridle_γ!(s, bridle_γ)
+    total_area = s.area(0.0)
     target_area = total_area / 4
-    function area(x)
-        return m * x - 0.5 * x * ((m - t) * x / w)
+    function equations!(F, γ, p)
+        F[1] = s.area(γ[1]) - target_area
+        F[2] = s.area(γ[2]) - 3 * target_area
     end
-    function equations!(F, x, p)
-        F[1] = area(x[1]) - target_area
-        F[2] = area(x[2]) - 3 * target_area
-    end
-
-    x0 = [w / 4, 3 * w / 4]
-    prob = NonlinearProblem(equations!, x0, nothing)
+    γ_tip = deg2rad(-abs(s.set.gamma_tip))
+    γ0 = [γ_tip - 0.25*γ_tip, γ_tip - 0.75*γ_tip]
+    prob = NonlinearProblem(equations!, γ0, nothing)
 
     result = solve(prob, NewtonRaphson())
 
-    c1, c2 = result.u
-    return c1, c2
+    bridle_γ[1:2] .= result.u
+    bridle_γ[3:4] .= -bridle_γ[1:2]
+    @show bridle_γ
+    return bridle_γ
 end
 
 function init_bridle_pos!(s)
@@ -145,17 +144,14 @@ function init_bridle_pos!(s)
     bridle_γ = zeros(SimFloat, 4)
 
     calc_inertia!(s)
-    c1, c2 = find_chord_length(s.set.width/2, s.set.tip_length, s.set.middle_length)
-    # s.γ_l       = π/2 - s.set.width/2/s.set.radius
-    bridle_γ[1] = π/2 - c2 / s.set.radius
-    bridle_γ[2] = π/2 - c1 / s.set.radius
-    bridle_γ[3] = π/2 + c1 / s.set.radius
-    bridle_γ[4] = π/2 + c2 / s.set.radius
+    find_attachment_γ!(s, bridle_γ)
 
+    bridle_fracs = (s.set.bridle_connect[2:5] .- s.set.bridle_connect[1]) / (s.set.bridle_connect[1] - s.set.bridle_connect[5])
+    @show bridle_fracs
     for (i, γ) in enumerate(bridle_γ)
-        for (j, frac) in enumerate([0.1, 0.4, 0.6, 1.0])
+        for (j, frac) in enumerate(bridle_fracs)
             bridle_pos_b[:, j, i] .= s.pos_circle_center_b + 
-                [-frac * s.kite_length(γ), cos(γ) * s.set.radius, sin(γ) * s.set.radius]
+                [s.leading_edge(γ) + frac * (s.trailing_edge(γ) - s.leading_edge(γ)), cos(γ) * s.set.radius, sin(γ) * s.set.radius]
         end
     end
     return bridle_pos_b

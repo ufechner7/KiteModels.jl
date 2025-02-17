@@ -94,6 +94,9 @@ $(TYPEDFIELDS)
     cd_interp::Function
     "Function for calculating the trailing edge force coefficient, using linear interpolation based on the provided value pairs."
     c_te_interp::Function
+    "Function for calculating the area given a certain gamma"
+    area_interp::Function
+    
     "Reference to the motor models as implemented in the package WinchModels. index 1: middle motor, index 2: left motor, index 3: right motor"
     motors::SizedArray{Tuple{3}, AbstractWinchModel}
     "tether positions"
