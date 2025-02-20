@@ -137,4 +137,4 @@ If you like this software, please consider donating to [Flood in Kenya](https://
 **Documentation** [Stable Version](https://ufechner7.github.io/KiteModels.jl/stable) --- [Development Version](https://ufechner7.github.io/KiteModels.jl/dev)
 
 
-Author: Uwe Fechner (uwe.fechner.msc@gmail.com), Bart van de Lint
+Authors: Uwe Fechner (uwe.fechner.msc@gmail.com), Bart van de Lint (bart@vandelint.net)
