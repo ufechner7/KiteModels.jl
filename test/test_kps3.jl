@@ -3,10 +3,8 @@ using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils
 using KiteModels, KitePodModels
 
 const SEGMENTS = se().segments
-if ! @isdefined kcu
-    const kcu = KCU(se())
-    const kps = KPS3(kcu)
-end
+kcu::KCU = KCU(se())
+kps::KPS3 = KPS3(kcu)
 res1 = zeros(SVector{SEGMENTS+1, KiteModels.KVec3})
 res2 = deepcopy(res1)
 if ! @isdefined res3

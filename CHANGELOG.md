@@ -1,3 +1,21 @@
+### KiteModels v0.6.17 2025-02-11
+#### Changed
+- always use the brake if the `set_speed` is zero; this fixes the example `steering_test_4p.jl`
+
+### KiteModels v0.6.16 2025-02-06
+#### Changed
+- `initial_reel_out_4p.jl` shows a simulation that starts with an initial reel-out speed > 0
+- `initial_reel_out_4p_torque_control` runs a simulation with a torque controlled winch and an initial reel-out speed > 0
+#### Fixed
+- initial reel-out speed handled correctly
+
+### KiteModels v0.6.15 2025-02-03
+- log kcu_steering in SysState (output of KCU without applying corrections)
+- fix tests for Julia 1.11.3
+- cleanup `run_julia`
+- add function `calculate_rotational_inertia!()`
+- add example `calculate_rotational_inertia.jl` and add it to the menu
+
 ### KiteModels v0.6.14 2025-01-16
 #### Fixed
 - crash due to a new version of `DierckX_jll`

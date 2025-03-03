@@ -18,16 +18,12 @@ else
     branch=""
 fi
 
-if [[ $julia_major == "1.10" ]]; then
-    if [[ $HOSTNAME == "ufryzen" || $HOSTNAME == "framework" ]]; then
-        GCT="--gcthreads=8,1"
-        export NO_MTK=true
-        export USE_V9=true
-    else
-        GCT="--gcthreads=4,1"
-    fi
+if [[ $HOSTNAME == "ufryzen" || $HOSTNAME == "framework" ]]; then
+    GCT="--gcthreads=8,1"
+    export NO_MTK=true
+    export USE_V9=true
 else
-    GCT=""
+    GCT="--gcthreads=4,1"
 fi
 
 if [[ $branch != "" ]]; then
@@ -35,13 +31,13 @@ if [[ $branch != "" ]]; then
         echo "Found system image!"
         julia -J  bin/kps-image-${julia_major}-${branch}.so -t 1 $GCT --project -i -e 'using KiteModels'
     else
-        julia $GCT --project  -i -e 'using KiteModels'
+        julia $GCT --project  -i # -e 'using KiteModels'
     fi
 else
     if test -f "bin/kps-image-${julia_major}.so"; then
         echo "Found system image!"
         julia -J  bin/kps-image-${julia_major}.so -t 1 $GCT --project -i -e 'using KiteModels'
     else
-        julia $GCT --project -i -e 'using KiteModels'
+        julia $GCT --project -i # -e 'using KiteModels'
     fi
 fi 

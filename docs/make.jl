@@ -5,7 +5,7 @@ DocMeta.setdocmeta!(KiteModels, :DocTestSetup, :(using KitePodSimulator); recurs
 
 makedocs(;
     modules=[KiteModels],
-    authors="Uwe Fechner <fechner@aenarete.eu> and contributors",
+    authors="Uwe Fechner <fechner@aenarete.eu>, Bart van de Lint <bart@vandelint.net> and contributors",
     repo="https://github.com/ufechner7/KiteModels.jl/blob/{commit}{path}#{line}",
     sitename="KiteModels.jl",
     format=Documenter.HTML(;

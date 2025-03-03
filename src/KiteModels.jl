@@ -61,6 +61,7 @@ export init_sim!, reset_sim!, next_step!, init_pos_vel, init_pos, model!        
 export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, calc_orient_quat  # getters
 export calc_azimuth_north, calc_azimuth_east
 export winch_force, lift_drag, cl_cd, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
+export calculate_rotational_inertia!
 export kite_ref_frame, orient_euler, spring_forces, upwind_dir, copy_model_settings, menu2
 import LinearAlgebra: norm
 
@@ -158,10 +159,11 @@ Parameters:
 This function sets the variables s.depower, s.steering and s.alpha_depower. 
 
 It takes the depower offset c0 and the dependency of the steering sensitivity from
-the depower settings into account.
+the depower settings into account. The raw steering value is stored in s.kcu_steering.
 """
 function set_depower_steering!(s::AKM, depower, steering)
     s.depower  = depower
+    s.kcu_steering = steering
     s.alpha_depower = calc_alpha_depower(s.kcu, depower)
     s.steering = (steering - s.set.c0) / (1.0 + s.set.k_ds * (s.alpha_depower / deg2rad(s.set.alpha_d_max)))
     nothing
@@ -367,6 +369,56 @@ function calc_course(s::AKM, neg_azimuth=false)
     KiteUtils.calc_course(s.vel_kite, elevation, azimuth)
 end
 
+"""
+    calculate_rotational_inertia!(s::AKM, include_kcu::Bool=true, around_kcu::Bool=false)
+
+Calculate the rotational inertia (Ixx, Ixy, Ixz, Iyy, Iyz, Izz) for a kite model from settings. Modifies the kitemodel by initialising the masses.
+
+Parameters:
+- X: x-coordinates of the point masses.
+- Y: y-coordinates of the point masses.
+- Z: z-coordinates of the point masses.
+- M: masses of the point masses.
+- `include_kcu`: Include the kcu in the rotational intertia calculation?
+- `around_kcu`: Uses the kcu as the rotation point.
+
+Returns:  
+The tuple  Ixx, Ixy, Ixz, Iyy, Iyz, Izz where:
+- Ixx: rotational inertia around the x-axis.
+- Ixy: rotational inertia around the xy-plane.
+- Ixz: rotational inertia around the xz-plane.
+- Iyy: rotational inertia around the y-axis.
+- Iyz: rotational inertia around the yz-plane.
+- Izz: rotational inertia around the z-axis.
+
+"""
+function calculate_rotational_inertia!(s::AKM, include_kcu::Bool=true, around_kcu::Bool=false)
+    points = KiteUtils.get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k, [0, 0, 0], [0, 0, -1], [10, 0, 0])
+    
+    pos_matrix = [points[begin+1] points[begin+2] points[begin+3] points[begin+4] points[begin+5]]
+    X = pos_matrix[begin, :]
+    Y = pos_matrix[begin+1, :]
+    Z = pos_matrix[begin+2, :]
+
+    masses = init_masses!(s)
+    M = masses[s.set.segments+1:end]
+
+    if !include_kcu
+        X = X[begin+1:end]
+        Y = Y[begin+1:end]
+        Z = Z[begin+1:end]
+        M = M[begin+1:end]
+    end
+
+    if around_kcu
+        Ixx, Ixy, Ixz, Iyy, Iyz, Izz = KiteUtils.calculate_rotational_inertia(X, Y, Z, M, false, points[begin+1])
+    else
+        Ixx, Ixy, Ixz, Iyy, Iyz, Izz = KiteUtils.calculate_rotational_inertia(X, Y, Z, M)
+    end
+
+    Ixx, Ixy, Ixz, Iyy, Iyz, Izz
+end
+
 # mutable struct SysState{P}
 #     "time since start of simulation in seconds"
 #     time::Float64
@@ -432,6 +484,7 @@ function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
     ss.v_reelout = s.v_reel_out
     ss.depower = s.depower
     ss.steering = s.steering/s.set.cs_4p
+    ss.kcu_steering = s.kcu_steering/s.set.cs_4p
     ss.vel_kite .= s.vel_kite
     ss.t_sim = 0.0
     ss.AoA = deg2rad(s.alpha_2)
@@ -519,7 +572,7 @@ Parameters:
 Returns:
 An instance of a DAE integrator.
 """
-function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.5, delta=0.001, upwind_dir=-pi/2, prn=false)
+function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.5, delta=0.0001, upwind_dir=-pi/2, prn=false)
     clear!(s)
     s.stiffness_factor = stiffness_factor
     
@@ -554,12 +607,15 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.5, delta=0.001, upwind_
 
     differential_vars = ones(Bool, length(y0))
     prob    = DAEProblem{true}(residual!, yd0, y0, tspan, s; differential_vars)
-    integrator = OrdinaryDiffEqCore.init(prob, solver; abstol=abstol, reltol=s.set.rel_tol, save_everystep=false)
+    integrator = OrdinaryDiffEqCore.init(prob, solver; abstol=abstol, reltol=s.set.rel_tol, save_everystep=false,
+                                         initializealg=OrdinaryDiffEqCore.NoInit())
     if isa(s, KPS4)
         roll, pitch, yaw = orient_euler(s)
         s.pitch_rate = 0
         s.pitch = pitch
+        set_initial_velocity!(s)
     end
+    s.v_reel_out = s.set.v_reel_out
     return integrator
 end
 

@@ -80,7 +80,7 @@ end
 
 function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1); old=false, delta = 0.0)
     pos = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
-    vel = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
+    vel = zeros(MVector{s.set.segments+1+KITE_PARTICLES, KVec3})
     acc = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
     pos[1] .= [0.0, delta, 0.0]
     vel[1] .= [delta, delta, delta]
@@ -117,7 +117,24 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
     for i in eachindex(pos)
         s.pos[i] .= pos[i]
     end
+    for i in 2:s.set.segments+1
+        vel[i] .+= (pos[i+1] - pos[i]) * (s.set.v_reel_out*(i-1)/s.set.segments)
+    end
+    # the velocity vector of the kite particles is the same as the velocity of the last tether pointj
+    for i in s.set.segments+2:s.set.segments+KITE_PARTICLES+1
+        vel[i] .+= vel[s.set.segments+1] 
+    end
     pos, vel, acc
+end
+
+function set_initial_velocity!(s::KPS4)
+    for i in 2:s.set.segments+1
+        s.vel[i] .= (s.pos[i+1] - s.pos[i]) * (s.set.v_reel_out*(i-1)/s.set.segments)
+    end
+    # the velocity vector of the kite particles is the same as the velocity of the last tether point
+    for i in s.set.segments+2:s.set.segments+KITE_PARTICLES+1
+        s.vel[i] .= s.vel[s.set.segments+1] 
+    end
 end
 
 function find_bridle_γ!(s, bridle_γ)
@@ -130,7 +147,7 @@ function find_bridle_γ!(s, bridle_γ)
     γ_tip = deg2rad(-abs(s.set.gamma_tip))
     γ0 = [γ_tip - 0.25*γ_tip, γ_tip - 0.75*γ_tip]
     prob = NonlinearProblem(equations!, γ0, nothing)
-
+    
     result = solve(prob, NewtonRaphson())
 
     bridle_γ[1:2] .= result.u
@@ -402,7 +419,14 @@ function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=fal
         res1__ = turn(res1__, upwind_dir)
         res2__ = turn(res2__, upwind_dir)
     end
-    res1, res2  = vcat(res1__, [s.l_tether, 0]),  vcat(res2__,[0,0])
+    set_initial_velocity!(s)
+    for i in 1:Int(length(res1__)/6)
+        j = i + s.set.segments+KITE_PARTICLES
+        # println("i, j:", i, ", ", j)
+        res1__[3*(j-1)+1:3*j] .= s.vel[i+1]
+        res2__[3*(i-1)+1:3*i] .= s.vel[i+1]
+    end
+    res1, res2  = vcat(res1__, [s.l_tether, s.set.v_reel_out]),  vcat(res2__,[0,0])
     MVector{6*(s.set.segments+KITE_PARTICLES)+2, SimFloat}(res1), MVector{6*(s.set.segments+KITE_PARTICLES)+2, SimFloat}(res2)
 end
 
