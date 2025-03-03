@@ -37,7 +37,7 @@ depower:
 
 kite:
     model: "data/ram_kite.obj" # 3D model of the kite
-    foil_file: "data/foil_profile.dat"  # filename for the foil shape
+    foil_file: "data/centre_line_profile_with_billow.dat"  # filename for the foil shape
     polar_file: "data/polars.bin"   # filename for the polars
     physical_model: "KPSQ" # name of the kite model to use (KPS3, KPS4 or KPSQ)
     version: 2             # version of the model to use
