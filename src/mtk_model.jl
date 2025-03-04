@@ -153,28 +153,46 @@ end
 function deform_bridle(bridle_pos, static_pos, angle)
 end
 
+abstract type AbstractPoint end
+
+struct Point <: AbstractPoint
+    idx::Int
+    pos::Union{Vector{SimFloat}, Nothing} # pos relative to kite COM in body frame
+end
+
+struct WinchPoint <: AbstractPoint
+    idx::Int
+    pos::Union{Vector{SimFloat}, Nothing} # pos relative to kite COM in body frame
+    winch::AbstractWinchModel
+end
+
+struct KitePoint <: AbstractPoint
+    idx::Int
+    pos::Union{Vector{SimFloat}, Nothing} # pos relative to kite COM in body frame
+    fixed_pos::Vector{SimFloat} # position in body frame which the point rotates around under kite deformation
+    local_y::MVec3 # y-axis in body frame which the point rotates around under kite deformation
+end
+
+struct Segment
+    idx::Int
+    points::Tuple{Int, Int}
+    l0::Union{SimFloat, Nothing}
+    type::String
+end
+
+struct Pulley
+    idx
+    segments::Tuple{Int, Int}
+    sum_length::Union{SimFloat, Nothing}
+end
+
+struct PointMassSystem
+    points::Vector{AbstractPoint}
+    segments::Vector{Segment}
+    pulleys::Vector{Pulley}
+end
+
 function create_sys!(s::KPSQ; init=false)
-    struct Point
-        idx::Int
-        type::String
-        position::Union{Vector{SimFloat}, Nothing} # position relative to kite COM in body frame
-    end
-    struct Segment
-        idx::Int
-        points::Tuple{Int, Int}
-        l0::Union{SimFloat, Nothing}
-        type::String
-    end
-    struct Pulley
-        idx
-        segments::Tuple{Int, Int}
-        sum_length::Union{SimFloat, Nothing}
-    end
-    struct PointMassSystem
-        points::Vector{Point}
-        segments::Vector{Segment}
-        pulleys::Vector{Pulley}
-    end
 
     points = Point[]
     segments = Segment[]
@@ -197,7 +215,7 @@ function create_sys!(s::KPSQ; init=false)
             chord = [te_interp[i](gamma) for i in 1:3] .- le_pos
             for frac in bridle_fracs # 4 fracs
                 pos = le_pos .+ chord .* frac
-                points = [points; Point(i+i_pnt, "kite", pos)]
+                points = [points; KitePoint(i+i_pnt, pos, )]
                 i += 1
             end
         end
@@ -255,7 +273,7 @@ function create_sys!(s::KPSQ; init=false)
             i_pnt = length(points) # last point idx
             i_seg = length(segments) # last segment idx
             if i == s.set.segments
-                points = [points; Point(1+i_pnt, "winch", [0, 0, -5 - i*l0])]
+                points = [points; WinchPoint(1+i_pnt, [0, 0, -5 - i*l0])]
                 segments = [segments; Segment(1+i_seg, (i_pnt, 1+i_pnt), l0, "tether")]
             else
                 points = [points; Point(1+i_pnt, "tether", [0, 0, -5 - i*l0])]
@@ -373,7 +391,7 @@ function create_sys!(s::KPSQ; init=false)
         end
     
         for point in points
-            if point.type == "winch"
+            if point isa WinchPoint
                 eqs = [
                     eqs
                     force[:, point.idx]  ~ zeros(3)
@@ -381,7 +399,7 @@ function create_sys!(s::KPSQ; init=false)
                     vel[:, point.idx]    ~ zeros(3)
                     acc[:, point.idx]    ~ zeros(3)
                 ]
-            elseif point.type == "kite"
+            elseif point isa KitePoint
                 eqs = [
                     eqs
                     force[:, point.idx]  ~ zeros(3)
@@ -439,7 +457,7 @@ function create_sys!(s::KPSQ; init=false)
         pos(t)[1:3, 1:s.i_C] # xyz pos of left right middle tether
         vel(t)[1:3, 1:s.i_C] 
         acc(t)[1:3, 1:s.i_A-1]
-        kite_pos(t)[1:3] # xyz position of kite in world frame
+        kite_pos(t)[1:3] # xyz pos of kite in world frame
         kite_vel(t)[1:3]
         kite_acc(t)[1:3]
         distance(t)
