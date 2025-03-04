@@ -137,38 +137,38 @@ function set_initial_velocity!(s::KPS4)
     end
 end
 
-function find_bridle_γ!(s, bridle_γ)
+function find_bridle_gammas!(s, bridle_gamma)
     total_area = s.area(0.0)
     target_area = total_area / 4
-    function equations!(F, γ, p)
-        F[1] = s.area(γ[1]) - target_area
-        F[2] = s.area(γ[2]) - 3 * target_area
+    function equations!(F, gamma, p)
+        F[1] = s.area(gamma[1]) - target_area
+        F[2] = s.area(gamma[2]) - 3 * target_area
     end
-    γ_tip = deg2rad(-abs(s.set.gamma_tip))
-    γ0 = [γ_tip - 0.25*γ_tip, γ_tip - 0.75*γ_tip]
-    prob = NonlinearProblem(equations!, γ0, nothing)
+    gamma_tip = deg2rad(-abs(s.set.gamma_tip))
+    gamma0 = [gamma_tip - 0.25*gamma_tip, gamma_tip - 0.75*gamma_tip]
+    prob = NonlinearProblem(equations!, gamma0, nothing)
     
     result = solve(prob, NewtonRaphson())
 
-    bridle_γ[1:2] .= result.u
-    bridle_γ[3:4] .= -bridle_γ[1:2]
-    @show bridle_γ
-    return bridle_γ
+    bridle_gamma[1:2] .= result.u
+    bridle_gamma[3:4] .= -bridle_gamma[1:2]
+    @show bridle_gamma
+    return bridle_gamma
 end
 
 function init_bridle_pos!(s)
     bridle_pos_b = zeros(SimFloat, 3, 4, 4) # xyz, length, width
-    bridle_γ = zeros(SimFloat, 4)
+    bridle_gamma = zeros(SimFloat, 4)
 
     calc_inertia!(s)
-    find_attachment_γ!(s, bridle_γ)
+    find_attachment_gamma!(s, bridle_gamma)
 
     bridle_fracs = (s.set.bridle_connect[2:5] .- s.set.bridle_connect[1]) / (s.set.bridle_connect[1] - s.set.bridle_connect[5])
     @show bridle_fracs
-    for (i, γ) in enumerate(bridle_γ)
+    for (i, gamma) in enumerate(bridle_gamma)
         for (j, frac) in enumerate(bridle_fracs)
             bridle_pos_b[:, j, i] .= s.pos_circle_center_b + 
-                [s.leading_edge(γ) + frac * (s.trailing_edge(γ) - s.leading_edge(γ)), cos(γ) * s.set.radius, sin(γ) * s.set.radius]
+                [s.leading_edge(gamma) + frac * (s.trailing_edge(gamma) - s.leading_edge(gamma)), cos(gamma) * s.set.radius, sin(gamma) * s.set.radius]
         end
     end
     return bridle_pos_b
@@ -184,21 +184,21 @@ function calc_inertia!(s::KPSQ)
     pos = zeros(3, 2segs)
     mass = zeros(2segs)
     
-    @assert s.γ_l != 0.0
-    γ_middle    = π/2
-    dγ          = (γ_middle - s.γ_l) / segs
+    @assert s.gamma_l != 0.0
+    gamma_middle    = π/2
+    dgamma          = (gamma_middle - s.gamma_l) / segs
     for i in 1:2segs
         if i <= segs
-            γ = s.γ_l + -dγ/2 + i * dγ
-            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (γ - s.γ_l) / (π/2 - s.γ_l)
+            gamma = s.gamma_l + -dgamma/2 + i * dgamma
+            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (gamma - s.gamma_l) / (π/2 - s.gamma_l)
         else
-            γ = pi - (s.γ_l + -dγ/2 + (i-segs) * dγ)
-            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (π - s.γ_l - γ) / (π/2 - s.γ_l)
+            gamma = pi - (s.gamma_l + -dgamma/2 + (i-segs) * dgamma)
+            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (π - s.gamma_l - gamma) / (π/2 - s.gamma_l)
         end
         
         area = kite_length * s.set.width/(2segs)
         mass[i] = area * mass_per_area
-        pos[:, i] = [-0.5 * kite_length, cos(γ) * s.set.radius, sin(γ) * s.set.radius]
+        pos[:, i] = [-0.5 * kite_length, cos(gamma) * s.set.radius, sin(gamma) * s.set.radius]
         s.pos_circle_center_b .-= mass[i] * pos[:, i]
     end
     s.pos_circle_center_b ./= sum(mass)
@@ -247,28 +247,28 @@ function calc_pos_principal!(s::KPSQ)
     # pos in principal frame relative to com
     mass_per_area = s.set.mass / ((s.set.middle_length + s.set.tip_length) * 0.5 * s.set.width)
     n = s.set.aero_surfaces
-    s.γ_l       = π/2 - s.set.width/2/s.set.radius
-    γ_middle    = π/2
-    dγ          = (γ_middle - s.γ_l) / n
+    s.gamma_l       = π/2 - s.set.width/2/s.set.radius
+    gamma_middle    = π/2
+    dgamma          = (gamma_middle - s.gamma_l) / n
     for i in 1:2n
         if i <= n
-            γ = s.γ_l + -dγ/2 + i * dγ
-            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (γ - s.γ_l) / (π/2 - s.γ_l)
+            gamma = s.gamma_l + -dgamma/2 + i * dgamma
+            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (gamma - s.gamma_l) / (π/2 - s.gamma_l)
         else
-            γ = pi - (s.γ_l + -dγ/2 + (i-n) * dγ)
-            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (π - s.γ_l - γ) / (π/2 - s.γ_l)
+            gamma = pi - (s.gamma_l + -dgamma/2 + (i-n) * dgamma)
+            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (π - s.gamma_l - gamma) / (π/2 - s.gamma_l)
         end
         area = kite_length * s.set.width/(2n)
         s.seg_mass[i] = area * mass_per_area
 
-        s.seg_com_pos_p[:, i] .= s.R_b_p * ([-0.5 * kite_length, cos(γ) * s.set.radius, sin(γ) * s.set.radius] .+ s.pos_circle_center_b)
-        s.seg_cop_pos_b[:, i] .= [-0.75 * kite_length, cos(γ) * s.set.radius, sin(γ) * s.set.radius] + s.pos_circle_center_b
+        s.seg_com_pos_p[:, i] .= s.R_b_p * ([-0.5 * kite_length, cos(gamma) * s.set.radius, sin(gamma) * s.set.radius] .+ s.pos_circle_center_b)
+        s.seg_cop_pos_b[:, i] .= [-0.75 * kite_length, cos(gamma) * s.set.radius, sin(gamma) * s.set.radius] + s.pos_circle_center_b
         s.seg_cop_pos_p[:, i] .= s.R_b_p * s.seg_cop_pos_b[:, i]
     end
     s.pos_C_b = s.pos_circle_center_b .+ [-0.75s.kite_length_D, 0.0, s.set.radius - s.set.bridle_center_distance]
     s.pos_C_p .= s.R_b_p * s.pos_C_b
-    s.pos_A_b .= [0.0, cos(s.γ_D), 0.0] .+ s.pos_C_b
-    s.pos_B_b .= [0.0, -cos(s.γ_D), 0.0] .+ s.pos_C_b
+    s.pos_A_b .= [0.0, cos(s.gamma_D), 0.0] .+ s.pos_C_b
+    s.pos_B_b .= [0.0, -cos(s.gamma_D), 0.0] .+ s.pos_C_b
     return nothing
 end
 
@@ -300,8 +300,8 @@ function init_pos!(s::KPSQ; distance = nothing, te_angle = s.te_angle, kite_angl
     s.kite_pos .= s.pos[:, s.i_C] - R_b_w * s.pos_C_b
     
     # init tether connection points
-    s.pos_D_b .= [0.0, cos(s.γ_D) * s.set.radius, sin(s.γ_D) * s.set.radius]
-    s.pos_E_b .= [0.0, -cos(s.γ_D) * s.set.radius, sin(s.γ_D) * s.set.radius]
+    s.pos_D_b .= [0.0, cos(s.gamma_D) * s.set.radius, sin(s.gamma_D) * s.set.radius]
+    s.pos_E_b .= [0.0, -cos(s.gamma_D) * s.set.radius, sin(s.gamma_D) * s.set.radius]
     e_r_D = -normalize(s.pos_D_b)
     e_r_E = -normalize(s.pos_E_b)
     te_length = s.kite_length_D/4
