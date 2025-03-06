@@ -10,6 +10,9 @@ git clone https://github.com/ufechner7/KiteModels.jl.git
 cd KiteModels.jl
 git checkout compact
 rm -rf .git
+rm -rf .github
+rm -rf docs
+rm -rf mwes
 cd bin
 ./create_sys_image --update
 cd ..
