@@ -88,15 +88,6 @@ $(TYPEDFIELDS)
     last_measure_hash::UInt64 = 0
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
-    "Function for calculating the lift coefficent, using linear interpolation based on the provided value pairs."
-    cl_interp::Function
-    "Function for calculating the drag coefficent, using linear interpolation based on the provided value pairs."
-    cd_interp::Function
-    "Function for calculating the trailing edge force coefficient, using linear interpolation based on the provided value pairs."
-    c_te_interp::Function
-    "Function for calculating the area given a certain gamma"
-    area_interp::Function
-    
     "Reference to the motor models as implemented in the package WinchModels. index 1: middle motor, index 2: left motor, index 3: right motor"
     motors::SizedArray{Tuple{3}, AbstractWinchModel}
     "tether positions"
@@ -321,43 +312,18 @@ end
 # include(joinpath(@__DIR__, "CreatePolars.jl"))
 function KPSQ(kcu::KCU)
     set = kcu.set
-    @assert set.foil_file != "" "No foil file specified in settings."
-    open(joinpath(dirname(get_data_path()), set.foil_file), "r") do f
-        lines = readlines(f)
-        if !endswith(chomp(lines[1]), "polars created")
-            error("No polars created for $(s.set.foil_file). Run scripts/create_polars.jl to create a polars file.")
-        end
-    end
-
-    alphas, d_trailing_edge_angles, cl_matrix, cd_matrix, c_te_matrix = deserialize(joinpath(dirname(get_data_path()), set.polar_file))
-    replace_nan!(cl_matrix)
-    replace_nan!(cd_matrix)
-    replace_nan!(c_te_matrix)
-    cl_struct = extrapolate(scale(interpolate(cl_matrix, BSpline(Quadratic())), alphas, d_trailing_edge_angles), NaN)
-    cd_struct = extrapolate(scale(interpolate(cd_matrix, BSpline(Quadratic())), alphas, d_trailing_edge_angles), NaN)
-    c_te_struct = extrapolate(scale(interpolate(c_te_matrix, BSpline(Quadratic())), alphas, d_trailing_edge_angles), NaN)
-    cl_interp(a, d) = cl_struct(a, d)
-    cd_interp(a, d) = cd_struct(a, d)
-    c_te_interp(a, d) = c_te_struct(a, d)
-    
     if set.winch_model == "TorqueControlledMachine"
         s = KPSQ{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
             set=kcu.set, 
-            motors=[TorqueControlledMachine(set) for _ in 1:3],
-            cl_interp = cl_interp,
-            cd_interp = cd_interp,
-            c_te_interp = c_te_interp,)
+            motors=[TorqueControlledMachine(set) for _ in 1:3])
         s.torque_control = true
     else
         s = KPSQ{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
             set=kcu.set, 
-            motors=[AsyncMachine(set) for _ in 1:3],
-            cl_interp = cl_interp,
-            cd_interp = cd_interp,
-            c_te_interp = c_te_interp,)
+            motors=[AsyncMachine(set) for _ in 1:3])
         s.torque_control = false
     end
-    clear!(s)    
+    clear!(s)
     return s
 end
 

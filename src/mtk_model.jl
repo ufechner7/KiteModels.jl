@@ -170,7 +170,7 @@ struct KitePoint <: AbstractPoint
     idx::Int
     pos::Union{Vector{SimFloat}, Nothing} # pos relative to kite COM in body frame
     fixed_pos::Vector{SimFloat} # position in body frame which the point rotates around under kite deformation
-    local_y::MVec3 # y-axis in body frame which the point rotates around under kite deformation
+    y_panel::KVec3 # y-axis in body frame which the point rotates around under kite deformation
 end
 
 struct Segment
@@ -192,15 +192,10 @@ struct PointMassSystem
     pulleys::Vector{Pulley}
 end
 
-function create_sys!(s::KPSQ; init=false)
-
-    points = Point[]
+function create_point_mass_system!(s::KPSQ, kite_wing::KiteWing)
+    points = AbstractPoint[]
     segments = Segment[]
     pulleys = Pulley[]
-    
-    point_idx = 1
-    tether_idx = 1
-    pulley_idx = 1
     
     bridle_gammas = find_bridle_gammas!(s, zeros(4))
 
@@ -213,27 +208,29 @@ function create_sys!(s::KPSQ; init=false)
         for gamma in gammas # 2 gammas
             le_pos = [le_interp[i](gamma) for i in 1:3]
             chord = [te_interp[i](gamma) for i in 1:3] .- le_pos
+            y_panel = normalize(le_pos .- [le_interp[i](gamma+0.01) for i in 1:3])
+            fixed_pos = le_pos .+ chord .* frac[2]
             for frac in bridle_fracs # 4 fracs
                 pos = le_pos .+ chord .* frac
-                points = [points; KitePoint(i+i_pnt, pos, )]
+                points = [points; KitePoint(i+i_pnt, pos, fixed_pos, y_panel)]
                 i += 1
             end
         end
 
         points = [
             points
-            Point(9+i_pnt, "bridle", [0, 0, 0])
-            Point(10+i_pnt, "bridle", [0, 0, 0])
-            Point(11+i_pnt, "bridle", [0, 0, 0])
-            Point(12+i_pnt, "bridle", [0, 0, 0])
+            Point(9+i_pnt, [0, 0, 0])
+            Point(10+i_pnt, [0, 0, 0])
+            Point(11+i_pnt, [0, 0, 0])
+            Point(12+i_pnt, [0, 0, 0])
 
-            Point(13+i_pnt, "bridle", [0, 0, -1])
+            Point(13+i_pnt, [0, 0, -1])
 
-            Point(14+i_pnt, "bridle", [0, 0, -2])
-            Point(15+i_pnt, "bridle", [0, 0, -2])
+            Point(14+i_pnt, [0, 0, -2])
+            Point(15+i_pnt, [0, 0, -2])
 
-            Point(16+i_pnt, "bridle", [0, 0, -5])
-            Point(17+i_pnt, "bridle", [0, 0, -5])
+            Point(16+i_pnt, [0, 0, -5])
+            Point(17+i_pnt, [0, 0, -5])
         ]
         segments = [
             segments
@@ -267,27 +264,39 @@ function create_sys!(s::KPSQ; init=false)
         return 16+i_pnt, 17+i_pnt
     end
 
-    function create_tether(attach_idx)
+    function create_tether(i_pnt, winch)
         l0 = s.set.l_tether / s.set.segments
         for i in 1:s.set.segments
-            i_pnt = length(points) # last point idx
             i_seg = length(segments) # last segment idx
             if i == s.set.segments
-                points = [points; WinchPoint(1+i_pnt, [0, 0, -5 - i*l0])]
+                points = [points; WinchPoint(1+i_pnt, [0, 0, -5 - i*l0], winch)]
                 segments = [segments; Segment(1+i_seg, (i_pnt, 1+i_pnt), l0, "tether")]
             else
-                points = [points; Point(1+i_pnt, "tether", [0, 0, -5 - i*l0])]
+                points = [points; Point(1+i_pnt, [0, 0, -5 - i*l0])]
                 segments = [segments; Segment(1+i_seg, (i_pnt, 1+i_pnt), l0, "tether")]
             end
+            i_pnt = length(points)
         end
     end
 
     bridle_attach_idxs = zeros(Int16, 4)
     bridle_attach_idxs[1:2] .= create_bridle(bridle_gammas[1:2])
     bridle_attach_idxs[3:4] .= create_bridle(bridle_gammas[3:4])
-    winch_idxs = create_tether.(bridle_attach_idxs)
+
+    winches = [TorqueControlledMachine(s.set) for i in 1:4]
+    winch_idxs = create_tether.(bridle_attach_idxs, winches)
     @show winch_idxs
 
+    for point in points
+        println(point)
+    end
+    system = PointMassSystem(points, segments, pulleys)
+    plot(system)
+    @assert false
+    return system
+end
+
+function create_sys!(s::KPSQ; init=false)
     eqs = []
     function force_eqs!()
         pulley_damping = 10
@@ -314,6 +323,7 @@ function create_sys!(s::KPSQ; init=false)
             spring_force_vec(t)[1:3, eachindex(segments)]
         end
         for segment in segments
+            @show segment.type
             found = false
             if segment.type == "bridle"
                 for pulley in pulleys
@@ -343,18 +353,18 @@ function create_sys!(s::KPSQ; init=false)
 
             p1, p2 = segment.points[1], segment.points[2]
 
-            (segment.type == "bridle") && diameter = s.bridle_tether_diameter
-            (segment.type == "power") && diameter = s.power_tether_diameter
-            (segment.type == "steering") && diameter = s.steering_tether_diameter
+            (segment.type == "bridle") && (diameter = s.bridle_tether_diameter)
+            (segment.type == "power") && (diameter = s.power_tether_diameter)
+            (segment.type == "steering") && (diameter = s.steering_tether_diameter)
 
             stiffness = s.set.e_tether * (diameter/2000)^2 * pi
-            (segment.type == "bridle") && compression_frac = 1.0
-            (segment.type == "power") && compression_frac = 0.1
-            (segment.type == "steering") && compression_frac = 0.1
+            (segment.type == "bridle") && (compression_frac = 1.0)
+            (segment.type == "power") && (compression_frac = 0.1)
+            (segment.type == "steering") && (compression_frac = 0.1)
             
             damping = (s.set.damping / s.set.c_spring) * stiffness
             @show damping
-            (segment.type == "bridle") && damping = 10damping
+            (segment.type == "bridle") && (damping = 10damping)
 
             eqs = [
                 eqs
@@ -407,7 +417,7 @@ function create_sys!(s::KPSQ; init=false)
                     vel[:, point.idx]    ~ zeros(3)
                     acc[:, point.idx]    ~ zeros(3)
                 ]
-            else
+            elseif point isa Point
                 # segment - inverted
                 F::Vector{Num} = zeros(Num, 3)
                 mass_per_meter = s.set.rho_tether * π * (segment.diameter/2000)^2    
@@ -431,6 +441,8 @@ function create_sys!(s::KPSQ; init=false)
                     D(vel[:, point.idx]) ~ acc[:, point.idx]
                     acc[:, point.idx]    ~ force[:, point.idx] / mass + G_EARTH
                 ]
+            else
+                throw(ArgumentError("Unknown point type: $(typeof(point))"))
             end
         end
     end
