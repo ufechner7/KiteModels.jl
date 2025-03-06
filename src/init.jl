@@ -137,18 +137,18 @@ function set_initial_velocity!(s::KPS4)
     end
 end
 
-function find_bridle_gammas!(s, bridle_gamma)
-    total_area = s.area(0.0)
+function find_bridle_gammas!(s::KPSQ, wing::KiteWing, bridle_gamma)
+    total_area = wing.area_interp(0.0)
     target_area = total_area / 4
     function equations!(F, gamma, p)
-        F[1] = s.area(gamma[1]) - target_area
-        F[2] = s.area(gamma[2]) - 3 * target_area
+        F[1] = wing.area_interp(gamma[1]) - target_area
+        F[2] = wing.area_interp(gamma[2]) - 3 * target_area
     end
-    gamma_tip = deg2rad(-abs(s.set.gamma_tip))
-    gamma0 = [gamma_tip - 0.25*gamma_tip, gamma_tip - 0.75*gamma_tip]
+    gamma_tip = wing.gamma_tip
+    gamma0 = [-gamma_tip + 0.25*gamma_tip, -gamma_tip + 0.75*gamma_tip]
     prob = NonlinearProblem(equations!, gamma0, nothing)
     
-    result = solve(prob, NewtonRaphson())
+    result = NonlinearSolve.solve(prob, NewtonRaphson())
 
     bridle_gamma[1:2] .= result.u
     bridle_gamma[3:4] .= -bridle_gamma[1:2]
@@ -160,7 +160,7 @@ function init_bridle_pos!(s)
     bridle_pos_b = zeros(SimFloat, 3, 4, 4) # xyz, length, width
     bridle_gamma = zeros(SimFloat, 4)
 
-    calc_inertia!(s)
+    calc_inertia!(s, s.wing)
     find_attachment_gamma!(s, bridle_gamma)
 
     bridle_fracs = (s.set.bridle_connect[2:5] .- s.set.bridle_connect[1]) / (s.set.bridle_connect[1] - s.set.bridle_connect[5])
@@ -174,54 +174,8 @@ function init_bridle_pos!(s)
     return bridle_pos_b
 end
 
-function calc_inertia!(s::KPSQ)
-    segs = 100
-    mass_per_area = s.set.mass / ((s.set.middle_length + s.set.tip_length) * 0.5 * s.set.width)
-    
-    # First pass - calculate COM
-    total_mass = 0.0
-    s.pos_circle_center_b .= 0.0 # translation from kite COM to kite circle center
-    pos = zeros(3, 2segs)
-    mass = zeros(2segs)
-    
-    @assert s.gamma_l != 0.0
-    gamma_middle    = π/2
-    dgamma          = (gamma_middle - s.gamma_l) / segs
-    for i in 1:2segs
-        if i <= segs
-            gamma = s.gamma_l + -dgamma/2 + i * dgamma
-            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (gamma - s.gamma_l) / (π/2 - s.gamma_l)
-        else
-            gamma = pi - (s.gamma_l + -dgamma/2 + (i-segs) * dgamma)
-            kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (π - s.gamma_l - gamma) / (π/2 - s.gamma_l)
-        end
-        
-        area = kite_length * s.set.width/(2segs)
-        mass[i] = area * mass_per_area
-        pos[:, i] = [-0.5 * kite_length, cos(gamma) * s.set.radius, sin(gamma) * s.set.radius]
-        s.pos_circle_center_b .-= mass[i] * pos[:, i]
-    end
-    s.pos_circle_center_b ./= sum(mass)
-    
-    # Calculate full inertia tensor relative to COM
-    I = zeros(3,3)
-    for i in eachindex(mass)
-        pos[:, i] -= s.pos_circle_center_b
-        r = @views pos[:, i]
-        m = mass[i]
-        
-        # Diagonal terms
-        I[1,1] += m * (r[2]^2 + r[3]^2)  # Ixx
-        I[2,2] += m * (r[1]^2 + r[3]^2)  # Iyy
-        I[3,3] += m * (r[1]^2 + r[2]^2)  # Izz
-        
-        # Products of inertia
-        I[1,2] = I[2,1] -= m * r[1] * r[2]  # Ixy
-        I[1,3] = I[3,1] -= m * r[1] * r[3]  # Ixz
-        I[2,3] = I[3,2] -= m * r[2] * r[3]  # Iyz
-    end
-
-    s.I_b .= [I[1,1], I[2,2], I[3,3]]
+function calc_inertia!(s::KPSQ, wing::KiteWing)
+    s.I_b .= [wing.inertia_tensor[1,1], wing.inertia_tensor[2,2], wing.inertia_tensor[3,3]]
     
     # Find principal axes
     eigenvals, eigenvecs = eigen(I)
@@ -233,7 +187,7 @@ function calc_inertia!(s::KPSQ)
     
     # Ensure right-handed coordinate system
     if det(eigenvecs) < 0
-        eigenvecs[:, 3] *= -1
+        eigenvecs[:, 3] .*= -1
     end
 
     # Store results

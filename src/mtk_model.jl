@@ -192,12 +192,12 @@ struct PointMassSystem
     pulleys::Vector{Pulley}
 end
 
-function create_point_mass_system!(s::KPSQ, kite_wing::KiteWing)
+function create_point_mass_system!(s::KPSQ, wing::KiteWing)
     points = AbstractPoint[]
     segments = Segment[]
     pulleys = Pulley[]
     
-    bridle_gammas = find_bridle_gammas!(s, zeros(4))
+    bridle_gammas = find_bridle_gammas!(s, wing, zeros(4))
 
     function create_bridle(gammas)
         i_pnt = length(points) # last point idx
@@ -206,11 +206,11 @@ function create_point_mass_system!(s::KPSQ, kite_wing::KiteWing)
 
         i = 1
         for gamma in gammas # 2 gammas
-            le_pos = [le_interp[i](gamma) for i in 1:3]
-            chord = [te_interp[i](gamma) for i in 1:3] .- le_pos
-            y_panel = normalize(le_pos .- [le_interp[i](gamma+0.01) for i in 1:3])
-            fixed_pos = le_pos .+ chord .* frac[2]
-            for frac in bridle_fracs # 4 fracs
+            le_pos = [wing.le_interp[i](gamma) for i in 1:3]
+            chord = [wing.te_interp[i](gamma) for i in 1:3] .- le_pos
+            y_panel = normalize(le_pos .- [wing.le_interp[i](gamma+0.01) for i in 1:3])
+            fixed_pos = le_pos .+ chord .* s.bridle_fracs[2]
+            for frac in s.bridle_fracs # 4 fracs
                 pos = le_pos .+ chord .* frac
                 points = [points; KitePoint(i+i_pnt, pos, fixed_pos, y_panel)]
                 i += 1
@@ -291,12 +291,13 @@ function create_point_mass_system!(s::KPSQ, kite_wing::KiteWing)
         println(point)
     end
     system = PointMassSystem(points, segments, pulleys)
-    plot(system)
     @assert false
     return system
 end
 
 function create_sys!(s::KPSQ; init=false)
+    create_point_mass_system!(s, s.wing)
+
     eqs = []
     function force_eqs!()
         pulley_damping = 10
@@ -931,7 +932,7 @@ The distance/vel/acc of the kite cannot be measured directly, but the average ac
 Assume distance_acc = tether_acc[3] for convenience
 """
 function model!(s::KPSQ; init=false)
-    init_pos!(s)
+    # init_pos!(s)
     
     sys, inputs = create_sys!(s; init)
     # structural_simplify(sys, (inputs, []))

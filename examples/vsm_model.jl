@@ -1,7 +1,7 @@
-using Revise, KiteModels, ModelingToolkit, LinearAlgebra, Statistics
+using Revise, KiteModels, ModelingToolkit, LinearAlgebra, Statistics, VortexStepMethod
 
-plot = true
-if plot
+PLOT = true
+if PLOT
     using ControlPlots
 end
 
@@ -13,7 +13,12 @@ set = se("system_3l.yaml")
 set.segments = 6
 set.aero_surfaces = 6
 logger = Logger(3*set.segments + 4, steps)
-if !@isdefined(s); s = KPSQ(KCU(set)); end
+
+# if !@isdefined(s); s = KPSQ(KCU(set)); end
+wing = KiteWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat")
+aero = BodyAerodynamics([wing])
+s = KPSQ(set, wing, aero)
+
 s.measure.set_values = [-0.5, -0.5, -60.0]
 s.measure.tether_length = [51., 51., 49.]
 s.measure.tether_vel = [0.015, 0.015, 0.782]
@@ -38,7 +43,7 @@ try
     while t < total_time
         global t, runtime
         local pos = [[sys_state.X[i], sys_state.Y[i], sys_state.Z[i]] for i in 1:s.i_C+1]
-        plot && plot2d(pos, t; zoom=false, front=false, xlim=(-l/2, l/2), ylim=(0, l), segments=10)
+        PLOT && plot2d(pos, t; zoom=false, front=false, xlim=(-l/2, l/2), ylim=(0, l), segments=10)
         # global set_values = -s.set.drum_radius * KiteModels.tether_force(s)
         global set_values = s.measure.set_values
         # if t < 1.0; set_values[2] -= 0.0; end

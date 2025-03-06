@@ -78,6 +78,10 @@ $(TYPEDFIELDS)
 @with_kw mutable struct KPSQ{S, V, P} <: AbstractKiteModel
     "Reference to the settings struct"
     set::Settings
+    "Reference to the geometric wing model"
+    wing::KiteWing
+    "Reference to the aerodynamic wing model"
+    aero::BodyAerodynamics
     "The last initial elevation"
     last_init_elevation::S     = 0.0
     "The last initial tether length"
@@ -88,8 +92,6 @@ $(TYPEDFIELDS)
     last_measure_hash::UInt64 = 0
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
-    "Reference to the motor models as implemented in the package WinchModels. index 1: middle motor, index 2: left motor, index 3: right motor"
-    motors::SizedArray{Tuple{3}, AbstractWinchModel}
     "tether positions"
     pos::Matrix{S} = zeros(S, 3, P)
     "unstressed segment lengths of the three tethers [m]"
@@ -196,6 +198,8 @@ $(TYPEDFIELDS)
     te_angle::V = zeros(S, 2)
     "Function to get kite length from γ"
     kite_length::Function = () -> nothing
+    "X coordinate on normalized 2d foil of bridle attachments"
+    bridle_fracs::V = [0.05, 0.3, 0.6, 0.95]
 
     set_initial_measure::Function  = () -> nothing
     set_initial_set_values::Function = () -> nothing
@@ -268,59 +272,57 @@ end
 Initialize the kite power model.
 """
 function clear!(s::KPSQ)
-    P = 3s.set.segments + 3
-    S = eltype(s.pos)
-    s.pos = zeros(S, 3, P)
-    s.masses = zeros(S, P)
-    s.expected_tether_pos_vel_buffer = zeros(S, 2, 3, (P ÷ 3))
-    s.J_buffer = zeros(S, P, 2)
-    s.y_buffer = zeros(S, P)
-    s.t_0 = 0.0                              # relative start time of the current time interval
-    s.e_x .= 0.0
-    s.e_y .= 0.0
-    s.e_z .= 0.0
-    s.tether_lengths .= [s.set.l_tether for _ in 1:3]
-    s.γ_l = π/2 - s.set.min_steering_line_distance/(2*s.set.radius)
-    s.segment_lengths .= s.tether_lengths ./ s.set.segments
-    s.i_A = s.set.segments*3+1
-    s.i_B = s.set.segments*3+2
-    s.i_C = s.set.segments*3+3
-    s.rho = s.set.rho_0
-    c_spring = s.set.e_tether * (s.set.d_tether/2000.0)^2 * pi
-    s.c_spring .= [c_spring, c_spring, 2c_spring]
-    s.damping .= (s.set.damping / s.set.c_spring) * s.c_spring
-    s.kite_length = function (γ)
-        if γ < π/2
-            return s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (γ - s.γ_l) / (π/2 - s.γ_l)
-        else
-            return s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (π - s.γ_l - γ) / (π/2 - s.γ_l)
-        end
-    end
-    init_masses!(s)
+    # P = 3s.set.segments + 3
+    # S = eltype(s.pos)
+    # s.pos = zeros(S, 3, P)
+    # s.masses = zeros(S, P)
+    # s.expected_tether_pos_vel_buffer = zeros(S, 2, 3, (P ÷ 3))
+    # s.J_buffer = zeros(S, P, 2)
+    # s.y_buffer = zeros(S, P)
+    # s.t_0 = 0.0                              # relative start time of the current time interval
+    # s.e_x .= 0.0
+    # s.e_y .= 0.0
+    # s.e_z .= 0.0
+    # s.tether_lengths .= [s.set.l_tether for _ in 1:3]
+    # s.γ_l = π/2 - s.set.min_steering_line_distance/(2*s.set.radius)
+    # s.segment_lengths .= s.tether_lengths ./ s.set.segments
+    # s.i_A = s.set.segments*3+1
+    # s.i_B = s.set.segments*3+2
+    # s.i_C = s.set.segments*3+3
+    # s.rho = s.set.rho_0
+    # c_spring = s.set.e_tether * (s.set.d_tether/2000.0)^2 * pi
+    # s.c_spring .= [c_spring, c_spring, 2c_spring]
+    # s.damping .= (s.set.damping / s.set.c_spring) * s.c_spring
+    # s.kite_length = function (γ)
+    #     if γ < π/2
+    #         return s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (γ - s.γ_l) / (π/2 - s.γ_l)
+    #     else
+    #         return s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (π - s.γ_l - γ) / (π/2 - s.γ_l)
+    #     end
+    # end
+    # init_masses!(s)
 
-    width, radius, tip_length, middle_length = s.set.width, s.set.radius, s.set.tip_length, s.set.middle_length
-    s.γ_l = pi/2 - width/2/radius
-    s.γ_D = s.γ_l + width*(-2*tip_length + sqrt(2*middle_length^2 + 2*tip_length^2)) /
-        (4*(middle_length - tip_length)) / radius
-    s.kite_length_D = tip_length + (middle_length-tip_length) * (s.γ_D - s.γ_l) / (π/2 - s.γ_l)
+    # width, radius, tip_length, middle_length = s.set.width, s.set.radius, s.set.tip_length, s.set.middle_length
+    # s.γ_l = pi/2 - width/2/radius
+    # s.γ_D = s.γ_l + width*(-2*tip_length + sqrt(2*middle_length^2 + 2*tip_length^2)) /
+    #     (4*(middle_length - tip_length)) / radius
+    # s.kite_length_D = tip_length + (middle_length-tip_length) * (s.γ_D - s.γ_l) / (π/2 - s.γ_l)
 
-    calc_inertia!(s)
-    calc_pos_principal!(s)
+    # calc_inertia!(s, s.wing)
+    # calc_pos_principal!(s)
     nothing
 end
 
-# include(joinpath(@__DIR__, "CreatePolars.jl"))
-function KPSQ(kcu::KCU)
-    set = kcu.set
+function KPSQ(set::Settings, wing::KiteWing, aero::BodyAerodynamics)
     if set.winch_model == "TorqueControlledMachine"
         s = KPSQ{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
-            set=kcu.set, 
-            motors=[TorqueControlledMachine(set) for _ in 1:3])
+            ; set, wing, aero
+            )
         s.torque_control = true
     else
         s = KPSQ{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
-            set=kcu.set, 
-            motors=[AsyncMachine(set) for _ in 1:3])
+            ; set, wing, aero
+            )
         s.torque_control = false
     end
     clear!(s)
