@@ -18,7 +18,7 @@ This package is part of Julia Kite Power Tools, which consists of the following 
 ## News
 #### Work in progress
 - a much better aerodynamic model is being integrated using the package [VortexStepMethod](https://github.com/Albatross-Kite-Transport/VortexStepMethod.jl)
-- a new 5-point model based on ModellingToolkit (MTK) is in development;  
+- a new 5-point model based on ModelingToolkit (MTK) is in development;  
   this will allow to create linearized models around any operation point and to do analysis in the frequency domain.
 #### November 2024
 - the four point kite model KPS4 was extended to include aerodynamic damping of pitch oscillations;
