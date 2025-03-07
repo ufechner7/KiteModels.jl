@@ -62,6 +62,73 @@ const MeasureFloat = Float32
     wind_dir_gnd::MeasureFloat                  = zero(MeasureFloat)
 end
 
+abstract type AbstractPoint end
+
+@enum SegmentType begin
+    POWER
+    STEERING
+    BRIDLE
+end
+
+struct Point <: AbstractPoint
+    idx::Int16
+    pos::Union{Vector{SimFloat}, Nothing} # pos relative to kite COM in body frame
+end
+
+struct WinchPoint <: AbstractPoint
+    idx::Int16
+    pos::Union{Vector{SimFloat}, Nothing} # pos relative to kite COM in body frame
+    winch::AbstractWinchModel
+end
+
+struct KitePoint <: AbstractPoint
+    idx::Int16
+    pos::Union{Vector{SimFloat}, Nothing} # pos relative to kite COM in body frame
+    fixed_pos::Vector{SimFloat} # position in body frame which the point rotates around under kite deformation
+    y_panel::KVec3 # y-axis in body frame which the point rotates around under kite deformation
+end
+
+struct Segment
+    idx::Int16
+    points::Tuple{Int16, Int16}
+    l0::Union{SimFloat, Nothing}
+    type::SegmentType
+end
+
+struct Pulley
+    idx::Int16
+    segments::Tuple{Int16, Int16}
+    sum_length::Union{SimFloat, Nothing}
+end
+
+struct Tether
+    idx::Int16
+    segments::Vector{Int16}
+    winch_point::Int16
+end
+
+struct PointMassSystem
+    points::Vector{AbstractPoint}
+    segments::Vector{Segment}
+    pulleys::Vector{Pulley}
+    tethers::Vector{Tether}
+    function PointMassSystem(points, segments, pulleys, tethers)
+        for (i, point) in enumerate(points)
+            @assert point.idx == i
+        end
+        for (i, segment) in enumerate(segments)
+            @assert segment.idx == i
+        end
+        for (i, pulley) in enumerate(pulleys)
+            @assert pulley.idx == i
+        end
+        for (i, tether) in enumerate(tethers)
+            @assert tether.idx == i
+        end
+        new(points, segments, pulleys, tethers)
+    end
+end
+
 """
     mutable struct KPSQ{S, T, P, Q, SP} <: AbstractKiteModel
 
@@ -82,6 +149,10 @@ $(TYPEDFIELDS)
     wing::KiteWing
     "Reference to the aerodynamic wing model"
     aero::BodyAerodynamics
+    "Reference to the VSM aerodynamics solver"
+    vsm_solver::VortexStepMethod.Solver
+    "Reference to the point mass system with points, segments, pulleys and tethers"
+    point_system::PointMassSystem = PointMassSystem(Point[], Segment[], Pulley[], Tether[])
     "The last initial elevation"
     last_init_elevation::S     = 0.0
     "The last initial tether length"
@@ -313,15 +384,15 @@ function clear!(s::KPSQ)
     nothing
 end
 
-function KPSQ(set::Settings, wing::KiteWing, aero::BodyAerodynamics)
+function KPSQ(set::Settings, wing::KiteWing, aero::BodyAerodynamics, vsm_solver::VortexStepMethod.Solver)
     if set.winch_model == "TorqueControlledMachine"
         s = KPSQ{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
-            ; set, wing, aero
+            ; set, wing, aero, vsm_solver
             )
         s.torque_control = true
     else
         s = KPSQ{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
-            ; set, wing, aero
+            ; set, wing, aero, vsm_solver
             )
         s.torque_control = false
     end

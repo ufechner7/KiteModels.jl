@@ -1,15 +1,14 @@
 # ==================== mtk model functions ================================================
 # Implementation of the three-line model using ModellingToolkit.jl
 
-function calc_acc_speed(motor::AsyncMachine, tether_vel, norm_, set_speed)
-    calc_acceleration(motor, tether_vel, norm_; set_speed, set_torque=nothing, use_brake=false) # TODO: add brake setting
+function calc_acc(winch::AsyncMachine, tether_vel, norm_, set_speed)
+    calc_acceleration(winch, tether_vel, norm_; set_speed, set_torque=nothing, use_brake=false) # TODO: add brake setting
 end
-@register_symbolic calc_acc_speed(motor::AsyncMachine, tether_vel, norm_, set_speed)
-
-function calc_acc_torque(motor::TorqueControlledMachine, tether_vel, norm_, set_torque)
-    calc_acceleration(motor, tether_vel, norm_; set_speed=nothing, set_torque, use_brake=false)
+function calc_acc(winch::TorqueControlledMachine, tether_vel, norm_, set_torque)
+    calc_acceleration(winch, tether_vel, norm_; set_speed=nothing, set_torque, use_brake=false)
 end
-@register_symbolic calc_acc_torque(motor::TorqueControlledMachine, tether_vel, norm_, set_torque)
+@register_symbolic calc_acc(winch::AsyncMachine, tether_vel, norm_, set_speed)
+@register_symbolic calc_acc(winch::TorqueControlledMachine, tether_vel, norm_, set_torque)
 
 function sym_interp(interp::Function, aoa, trailing_edge_angle)
     return interp(rad2deg(aoa), rad2deg(trailing_edge_angle-aoa)) # TODO: register callable struct https://docs.sciml.ai/Symbolics/dev/manual/functions/#Symbolics.@register_array_symbolic
@@ -149,53 +148,11 @@ end
 #     return eqs, force_eqs
 # end
 
-
-function deform_bridle(bridle_pos, static_pos, angle)
-end
-
-abstract type AbstractPoint end
-
-struct Point <: AbstractPoint
-    idx::Int
-    pos::Union{Vector{SimFloat}, Nothing} # pos relative to kite COM in body frame
-end
-
-struct WinchPoint <: AbstractPoint
-    idx::Int
-    pos::Union{Vector{SimFloat}, Nothing} # pos relative to kite COM in body frame
-    winch::AbstractWinchModel
-end
-
-struct KitePoint <: AbstractPoint
-    idx::Int
-    pos::Union{Vector{SimFloat}, Nothing} # pos relative to kite COM in body frame
-    fixed_pos::Vector{SimFloat} # position in body frame which the point rotates around under kite deformation
-    y_panel::KVec3 # y-axis in body frame which the point rotates around under kite deformation
-end
-
-struct Segment
-    idx::Int
-    points::Tuple{Int, Int}
-    l0::Union{SimFloat, Nothing}
-    type::String
-end
-
-struct Pulley
-    idx
-    segments::Tuple{Int, Int}
-    sum_length::Union{SimFloat, Nothing}
-end
-
-struct PointMassSystem
-    points::Vector{AbstractPoint}
-    segments::Vector{Segment}
-    pulleys::Vector{Pulley}
-end
-
 function create_point_mass_system!(s::KPSQ, wing::KiteWing)
     points = AbstractPoint[]
     segments = Segment[]
     pulleys = Pulley[]
+    tethers = Tether[]
 
     attach_points = AbstractPoint[]
     
@@ -208,11 +165,10 @@ function create_point_mass_system!(s::KPSQ, wing::KiteWing)
 
         i = 1
         for gamma in gammas # 2 gammas
-            le_pos = [wing.le_interp[i](gamma) for i in 1:3]
+            le_pos = [wing.le_interp[i](gamma) for i in 1:3] # TODO: le_interp should be relative to COM
             chord = [wing.te_interp[i](gamma) for i in 1:3] .- le_pos
             y_panel = normalize(le_pos .- [wing.le_interp[i](gamma+0.01) for i in 1:3])
             fixed_pos = le_pos .+ chord .* s.bridle_fracs[2]
-            @show norm(chord)
             for frac in s.bridle_fracs # 4 fracs
                 pos = le_pos .+ chord .* frac
                 points = [points; KitePoint(i+i_pnt, pos, fixed_pos, y_panel)]
@@ -222,7 +178,6 @@ function create_point_mass_system!(s::KPSQ, wing::KiteWing)
 
         mean_le = [wing.le_interp[i](mean(gammas)) for i in 1:3]
         chord_length = norm([wing.te_interp[i](mean(gammas)) for i in 1:3] .- mean_le)
-        @show chord_length
         xs = s.bridle_fracs .* chord_length
         bridle_top = mean_le .+ [0, 0, -3]
 
@@ -243,27 +198,27 @@ function create_point_mass_system!(s::KPSQ, wing::KiteWing)
         ]
         segments = [
             segments
-            Segment(1+i_seg, (1+i_pnt, 9+i_pnt), 2, "bridle")
-            Segment(2+i_seg, (2+i_pnt, 10+i_pnt), 2, "bridle")
-            Segment(3+i_seg, (3+i_pnt, 11+i_pnt), 2, "bridle")
-            Segment(4+i_seg, (4+i_pnt, 12+i_pnt), 2, "bridle")
+            Segment(1+i_seg, (1+i_pnt, 9+i_pnt), 2, BRIDLE)
+            Segment(2+i_seg, (2+i_pnt, 10+i_pnt), 2, BRIDLE)
+            Segment(3+i_seg, (3+i_pnt, 11+i_pnt), 2, BRIDLE)
+            Segment(4+i_seg, (4+i_pnt, 12+i_pnt), 2, BRIDLE)
 
-            Segment(5+i_seg, (5+i_pnt, 9+i_pnt), 2, "bridle")
-            Segment(6+i_seg, (6+i_pnt, 10+i_pnt), 2, "bridle")
-            Segment(7+i_seg, (7+i_pnt, 11+i_pnt), 2, "bridle")
-            Segment(8+i_seg, (8+i_pnt, 12+i_pnt), 2, "bridle")
+            Segment(5+i_seg, (5+i_pnt, 9+i_pnt), 2, BRIDLE)
+            Segment(6+i_seg, (6+i_pnt, 10+i_pnt), 2, BRIDLE)
+            Segment(7+i_seg, (7+i_pnt, 11+i_pnt), 2, BRIDLE)
+            Segment(8+i_seg, (8+i_pnt, 12+i_pnt), 2, BRIDLE)
 
-            Segment(9+i_seg, (9+i_pnt, 14+i_pnt), 2, "bridle")
-            Segment(10+i_seg, (10+i_pnt, 13+i_pnt), 1, "bridle")
-            Segment(11+i_seg, (11+i_pnt, 15+i_pnt), 2, "bridle")
-            Segment(12+i_seg, (12+i_pnt, 17+i_pnt), 5, "bridle")
+            Segment(9+i_seg, (9+i_pnt, 14+i_pnt), 2, BRIDLE)
+            Segment(10+i_seg, (10+i_pnt, 13+i_pnt), 1, BRIDLE)
+            Segment(11+i_seg, (11+i_pnt, 15+i_pnt), 2, BRIDLE)
+            Segment(12+i_seg, (12+i_pnt, 17+i_pnt), 5, BRIDLE)
             
-            Segment(13+i_seg, (13+i_pnt, 14+i_pnt), 1, "bridle")
-            Segment(14+i_seg, (13+i_pnt, 15+i_pnt), 1, "bridle")
+            Segment(13+i_seg, (13+i_pnt, 14+i_pnt), 1, BRIDLE)
+            Segment(14+i_seg, (13+i_pnt, 15+i_pnt), 1, BRIDLE)
             
-            Segment(15+i_seg, (14+i_pnt, 16+i_pnt), 3, "bridle")
-            Segment(16+i_seg, (15+i_pnt, 16+i_pnt), 3, "bridle")
-            Segment(17+i_seg, (15+i_pnt, 17+i_pnt), 3, "bridle")
+            Segment(15+i_seg, (14+i_pnt, 16+i_pnt), 3, BRIDLE)
+            Segment(16+i_seg, (15+i_pnt, 16+i_pnt), 3, BRIDLE)
+            Segment(17+i_seg, (15+i_pnt, 17+i_pnt), 3, BRIDLE)
         ]
         pulleys = [
             pulleys
@@ -275,43 +230,136 @@ function create_point_mass_system!(s::KPSQ, wing::KiteWing)
         return nothing
     end
 
-    function create_tether(attach_point, winch)
+    function create_tether(attach_point, winch, type)
         l0 = s.set.l_tether / s.set.segments
+        segment_idxs = Int16[]
         for i in 1:s.set.segments
             pos = attach_point.pos .+ [0, 0, -i*l0]
             i_pnt = length(points) # last point idx
             i_seg = length(segments) # last segment idx
             if i == s.set.segments
                 points = [points; WinchPoint(1+i_pnt, pos, winch)]
-                segments = [segments; Segment(1+i_seg, (i_pnt, 1+i_pnt), l0, "tether")]
+                segments = [segments; Segment(1+i_seg, (i_pnt, 1+i_pnt), l0, type)]
             elseif i == 1
                 points = [points; Point(1+i_pnt, pos)]
-                segments = [segments; Segment(1+i_seg, (attach_point.idx, 1+i_pnt), l0, "tether")]
+                segments = [segments; Segment(1+i_seg, (attach_point.idx, 1+i_pnt), l0, type)]
             else
                 points = [points; Point(1+i_pnt, pos)]
-                segments = [segments; Segment(1+i_seg, (i_pnt, 1+i_pnt), l0, "tether")]
+                segments = [segments; Segment(1+i_seg, (i_pnt, 1+i_pnt), l0, type)]
             end
+            push!(segment_idxs, 1+i_seg)
             i_pnt = length(points)
         end
+        i_tether = length(tethers)
+        winch_point = points[end].idx
+        tethers = [tethers; Tether(1+i_tether, segment_idxs, winch_point)]
+        return nothing
     end
 
     create_bridle(bridle_gammas[1:2])
     create_bridle(bridle_gammas[3:4])
 
     winches = [TorqueControlledMachine(s.set) for i in 1:4]
-    create_tether.(attach_points, winches)
+    create_tether.(attach_points, winches, [POWER, STEERING, POWER, STEERING])
 
-    system = PointMassSystem(points, segments, pulleys)
-    plot(system, 0.0)
-    @assert false
+    system = PointMassSystem(points, segments, pulleys, tethers)
+    s.point_system = system
+    # plot(system, 0.0)
     return system
 end
 
 function create_sys!(s::KPSQ; init=false)
-    create_point_mass_system!(s, s.wing)
+    system = create_point_mass_system!(s, s.wing)
+    points, segments, pulleys, tethers = system.points, system.segments, system.pulleys, system.tethers
 
     eqs = []
+    tether_kite_force = zeros(3)
+    tether_kite_torque = zeros(3)
+
+    @parameters begin
+        measured_wind_dir_gnd = s.measure.wind_dir_gnd
+        measured_sphere_pos[1:2, 1:2] = s.measure.sphere_pos
+        measured_sphere_vel[1:2, 1:2] = s.measure.sphere_vel
+        measured_sphere_acc[1:2, 1:2] = s.measure.sphere_acc
+        measured_tether_length[1:3] = s.measure.tether_length
+        measured_tether_vel[1:3]    = s.measure.tether_vel
+        measured_tether_acc[1:3]    = s.measure.tether_acc
+    end
+    @variables begin
+        set_values(t)[1:3] # left right middle
+
+        # potential differential variables
+        kite_pos(t)[1:3] # xyz pos of kite in world frame
+        kite_vel(t)[1:3]
+        kite_acc(t)[1:3]
+        distance(t)
+        distance_vel(t)
+        distance_acc(t)
+        wind_scale_gnd(t)
+        ω_p(t)[1:3] # turn rate in principal frame
+        ω_b(t)[1:3] # turn rate in body frame
+        α_p(t)[1:3] # angular acceleration in principal frame
+        α_b(t)[1:3] # angular acceleration in body frame
+        trailing_edge_angle(t)[1:2] # angle left / right
+        trailing_edge_ω(t)[1:2] # angular rate
+        trailing_edge_α(t)[1:2] # angular acc
+        twist_angle(t)[1:4] # main body angle left / right
+        twist_ω(t)[1:4] # angular rate
+        twist_α(t)[1:4] # angular acc
+        tether_length(t)[1:3]
+        tether_vel(t)[1:3]
+        tether_acc(t)[1:3]
+
+        # rotations and frames
+        R_b_w(t)[1:3, 1:3] # rotation of the kite body frame relative to the world frame
+        R_p_w(t)[1:3, 1:3] # rotation of the kite principal frame relative to the world frame
+        Q_p_w(t)[1:4] # quaternion orientation of the kite principal frame relative to the world frame
+        Q_b_w(t)[1:4] # quaternion orientation of the kite body frame relative to the world frame
+        Q_vel(t)[1:4] # quaternion rate of change
+        e_x(t)[1:3]
+        e_y(t)[1:3]
+        e_z(t)[1:3]
+
+        # rest: forces, torques, vectors and scalar values
+        torque_p(t)[1:3] # torque in principal frame
+        torque_b(t)[1:3] # torque in body frame
+        total_kite_force(t)[1:3]
+        aero_kite_force(t)[1:3]
+        winch_force(t)[1:3] # normalized tether forces at the winch
+        force(t)[1:3, 1:s.i_C]
+        rho_kite(t)
+        norm1(t)[1:s.i_C-3]
+        wind_vec_gnd(t)[1:3]
+        va_kite(t)[1:3]
+        va_kite_b(t)[1:3]
+    end
+
     function force_eqs!()
+        for tether in tethers
+            winch_point = nothing
+            winch_found = 0
+            for segment in tether.segments
+                for idx in segment.points
+                    if points[idx] isa WinchPoint
+                        winch_point = points[idx]
+                        winch_found += 1
+                    end
+                end
+            end
+            (winch_found != 1) && throw(ArgumentError("Tether number $(tether.idx) has
+                $winch_found winches, but should have exactly 1."))
+            eqs = [
+                eqs
+                D(tether_length[tether.idx]) ~ tether_vel[tether.idx]
+                D(tether_vel[tether.idx]) ~ tether_acc[tether.idx]
+                tether_acc[tether.idx] ~ calc_acc(
+                    winch_point.winch, tether_vel[tether.idx], 
+                    norm(force[:, winch_point.idx]), 
+                    set_values[tether.idx]
+                )
+            ]
+        end
+
         pulley_damping = 10
         for pulley in pulleys
             segment1, segment2 = segments[pulley.segments[1]], segments[pulley.segments[2]]
@@ -319,6 +367,8 @@ function create_sys!(s::KPSQ; init=false)
             mass = pulley.sum_length * segment1.mass_per_meter
             eqs = [
                 eqs
+                D(pulley_l0) ~ pulley_vel
+                D(pulley_vel) ~ pulley_acc
                 pulley_force[pulley.idx]    ~ spring_force[pulley.segments[1]] - spring_force[pulley.segments[2]]
                 pulley_acc[pulley.idx]      ~ pulley_force[pulley.idx] / mass - pulley_damping * pulley_vel[pulley.idx]
             ]
@@ -327,7 +377,6 @@ function create_sys!(s::KPSQ; init=false)
         @variables begin
             segment(t)[1:3, eachindex(segments)]
             unit_vector(t)[1:3, eachindex(segments)]
-            l_spring(t), c_spring(t), damping(t), m_tether_particle(t)
             len(t)[eachindex(segments)]
             l0(t)[eachindex(segments)]
             rel_vel(t)[1:3, eachindex(segments)]
@@ -336,52 +385,66 @@ function create_sys!(s::KPSQ; init=false)
             spring_force_vec(t)[1:3, eachindex(segments)]
         end
         for segment in segments
-            @show segment.type
-            found = false
-            if segment.type == "bridle"
+            if segment.type === BRIDLE
+                in_pulley = false
                 for pulley in pulleys
-                    if segment.idx == pulley.segments[1] # each segment should only be part of one pulley
+                    if segment.idx == pulley.segments[1] # each bridle segment has to be part of no pulley or one pulley
                         eqs = [
                             eqs
                             l0[segment.idx] ~ pulley_l0[pulley.idx]
                         ]
-                        found = true
-                        break
-                    elseif segment.idx == pulley.segments[2]
+                        in_pulley += 1
+                    end
+                    if segment.idx == pulley.segments[2]
                         eqs = [
                             eqs
                             l0[segment.idx] ~ pulley.sum_length - pulley_l0[pulley.idx]
                         ]
-                        found = true
-                        break
+                        in_pulley += 1
                     end
                 end
-            end
-            if !found
-                eqs = [
-                    eqs
-                    l0[segment.idx] ~ segment.l0
-                ]
+                if in_pulley == 0
+                    eqs = [
+                        eqs
+                        l0[segment.idx] ~ segment.l0
+                    ]
+                end
+                (in_pulley > 1) && throw(ArgumentError("Bridle segment number $(segment.idx) is part of
+                    $in_pulley pulleys, and should be part of either 0 or 1 pulleys."))
+            elseif segment.type === POWER || segment.type === STEERING
+                in_tether = 0
+                for tether in tethers
+                    if segment.idx in tether.segments # each tether segment has to be part of exactly one tether
+                        eqs = [
+                            eqs
+                            l0[segment.idx] ~ tether_length[tether.idx] / length(tether.segments)
+                        ]
+                        in_tether += 1
+                    end
+                end
+                (in_tether != 1) && throw(ArgumentError("Segment number $(segment.idx) is part of 
+                    $in_tether tethers, and should be part of exactly 1 tether."))
+            else
+                throw(ArgumentError("Unknown segment type: $(segment.type)"))
             end
 
             p1, p2 = segment.points[1], segment.points[2]
 
-            (segment.type == "bridle") && (diameter = s.bridle_tether_diameter)
-            (segment.type == "power") && (diameter = s.power_tether_diameter)
-            (segment.type == "steering") && (diameter = s.steering_tether_diameter)
+            (segment.type === BRIDLE) && (diameter = s.bridle_tether_diameter)
+            (segment.type === POWER) && (diameter = s.power_tether_diameter)
+            (segment.type === STEERING) && (diameter = s.steering_tether_diameter)
 
             stiffness = s.set.e_tether * (diameter/2000)^2 * pi
-            (segment.type == "bridle") && (compression_frac = 1.0)
-            (segment.type == "power") && (compression_frac = 0.1)
-            (segment.type == "steering") && (compression_frac = 0.1)
+            (segment.type === BRIDLE) && (compression_frac = 1.0)
+            (segment.type === POWER) && (compression_frac = 0.1)
+            (segment.type === STEERING) && (compression_frac = 0.1)
             
             damping = (s.set.damping / s.set.c_spring) * stiffness
             @show damping
-            (segment.type == "bridle") && (damping = 10damping)
+            (segment.type === BRIDLE) && (damping = 10damping)
 
             eqs = [
                 eqs
-
                 # spring force equations
                 segment[:, segment.idx]      ~ pos[:, p2] - pos[:, p1]
                 len[segment.idx]             ~ norm(segment[:, segment.idx])
@@ -404,52 +467,59 @@ function create_sys!(s::KPSQ; init=false)
                 segment_vel[:, segment.idx]   ~ 0.5(vel[:, p1] + vel[:, p2])
                 segment_rho[segment.idx]      ~ calc_rho(s.am, height[i])
                 wind_vel[:, segment.idx]     ~ AtmosphericModels.calc_wind_factor(s.am, height[i], s.set.profile_law) * wind_vec_gnd
-                app_wind_vel[:, segment.idx] ~ wind_vel - segment_vel
+                va[:, segment.idx] ~ wind_vel - segment_vel
                 area[segment.idx]            ~ len[segment.idx] * segment.diameter
-                app_perp_vel[:, segment.idx] ~ app_wind_vel[:, segment.idx] - 
-                                            (app_wind_vel[:, segment.idx] ⋅ unit_vector[:, segment.idx]) * unit_vector[:, segment.idx]
-                drag_force                  ~ (0.5 * tether_rho[segment.idx] * s.set.cd_tether * norm(app_wind_vel[:, segment.idx]) * 
+                app_perp_vel[:, segment.idx] ~ va[:, segment.idx] - 
+                                            (va[:, segment.idx] ⋅ unit_vector[:, segment.idx]) * unit_vector[:, segment.idx]
+                drag_force                  ~ (0.5 * tether_rho[segment.idx] * s.set.cd_tether * norm(va[:, segment.idx]) * 
                                             area[segment.idx]) * app_perp_vel[:, segment.idx]
             ]
         end
-    
+        
         for point in points
+            F::Vector{Num} = zeros(Num, 3)
+            mass = 0.0
+            for segment in segments
+                if point.idx in segment.points
+                    mass_per_meter = s.set.rho_tether * π * (segment.diameter/2000)^2    
+                    inverted = segment.points[2] == point.idx
+                    if inverted
+                        F .-= spring_force_vec[:, segment.idx]
+                    else
+                        F .+= spring_force_vec[:, segment.idx]
+                    end
+                    mass += mass_per_meter * segment.l0 / 2
+                    F .+= 0.5drag_force[:, segment.idx]
+                end
+            end
+            eqs = [
+                eqs
+                force[:, point.idx]  ~ F
+            ]
+
             if point isa WinchPoint
                 eqs = [
                     eqs
-                    force[:, point.idx]  ~ zeros(3)
                     pos[:, point.idx]    ~ zeros(3)
                     vel[:, point.idx]    ~ zeros(3)
                     acc[:, point.idx]    ~ zeros(3)
                 ]
             elseif point isa KitePoint
+                tether_kite_force .+= F
+                tether_kite_torque .+= (s.R_b_p * point.pos) × (R_p_w' * F)
+                chord_b = point.pos - point.fixed_pos
+                idx = point.pos[2] > 0 ? 1 : 2
+                pos_b = point.fixed_pos + rotate_v_around_k(chord_b, point.y_panel, twist[idx])
+                pos_w = kite_pos + R_b_w * pos_b
                 eqs = [
                     eqs
-                    force[:, point.idx]  ~ zeros(3)
-                    pos[:, point.idx]    ~ deform_bridle(point.pos, static_pos, alpha[1])
+                    pos[:, point.idx]    ~ pos_w
                     vel[:, point.idx]    ~ zeros(3)
                     acc[:, point.idx]    ~ zeros(3)
                 ]
             elseif point isa Point
-                # segment - inverted
-                F::Vector{Num} = zeros(Num, 3)
-                mass_per_meter = s.set.rho_tether * π * (segment.diameter/2000)^2    
-                mass = 0.
-                for segment in segments
-                    if point.idx in segment.points
-                        inverted = segment.points[2] == point.idx
-                        if inverted
-                            F .-= spring_force_vec[:, segment.idx]
-                        else
-                            F .+= spring_force_vec[:, segment.idx]
-                        end
-                        mass += mass_per_meter * segment.l0 / 2
-                        F .+= 0.5drag_force[:, segment.idx]
-                    end
-                end
                 eqs = [
                     eqs
-                    force[:, point.idx]  ~ F
                     D(pos[:, point.idx]) ~ vel[:, point.idx]
                     D(vel[:, point.idx]) ~ acc[:, point.idx]
                     acc[:, point.idx]    ~ force[:, point.idx] / mass + G_EARTH
@@ -459,84 +529,6 @@ function create_sys!(s::KPSQ; init=false)
             end
         end
     end
-
-
-    if s.torque_control
-        [s.motors[i] = TorqueControlledMachine(s.set) for i in 1:3]
-    else
-        [s.motors[i] = AsyncMachine(s.set) for i in 1:3]
-    end
-    @parameters begin
-        measured_wind_dir_gnd = s.measure.wind_dir_gnd
-        measured_sphere_pos[1:2, 1:2] = s.measure.sphere_pos
-        measured_sphere_vel[1:2, 1:2] = s.measure.sphere_vel
-        measured_sphere_acc[1:2, 1:2] = s.measure.sphere_acc
-        measured_tether_length[1:3] = s.measure.tether_length
-        measured_tether_vel[1:3]    = s.measure.tether_vel
-        measured_tether_acc[1:3]    = s.measure.tether_acc
-    end
-    @variables begin
-        set_values(t)[1:3] # left right middle
-
-        # potential differential variables
-        pos(t)[1:3, 1:s.i_C] # xyz pos of left right middle tether
-        vel(t)[1:3, 1:s.i_C] 
-        acc(t)[1:3, 1:s.i_A-1]
-        kite_pos(t)[1:3] # xyz pos of kite in world frame
-        kite_vel(t)[1:3]
-        kite_acc(t)[1:3]
-        distance(t)
-        distance_vel(t)
-        distance_acc(t)
-        wind_scale_gnd(t)
-        ω_p(t)[1:3] # turn rate in principal frame
-        ω_b(t)[1:3] # turn rate in body frame
-        α_p(t)[1:3] # angular acceleration in principal frame
-        α_b(t)[1:3]
-        trailing_edge_angle(t)[1:2] # angle left right / C D
-        trailing_edge_ω(t)[1:2] # angular vel
-        trailing_edge_α(t)[1:2] # angular acc
-        tether_length(t)[1:3]
-        tether_vel(t)[1:3]
-        tether_acc(t)[1:3]
-
-        # rotations and frames
-        R_b_w(t)[1:3, 1:3] # rotation of the kite body frame relative to the world frame
-        R_p_w(t)[1:3, 1:3] # rotation of the kite principal frame relative to the world frame
-        Q_p_w(t)[1:4] # quaternion orientation of the kite principal frame relative to the world frame
-        Q_b_w(t)[1:4] # quaternion orientation of the kite body frame relative to the world frame
-        Q_vel(t)[1:4] # quaternion rate of change
-        e_x(t)[1:3]
-        e_y(t)[1:3]
-        e_z(t)[1:3]
-        e_r_D(t)[1:3]
-        e_r_E(t)[1:3]
-        e_te_A(t)[1:3]
-        e_te_B(t)[1:3]
-
-        # rest: forces, torques, vectors and scalar values
-        torque_p(t)[1:3] # torque in principal frame
-        torque_b(t)[1:3] # torque in body frame
-        segment_length(t)[1:3]
-        mass_tether_particle(t)[1:3]
-        damping(t)[1:3]
-        c_spring(t)[1:3]
-        total_kite_force(t)[1:3]
-        tether_force(t)[1:3] # normalized tether forces at the winch
-        force(t)[1:3, 1:s.i_C]
-        rho_kite(t)
-        norm1(t)[1:s.i_C-3]
-        wind_vec_gnd(t)[1:3]
-        v_wind_kite(t)[1:3]
-    end
-    # Collect the arrays into variables
-    pos = collect(pos)
-    vel = collect(vel)
-    acc = collect(acc)
-
-    eqs = []
-    force_eqs = SizedArray{Tuple{3, s.i_C}, Symbolics.Equation}(undef)
-    force_eqs[:, :] .= (force[:, :] .~ 0)
 
     te_length = s.kite_length_D/4
 
@@ -562,7 +554,9 @@ function create_sys!(s::KPSQ; init=false)
                 
                 [D(kite_pos[i]) ~ kite_vel[i] for i in 1:3]
                 [D(kite_vel[i]) ~ kite_acc[i] for i in 1:3]
-                kite_acc        ~ total_kite_force / s.set.mass
+                aero_kite_force ~ (R_b_w * s.vsm_solver.sol.force_coefficients) * (0.5 * rho_kite * norm(va_kite)^2) * s.aero.projected_area
+                kite_acc        ~ (tether_kite_force + aero_kite_force) / s.set.mass
+
                 distance            ~ norm(kite_pos - pos[:, 3])
                 distance_vel        ~ kite_vel ⋅ normalize(kite_pos - pos[:, 3])
                 distance_acc        ~ kite_acc ⋅ normalize(kite_pos - pos[:, 3])    
@@ -604,7 +598,7 @@ function create_sys!(s::KPSQ; init=false)
 
             angular_acc = measured_tether_acc / s.set.drum_radius
             net_torque = angular_acc * s.set.inertia_total
-            measured_tether_force = (net_torque - set_values) / s.set.drum_radius
+            measured_winch_force = (net_torque - set_values) / s.set.drum_radius
 
             # scaled down, partially fixed, and damped equations to find unmeasured variables
             eqs = [
@@ -630,7 +624,7 @@ function create_sys!(s::KPSQ; init=false)
                 D(distance)     ~ distance_vel
                 D(distance_vel) ~ distance_acc - idamp * distance_vel
                 distance_acc    ~ scale * (measured_tether_acc[3] - tether_acc[3])
-                D(wind_scale_gnd)  ~ 100scale * (mean(measured_tether_force[1:2]) - mean(tether_force[1:2]))
+                D(wind_scale_gnd)  ~ 100scale * (mean(measured_winch_force[1:2]) - mean(winch_force[1:2]))
 
                 [pos[:, i]              .~ 0.0 for i in 1:3]
                 [D.(pos[:, i])          .~ vel[:, i] for i in 4:s.i_A-1]
@@ -645,44 +639,16 @@ function create_sys!(s::KPSQ; init=false)
         return nothing
     end
     function scalar_eqs!()
-        # last tether point vel without rotational trailing edge vel
-        kite_vel_A = kite_vel + R_b_w * (ω_b × s.pos_A_b)
-        kite_vel_B = kite_vel + R_b_w * (ω_b × s.pos_B_b)
-        kite_vel_C = kite_vel + R_b_w * (ω_b × s.pos_C_b)
-
-        mass_per_meter = s.set.rho_tether * π * (s.set.d_tether/2000.0)^2
-
         eqs = [
             eqs
-
-            # last tether point pos
-            pos[:, s.i_C]    ~ kite_pos + R_b_w * s.pos_C_b
-            pos[:, s.i_A]    ~ pos[:, s.i_C] + e_y * s.pos_D_b[2] + e_x * te_length * cos(trailing_edge_angle[1]) + # TODO: fix pos
-                e_r_D * te_length * sin(trailing_edge_angle[1])
-            pos[:, s.i_B]    ~ pos[:, s.i_C] + e_y * s.pos_E_b[2] + e_x * te_length * cos(trailing_edge_angle[2]) + 
-                e_r_E * te_length * sin(trailing_edge_angle[2])
-
-            # last tether point vel with rotational trailing edge vel
-            vel[:, s.i_C]   ~ kite_vel_C
-            vel[:, s.i_A]   ~ kite_vel_A + e_x * te_length * cos(trailing_edge_ω[1]) + e_r_D * te_length * sin(trailing_edge_ω[1])
-            vel[:, s.i_B]   ~ kite_vel_B + e_x * te_length * cos(trailing_edge_ω[2]) + e_r_E * te_length * sin(trailing_edge_ω[2])
-
-            segment_length          ~ tether_length  ./ s.set.segments
-            mass_tether_particle    ~ mass_per_meter .* segment_length
-            # damping                 ~ [s.damping / segment_length[1], s.damping / segment_length[2], s.damping*2 / segment_length[3]]
-            damping                 ~ s.damping ./ segment_length
-            # c_spring                ~ [s.c_spring / segment_length[1], s.c_spring / segment_length[2], s.c_spring*2 / segment_length[3]]
-            c_spring                ~ s.c_spring ./ segment_length
             e_x     ~ R_b_w * [1, 0, 0]
             e_y     ~ R_b_w * [0, 1, 0]
             e_z     ~ R_b_w * [0, 0, 1]
-            e_r_D   ~ rotate_v_around_k(e_z, e_x, 0.5π + s.γ_D)
-            e_r_E   ~ rotate_v_around_k(e_z, e_x, 1.5π - s.γ_D)
-            e_te_A  ~ -e_x * sin(trailing_edge_angle[1]) + e_r_D * cos(trailing_edge_angle[1])
-            e_te_B  ~ -e_x * sin(trailing_edge_angle[2]) + e_r_E * cos(trailing_edge_angle[2])
             rho_kite        ~ calc_rho(s.am, pos[3,s.i_A])
             wind_vec_gnd ~ wind_scale_gnd * rotate_around_z([1, 0, 0], measured_wind_dir_gnd)
-            v_wind_kite     ~ AtmosphericModels.calc_wind_factor(s.am, kite_pos[3], s.set.profile_law) * wind_vec_gnd
+            wind_vel_kite  ~ AtmosphericModels.calc_wind_factor(s.am, kite_pos[3], s.set.profile_law) * wind_vec_gnd
+            va_kite ~ wind_vel_kite - kite_vel
+            va_kite_b ~ R_b_w' * va_kite
         ]
 
         @variables begin
@@ -714,14 +680,14 @@ function create_sys!(s::KPSQ; init=false)
         x´´, y´´, z´´ = kite_acc
         eqs = [
             eqs
-            tether_force     ~ [norm(force[:, i]) for i in 1:3]
+            winch_force     ~ [norm(force[:, i]) for i in 1:3]
             heading_y       ~ calc_heading_y(-e_x)
             power_angle         ~ (trailing_edge_angle[1] + trailing_edge_angle[2]) / 2
             power_vel           ~ (trailing_edge_ω[1] + trailing_edge_ω[2]) / 2
             steering_angle      ~ trailing_edge_angle[2] - trailing_edge_angle[1]
             steering_vel        ~ trailing_edge_ω[2] - trailing_edge_ω[1]
             tether_diff         ~ tether_length[2] - tether_length[1]
-            tether_diff_vel     ~ tether_vel[2] - tether_vel[1]
+            tether_dikiteff_vel     ~ tether_vel[2] - tether_vel[1]
             set_diff            ~ set_values[2] - set_values[1]
 
             elevation           ~ atan(z / x)
@@ -741,172 +707,10 @@ function create_sys!(s::KPSQ; init=false)
         ]
         return nothing
     end
-    # function tether_forces!()
-    #     @variables begin
-    #         height(t)[1:s.i_C-3]
-    #         rho(t)[1:s.i_C-3]
-    #         v_wind_tether(t)[1:3, 1:s.i_C-3]
-    #         l_0(t)[1:s.i_C-3]
-    #         k(t)[1:s.i_C-3]
-    #         c(t)[1:s.i_C-3]
-    #         segment(t)[1:3, 1:s.i_C-3]
-    #         rel_vel(t)[1:3, 1:s.i_C-3]
-    #         av_vel(t)[1:3, 1:s.i_C-3] 
-    #         unit_vector(t)[1:3, 1:s.i_C-3]
-    #         k2(t)[1:s.i_C-3]
-    #         c1(t)[1:s.i_C-3]
-    #         c2(t)[1:s.i_C-3]
-    #         spring_vel(t)[1:s.i_C-3]
-    #         spring_force(t)[1:3, 1:s.i_C-3]
-    #         v_apparent(t)[1:3, 1:s.i_C-3]
-    #         area(t)[1:s.i_C-3]
-    #         v_app_perp(t)[1:3, 1:s.i_C-3]
-    #         half_drag_force(t)[1:3, 1:s.i_C-3]
-    #     end
-        
-    #     for i in 1:s.i_C-3
-    #         p1 = i  # First point nr.
-    #         p2 = i+3
-    #         eqs = [
-    #             eqs
-    #             height[i]           ~ max(0.0, 0.5 * (pos[:, p1][3] + pos[:, p2][3]))
-    #             rho[i]              ~ calc_rho(s.am, height[i])
-    #             v_wind_tether[:, i] ~ AtmosphericModels.calc_wind_factor(s.am, height[i], s.set.profile_law) * wind_vec_gnd
-    #         ]
-    
-    #         eqs, force_eqs = calc_particle_forces!(s, eqs, force_eqs, force, p1, p2, pos[:, p1], pos[:, p2], vel[:, p1], 
-    #                           vel[:, p2], segment_length, c_spring, damping, rho[i], i, l_0[i], k[i], c[i], segment[:, i], 
-    #                           rel_vel[:, i], av_vel[:, i], norm1[i], unit_vector[:, i], k2[i], c1[i], c2[i], spring_vel[i],
-    #                           spring_force[:, i], v_apparent[:, i], v_wind_tether[:, i], area[i], v_app_perp[:, i],
-    #                           half_drag_force[:, i])
-    #     end
-    #     return nothing
-    # end
-    function kite_forces!()
-        n = s.set.aero_surfaces
-
-        # integrating loop variables, iterating over 2n segments
-        @variables begin
-            aero_pos(t)[1:3, 1:2n]
-            e_r(t)[1:3, 1:2n]
-            e_te(t)[1:3, 1:2n] # clockwise trailing edge of flap vector
-            y_l(t)[1:2n]
-            v_a(t)[1:3, 1:2n]
-            e_drift(t)[1:3, 1:2n]
-            v_a_xr(t)[1:3, 1:2n]
-            aoa(t)[1:n*2]
-            seg_cl(t)[1:n*2]
-            seg_cd(t)[1:n*2]
-            seg_L(t)[1:3, 1:2n]
-            seg_D(t)[1:3, 1:2n]
-            seg_aero_force(t)[1:3, 1:2n]
-            seg_g_force(t)[1:3, 1:2n]
-            seg_te_force(t)[1:3, 1:2n]
-            seg_trailing_edge_angle(t)[1:2n] # flap angle relative to -e_x, e_z
-            ram_force(t)[1:2n]
-            te_force(t)[1:2n]
-            seg_aero_torque_p(t)[1:3, 1:2n]
-            seg_gravity_torque_p(t)[1:3, 1:2n]
-            C_torque_p(t)[1:3] # torque on point C in principal reference frame
-            seg_vel(t)[1:3, 1:2n]
-            F(t)[1:3, 1:2n]
-            r(t)[1:3, 1:2n]
-            L_C(t)[1:3]
-            L_D(t)[1:3]
-            D_C(t)[1:3]
-            D_D(t)[1:3]
-            F_te_C(t)[1:3] # trailing edge clockwise force
-            F_te_D(t)[1:3]
-        end
-
-        s.γ_l         = π/2 - s.set.width/2/s.set.radius
-        γ_middle    = π/2
-        dγ          = (γ_middle - s.γ_l) / n
-        γ_m_l = π/2 - s.set.min_steering_line_distance/s.set.radius # end of steering lines on left side
-        γ_m_r = π/2 + s.set.min_steering_line_distance/s.set.radius # end of steering lines on right side
-        
-        for i in 1:2n
-            if i <= n
-                γ = s.γ_l + -dγ/2 + i * dγ
-                kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (γ - s.γ_l) / (π/2 - s.γ_l) # TODO: kite length gets less with flap turning
-            else
-                γ = pi - (s.γ_l + -dγ/2 + (i-n) * dγ)
-                kite_length = s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (π - s.γ_l - γ) / (π/2 - s.γ_l)
-            end
-            seg_flap_height = kite_length * s.set.flap_height
-
-            eqs = [
-                eqs
-                e_r[:, i]       ~ rotate_v_around_k(e_z, e_x, 0.5π + γ)
-                seg_vel[:, i]   ~ kite_vel + R_b_w * (ω_b × s.seg_cop_pos_b[:, i])
-                v_a[:, i]       ~ v_wind_kite .- seg_vel[:, i]
-                e_drift[:, i]   ~ (e_x × e_r[:, i])
-                v_a_xr[:, i]    ~ v_a[:, i] .- (v_a[:, i] ⋅ e_drift[:, i]) .* e_drift[:, i]
-
-                γ < γ_m_l ?
-                    seg_trailing_edge_angle[i] ~ trailing_edge_angle[1]  :
-                γ > γ_m_r ?
-                    seg_trailing_edge_angle[i] ~ trailing_edge_angle[2] :
-                    seg_trailing_edge_angle[i] ~ ((trailing_edge_angle[2] - trailing_edge_angle[1]) / (γ_m_r - γ_m_l) * (γ - γ_m_l) + trailing_edge_angle[1])
-
-                aoa[i]      ~ -asin2(normalize(v_a_xr[:, i]) ⋅ e_r[:, i]) + deg2rad(s.set.alpha_zero)
-                seg_cl[i]   ~ sym_interp(s.cl_interp, aoa[i], seg_trailing_edge_angle[i])
-                seg_cd[i]   ~ sym_interp(s.cd_interp, aoa[i], seg_trailing_edge_angle[i])
-
-                seg_L[:, i] ~ 0.5 * rho_kite * (norm(v_a_xr[:, i]))^2 * s.set.radius * dγ * kite_length * seg_cl[i] * 
-                                    normalize(v_a_xr[:, i] × e_drift[:, i])
-                seg_D[:, i] ~ 0.5 * rho_kite * norm(v_a_xr[:, i]) * s.set.radius * dγ * kite_length * seg_cd[i] *
-                                    v_a_xr[:, i]
-
-                e_te[:, i] ~ -e_x * sin(seg_trailing_edge_angle[i]) + e_r[:, i] * cos(seg_trailing_edge_angle[i])
-                ram_force[i] ~ smooth_sign_ϵ(deg2rad(s.set.alpha_zero) - seg_trailing_edge_angle[i]; s.ϵ) *
-                            rho_kite * norm(v_a[:, i])^2 * seg_flap_height * s.set.radius * dγ * (seg_flap_height/2) / (kite_length/4)
-                te_force[i] ~ 0.5 * rho_kite * (norm(v_a_xr[:, i]))^2 * s.set.radius * dγ * kite_length * 
-                            sym_interp(s.c_te_interp, aoa[i], seg_trailing_edge_angle[i])
-                seg_te_force[:, i] ~ (ram_force[i] + te_force[i]) * e_te[:, i]
-                
-                seg_aero_force[:, i] ~ seg_L[:, i] + seg_D[:, i]
-                seg_g_force[:, i] ~ [0.0, 0.0, -G_EARTH * s.seg_mass[i]]
-                seg_aero_torque_p[:, i] ~ s.seg_cop_pos_p[:, i] × (R_p_w' * seg_aero_force[:, i])
-                seg_gravity_torque_p[:, i] ~ s.seg_com_pos_p[:, i] × (R_p_w' * seg_g_force[:, i])
-            ]
-        end
-
-        eqs = [
-            eqs
-            total_kite_force ~ [sum(seg_aero_force[i, :]) + sum(seg_g_force[i, :]) + force[i, s.i_C] for i in 1:3]
-            C_torque_p ~ s.pos_C_p × (R_p_w' * force[:, s.i_C])
-            torque_p ~ [sum(seg_aero_torque_p[i, :]) + sum(seg_gravity_torque_p[i, :]) + C_torque_p[i] for i in 1:3]
-            F_te_C ~ [sum(seg_te_force[i, 1:n]) for i in 1:3]
-            F_te_D ~ [sum(seg_te_force[i, n+1:2n]) for i in 1:3]
-        ]
-
-        force_eqs[:,s.i_A] .= (force[:, s.i_A] .~ F_te_C + ([0.0, 0.0, -G_EARTH*(s.set.mass/8)]) * (s.set.mass/8))
-        force_eqs[:,s.i_B] .= (force[:, s.i_B] .~ F_te_D + ([0.0, 0.0, -G_EARTH*(s.set.mass/8)]) * (s.set.mass/8))
-        return nothing
-    end
 
     diff_eqs!()
     scalar_eqs!()
-    tether_forces!()
-    kite_forces!()
     
-    if s.torque_control
-        eqs = vcat(eqs, tether_acc .~ [calc_acc_torque(s.motors[i], tether_vel[i], norm(force[:, (i-1)%3+1]),
-            set_values[i]) for i in 1:3])
-    else
-        eqs = vcat(eqs, tether_acc .~ [calc_acc_speed(s.motors[i], tether_vel[i], norm(force[:, (i-1)%3+1]),
-            set_values[i]) for i in 1:3])
-    end
-    for i in 1:3
-        eqs = vcat(eqs, vcat(force_eqs[:, i]))
-        eqs = vcat(eqs, acc[:, i] .~ 0)
-    end
-    for i in 4:s.i_A-1
-        eqs = vcat(eqs, vcat(force_eqs[:, i]))
-        eqs = vcat(eqs, acc[:, i] .~ [0.0, 0.0, -G_EARTH] + (force[:, i] / mass_tether_particle[(i-1)%3+1]))
-    end
-
     te_I = (1/3 * (s.set.mass/8) * te_length^2)
     # -damping / I * ω = α_damping
     # solve for c: (c * (k*m/s^2) / (k*m^2)) * (m/s)=m/s^2 in wolframalpha

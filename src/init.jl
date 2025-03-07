@@ -152,7 +152,6 @@ function find_bridle_gammas!(s::KPSQ, wing::KiteWing, bridle_gamma)
 
     bridle_gamma[1:2] .= result.u
     bridle_gamma[3:4] .= -bridle_gamma[1:2]
-    @show bridle_gamma
     return bridle_gamma
 end
 

@@ -15,9 +15,10 @@ set.aero_surfaces = 6
 logger = Logger(3*set.segments + 4, steps)
 
 # if !@isdefined(s); s = KPSQ(KCU(set)); end
-wing = KiteWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat")
+wing = KiteWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat"; mass=set.mass, crease_frac=0.9)
 aero = BodyAerodynamics([wing])
-s = KPSQ(set, wing, aero)
+solver = Solver()
+s = KPSQ(set, wing, aero, solver)
 
 s.measure.set_values = [-0.5, -0.5, -60.0]
 s.measure.tether_length = [51., 51., 49.]
