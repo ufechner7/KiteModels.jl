@@ -96,8 +96,8 @@ else
         cp Manifest-1.9.toml.default Manifest.toml
         echo "Using Manifest-1.9.toml.default ..."        
     else
-        cp Manifest-1.10.toml.default Manifest.toml
-        echo "Using Manifest-1.10.toml.default ..."
+        cp Manifest-v1.10.toml.default Manifest-v1.10.toml
+        echo "Using Manifest-v1.10.toml.default ..."
     fi
 fi
 julia --startup-file=no --pkgimages=no --project -e "include(\"./test/create_sys_image.jl\");"
