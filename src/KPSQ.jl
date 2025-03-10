@@ -79,22 +79,13 @@ struct Point <: AbstractPoint
 end
 
 """
-A point with a winch, without differential equations for the pos, vel and acc
-"""
-struct WinchPoint <: AbstractPoint
-    idx::Int16
-    pos::Vector{SimFloat} # pos relative to kite COM in body frame
-    winch::AbstractWinchModel
-end
-
-"""
 A point that is on the kite body and can be deformed by the twist of the kite body
 """
 struct KitePoint <: AbstractPoint
     idx::Int16
     pos::Vector{SimFloat} # pos relative to kite COM in body frame
     fixed_pos::Vector{SimFloat} # position in body frame which the point rotates around under kite deformation
-    y_panel::KVec3 # y-axis in body frame which the point rotates around under kite deformation
+    chord::KVec3 # chord vector in body frame which the point rotates around under kite deformation
 end
 
 """
@@ -109,29 +100,45 @@ end
 """
 A segment from one point index to another point index
 """
-struct Segment
+mutable struct Segment
     idx::Int16
     points::Tuple{Int16, Int16}
     l0::Union{SimFloat, Nothing}
     type::SegmentType
+    diameter::SimFloat
+    function Segment(idx, points, l0, type)
+        new(idx, points, l0, type, zero(SimFloat))
+    end
 end
 
 """
 A pulley described by two segments with the common point of the segments being the pulley
 """
-struct Pulley
+mutable struct Pulley
     idx::Int16
     segments::Tuple{Int16, Int16}
-    sum_length::Union{SimFloat, Nothing}
+    sum_length::SimFloat
+    function Pulley(idx, segments)
+        new(idx, segments, zero(SimFloat))
+    end
 end
 
 """
-A set of segments making a flexible tether
+A set of segments making a flexible tether. The winch point should only be part of one segment.
 """
 struct Tether
     idx::Int16
     segments::Vector{Int16}
     winch_point::Int16
+end
+
+"""
+A set of tethers or just one tether connected to a winch
+"""
+struct Winch
+    idx::Int16
+    model::AbstractWinchModel
+    tethers::Vector{Int16}
 end
 
 struct PointMassSystem
@@ -140,7 +147,8 @@ struct PointMassSystem
     segments::Vector{Segment}
     pulleys::Vector{Pulley}
     tethers::Vector{Tether}
-    function PointMassSystem(points, groups, segments, pulleys, tethers)
+    winches::Vector{Winch}
+    function PointMassSystem(points, groups, segments, pulleys, tethers, winches)
         for (i, point) in enumerate(points)
             @assert point.idx == i
         end
@@ -156,7 +164,10 @@ struct PointMassSystem
         for (i, tether) in enumerate(tethers)
             @assert tether.idx == i
         end
-        new(points, groups, segments, pulleys, tethers)
+        for (i, winch) in enumerate(winches)
+            @assert winch.idx == i
+        end
+        new(points, groups, segments, pulleys, tethers, winches)
     end
 end
 
@@ -183,7 +194,7 @@ $(TYPEDFIELDS)
     "Reference to the VSM aerodynamics solver"
     vsm_solver::VortexStepMethod.Solver
     "Reference to the point mass system with points, segments, pulleys and tethers"
-    point_system::PointMassSystem = PointMassSystem(Point[], KitePointGroup[], Segment[], Pulley[], Tether[])
+    point_system::PointMassSystem = PointMassSystem(Point[], KitePointGroup[], Segment[], Pulley[], Tether[], Winch[])
     "The last initial elevation"
     last_init_elevation::S     = 0.0
     "The last initial tether length"
@@ -286,6 +297,9 @@ $(TYPEDFIELDS)
     kite_length::Function = () -> nothing
     "X coordinate on normalized 2d foil of bridle attachments"
     bridle_fracs::V = [0.05, 0.3, 0.6, 0.95]
+    bridle_tether_diameter::SimFloat = 2.
+    power_tether_diameter::SimFloat = 2.
+    steering_tether_diameter::SimFloat = 1.
 
     set_initial_measure::Function  = () -> nothing
     set_initial_set_values::Function = () -> nothing
@@ -542,7 +556,7 @@ Nothing.
 function init_sim!(s::KPSQ; prn=false, torque_control=s.torque_control, 
         init_set_values=s.init_set_values, ϵ=s.ϵ, flap_damping=s.flap_damping, 
         force_new_sys=false, force_new_pos=false, init=false)
-    dt = Float64(1/s.set.sample_freq)
+    dt = SimFloat(1/s.set.sample_freq)
     tspan   = (0.0, dt) 
     solver = TRBDF2( # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
         autodiff=AutoFiniteDiff()
