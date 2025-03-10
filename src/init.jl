@@ -137,22 +137,61 @@ function set_initial_velocity!(s::KPS4)
     end
 end
 
-function find_bridle_gammas!(s::KPSQ, wing::KiteWing, bridle_gamma)
-    total_area = wing.area_interp(0.0)
-    target_area = total_area / 4
-    function equations!(F, gamma, p)
-        F[1] = wing.area_interp(gamma[1]) - target_area
-        F[2] = wing.area_interp(gamma[2]) - 3 * target_area
-    end
-    gamma_tip = wing.gamma_tip
-    gamma0 = [-gamma_tip + 0.25*gamma_tip, -gamma_tip + 0.75*gamma_tip]
-    prob = NonlinearProblem(equations!, gamma0, nothing)
+# function find_bridle_gammas!(s::KPSQ, wing::KiteWing; n_groups=4)
+#     total_area = wing.area_interp(0.0)
+#     function equations!(F, gamma, p)
+#         F[1] = wing.area_interp(gamma[1]) - 1/4 * total_area
+#         F[2] = wing.area_interp(gamma[2]) - 3/4 * total_area
+#     end
+#     gamma_tip = wing.gamma_tip
+#     gamma0 = [-gamma_tip + 0.25*gamma_tip, -gamma_tip + 0.75*gamma_tip]
+#     prob = NonlinearProblem(equations!, gamma0, nothing)
     
-    result = NonlinearSolve.solve(prob, NewtonRaphson())
+#     result = NonlinearSolve.solve(prob, NewtonRaphson())
 
-    bridle_gamma[1:2] .= result.u
-    bridle_gamma[3:4] .= -bridle_gamma[1:2]
-    return bridle_gamma
+#     bridle_gamma = zeros(n_groups)
+#     bridle_gamma[1:2] .= result.u
+#     bridle_gamma[3:4] .= -bridle_gamma[1:2]
+#     return bridle_gamma
+# end
+
+function find_bridle_gammas!(s::KPSQ, wing::KiteWing; n_groups=4)
+    @assert iseven(n_groups) "Number of groups must be even"
+    half_area = wing.area_interp(0.0)
+    
+    # Create target areas - evenly distributed on left side of the wing
+    target_areas = [(i / n_groups) * (half_area) for i in 1:n_groups-1]
+    
+    function equations!(F, gamma, p)
+        for i in 1:n_groups-1
+            F[i] = wing.area_interp(gamma[i]) - target_areas[i]
+        end
+    end
+    
+    # Initial guess: evenly spaced between -gamma_tip and middle
+    gamma_tip = wing.gamma_tip
+    gamma0 = [-gamma_tip + (i / n_groups) * gamma_tip for i in 1:n_groups-1]
+    
+    prob = NonlinearProblem(equations!, gamma0, nothing)
+    result = NonlinearSolve.solve(prob, NewtonRaphson())
+    
+    # Mirror the solution for both sides
+    bridle_gamma = zeros(n_groups)
+    bridle_gamma[1:n_groups÷2] .= result.u[1:2:end]
+    bridle_gamma[n_groups÷2+1:end] .= -reverse(result.u[1:2:end])
+
+    limits = [zeros(2) for _ in 1:n_groups]
+    for i in eachindex(limits[1:n_groups÷2])
+        if i == 1
+            limits[i] .= (-gamma_tip, result.u[2i])
+        elseif 2i == length(result.u)+1
+            limits[i] .= (result.u[2i-2], 0.0)
+        else
+            limits[i] .= (result.u[2i-2], result.u[2i])
+        end
+        limits[n_groups+1-i] .= -reverse(limits[i])
+    end
+    return bridle_gamma, limits
 end
 
 function init_bridle_pos!(s)

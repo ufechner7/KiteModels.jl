@@ -70,24 +70,45 @@ abstract type AbstractPoint end
     BRIDLE
 end
 
+"""
+A normal freely moving tether point
+"""
 struct Point <: AbstractPoint
     idx::Int16
-    pos::Union{Vector{SimFloat}, Nothing} # pos relative to kite COM in body frame
+    pos::Vector{SimFloat} # pos relative to kite COM in body frame
 end
 
+"""
+A point with a winch, without differential equations for the pos, vel and acc
+"""
 struct WinchPoint <: AbstractPoint
     idx::Int16
-    pos::Union{Vector{SimFloat}, Nothing} # pos relative to kite COM in body frame
+    pos::Vector{SimFloat} # pos relative to kite COM in body frame
     winch::AbstractWinchModel
 end
 
+"""
+A point that is on the kite body and can be deformed by the twist of the kite body
+"""
 struct KitePoint <: AbstractPoint
     idx::Int16
-    pos::Union{Vector{SimFloat}, Nothing} # pos relative to kite COM in body frame
+    pos::Vector{SimFloat} # pos relative to kite COM in body frame
     fixed_pos::Vector{SimFloat} # position in body frame which the point rotates around under kite deformation
     y_panel::KVec3 # y-axis in body frame which the point rotates around under kite deformation
 end
 
+"""
+Set of bridle lines that share the same twist angle and trailing edge angle
+"""
+struct KitePointGroup
+    idx::Int16
+    points::Vector{Int16}
+    y_lim::Tuple{SimFloat, SimFloat}
+end
+
+"""
+A segment from one point index to another point index
+"""
 struct Segment
     idx::Int16
     points::Tuple{Int16, Int16}
@@ -95,12 +116,18 @@ struct Segment
     type::SegmentType
 end
 
+"""
+A pulley described by two segments with the common point of the segments being the pulley
+"""
 struct Pulley
     idx::Int16
     segments::Tuple{Int16, Int16}
     sum_length::Union{SimFloat, Nothing}
 end
 
+"""
+A set of segments making a flexible tether
+"""
 struct Tether
     idx::Int16
     segments::Vector{Int16}
@@ -109,12 +136,16 @@ end
 
 struct PointMassSystem
     points::Vector{AbstractPoint}
+    groups::Vector{KitePointGroup}
     segments::Vector{Segment}
     pulleys::Vector{Pulley}
     tethers::Vector{Tether}
-    function PointMassSystem(points, segments, pulleys, tethers)
+    function PointMassSystem(points, groups, segments, pulleys, tethers)
         for (i, point) in enumerate(points)
             @assert point.idx == i
+        end
+        for (i, group) in enumerate(groups)
+            @assert group.idx == i
         end
         for (i, segment) in enumerate(segments)
             @assert segment.idx == i
@@ -125,7 +156,7 @@ struct PointMassSystem
         for (i, tether) in enumerate(tethers)
             @assert tether.idx == i
         end
-        new(points, segments, pulleys, tethers)
+        new(points, groups, segments, pulleys, tethers)
     end
 end
 
@@ -152,7 +183,7 @@ $(TYPEDFIELDS)
     "Reference to the VSM aerodynamics solver"
     vsm_solver::VortexStepMethod.Solver
     "Reference to the point mass system with points, segments, pulleys and tethers"
-    point_system::PointMassSystem = PointMassSystem(Point[], Segment[], Pulley[], Tether[])
+    point_system::PointMassSystem = PointMassSystem(Point[], KitePointGroup[], Segment[], Pulley[], Tether[])
     "The last initial elevation"
     last_init_elevation::S     = 0.0
     "The last initial tether length"
@@ -187,18 +218,6 @@ $(TYPEDFIELDS)
     e_y::V =                 zeros(S, 3)
     "z vector of kite reference frame"
     e_z::V =                 zeros(S, 3)
-    "Point index of A - trailing edge point"
-    i_A::Int64 =           0
-    "Point index of B - trailing edge point"
-    i_B::Int64 =           0
-    "Point index of C - middle tether last point"
-    i_C::Int64 =           0
-    "Angle of left tip"
-    γ_l::S =     0.0
-    "Angle of point C"
-    γ_D::S =     0.0
-    "Kite length at point C"
-    kite_length_D::S =     0.0
     "Simplified system of the mtk model"
     simple_sys::Union{ModelingToolkit.ODESystem, Nothing} = nothing
     "Velocity of the kite"
@@ -211,10 +230,6 @@ $(TYPEDFIELDS)
     flap_damping::S     = 0.75
     "Measured data points used to create an initial state"
     measure::Measurement = Measurement()
-    "Buffer for expected kite pos and vel, defined as (pos, vel), (x, y, z), (value)"
-    expected_tether_pos_vel_buffer::Array{S, 3} = zeros(S, 2, 3, (P ÷ 3))
-    "Buffers for Jacobian for expected tether point velocities relative to winch velocities and kite velocities"
-    J_buffer::Matrix{S} = zeros(S, P, 2)
     "Makes autodiff faster"
     prep::Union{Nothing, Any} = nothing
     "Buffer for jacobian y values (vectorized velocities)"
@@ -697,19 +712,6 @@ function next_step!(s::KPSQ; set_values=nothing, measure::Union{Measurement, Not
     s.integrator.t
 end
 
-# function calc_pre_tension(s::KPSQ)
-#     forces = spring_forces(s)
-#     avg_force = 0.0
-#     for i in 1:s.i_A
-#         avg_force += forces[i]
-#     end
-#     avg_force /= s.i_A
-#     res = avg_force/s.c_spring[3]
-#     if res < 0.0 res = 0.0 end
-#     if isnan(res) res = 0.0 end
-#     return res + 1.0
-# end
-
 """
     unstretched_length(s::KPSQ)
 
@@ -717,103 +719,103 @@ Getter for the unstretched tether reel-out length (at zero force).
 """
 function unstretched_length(s::KPSQ) s.tether_lengths[3] end
 
-"""
-Only on x and z axis, tether start and end point laying on x axis
-"""
-function generate_tether!(pos, d, segments, tether_length, total_angle)
-    segment_angle = total_angle / segments
-    pos[:, 1] .= 0
-    initial_angle = -total_angle / 2 + segment_angle/2
-    for i in 2:segments+1
-        angle = initial_angle + (i - 2) * segment_angle
-        pos[1, i] = pos[1, i-1] + tether_length/segments * cos(angle)
-        pos[2, i] = 0.0
-        pos[3, i] = pos[3, i-1] + tether_length/segments * sin(angle)
-    end
-    dx = pos[1, end] - pos[1, 1]
-    dz = pos[3, end] - pos[3, 1]
-    d[] = sqrt(dx^2 + dz^2)
-    nothing
-end
+# """
+# Only on x and z axis, tether start and end point laying on x axis
+# """
+# function generate_tether!(pos, d, segments, tether_length, total_angle)
+#     segment_angle = total_angle / segments
+#     pos[:, 1] .= 0
+#     initial_angle = -total_angle / 2 + segment_angle/2
+#     for i in 2:segments+1
+#         angle = initial_angle + (i - 2) * segment_angle
+#         pos[1, i] = pos[1, i-1] + tether_length/segments * cos(angle)
+#         pos[2, i] = 0.0
+#         pos[3, i] = pos[3, i-1] + tether_length/segments * sin(angle)
+#     end
+#     dx = pos[1, end] - pos[1, 1]
+#     dz = pos[3, end] - pos[3, 1]
+#     d[] = sqrt(dx^2 + dz^2)
+#     nothing
+# end
 
-"""
-Rotate a 3d matrix by a quaternion rotation
-"""
-function rotate!(pos, quat)
-    for i in eachindex(pos[1, :])
-        pos[:, i] .= quat * pos[:, i]
-    end
-    nothing
-end
+# """
+# Rotate a 3d matrix by a quaternion rotation
+# """
+# function rotate!(pos, quat)
+#     for i in eachindex(pos[1, :])
+#         pos[:, i] .= quat * pos[:, i]
+#     end
+#     nothing
+# end
 
-"""
-Generate a 2d tether given a certain distance and length.
-"""
-function tether_from_distance_length!(pos, distance::SimFloat, tether_length::SimFloat, segments, quat)
-    d = Ref(0.0)
-    cost = Ref(0.0)
-    d[] = 0.0
-    cost[] = 0.0
-    function f_zero!(total_angle)
-        generate_tether!(pos, d, segments, tether_length, total_angle)
-        cost[] = d[] - distance
-        return cost[]
-    end
-    Roots.find_zero(f_zero!, (0, 2π); atol=1e-6)
-    rotate!(pos, quat)
-    nothing
-end
+# """
+# Generate a 2d tether given a certain distance and length.
+# """
+# function tether_from_distance_length!(pos, distance::SimFloat, tether_length::SimFloat, segments, quat)
+#     d = Ref(0.0)
+#     cost = Ref(0.0)
+#     d[] = 0.0
+#     cost[] = 0.0
+#     function f_zero!(total_angle)
+#         generate_tether!(pos, d, segments, tether_length, total_angle)
+#         cost[] = d[] - distance
+#         return cost[]
+#     end
+#     Roots.find_zero(f_zero!, (0, 2π); atol=1e-6)
+#     rotate!(pos, quat)
+#     nothing
+# end
 
-"""
-Rotation from vector u to vector v
-"""
-function quaternion_rotation(u, v)
-    d = dot(u, v)
-    w = cross(u, v)
-    return QuatRotation(d + sqrt(d * d + dot(w, w)), w...)
-end
+# """
+# Rotation from vector u to vector v
+# """
+# function quaternion_rotation(u, v)
+#     d = dot(u, v)
+#     w = cross(u, v)
+#     return QuatRotation(d + sqrt(d * d + dot(w, w)), w...)
+# end
 
-"""
-Kite pos: C flap pos - D flap pos - middle tether pos \
-Kite vel: C flap vel - D flap vel - middle tether vel \
-Tether vel: left - middle - right tether vel
+# """
+# Kite pos: C flap pos - D flap pos - middle tether pos \
+# Kite vel: C flap vel - D flap vel - middle tether vel \
+# Tether vel: left - middle - right tether vel
 
-Return: an expected vel for all kite pos
-"""
-function calc_expected_pos_vel(s::KPSQ, kite_pos, kite_vel, tether_vel, tether_length, tether_force, c_spring) # TODO: remove the 123 caused by this issue: https://github.com/SciML/ModelingToolkit.jl/issues/3003
-    s.expected_tether_pos_vel_buffer .= 0.0
-    expected_pos = @views s.expected_tether_pos_vel_buffer[1, :, :]
-    expected_vel = @views s.expected_tether_pos_vel_buffer[2, :, :]
-    J, y, x, segments = s.J_buffer, s.y_buffer, s.x_buffer, s.set.segments
-    distance = norm(kite_pos)
-    stretched_tether_length = tether_length + tether_force / (c_spring/tether_length)
+# Return: an expected vel for all kite pos
+# """
+# function calc_expected_pos_vel(s::KPSQ, kite_pos, kite_vel, tether_vel, tether_length, tether_force, c_spring) # TODO: remove the 123 caused by this issue: https://github.com/SciML/ModelingToolkit.jl/issues/3003
+#     s.expected_tether_pos_vel_buffer .= 0.0
+#     expected_pos = @views s.expected_tether_pos_vel_buffer[1, :, :]
+#     expected_vel = @views s.expected_tether_pos_vel_buffer[2, :, :]
+#     J, y, x, segments = s.J_buffer, s.y_buffer, s.x_buffer, s.set.segments
+#     distance = norm(kite_pos)
+#     stretched_tether_length = tether_length + tether_force / (c_spring/tether_length)
 
-    if !all(0.0 .< (distance, stretched_tether_length) .< Inf) || 
-            distance >= stretched_tether_length ||
-            distance <= 0.1stretched_tether_length
-        expected_pos .= NaN
-        expected_vel .= NaN
-        return s.expected_tether_pos_vel_buffer
-    end
+#     if !all(0.0 .< (distance, stretched_tether_length) .< Inf) || 
+#             distance >= stretched_tether_length ||
+#             distance <= 0.1stretched_tether_length
+#         expected_pos .= NaN
+#         expected_vel .= NaN
+#         return s.expected_tether_pos_vel_buffer
+#     end
 
-    quat = quaternion_rotation([1, 0, 0], kite_pos)
-    function f_jac!(dx, x)
-        tether_from_distance_length!(expected_pos, x[1], x[2], segments, quat)
-        dx .= vec(expected_pos)
-        nothing
-    end
+#     quat = quaternion_rotation([1, 0, 0], kite_pos)
+#     function f_jac!(dx, x)
+#         tether_from_distance_length!(expected_pos, x[1], x[2], segments, quat)
+#         dx .= vec(expected_pos)
+#         nothing
+#     end
 
-    x[1] = distance
-    x[2] = stretched_tether_length
+#     x[1] = distance
+#     x[2] = stretched_tether_length
 
-    backend = ADTypes.AutoFiniteDiff()
-    if isnothing(s.prep)
-        s.prep = prepare_jacobian(f_jac!, y, backend, x)
-    end
-    DifferentiationInterface.jacobian!(f_jac!, y, J, s.prep, backend, x)
-    expected_vel .= reshape(J * [kite_vel, tether_vel], size(expected_vel))
-    return s.expected_tether_pos_vel_buffer
-end
+#     backend = ADTypes.AutoFiniteDiff()
+#     if isnothing(s.prep)
+#         s.prep = prepare_jacobian(f_jac!, y, backend, x)
+#     end
+#     DifferentiationInterface.jacobian!(f_jac!, y, J, s.prep, backend, x)
+#     expected_vel .= reshape(J * [kite_vel, tether_vel], size(expected_vel))
+#     return s.expected_tether_pos_vel_buffer
+# end
 
 
 # =================== getter functions ====================================================
