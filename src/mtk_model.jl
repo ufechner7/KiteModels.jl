@@ -20,18 +20,8 @@ function normalize(vec)
 end
 @register_symbolic normalize(vec)
 
-function mean(vec)
+function mean(vec::AbstractVector)
     return sum(vec) / length(vec)
-end
-
-function convert_pos_vel(s::KPSQ, pos_, vel_)
-    pos = Array{Union{Nothing, SimFloat}}(nothing, 3, s.i_A)
-    vel = Array{Union{Nothing, SimFloat}}(nothing, 3, s.i_A)
-    [pos[:,i] .= pos_[i] for i in 1:s.i_A-1]
-    [vel[:,i] .= vel_[i] for i in 1:s.i_A-1]
-    [pos[:,i] .= pos_[i] for i in s.i_B+1:s.i_A]
-    [vel[:,i] .= vel_[i] for i in s.i_B+1:s.i_A]
-    return pos, vel
 end
 
 function rotate_by_quaternion(q, v)
@@ -94,7 +84,6 @@ function rotation_matrix_to_quaternion(R)
     
     return [w, x, y, z]
 end
-
 
 function create_point_mass_system!(s::KPSQ, wing::KiteWing)
     # TODO: move as much of the code as possible from create_point_mass_system to other places, to make model creation easier.
@@ -235,26 +224,52 @@ end
 function init!(system::PointMassSystem, s::KPSQ)
     points, groups, segments, pulleys, tethers, winches = 
         system.points, system.groups, system.segments, system.pulleys, system.tethers, system.winches
-    for segment in system.segments
+
+    for segment in segments
         (segment.type === BRIDLE) && (segment.diameter = s.bridle_tether_diameter)
         (segment.type === POWER) && (segment.diameter = s.power_tether_diameter)
         (segment.type === STEERING) && (segment.diameter = s.steering_tether_diameter)
         @assert !(segment.diameter ≈ 0)
+        @assert !(segment.l0 ≈ 0)
     end
-    for pulley in system.pulleys
+
+    for pulley in pulleys
         segment1, segment2 = segments[pulley.segments[1]], segments[pulley.segments[2]]
         pulley.sum_length = segment1.l0 + segment2.l0
         @assert !(pulley.sum_length ≈ 0)
     end
+
+    for winch in winches
+        tether_length = 0.0
+        for tether in tethers[winch.tethers]
+            for segment in segments[tether.segments]
+                tether_length += segment.l0
+            end
+        end
+        winch.tether_length = tether_length
+        @assert !(winch.tether_length ≈ 0)
+    end
+
+    min_pos = zeros(SimFloat, 3)
+    min_pos[3] = Inf
+    for point in points
+        if point.pos[3] < min_pos[3]
+            min_pos .= point.pos
+        end
+    end
+    for point in points
+        point.pos .-= min_pos
+    end
+    s.kite_pos .= -min_pos
     return nothing
 end
 
-function create_sys!(s::KPSQ, wing::KiteWing; init=false)
-    system = create_point_mass_system!(s, wing)
+function create_sys!(s::KPSQ, system::PointMassSystem, wing::KiteWing, I_p, R_b_p, Q_p_b, Q_p_w_init; init=false)
     points, groups, segments, pulleys, tethers, winches = 
         system.points, system.groups, system.segments, system.pulleys, system.tethers, system.winches
 
     eqs = []
+    defaults = []
     tether_kite_force = zeros(Num, 3)
     tether_kite_torque = zeros(Num, 3)
 
@@ -352,7 +367,7 @@ function create_sys!(s::KPSQ, wing::KiteWing; init=false)
 
             if point isa KitePoint
                 tether_kite_force .+= F
-                tether_kite_torque .+= (s.R_b_p * point.pos) × (R_p_w' * F)
+                tether_kite_torque .+= (R_b_p * point.pos) × (R_p_w' * F)
                 chord_b = point.pos - point.fixed_pos
                 idx = point.pos[2] > 0 ? 1 : 2
                 pos_b = point.fixed_pos + rotate_v_around_k(chord_b, point.chord, twist_angle[idx])
@@ -377,6 +392,11 @@ function create_sys!(s::KPSQ, wing::KiteWing; init=false)
                     D(vel[:, point.idx]) ~ acc[:, point.idx]
                     acc[:, point.idx]    ~ point_force[:, point.idx] / mass + [0, 0, -G_EARTH]
                 ]
+                defaults = [
+                    defaults
+                    [pos[j, point.idx] => point.pos[j] for j in 1:3]
+                    [vel[j, point.idx] => 0 for j in 1:3]
+                ]
             else
                 throw(ArgumentError("Unknown point type: $(typeof(point))"))
             end
@@ -384,7 +404,7 @@ function create_sys!(s::KPSQ, wing::KiteWing; init=false)
 
         # ==================== GROUPS ==================== #
         @parameters begin
-            torque_coeff_dist[eachindex(s.aero.panels)]
+            torque_coeff_dist[eachindex(s.aero.panels)] = s.vsm_solver.sol.moment_coefficient_distribution
         end
         @variables begin
             trailing_edge_angle(t)[eachindex(groups)] # angle left / right
@@ -415,6 +435,11 @@ function create_sys!(s::KPSQ, wing::KiteWing; init=false)
                 D(twist_angle[group.idx]) ~ twist_ω[group.idx]
                 D(twist_ω[group.idx]) ~ twist_α[group.idx]
                 twist_α[group.idx] ~ group_torque / inertia
+            ]
+            defaults = [
+                defaults
+                twist_angle[group.idx] => 0
+                twist_ω[group.idx] => 0
             ]
         end
         !(used_panels == length(torque_dist)) && 
@@ -560,6 +585,11 @@ function create_sys!(s::KPSQ, wing::KiteWing; init=false)
                 pulley_force[pulley.idx]    ~ spring_force[pulley.segments[1]] - spring_force[pulley.segments[2]]
                 pulley_acc[pulley.idx]      ~ pulley_force[pulley.idx] / mass - pulley_damping * pulley_vel[pulley.idx]
             ]
+            defaults = [
+                defaults
+                pulley_l0[pulley.idx] => segments[pulley.segments[1]].l0
+                pulley_vel[pulley.idx] => 0
+            ]
         end
 
         # ==================== WINCHES ==================== #
@@ -586,107 +616,60 @@ function create_sys!(s::KPSQ, wing::KiteWing; init=false)
                 )
                 winch_force[winch.idx] ~ F
             ]
+            defaults = [
+                tether_length[winch.idx] => winch.tether_length
+                tether_vel[winch.idx] => 0
+            ]
         end
     end
 
     function diff_eqs!()
-        Q_b_p = quaternion_conjugate(s.Q_p_b)
-        if !init
-            Ω = [0       -ω_p[1]  -ω_p[2]  -ω_p[3];
-                ω_p[1]    0        ω_p[3]  -ω_p[2];
-                ω_p[2]   -ω_p[3]   0        ω_p[1];
-                ω_p[3]    ω_p[2]  -ω_p[1]   0]
-            eqs = [
-                eqs
-                [D(Q_p_w[i]) ~ Q_vel[i] for i in 1:4]
-                [Q_vel[i] ~ 0.5 * sum(Ω[i, j] * Q_p_w[j] for j in 1:4) for i in 1:4]
-                [R_b_w[:, i] ~ quaternion_to_rotation_matrix(quaternion_multiply(Q_p_w, Q_b_p))[:, i] for i in 1:3] # https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation#Performance_comparisons
-                [R_p_w[:, i] ~ quaternion_to_rotation_matrix(Q_p_w)[:, i] for i in 1:3]
-                D(ω_p) ~ α_p
-                ω_b ~ s.R_b_p' * ω_p
-                α_p[1] ~ (torque_p[1] + (s.I_p[2] - s.I_p[3]) * ω_p[2] * ω_p[3]) / s.I_p[1]
-                α_p[2] ~ (torque_p[2] + (s.I_p[3] - s.I_p[1]) * ω_p[3] * ω_p[1]) / s.I_p[2]
-                α_p[3] ~ (torque_p[3] + (s.I_p[1] - s.I_p[2]) * ω_p[1] * ω_p[2]) / s.I_p[3]
-                α_b ~ s.R_b_p' * α_p
-                
-                [D(kite_pos[i]) ~ kite_vel[i] for i in 1:3]
-                [D(kite_vel[i]) ~ kite_acc[i] for i in 1:3]
-                aero_kite_force ~ (R_b_w * s.vsm_solver.sol.force_coefficients) * q_inf * s.aero.projected_area
-                kite_acc        ~ (tether_kite_force + aero_kite_force) / s.set.mass
-
-                distance            ~ norm(kite_pos)
-                distance_vel        ~ kite_vel ⋅ normalize(kite_pos)
-                distance_acc        ~ kite_acc ⋅ normalize(kite_pos)    
-                D(wind_scale_gnd) ~ 0
-            ]
-        else
-            idamp = 10
-            scale = 1e-2
-
-            # no movement around body z axis
-            Ω = [0       -ω_b[1]  -ω_b[2]  -0     ;
-                ω_b[1]   0        0       -ω_b[2];
-                ω_b[2]  -0        0        ω_b[1];
-                0        ω_b[2]  -ω_b[1]   0     ]
-            
-            # from measurements
-            elevation     = mean(measured_sphere_pos[1, :])
-            azimuth       = mean(measured_sphere_pos[2, :])
-            elevation_vel = mean(measured_sphere_vel[1, :])
-            azimuth_vel   = mean(measured_sphere_vel[2, :])
-            elevation_acc = mean(measured_sphere_acc[1, :])
-            azimuth_acc   = mean(measured_sphere_acc[2, :])
-
-            r = (measured_sphere_pos[:, 2] - measured_sphere_pos[:, 1]) / 2
-            perp_r = [-r[2], r[1]]
-            rot_vel = (measured_sphere_vel[:, 1] - measured_sphere_vel[:, 2]) ⋅ (perp_r / norm(r))
-            rot_acc = (measured_sphere_acc[:, 1] - measured_sphere_acc[:, 2]) ⋅ (perp_r / norm(r))
-            ω_z = rot_vel / norm(r)
-            α_z = rot_acc / norm(r)
-
-            angular_acc = measured_tether_acc / s.set.drum_radius
-            net_torque = angular_acc * s.set.inertia_total
-            measured_winch_force = (net_torque - set_values) / s.set.drum_radius
-
-            # scaled down, partially fixed, and damped equations to find unmeasured variables
-            eqs = [
-                eqs
-                [D(Q_b_w[i]) ~ Q_vel[i] for i in 1:4]
-                Q_p_w ~ quaternion_multiply(Q_b_w, quaternion_conjugate(Q_b_p))
-                [Q_vel[i] ~ 0.5 * sum(Ω[i, j] * Q_b_w[j] for j in 1:4) for i in 1:4]
-                [R_b_w[:, i] ~ quaternion_to_rotation_matrix(Q_b_w)[:, i] for i in 1:3] # https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation#Performance_comparisons
-                [R_p_w[:, i] ~ quaternion_to_rotation_matrix(Q_p_w)[:, i] for i in 1:3]
-                D(ω_b[1:2]) ~ scale * α_b[1:2] - idamp * ω_b[1:2]
-                ω_b[3] ~ ω_z
-                ω_p ~ s.R_b_p * ω_b
-                torque_b ~ s.R_b_p' * torque_p
-                α_b[1] ~ (torque_b[1]) / s.I_b[1]
-                α_b[2] ~ (torque_b[2]) / s.I_b[2]
-                α_b[3] ~ α_z
-
-                kite_pos        ~ rotate_around_z(rotate_around_y([distance, 0, 0], -elevation), azimuth)
-                kite_vel        ~ distance_vel * normalize(kite_pos - pos[:, 3]) + 
-                                    rotate_around_z(rotate_around_y([0, azimuth_vel * distance, elevation_vel * distance], -elevation), azimuth)
-                kite_acc        ~ distance_acc * normalize(kite_pos - pos[:, 3]) + 
-                                    rotate_around_z(rotate_around_y([0, azimuth_acc * distance, elevation_acc * distance], -elevation), azimuth)
-                D(distance)     ~ distance_vel
-                D(distance_vel) ~ distance_acc - idamp * distance_vel
-                distance_acc    ~ scale * (measured_tether_acc[3] - tether_acc[3])
-                D(wind_scale_gnd)  ~ 100scale * (mean(measured_winch_force[1:2]) - mean(winch_force[1:2]))
-
-                [pos[:, i]              .~ 0.0 for i in 1:3]
-                [D.(pos[:, i])          .~ vel[:, i] for i in 4:s.i_A-1]
-                D(trailing_edge_angle)   ~ trailing_edge_ω
-                [vel[:, i]              .~ 0.0 for i in 1:3]
-                [D.(vel[:, i])          .~ scale * acc[:, i] - idamp * vel[:, i] for i in 4:s.i_A-1] # TODO: ADD CENTRIFUGAL FORCE DUE TO KITE ROTATION
-                D(trailing_edge_ω)       ~ 0.1scale * trailing_edge_α - idamp * trailing_edge_ω
-                tether_length           ~ measured_tether_length
-                tether_vel              ~ measured_tether_vel
-            ]
+        @parameters begin
+            force_coefficients[1:3] = s.vsm_solver.sol.force_coefficients
+            torque_coefficients[1:3] = s.vsm_solver.sol.moment_coefficients
         end
+        Q_b_p = quaternion_conjugate(Q_p_b)
+        Ω = [0       -ω_p[1]  -ω_p[2]  -ω_p[3];
+            ω_p[1]    0        ω_p[3]  -ω_p[2];
+            ω_p[2]   -ω_p[3]   0        ω_p[1];
+            ω_p[3]    ω_p[2]  -ω_p[1]   0]
+        eqs = [
+            eqs
+            [D(Q_p_w[i]) ~ Q_vel[i] for i in 1:4]
+            [Q_vel[i] ~ 0.5 * sum(Ω[i, j] * Q_p_w[j] for j in 1:4) for i in 1:4]
+            [R_b_w[:, i] ~ quaternion_to_rotation_matrix(quaternion_multiply(Q_p_w, Q_b_p))[:, i] for i in 1:3] # https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation#Performance_comparisons
+            [R_p_w[:, i] ~ quaternion_to_rotation_matrix(Q_p_w)[:, i] for i in 1:3]
+            D(ω_p) ~ α_p
+            ω_b ~ R_b_p' * ω_p
+            α_p[1] ~ (torque_p[1] + (I_p[2] - I_p[3]) * ω_p[2] * ω_p[3]) / I_p[1]
+            α_p[2] ~ (torque_p[2] + (I_p[3] - I_p[1]) * ω_p[3] * ω_p[1]) / I_p[2]
+            α_p[3] ~ (torque_p[3] + (I_p[1] - I_p[2]) * ω_p[1] * ω_p[2]) / I_p[3]
+            α_b ~ R_b_p' * α_p
+            torque_b ~ torque_coefficients * q_inf * s.aero.projected_area
+            torque_p ~ R_b_p * torque_b
+            
+            [D(kite_pos[i]) ~ kite_vel[i] for i in 1:3]
+            [D(kite_vel[i]) ~ kite_acc[i] for i in 1:3]
+            aero_kite_force ~ (R_b_w * force_coefficients) * q_inf * s.aero.projected_area
+            kite_acc        ~ (tether_kite_force + aero_kite_force) / s.set.mass
+
+            distance            ~ norm(kite_pos)
+            distance_vel        ~ kite_vel ⋅ normalize(kite_pos)
+            distance_acc        ~ kite_acc ⋅ normalize(kite_pos)    
+        ]
+        @show Q_p_w_init
+        defaults = [
+            defaults
+            [Q_p_w[i] => Q_p_w_init[i] for i in 1:4]
+            [ω_p[i] => 0 for i in 1:3]
+            [kite_pos[i] => f[i] for i in 1:3]
+            [kite_vel[i] => 0 for i in 1:3]
+        ]
         return nothing
     end
+    
     function scalar_eqs!()
+        @parameters wind_scale_gnd = s.set.v_wind
         eqs = [
             eqs
             e_x     ~ R_b_w * [1, 0, 0]
@@ -698,7 +681,6 @@ function create_sys!(s::KPSQ, wing::KiteWing; init=false)
             va_kite ~ wind_vel_kite - kite_vel
             va_kite_b ~ R_b_w' * va_kite
         ]
-
         @variables begin
             heading_y(t)
             azimuth(t)
@@ -756,69 +738,30 @@ function create_sys!(s::KPSQ, wing::KiteWing; init=false)
     
     eqs = Symbolics.scalarize.(reduce(vcat, Symbolics.scalarize.(eqs)))
 
-    if !init
-        discrete_events = [true => [Q_p_w[i] ~ normalize(Q_p_w)[i] for i in 1:4]]
-    else
-        discrete_events = [true => [Q_b_w[i] ~ normalize(Q_b_w)[i] for i in 1:4]]
-    end
+    # if !init
+    #     discrete_events = [true => [Q_p_w[i] ~ normalize(Q_p_w)[i] for i in 1:4]]
+    # else
+    #     discrete_events = [true => [Q_b_w[i] ~ normalize(Q_b_w)[i] for i in 1:4]]
+    # end
     
-    @named sys = ODESystem(eqs, t; discrete_events)
+    # @named sys = ODESystem(eqs, t; discrete_events)
+    @named sys = ODESystem(eqs, t)
     return sys, collect(set_values)
 end
 
-"""
-The distance/vel/acc of the kite cannot be measured directly, but the average acc of the kite distance is equal to the tether acc.
-    So while the set_values input and wind is constant, distance_acc = tether_acc[3]. To accurately describe distance_acc when set_values
-    or wind suddenly change, the distance_acc is calculated by combining the simulated distance_acc from timestep-1 to timestep and the
-    current measured acc.
-    distance_acc = 0.99 * sim_distance_acc + 0.01 * measured_distance_acc
-
-Assume distance_acc = tether_acc[3] for convenience
-"""
 function model!(s::KPSQ; init=false)
-    # init_pos!(s)
+    I_p, R_b_p, Q_p_b = calc_inertia(s, s.wing)
+    Q_p_w = measure_to_q(s.measure, R_b_p)
+
+    s.point_system = create_point_mass_system!(s, wing)
+
+    @time VortexStepMethod.set_va!(s.aero, [s.set.v_wind, 0., 0.])
+    @time VortexStepMethod.solve!(s.vsm_solver, s.aero)
     
-    sys, inputs = create_sys!(s, s.wing; init)
+    sys, inputs = create_sys!(s, s.point_system, s.wing, I_p, R_b_p, Q_p_b, Q_p_w; init)
     # structural_simplify(sys, (inputs, []))
-    (sys, _) = structural_simplify(sys, (inputs, []); fully_determined=true)
+    @time (sys, _) = structural_simplify(sys, (inputs, []); fully_determined=true, simplify=false)
 
-    if !init
-        u0map = [
-            [sys.Q_p_w[i] => s.Q_p_w[i] for i in 1:4]
-            [sys.ω_p[i] => 0 for i in 1:3]
-
-            [sys.kite_pos[j] => s.kite_pos[j] for j in 1:3]
-            [sys.kite_vel[i] => 0.0 for i in 1:3]
-
-            [sys.pos[j, i] => s.pos[j, i] for j in 1:3 for i in 4:s.i_A-1]
-            [sys.vel[j, i] => 0 for j in 1:3 for i in 4:s.i_A-1]
-
-            [sys.trailing_edge_angle[i] => s.te_angle[i] for i in 1:2]
-            [sys.trailing_edge_ω[i] => 0 for i in 1:2]
-
-            [sys.tether_length[i] => s.measure.tether_length[i] for i in 1:3]
-            [sys.tether_vel[j] => 0 for j in 1:3]
-
-            sys.wind_scale_gnd => s.set.v_wind
-        ]
-    else
-        Q_b_w = quaternion_multiply(s.Q_p_w, quaternion_conjugate(s.Q_p_b))
-        u0map = [
-            [sys.Q_b_w[i] => Q_b_w[i] for i in 1:4]
-            [sys.ω_b[i] => 0 for i in 1:2]
-
-            sys.distance => norm(s.kite_pos)
-            sys.distance_vel => 0.0
-
-            [sys.pos[j, i] => s.pos[j, i] for j in 1:3 for i in 4:s.i_A-1]
-            [sys.vel[j, i] => 0 for j in 1:3 for i in 4:s.i_A-1]
-
-            [sys.trailing_edge_angle[i] => s.te_angle[i] for i in 1:2]
-            [sys.trailing_edge_ω[i] => 0 for i in 1:2]
-
-            sys.wind_scale_gnd => s.set.v_wind
-        ]
-    end
-    p0map = [sys.set_values[j] => s.measure.set_values[j] for j in 1:3]
+    @show s.kite_pos
     return sys, u0map, p0map
 end
