@@ -87,11 +87,25 @@ if [[ $update == true ]]; then
     if test -f "Manifest.toml"; then
         mv Manifest.toml Manifest.toml.bak
     fi
+    if [[ $julia_major == "1.10" ]]; then
+        if test -f "Manifest-v1.10.toml"; then
+            mv Manifest-v1.10.toml Manifest-v1.10.toml.bak
+        fi
+    else
+        if test -f "Manifest-v1.11.toml"; then
+            mv Manifest-v1.11.toml Manifest-v1.11.toml.bak
+        fi
+    fi
     julia --startup-file=no --pkgimages=no --project -e "using TestEnv; TestEnv.activate(); using Pkg; Pkg.add(\"PyCall\"); Pkg.build(\"PyCall\")"
     if [[ $PYTHON == "" ]]; then
         julia --startup-file=no --pkgimages=no --project -e "using TestEnv; TestEnv.activate(); using Pkg; Pkg.add(\"Conda\"); using Conda; Conda.add(\"matplotlib\"); using ControlPlots"
     fi
     julia --startup-file=no --pkgimages=no --project -e "using Pkg; Pkg.update()"
+    if [[ $julia_major == "1.10" ]]; then
+        mv Manifest.toml Manifest-v1.10.toml
+    else
+        mv Manifest.toml Manifest-v1.11.toml
+    fi
 else
     if [[ $julia_major == "1.10" ]]; then
         cp Manifest-v1.10.toml.default Manifest-v1.10.toml
