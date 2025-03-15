@@ -147,8 +147,10 @@ function force_eqs!(s, system, eqs, defaults, guesses;
 
             tether_kite_force .+= F
             tether_kite_torque_b .+= point.pos_b × (R_b_w' * F)
+
             chord_b = point.pos_b - groups[group_idx].fixed_pos
             pos_b = groups[group_idx].fixed_pos + rotate_v_around_k(chord_b, groups[group_idx].y_panel, twist_angle[group_idx])
+            @show chord_b point.pos_b groups[group_idx].fixed_pos
             eqs = [
                 eqs
                 pos[:, point.idx]    ~ kite_pos + R_b_w * pos_b
@@ -304,7 +306,6 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                     (in_winch != 1) && throw(ArgumentError("Tether number $(tether.idx) is part of
                         $(in_winch) winches, and should be part of exactly 1 winch."))
 
-                    @show length(tether.segments) winches[winch_idx].tether_length
                     eqs = [
                         eqs
                         l0[segment.idx] ~ tether_length[winch_idx] / length(tether.segments)
@@ -602,11 +603,9 @@ end
 function model!(s::KPSQ; init=false)
     I_p, I_b, R_b_p, Q_p_b = calc_inertia(s.wing)
     init_Q_p_w, R_b_w = measure_to_q(s.measure, R_b_p)
-    @show R_b_w
 
     s.point_system = PointMassSystem(s, s.wing)
     init_kite_pos = init!(s.point_system, s, R_b_w)
-    @show init_kite_pos
 
     va_body = R_b_w' * [s.set.v_wind, 0., 0.]
     VortexStepMethod.set_va!(s.aero, va_body)

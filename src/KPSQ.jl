@@ -97,7 +97,7 @@ mutable struct Point
     type::PointType
 end
 function Point(idx, pos_b, type)
-    Point(idx, pos_b, pos_b, type)
+    Point(idx, pos_b, copy(pos_b), type)
 end
 
 """

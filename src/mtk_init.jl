@@ -174,7 +174,7 @@ function init!(system::PointMassSystem, s::KPSQ, R_b_w)
     end
     for point in points
         point.pos_w[3] -= min_z
-        point.pos_w .= R_b_w * point.pos_b
+        point.pos_w .= R_b_w * point.pos_w
     end
     init_kite_pos = R_b_w * [0.0, 0.0, -min_z]
     return init_kite_pos
