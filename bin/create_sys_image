@@ -28,6 +28,7 @@ if ! command -v juliaup &> /dev/null; then
     exit 1
 fi
 
+julia --startup-file=no --pkgimages=no --project -e "using Pkg; Pkg.resolve()"
 #juliaup add 1.10
 #juliaup default 1.10
 
