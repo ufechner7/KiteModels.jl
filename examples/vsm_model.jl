@@ -31,7 +31,8 @@ s.measure.sphere_pos[2, 2] = deg2rad(-1)
 s.measure.sphere_vel .= [0.13 0.13; 0 0]
 s.measure.sphere_acc .= [0.09 0.09; 0 0]
 s.set.abs_tol = 0.001
-s.set.rel_tol = 0.0006
+s.set.rel_tol = 0.001
+s.set.segments = 2
 # s.measure.distance_acc = s.measure.tether_acc[3]
 
 @time init_sim!(s; force_new_sys=false, force_new_pos=false, prn=true, ϵ=0.0, init=false)

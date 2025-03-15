@@ -74,30 +74,37 @@ function Base.getproperty(m::Measurement, val::Symbol)
     end
 end
 
-abstract type AbstractPoint end
-
 @enum SegmentType begin
     POWER
     STEERING
     BRIDLE
 end
 
-"""
-A normal freely moving tether point
-"""
-mutable struct Point <: AbstractPoint
-    idx::Int16
-    pos::Vector{SimFloat} # pos relative to kite COM in body frame
+@enum PointType begin
+    DYNAMIC
+    STATIC
+    KITE
+    WINCH
 end
 
 """
-A point that is on the kite body and can be deformed by the twist of the kite body
+A normal freely moving tether point
 """
-mutable struct KitePoint <: AbstractPoint
+mutable struct Point
     idx::Int16
-    pos::Vector{SimFloat} # pos relative to kite COM in body frame
-    fixed_pos::Vector{SimFloat} # position in body frame which the point rotates around under kite deformation
-    chord::KVec3 # chord vector in body frame which the point rotates around under kite deformation
+    pos_b::Vector{SimFloat} # pos relative to kite COM in body frame
+    pos_w::Vector{SimFloat} # pos in world frame
+    type::PointType
+
+    # KITE fields
+    fixed_pos::Union{Nothing, Vector{SimFloat}} # position in body frame which the point rotates around under kite deformation
+    chord::Union{Nothing, KVec3} # chord vector in body frame which the point rotates around under kite deformation
+end
+function Point(idx, pos_b, type)
+    Point(idx, pos_b, pos_b, type, nothing, nothing)
+end
+function Point(idx, pos_b, type, fixed_pos, chord)
+    Point(idx, pos_b, pos_b, type, fixed_pos, chord)
 end
 
 """
@@ -115,11 +122,11 @@ A segment from one point index to another point index
 mutable struct Segment
     idx::Int16
     points::Tuple{Int16, Int16}
-    l0::SimFloat
     type::SegmentType
+    l0::SimFloat
     diameter::SimFloat
-    function Segment(idx, points, l0, type)
-        new(idx, points, l0, type, zero(SimFloat))
+    function Segment(idx, points, type)
+        new(idx, points, type, zero(SimFloat), zero(SimFloat))
     end
 end
 
@@ -158,7 +165,7 @@ mutable struct Winch
 end
 
 struct PointMassSystem
-    points::Vector{AbstractPoint}
+    points::Vector{Point}
     groups::Vector{KitePointGroup}
     segments::Vector{Segment}
     pulleys::Vector{Pulley}
@@ -267,44 +274,19 @@ $(TYPEDFIELDS)
     I_b::V = zeros(S, 3)
     "Damping of the kite rotation"
     orient_damping::S = zero(S)
-    "center of mass position of the kite"
-    kite_pos::V = zeros(S, 3)
-    "quaternion orientation of the kite"
-    q::V = zeros(S, 4)
-    "aero points center of mass positions in principal frame"
-    seg_com_pos_p::Matrix{S} = zeros(S, 3, 2set.aero_surfaces)
-    "aero points center of pressure positions in principal frame"
-    seg_cop_pos_p::Matrix{S} = zeros(S, 3, 2set.aero_surfaces)
-    "cop pos in body frame"
-    seg_cop_pos_b::Matrix{S} = zeros(S, 3, 2set.aero_surfaces)
-    "last left tether point position in body frame"
-    pos_A_b::V = zeros(S, 3)
-    "last right tether point position in body frame"
-    pos_B_b::V = zeros(S, 3)
-    "last middle tether point position in body frame"
-    pos_C_b::V = zeros(S, 3)
-    "last middle tether point position in principal frame"
-    pos_C_p::V = zeros(S, 3)
-    "mass of each kite segment"
-    seg_mass::V = zeros(S, 2set.aero_surfaces)
-    "A point projected onto kite in z-axis in body frame"
-    pos_D_b::V = zeros(S, 3)
-    "B point projected onto kite in z-axis in body frame"
-    pos_E_b::V = zeros(S, 3)
     "Initialization values for kite state"
     u0map::Union{Vector{Pair{Num, S}}, Nothing} = nothing
     "Initialization values for kite parameters"
     p0map::Union{Vector{Pair{Num, S}}, Nothing} = nothing
     "Distance of the kite com from winch"
     distance::S = zero(S)
-    "Angle of the trailing edges of the kite"
-    te_angle::V = zeros(S, 2)
-    "Function to get kite length from γ"
-    kite_length::Function = () -> nothing
     "X coordinate on normalized 2d foil of bridle attachments"
     bridle_fracs::V = [0.05, 0.3, 0.6, 0.95]
+    "Tether diameter of tethers in bridle system [mm]"
     bridle_tether_diameter::SimFloat = 2.
+    "Tether diameter of the power tethers [mm]"
     power_tether_diameter::SimFloat = 2.
+    "Tether diameter of the steering tethers [mm]"
     steering_tether_diameter::SimFloat = 1.
 
     set_initial_measure::Function  = () -> nothing
@@ -586,8 +568,12 @@ function init_sim!(s::KPSQ; prn=false, torque_control=s.torque_control,
     if new_sys
         if prn; println("initializing with new model and new pos"); end
         clear!(s)
-        sys, u0map, p0map = model!(s; init)
-        s.prob = ODEProblem(sys, u0map, tspan, p0map)
+        sys, defaults, guesses = model!(s; init)
+        for u in unknowns(sys)
+            println(u)
+        end
+        @show length(unknowns(sys))
+        @time s.prob = ODEProblem(sys, defaults, tspan; guesses)
         s.simple_sys = s.prob.f.sys
         s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
         generate_getters!(s; init)
