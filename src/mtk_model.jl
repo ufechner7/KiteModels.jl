@@ -85,7 +85,7 @@ function rotation_matrix_to_quaternion(R)
     return [w, x, y, z]
 end
 
-function force_eqs!(s, system, eqs, defaults, guesses, unknowns, params; 
+function force_eqs!(s, system, eqs, defaults, guesses; 
         tether_kite_force, tether_kite_torque_b, R_b_w, kite_pos, q_inf, wind_vec_gnd)
 
     points, groups, segments, pulleys, tethers, winches = 
@@ -174,29 +174,21 @@ function force_eqs!(s, system, eqs, defaults, guesses, unknowns, params;
                 [pos[j, point.idx] => point.pos_w[j] for j in 1:3]
                 [vel[j, point.idx] => 0 for j in 1:3]
             ]
-            unknowns = [
-                unknowns
-                pos[:, point.idx]
-                vel[:, point.idx]
-            ]
         elseif point.type === STATIC
+            @show point.idx
             eqs = [
                 eqs
                 vel[:, point.idx]    ~ zeros(3)
                 acc[:, point.idx]    ~ zeros(3)
                 acc[:, point.idx]    ~ point_force[:, point.idx] / mass + [0, 0, -G_EARTH]
             ]
-            guesses = [
-                guesses
-                [vel[j, point.idx] => 0 for j in 1:3]
-            ]
+            # guesses = [
+            #     guesses
+            #     [vel[j, point.idx] => 0 for j in 1:3]
+            # ]
             defaults = [
                 defaults
                 [pos[j, point.idx] => point.pos_w[j] for j in 1:3]
-            ]
-            unknowns = [
-                unknowns
-                pos[:, point.idx]
             ]
         else
             throw(ArgumentError("Unknown point type: $(typeof(point))"))
@@ -205,7 +197,6 @@ function force_eqs!(s, system, eqs, defaults, guesses, unknowns, params;
 
     # ==================== GROUPS ==================== #
     @parameters torque_coeff_dist[eachindex(s.aero.panels)] = s.vsm_solver.sol.moment_coefficient_distribution
-    params = [params; torque_coeff_dist]
     @variables begin
         trailing_edge_angle(t)[eachindex(groups)] # angle left / right
         trailing_edge_ω(t)[eachindex(groups)] # angular rate
@@ -240,11 +231,6 @@ function force_eqs!(s, system, eqs, defaults, guesses, unknowns, params;
             twist_angle[group.idx] => 0
             twist_ω[group.idx] => 0
         ]
-        unknowns = [
-            unknowns
-            twist_angle[group.idx]
-            twist_ω[group.idx]
-        ]
     end
     !(used_panels == length(torque_dist)) && 
         throw(ArgumentError("$used_panels out of $(length(torque_dist)) panels are used in the torque distribution"))
@@ -275,6 +261,13 @@ function force_eqs!(s, system, eqs, defaults, guesses, unknowns, params;
         tether_length(t)[eachindex(tethers)]
     end
     for segment in segments
+        p1, p2 = segment.points[1], segment.points[2]
+
+        guesses = [
+            guesses
+            [segment_vec[j, segment.idx] => points[p2].pos_w[j] - points[p1].pos_w[j] for j in 1:3]
+        ]
+
         if segment.type === BRIDLE
             in_pulley = false
             for pulley in pulleys
@@ -328,8 +321,6 @@ function force_eqs!(s, system, eqs, defaults, guesses, unknowns, params;
         else
             throw(ArgumentError("Unknown segment type: $(segment.type)"))
         end
-
-        p1, p2 = segment.points[1], segment.points[2]
 
         stiffness_m = s.set.e_tether * (segment.diameter/2000)^2 * pi
         (segment.type === BRIDLE) && (compression_frac = 1.0)
@@ -394,16 +385,10 @@ function force_eqs!(s, system, eqs, defaults, guesses, unknowns, params;
             pulley_l0[pulley.idx] => segments[pulley.segments[1]].l0
             pulley_vel[pulley.idx] => 0
         ]
-        unknowns = [
-            unknowns
-            pulley_l0[pulley.idx]
-            pulley_vel[pulley.idx]
-        ]
     end
 
     # ==================== WINCHES ==================== #
     @parameters set_values(t)[eachindex(winches)] = zeros(length(winches))
-    params = [params; set_values]
     @variables begin
         tether_vel(t)[eachindex(winches)]
         tether_acc(t)[eachindex(winches)]
@@ -431,21 +416,14 @@ function force_eqs!(s, system, eqs, defaults, guesses, unknowns, params;
             tether_length[winch.idx] => winch.tether_length
             tether_vel[winch.idx] => 0
         ]
-        unknowns = [
-            unknowns
-            tether_length[winch.idx]
-            tether_vel[winch.idx]
-        ]
     end
-    return eqs, defaults, guesses, unknowns, params, set_values, tether_kite_force, tether_kite_torque_b
+    return eqs, defaults, guesses, set_values, tether_kite_force, tether_kite_torque_b
 end
 
 function create_sys!(s::KPSQ, system::PointMassSystem, wing::KiteWing; I_p, R_b_p, Q_p_b, init_Q_p_w, init_kite_pos, init=false)
     eqs = []
-    defaults = []
-    guesses = []
-    unknowns = []
-    params = []
+    defaults = Pair{Num, Real}[]
+    guesses = Pair{Num, Real}[]
     tether_kite_force = zeros(Num, 3)
     tether_kite_torque_b = zeros(Num, 3)
 
@@ -458,7 +436,6 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::KiteWing; I_p, R_b_
         # measured_tether_vel[1:3]    = s.measure.tether_vel
         # measured_tether_acc[1:3]    = s.measure.tether_acc
     end
-    params = [params; measured_wind_dir_gnd]
     @variables begin
         # potential differential variables
         kite_pos(t)[1:3] # xyz pos of kite in world frame
@@ -501,11 +478,6 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::KiteWing; I_p, R_b_
             force_coefficients[1:3] = s.vsm_solver.sol.force_coefficients
             torque_coefficients[1:3] = s.vsm_solver.sol.moment_coefficients
         end
-        params = [
-            params
-            force_coefficients
-            torque_coefficients
-        ]
         Q_b_p = quaternion_conjugate(Q_p_b)
         Ω = [0       -ω_p[1]  -ω_p[2]  -ω_p[3];
             ω_p[1]    0        ω_p[3]  -ω_p[2];
@@ -542,19 +514,11 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::KiteWing; I_p, R_b_
             [kite_pos[i] => init_kite_pos[i] for i in 1:3]
             [kite_vel[i] => 0 for i in 1:3]
         ]
-        unknowns = [
-            unknowns
-            Q_p_w
-            ω_p
-            kite_pos
-            kite_vel
-        ]
         return nothing
     end
     
     function scalar_eqs!()
         @parameters wind_scale_gnd = s.set.v_wind
-        params = [params; wind_scale_gnd]
         eqs = [
             eqs
             e_x     ~ R_b_w * [1, 0, 0]
@@ -605,8 +569,8 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::KiteWing; I_p, R_b_
         return nothing
     end
 
-    eqs, defaults, guesses, unknowns, params, set_values, tether_kite_force, tether_kite_torque_b = 
-        force_eqs!(s, system, eqs, defaults, guesses, unknowns, params; tether_kite_force, tether_kite_torque_b, R_b_w, kite_pos, q_inf, wind_vec_gnd)
+    eqs, defaults, guesses, set_values, tether_kite_force, tether_kite_torque_b = 
+        force_eqs!(s, system, eqs, defaults, guesses; tether_kite_force, tether_kite_torque_b, R_b_w, kite_pos, q_inf, wind_vec_gnd)
     diff_eqs!()
     scalar_eqs!()
     
@@ -631,7 +595,8 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::KiteWing; I_p, R_b_
     # end
     
     # @named sys = ODESystem(eqs, t; discrete_events)
-    @named sys = ODESystem(eqs, t, unknowns, params)
+    @info "Creating ODESystem"
+    @time @named sys = ODESystem(eqs, t)
     return sys, collect(set_values), defaults, guesses
 end
 
@@ -648,6 +613,7 @@ function model!(s::KPSQ; init=false)
     VortexStepMethod.solve!(s.vsm_solver, s.aero)
     
     sys, inputs, defaults, guesses = create_sys!(s, s.point_system, s.wing; I_p, R_b_p, Q_p_b, init_Q_p_w, init_kite_pos, init)
+    @info "Simplifying the system"
     @time sys = structural_simplify(sys; simplify=false)
     return sys, defaults, guesses
 end

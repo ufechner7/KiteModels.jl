@@ -573,6 +573,7 @@ function init_sim!(s::KPSQ; prn=false, torque_control=s.torque_control,
             println(u)
         end
         @show length(unknowns(sys))
+        @info "Creating the problem"
         @time s.prob = ODEProblem(sys, defaults, tspan; guesses)
         s.simple_sys = s.prob.f.sys
         s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
