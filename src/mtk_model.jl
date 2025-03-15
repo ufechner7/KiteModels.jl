@@ -175,7 +175,6 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                 [vel[j, point.idx] => 0 for j in 1:3]
             ]
         elseif point.type === STATIC
-            @show point.idx
             eqs = [
                 eqs
                 vel[:, point.idx]    ~ zeros(3)
@@ -186,10 +185,10 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             #     guesses
             #     [vel[j, point.idx] => 0 for j in 1:3]
             # ]
-            defaults = [
-                defaults
-                [pos[j, point.idx] => point.pos_w[j] for j in 1:3]
-            ]
+            # defaults = [
+            #     defaults
+            #     [pos[j, point.idx] => point.pos_w[j] for j in 1:3]
+            # ]
         else
             throw(ArgumentError("Unknown point type: $(typeof(point))"))
         end
