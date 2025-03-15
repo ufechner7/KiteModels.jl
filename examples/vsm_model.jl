@@ -36,7 +36,13 @@ s.set.segments = 2
 # s.measure.distance_acc = s.measure.tether_acc[3]
 
 sys, defaults, guesses = KiteModels.model!(s)
+s.simple_sys = sys
 @time s.prob = ODEProblem(sys, defaults, (0.0, 0.01); guesses)
+solver = FBDF( # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
+    autodiff=ModelingToolkit.AutoFiniteDiff()
+)
+s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
+KiteModels.plot(s, 0.0)
 
 # @time init_sim!(s; force_new_sys=false, force_new_pos=false, prn=true, ϵ=0.0, init=false)
 # sys_state = KiteModels.SysState(s)

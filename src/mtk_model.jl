@@ -100,6 +100,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
 
         spring_force_vec(t)[1:3, eachindex(segments)]
         drag_force(t)[1:3, eachindex(segments)]
+        l0(t)[eachindex(segments)]
 
         twist_angle(t)[eachindex(groups)] # main body angle left / right
     end
@@ -115,7 +116,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                 else
                     F .+= spring_force_vec[:, segment.idx]
                 end
-                mass += mass_per_meter * segment.l0 / 2
+                mass += mass_per_meter * l0[segment.idx] / 2
                 F .+= 0.5drag_force[:, segment.idx]
             end
         end
@@ -181,14 +182,12 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                 acc[:, point.idx]    ~ zeros(3)
                 acc[:, point.idx]    ~ point_force[:, point.idx] / mass + [0, 0, -G_EARTH]
             ]
-            # guesses = [
-            #     guesses
-            #     [vel[j, point.idx] => 0 for j in 1:3]
-            # ]
-            # defaults = [
-            #     defaults
-            #     [pos[j, point.idx] => point.pos_w[j] for j in 1:3]
-            # ]
+            guesses = [
+                guesses
+                [vel[j, point.idx] => 0 for j in 1:3]
+                [pos[j, point.idx] => point.pos_w[j] for j in 1:3]
+                [point_force[j, point.idx] => 0 for j in 1:3]
+            ]
         else
             throw(ArgumentError("Unknown point type: $(typeof(point))"))
         end
@@ -239,7 +238,6 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         segment_vec(t)[1:3, eachindex(segments)]
         unit_vector(t)[1:3, eachindex(segments)]
         len(t)[eachindex(segments)]
-        l0(t)[eachindex(segments)]
         rel_vel(t)[1:3, eachindex(segments)]
         spring_vel(t)[eachindex(segments)]
         spring_force(t)[eachindex(segments)]
@@ -291,6 +289,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                     l0[segment.idx] ~ segment.l0
                 ]
             end
+            @show in_pulley
             (in_pulley > 1) && throw(ArgumentError("Bridle segment number $(segment.idx) is part of
                 $in_pulley pulleys, and should be part of either 0 or 1 pulleys."))
         elseif segment.type === POWER || segment.type === STEERING
@@ -337,13 +336,13 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             unit_vector[:, segment.idx]  ~ segment_vec[:, segment.idx]/len[segment.idx]
             rel_vel[:, segment.idx]      ~ vel[:, p1] - vel[:, p2]
             spring_vel[segment.idx]      ~ rel_vel[:, segment.idx] ⋅ unit_vector[:, segment.idx]
-            stiffness[segment.idx]       ~ ifelse(len[segment.idx] > segment.l0,
+            stiffness[segment.idx]       ~ ifelse(len[segment.idx] > l0[segment.idx],
                                         stiffness_m / len[segment.idx],
                                         compression_frac * stiffness_m / len[segment.idx]
             )
             damping[segment.idx]         ~ damping_m / len[segment.idx]
-            spring_force[segment.idx] ~  (stiffness[segment.idx] * segment.l0 * (len[segment.idx] - l0[segment.idx]) - 
-                            damping[segment.idx] * segment.l0 * spring_vel[segment.idx])
+            spring_force[segment.idx] ~  (stiffness[segment.idx] * (len[segment.idx] - l0[segment.idx]) - 
+                            damping[segment.idx] * spring_vel[segment.idx])
             spring_force_vec[:, segment.idx]  ~ spring_force[segment.idx] * unit_vector[:, segment.idx]
 
             # drag force equations
@@ -372,9 +371,10 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         segment = segments[pulley.segments[1]]
         mass_per_meter = s.set.rho_tether * π * (segment.diameter/2000)^2
         mass = pulley.sum_length * mass_per_meter
+        @assert !(mass ≈ 0.0)
         eqs = [
             eqs
-            D(pulley_l0[pulley.idx]) ~ pulley_vel[pulley.idx]
+            D(pulley_l0[pulley.idx])  ~ pulley_vel[pulley.idx]
             D(pulley_vel[pulley.idx]) ~ pulley_acc[pulley.idx]
             pulley_force[pulley.idx]    ~ spring_force[pulley.segments[1]] - spring_force[pulley.segments[2]]
             pulley_acc[pulley.idx]      ~ pulley_force[pulley.idx] / mass - pulley_damping * pulley_vel[pulley.idx]
@@ -482,6 +482,8 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::KiteWing; I_p, R_b_
             ω_p[1]    0        ω_p[3]  -ω_p[2];
             ω_p[2]   -ω_p[3]   0        ω_p[1];
             ω_p[3]    ω_p[2]  -ω_p[1]   0]
+
+        @assert !(s.set.mass ≈ 0)
         eqs = [
             eqs
             [D(Q_p_w[i]) ~ Q_vel[i] for i in 1:4]
