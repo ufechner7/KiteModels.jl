@@ -95,16 +95,9 @@ mutable struct Point
     pos_b::Vector{SimFloat} # pos relative to kite COM in body frame
     pos_w::Vector{SimFloat} # pos in world frame
     type::PointType
-
-    # KITE fields
-    fixed_pos::Union{Nothing, Vector{SimFloat}} # position in body frame which the point rotates around under kite deformation
-    chord::Union{Nothing, KVec3} # chord vector in body frame which the point rotates around under kite deformation
 end
 function Point(idx, pos_b, type)
-    Point(idx, pos_b, pos_b, type, nothing, nothing)
-end
-function Point(idx, pos_b, type, fixed_pos, chord)
-    Point(idx, pos_b, pos_b, type, fixed_pos, chord)
+    Point(idx, pos_b, pos_b, type)
 end
 
 """
@@ -114,6 +107,9 @@ struct KitePointGroup
     idx::Int16
     points::Vector{Int16}
     y_lim::Tuple{SimFloat, SimFloat}
+    fixed_pos::Union{Nothing, Vector{SimFloat}} # position in body frame which the group rotates around under kite deformation
+    chord::Union{Nothing, KVec3} # chord vector in body frame which the group rotates around under kite deformation
+    y_panel::Union{Nothing, KVec3} # spanwise vector in local panel frame which the group rotates around under kite deformation
 end
 
 """

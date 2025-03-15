@@ -134,10 +134,6 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         end
 
         if point.type === KITE
-            tether_kite_force .+= F
-            tether_kite_torque_b .+= point.pos_b × (R_b_w' * F)
-            chord_b = point.pos_b - point.fixed_pos
-
             found = 0
             group_idx = 0
             for group in groups
@@ -149,7 +145,10 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             !(found == 1) && throw(ArgumentError("Kite point number $(point.idx) is part of $found groups, 
                 and should be part of exactly 1 groups."))
 
-            pos_b = point.fixed_pos + rotate_v_around_k(chord_b, point.chord, twist_angle[group_idx])
+            tether_kite_force .+= F
+            tether_kite_torque_b .+= point.pos_b × (R_b_w' * F)
+            chord_b = point.pos_b - groups[group_idx].fixed_pos
+            pos_b = groups[group_idx].fixed_pos + rotate_v_around_k(chord_b, groups[group_idx].y_panel, twist_angle[group_idx])
             eqs = [
                 eqs
                 pos[:, point.idx]    ~ kite_pos + R_b_w * pos_b
@@ -184,9 +183,9 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             ]
             guesses = [
                 guesses
-                [vel[j, point.idx] => 0 for j in 1:3]
+                # [vel[j, point.idx] => 0 for j in 1:3]
                 [pos[j, point.idx] => point.pos_w[j] for j in 1:3]
-                [point_force[j, point.idx] => 0 for j in 1:3]
+                # [point_force[j, point.idx] => 0 for j in 1:3]
             ]
         else
             throw(ArgumentError("Unknown point type: $(typeof(point))"))
@@ -215,8 +214,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             end
         end
         group_torque = sum([torque_dist[i] for i in panel_indices])
-        chord = points[group.points[1]].chord
-        inertia = 1/3 * (s.set.mass/length(groups)) * (norm(chord))^2 # plate inertia around leading edge
+        inertia = 1/3 * (s.set.mass/length(groups)) * (norm(group.chord))^2 # plate inertia around leading edge
         @assert !(inertia ≈ 0.0)
         eqs = [
             eqs
@@ -260,13 +258,13 @@ function force_eqs!(s, system, eqs, defaults, guesses;
     for segment in segments
         p1, p2 = segment.points[1], segment.points[2]
 
-        guesses = [
-            guesses
-            [segment_vec[j, segment.idx] => points[p2].pos_w[j] - points[p1].pos_w[j] for j in 1:3]
-        ]
+        # guesses = [
+        #     guesses
+        #     [segment_vec[j, segment.idx] => points[p2].pos_w[j] - points[p1].pos_w[j] for j in 1:3]
+        # ]
 
         if segment.type === BRIDLE
-            in_pulley = false
+            in_pulley = 0
             for pulley in pulleys
                 if segment.idx == pulley.segments[1] # each bridle segment has to be part of no pulley or one pulley
                     eqs = [
@@ -289,7 +287,6 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                     l0[segment.idx] ~ segment.l0
                 ]
             end
-            @show in_pulley
             (in_pulley > 1) && throw(ArgumentError("Bridle segment number $(segment.idx) is part of
                 $in_pulley pulleys, and should be part of either 0 or 1 pulleys."))
         elseif segment.type === POWER || segment.type === STEERING
@@ -307,6 +304,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                     (in_winch != 1) && throw(ArgumentError("Tether number $(tether.idx) is part of
                         $(in_winch) winches, and should be part of exactly 1 winch."))
 
+                    @show length(tether.segments) winches[winch_idx].tether_length
                     eqs = [
                         eqs
                         l0[segment.idx] ~ tether_length[winch_idx] / length(tether.segments)
@@ -610,8 +608,10 @@ function model!(s::KPSQ; init=false)
     init_kite_pos = init!(s.point_system, s, R_b_w)
     @show init_kite_pos
 
-    VortexStepMethod.set_va!(s.aero, [s.set.v_wind, 0., 0.])
+    va_body = R_b_w' * [s.set.v_wind, 0., 0.]
+    VortexStepMethod.set_va!(s.aero, va_body)
     VortexStepMethod.solve!(s.vsm_solver, s.aero)
+    @show s.vsm_solver.sol.aero_force
     
     sys, inputs, defaults, guesses = create_sys!(s, s.point_system, s.wing; I_p, R_b_p, Q_p_b, init_Q_p_w, init_kite_pos, init)
     @info "Simplifying the system"

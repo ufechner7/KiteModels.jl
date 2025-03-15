@@ -24,18 +24,20 @@ function PointMassSystem(s::KPSQ, wing::KiteWing)
         for (gamma, limit) in zip(gammas, limits) # 2 gammas with 2 pairs of limits
             le_pos = [wing.le_interp[i](gamma) for i in 1:3]
             chord = [wing.te_interp[i](gamma) for i in 1:3] .- le_pos
-            fixed_pos = le_pos .+ chord .* s.bridle_fracs[2]
+            fixed_pos = le_pos .+ chord .* s.bridle_fracs[1]
+            y_panel = normalize([wing.le_interp[i](gamma-0.01) for i in 1:3] - le_pos)
+
             point_idxs = Int16[]
             for frac in s.bridle_fracs # 4 fracs
                 pos = le_pos .+ chord .* frac
-                points = [points; Point(i+i_pnt, pos, KITE, fixed_pos, chord)]
+                points = [points; Point(i+i_pnt, pos, KITE)]
                 push!(point_idxs, points[end].idx)
                 i += 1
             end
             
             i_grp = 1 + length(groups)
             y_lim = (wing.le_interp[2](limit[1]), wing.le_interp[2](limit[2])) # TODO: ylim is slightly off-centre
-            groups = [groups; KitePointGroup(i_grp, point_idxs, y_lim)]
+            groups = [groups; KitePointGroup(i_grp, point_idxs, y_lim, fixed_pos, chord, y_panel)]
         end
 
         mean_le = [wing.le_interp[i](mean(gammas)) for i in 1:3]
@@ -45,18 +47,18 @@ function PointMassSystem(s::KPSQ, wing::KiteWing)
 
         points = [
             points
-            Point(9+i_pnt, bridle_top .+ [xs[1], 0, 0], STATIC)
-            Point(10+i_pnt, bridle_top .+ [xs[2], 0, 0], STATIC)
-            Point(11+i_pnt, bridle_top .+ [xs[3], 0, 0], STATIC)
-            Point(12+i_pnt, bridle_top .+ [xs[4], 0, 0], STATIC)
+            Point(9+i_pnt, bridle_top .+ [xs[1], 0, 0], DYNAMIC)
+            Point(10+i_pnt, bridle_top .+ [xs[2], 0, 0], DYNAMIC)
+            Point(11+i_pnt, bridle_top .+ [xs[3], 0, 0], DYNAMIC)
+            Point(12+i_pnt, bridle_top .+ [xs[4], 0, 0], DYNAMIC)
 
-            Point(13+i_pnt, bridle_top .+ [xs[2], 0, -1], STATIC)
+            Point(13+i_pnt, bridle_top .+ [xs[2], 0, -1], DYNAMIC)
 
-            Point(14+i_pnt, bridle_top .+ [xs[1], 0, -2], STATIC)
-            Point(15+i_pnt, bridle_top .+ [xs[3], 0, -2], STATIC)
+            Point(14+i_pnt, bridle_top .+ [xs[1], 0, -2], DYNAMIC)
+            Point(15+i_pnt, bridle_top .+ [xs[3], 0, -2], DYNAMIC)
 
-            Point(16+i_pnt, bridle_top .+ [xs[1], 0, -5], STATIC)
-            Point(17+i_pnt, bridle_top .+ [xs[3], 0, -5], STATIC)
+            Point(16+i_pnt, bridle_top .+ [xs[1], 0, -5], DYNAMIC)
+            Point(17+i_pnt, bridle_top .+ [xs[3], 0, -5], DYNAMIC)
         ]
         segments = [
             segments
@@ -100,13 +102,13 @@ function PointMassSystem(s::KPSQ, wing::KiteWing)
             i_pnt = length(points) # last point idx
             i_seg = length(segments) # last segment idx
             if i == 1
-                points = [points; Point(1+i_pnt, pos, STATIC)]
+                points = [points; Point(1+i_pnt, pos, DYNAMIC)]
                 segments = [segments; Segment(1+i_seg, (attach_point.idx, 1+i_pnt), type)]
             elseif i == s.set.segments
                 points = [points; Point(1+i_pnt, pos, WINCH)]
                 segments = [segments; Segment(1+i_seg, (i_pnt, 1+i_pnt), type)]
             else
-                points = [points; Point(1+i_pnt, pos, STATIC)]
+                points = [points; Point(1+i_pnt, pos, DYNAMIC)]
                 segments = [segments; Segment(1+i_seg, (i_pnt, 1+i_pnt), type)]
             end
             push!(segment_idxs, 1+i_seg)
@@ -157,7 +159,7 @@ function init!(system::PointMassSystem, s::KPSQ, R_b_w)
         tether_length = 0.0
         for tether in tethers[winch.tethers]
             for segment in segments[tether.segments]
-                tether_length += segment.l0
+                tether_length += segment.l0 / length(winch.tethers)
             end
         end
         winch.tether_length = tether_length
