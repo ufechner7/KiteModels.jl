@@ -45,6 +45,8 @@ solver = FBDF( # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
 s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
 KiteModels.plot(s, 0.0)
 
+# TODO: more damping (bridle systems, pulleys)
+
 # @time init_sim!(s; force_new_sys=false, force_new_pos=false, prn=true, ϵ=0.0, init=false)
 # sys_state = KiteModels.SysState(s)
 # sys = s.simple_sys

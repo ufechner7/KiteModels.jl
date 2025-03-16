@@ -107,6 +107,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
     for point in points
         F::Vector{Num} = zeros(Num, 3)
         mass = 0.0
+        bridle_point = false
         for segment in segments
             if point.idx in segment.points
                 mass_per_meter = s.set.rho_tether * π * (segment.diameter/2000)^2
@@ -118,6 +119,10 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                 end
                 mass += mass_per_meter * l0[segment.idx] / 2
                 F .+= 0.5drag_force[:, segment.idx]
+
+                if segment.type === BRIDLE
+                    bridle_point = true
+                end
             end
         end
         eqs = [
@@ -149,8 +154,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             tether_kite_torque_b .+= point.pos_b × (R_b_w' * F)
 
             chord_b = point.pos_b - groups[group_idx].fixed_pos
-            pos_b = groups[group_idx].fixed_pos + rotate_v_around_k(chord_b, groups[group_idx].y_panel, twist_angle[group_idx])
-            @show chord_b point.pos_b groups[group_idx].fixed_pos
+            pos_b = groups[group_idx].fixed_pos + rotate_v_around_k(chord_b, groups[group_idx].y_airf, twist_angle[group_idx])
             eqs = [
                 eqs
                 pos[:, point.idx]    ~ kite_pos + R_b_w * pos_b
@@ -165,10 +169,11 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                 acc[:, point.idx]    ~ zeros(3)
             ]
         elseif point.type === DYNAMIC
+            bridle_damp = bridle_point ? 10 : 0
             eqs = [
                 eqs
                 D(pos[:, point.idx]) ~ vel[:, point.idx]
-                D(vel[:, point.idx]) ~ acc[:, point.idx]
+                D(vel[:, point.idx]) ~ acc[:, point.idx] - bridle_damp * (vel[:, point.idx] - kite_vel)
                 acc[:, point.idx]    ~ point_force[:, point.idx] / mass + [0, 0, -G_EARTH]
             ]
             defaults = [
@@ -208,21 +213,29 @@ function force_eqs!(s, system, eqs, defaults, guesses;
     for group in groups
         panel_indices = Int16[]
         for (i, panel) in enumerate(s.aero.panels)
-            panel_y = mean([panel.LE_point_1[2], panel.LE_point_2[2]])
+            y_airf = mean([panel.LE_point_1[2], panel.LE_point_2[2]])
             @assert group.y_lim[1] < group.y_lim[2]
-            if group.y_lim[1] <= panel_y <= group.y_lim[2]
+            if group.y_lim[1] <= y_airf <= group.y_lim[2]
                 push!(panel_indices, i)
                 used_panels += 1
             end
         end
-        group_torque = sum([torque_dist[i] for i in panel_indices])
+        aero_torque = sum([torque_dist[i] for i in panel_indices])
+
+        tether_torque = zero(Num)
+        x_airf = rotate_v_around_k(normalize(group.chord), group.y_airf, twist_angle[group.idx]) # TODO: change this when adding trailing edge deform
+        z_airf = x_airf × group.y_airf
+        for point_idx in group.points
+            tether_torque += point_force[:, point_idx] ⋅ (R_b_w * z_airf)
+        end
+        
         inertia = 1/3 * (s.set.mass/length(groups)) * (norm(group.chord))^2 # plate inertia around leading edge
         @assert !(inertia ≈ 0.0)
         eqs = [
             eqs
             D(twist_angle[group.idx]) ~ twist_ω[group.idx]
             D(twist_ω[group.idx]) ~ twist_α[group.idx]
-            twist_α[group.idx] ~ group_torque / inertia
+            twist_α[group.idx] ~ (aero_torque + tether_torque) / inertia - 10twist_α[group.idx]
         ]
         defaults = [
             defaults
@@ -373,16 +386,33 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         @assert !(mass ≈ 0.0)
         eqs = [
             eqs
-            D(pulley_l0[pulley.idx])  ~ pulley_vel[pulley.idx]
-            D(pulley_vel[pulley.idx]) ~ pulley_acc[pulley.idx]
             pulley_force[pulley.idx]    ~ spring_force[pulley.segments[1]] - spring_force[pulley.segments[2]]
             pulley_acc[pulley.idx]      ~ pulley_force[pulley.idx] / mass - pulley_damping * pulley_vel[pulley.idx]
         ]
-        defaults = [
-            defaults
-            pulley_l0[pulley.idx] => segments[pulley.segments[1]].l0
-            pulley_vel[pulley.idx] => 0
-        ]
+        if pulley.type === DYNAMIC
+            eqs = [
+                eqs 
+                D(pulley_l0[pulley.idx])  ~ pulley_vel[pulley.idx]
+                D(pulley_vel[pulley.idx]) ~ pulley_acc[pulley.idx]    
+            ]
+            defaults = [
+                defaults
+                pulley_l0[pulley.idx] => segments[pulley.segments[1]].l0
+                pulley_vel[pulley.idx] => 0
+            ]
+        elseif pulley.type === STATIC
+            eqs = [
+                eqs 
+                pulley_vel[pulley.idx] ~ 0
+                pulley_acc[pulley.idx] ~ 0
+            ]
+            guesses = [
+                guesses
+                pulley_l0[pulley.idx] => segments[pulley.segments[1]].l0
+            ]
+        else
+            throw(ArgumentError("Wrong pulley type"))
+        end
     end
 
     # ==================== WINCHES ==================== #

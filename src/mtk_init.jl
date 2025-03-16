@@ -25,7 +25,7 @@ function PointMassSystem(s::KPSQ, wing::KiteWing)
             le_pos = [wing.le_interp[i](gamma) for i in 1:3]
             chord = [wing.te_interp[i](gamma) for i in 1:3] .- le_pos
             fixed_pos = le_pos .+ chord .* s.bridle_fracs[1]
-            y_panel = normalize([wing.le_interp[i](gamma-0.01) for i in 1:3] - le_pos)
+            y_airf = normalize([wing.le_interp[i](gamma-0.01) for i in 1:3] - le_pos)
 
             point_idxs = Int16[]
             for frac in s.bridle_fracs # 4 fracs
@@ -37,7 +37,7 @@ function PointMassSystem(s::KPSQ, wing::KiteWing)
             
             i_grp = 1 + length(groups)
             y_lim = (wing.le_interp[2](limit[1]), wing.le_interp[2](limit[2])) # TODO: ylim is slightly off-centre
-            groups = [groups; KitePointGroup(i_grp, point_idxs, y_lim, fixed_pos, chord, y_panel)]
+            groups = [groups; KitePointGroup(i_grp, point_idxs, y_lim, fixed_pos, chord, y_airf)]
         end
 
         mean_le = [wing.le_interp[i](mean(gammas)) for i in 1:3]
@@ -86,8 +86,8 @@ function PointMassSystem(s::KPSQ, wing::KiteWing)
         ]
         pulleys = [
             pulleys
-            Pulley(1+i_pul, (13+i_seg, 14+i_seg))
-            Pulley(2+i_pul, (16+i_seg, 17+i_seg))
+            Pulley(1+i_pul, (13+i_seg, 14+i_seg), DYNAMIC)
+            Pulley(2+i_pul, (16+i_seg, 17+i_seg), DYNAMIC)
         ]
         push!(attach_points, points[end-1])
         push!(attach_points, points[end])

@@ -80,7 +80,7 @@ end
     BRIDLE
 end
 
-@enum PointType begin
+@enum DynamicsType begin
     DYNAMIC
     STATIC
     KITE
@@ -94,7 +94,7 @@ mutable struct Point
     idx::Int16
     pos_b::Vector{SimFloat} # pos relative to kite COM in body frame
     pos_w::Vector{SimFloat} # pos in world frame
-    type::PointType
+    type::DynamicsType
 end
 function Point(idx, pos_b, type)
     Point(idx, pos_b, copy(pos_b), type)
@@ -109,7 +109,7 @@ struct KitePointGroup
     y_lim::Tuple{SimFloat, SimFloat}
     fixed_pos::Union{Nothing, Vector{SimFloat}} # position in body frame which the group rotates around under kite deformation
     chord::Union{Nothing, KVec3} # chord vector in body frame which the group rotates around under kite deformation
-    y_panel::Union{Nothing, KVec3} # spanwise vector in local panel frame which the group rotates around under kite deformation
+    y_airf::Union{Nothing, KVec3} # spanwise vector in local panel frame which the group rotates around under kite deformation
 end
 
 """
@@ -132,9 +132,10 @@ A pulley described by two segments with the common point of the segments being t
 mutable struct Pulley
     idx::Int16
     segments::Tuple{Int16, Int16}
+    type::DynamicsType
     sum_length::SimFloat
-    function Pulley(idx, segments)
-        new(idx, segments, zero(SimFloat))
+    function Pulley(idx, segments, type)
+        new(idx, segments, type, zero(SimFloat))
     end
 end
 
