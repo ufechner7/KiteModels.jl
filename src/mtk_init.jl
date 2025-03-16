@@ -144,7 +144,7 @@ function init!(system::PointMassSystem, s::KPSQ, R_b_w)
         (segment.type === BRIDLE) && (segment.diameter = 0.001s.bridle_tether_diameter)
         (segment.type === POWER) && (segment.diameter = 0.001s.power_tether_diameter)
         (segment.type === STEERING) && (segment.diameter = 0.001s.steering_tether_diameter)
-        (segment.l0 ≈ 0) && (segment.l0 = norm(points[segment.points[1]].pos_b - points[segment.points[2]].pos_b) * 0.998)
+        (segment.l0 ≈ 0) && (segment.l0 = norm(points[segment.points[1]].pos_b - points[segment.points[2]].pos_b) * 0.9999)
         @assert (0 < segment.diameter < 1)
         @assert (segment.l0 > 0)
     end
@@ -159,7 +159,7 @@ function init!(system::PointMassSystem, s::KPSQ, R_b_w)
         tether_length = 0.0
         for tether in tethers[winch.tethers]
             for segment in segments[tether.segments]
-                tether_length += segment.l0 / length(winch.tethers) * 0.998
+                tether_length += segment.l0 / length(winch.tethers) * 0.9999
             end
         end
         winch.tether_length = tether_length
