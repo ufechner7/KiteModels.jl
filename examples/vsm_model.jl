@@ -25,8 +25,8 @@ s.measure.set_values = [-0.5, -0.5, -60.0]
 s.measure.tether_length = [51., 51., 49.]
 s.measure.tether_vel = [0.015, 0.015, 0.782]
 s.measure.tether_acc = [0.18, 0.18, 4.12]
-s.measure.sphere_pos[1, 1] = deg2rad(81.36)
-s.measure.sphere_pos[1, 2] = deg2rad(81.36)
+s.measure.sphere_pos[1, 1] = deg2rad(50.)
+s.measure.sphere_pos[1, 2] = deg2rad(50.)
 s.measure.sphere_pos[2, 1] = deg2rad(1)
 s.measure.sphere_pos[2, 2] = deg2rad(-1)
 s.measure.sphere_vel .= [0.13 0.13; 0 0]
@@ -43,7 +43,10 @@ solver = FBDF( # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
     autodiff=ModelingToolkit.AutoFiniteDiff()
 )
 s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
+KiteModels.generate_getters!(s)
 KiteModels.plot(s, 0.0)
+
+next_step!(s; set_values=[10., -1., -1.])
 
 # TODO: more damping (bridle systems, pulleys)
 

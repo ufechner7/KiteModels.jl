@@ -86,7 +86,7 @@ function rotation_matrix_to_quaternion(R)
 end
 
 function force_eqs!(s, system, eqs, defaults, guesses; 
-        tether_kite_force, tether_kite_torque_b, R_b_w, kite_pos, q_inf, wind_vec_gnd)
+        tether_kite_force, tether_kite_torque_b, R_b_w, kite_pos, kite_vel, q_inf, wind_vec_gnd)
 
     points, groups, segments, pulleys, tethers, winches = 
         system.points, system.groups, system.segments, system.pulleys, system.tethers, system.winches
@@ -207,6 +207,8 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         trailing_edge_α(t)[eachindex(groups)] # angular acc
         twist_ω(t)[eachindex(groups)] # angular rate
         twist_α(t)[eachindex(groups)] # angular acc
+        tether_torque(t)[eachindex(groups)]
+        aero_torque(t)[eachindex(groups)]
     end
     torque_dist = torque_coeff_dist * q_inf * s.aero.projected_area
     used_panels = 0
@@ -220,13 +222,13 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                 used_panels += 1
             end
         end
-        aero_torque = sum([torque_dist[i] for i in panel_indices])
+        aero_torque_ = sum([torque_dist[i] for i in panel_indices])
 
-        tether_torque = zero(Num)
+        tether_torque_ = zero(Num)
         x_airf = rotate_v_around_k(normalize(group.chord), group.y_airf, twist_angle[group.idx]) # TODO: change this when adding trailing edge deform
         z_airf = x_airf × group.y_airf
         for point_idx in group.points
-            tether_torque += point_force[:, point_idx] ⋅ (R_b_w * z_airf)
+            tether_torque_ += point_force[:, point_idx] ⋅ (R_b_w * z_airf)
         end
         
         inertia = 1/3 * (s.set.mass/length(groups)) * (norm(group.chord))^2 # plate inertia around leading edge
@@ -235,7 +237,9 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             eqs
             D(twist_angle[group.idx]) ~ twist_ω[group.idx]
             D(twist_ω[group.idx]) ~ twist_α[group.idx]
-            twist_α[group.idx] ~ (aero_torque + tether_torque) / inertia - 10twist_α[group.idx]
+            tether_torque[group.idx] ~ tether_torque_
+            aero_torque[group.idx] ~ aero_torque_
+            twist_α[group.idx] ~ (aero_torque[group.idx] + tether_torque[group.idx]) / inertia - 100twist_ω[group.idx]
         ]
         defaults = [
             defaults
@@ -600,7 +604,8 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::KiteWing; I_p, R_b_
     end
 
     eqs, defaults, guesses, set_values, tether_kite_force, tether_kite_torque_b = 
-        force_eqs!(s, system, eqs, defaults, guesses; tether_kite_force, tether_kite_torque_b, R_b_w, kite_pos, q_inf, wind_vec_gnd)
+        force_eqs!(s, system, eqs, defaults, guesses; 
+            tether_kite_force, tether_kite_torque_b, R_b_w, kite_pos, kite_vel, q_inf, wind_vec_gnd)
     diff_eqs!()
     scalar_eqs!()
     
