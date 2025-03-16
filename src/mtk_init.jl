@@ -52,13 +52,13 @@ function PointMassSystem(s::KPSQ, wing::KiteWing)
             Point(11+i_pnt, bridle_top .+ [xs[3], 0, 0], DYNAMIC)
             Point(12+i_pnt, bridle_top .+ [xs[4], 0, 0], DYNAMIC)
 
-            Point(13+i_pnt, bridle_top .+ [xs[2], 0, -1], DYNAMIC)
+            Point(13+i_pnt, bridle_top .+ [xs[2], 0, -2], DYNAMIC)
 
-            Point(14+i_pnt, bridle_top .+ [xs[1], 0, -2], DYNAMIC)
-            Point(15+i_pnt, bridle_top .+ [xs[3], 0, -2], DYNAMIC)
+            Point(14+i_pnt, bridle_top .+ [0.5xs[1] + 0.5xs[2], 0, -4], DYNAMIC)
+            Point(15+i_pnt, bridle_top .+ [0.5xs[2] + 0.5xs[3], 0, -4], DYNAMIC)
 
-            Point(16+i_pnt, bridle_top .+ [xs[1], 0, -5], DYNAMIC)
-            Point(17+i_pnt, bridle_top .+ [xs[3], 0, -5], DYNAMIC)
+            Point(16+i_pnt, bridle_top .+ [xs[2], 0, -6], DYNAMIC)
+            Point(17+i_pnt, bridle_top .+ [xs[3], 0, -6], DYNAMIC)
         ]
         segments = [
             segments
@@ -144,7 +144,7 @@ function init!(system::PointMassSystem, s::KPSQ, R_b_w)
         (segment.type === BRIDLE) && (segment.diameter = 0.001s.bridle_tether_diameter)
         (segment.type === POWER) && (segment.diameter = 0.001s.power_tether_diameter)
         (segment.type === STEERING) && (segment.diameter = 0.001s.steering_tether_diameter)
-        segment.l0 = norm(points[segment.points[1]].pos_b - points[segment.points[2]].pos_b)
+        (segment.l0 ≈ 0) && (segment.l0 = norm(points[segment.points[1]].pos_b - points[segment.points[2]].pos_b) * 0.998)
         @assert (0 < segment.diameter < 1)
         @assert (segment.l0 > 0)
     end
@@ -159,7 +159,7 @@ function init!(system::PointMassSystem, s::KPSQ, R_b_w)
         tether_length = 0.0
         for tether in tethers[winch.tethers]
             for segment in segments[tether.segments]
-                tether_length += segment.l0 / length(winch.tethers)
+                tether_length += segment.l0 / length(winch.tethers) * 0.998
             end
         end
         winch.tether_length = tether_length

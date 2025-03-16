@@ -235,17 +235,19 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         @assert !(inertia ≈ 0.0)
         eqs = [
             eqs
-            D(twist_angle[group.idx]) ~ twist_ω[group.idx]
-            D(twist_ω[group.idx]) ~ twist_α[group.idx]
+            # D(twist_angle[group.idx]) ~ twist_ω[group.idx]
+            # D(twist_ω[group.idx]) ~ twist_α[group.idx]
+            twist_angle[group.idx] ~ 0
+            twist_ω[group.idx] ~ 0
             tether_torque[group.idx] ~ tether_torque_
             aero_torque[group.idx] ~ aero_torque_
             twist_α[group.idx] ~ (aero_torque[group.idx] + tether_torque[group.idx]) / inertia - 100twist_ω[group.idx]
         ]
-        defaults = [
-            defaults
-            twist_angle[group.idx] => 0
-            twist_ω[group.idx] => 0
-        ]
+        # defaults = [
+        #     defaults
+        #     twist_angle[group.idx] => 0
+        #     twist_ω[group.idx] => 0
+        # ]
     end
     !(used_panels == length(torque_dist)) && 
         throw(ArgumentError("$used_panels out of $(length(torque_dist)) panels are used in the torque distribution"))
@@ -272,15 +274,10 @@ function force_eqs!(s, system, eqs, defaults, guesses;
 
         pulley_l0(t)[eachindex(pulleys)]
 
-        tether_length(t)[eachindex(tethers)]
+        tether_length(t)[eachindex(winches)]
     end
     for segment in segments
         p1, p2 = segment.points[1], segment.points[2]
-
-        # guesses = [
-        #     guesses
-        #     [segment_vec[j, segment.idx] => points[p2].pos_w[j] - points[p1].pos_w[j] for j in 1:3]
-        # ]
 
         if segment.type === BRIDLE
             in_pulley = 0
@@ -336,7 +333,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             throw(ArgumentError("Unknown segment type: $(segment.type)"))
         end
 
-        stiffness_m = s.set.e_tether * (segment.diameter/2000)^2 * pi
+        stiffness_m = s.set.e_tether * (segment.diameter/2)^2 * pi
         (segment.type === BRIDLE) && (compression_frac = 1.0)
         (segment.type === POWER) && (compression_frac = 0.1)
         (segment.type === STEERING) && (compression_frac = 0.1)

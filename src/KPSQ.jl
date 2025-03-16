@@ -121,9 +121,12 @@ mutable struct Segment
     type::SegmentType
     l0::SimFloat
     diameter::SimFloat
-    function Segment(idx, points, type)
-        new(idx, points, type, zero(SimFloat), zero(SimFloat))
-    end
+end
+function Segment(idx, points, type)
+    Segment(idx, points, type, zero(SimFloat), zero(SimFloat))
+end
+function Segment(idx, points, type, l0)
+    Segment(idx, points, type, l0, zero(SimFloat))
 end
 
 """
@@ -382,8 +385,8 @@ end
 
 function update_sys_state!(ss::SysState, s::KPSQ, zoom=1.0)
     ss.time = s.t_0
-    pos, acc, Q_p_w, elevation, azimuth, e_x, tether_vel, twist, kite_vel = s.get_state()
-    P = s.i_C + 1
+    pos, acc, Q_p_w, elevation, azimuth, e_x, tether_vel, twist, kite_vel = s.get_state(s.integrator)
+    P = length(s.point_system.points)
     for i in 1:P
         ss.X[i] = pos[1, i] * zoom
         ss.Y[i] = pos[2, i] * zoom
@@ -394,12 +397,12 @@ function update_sys_state!(ss::SysState, s::KPSQ, zoom=1.0)
     # ss.left_tether_vel = tether_vel[1]
     # ss.right_tether_vel = tether_vel[2]
     ss.acc = norm(acc)
-    ss.orient .= quaternion_multiply(s.Q_p_b, Q_p_w)
+    ss.orient .= Q_p_w
     ss.elevation = elevation
     ss.azimuth = azimuth
-    ss.force = tether_force(s)[3]
+    ss.force = zero(SimFloat)
     ss.heading = calc_heading_y(e_x)
-    ss.course = calc_course(s)
+    ss.course = calc_course(1.0, 1.0) # TODO: implement
     ss.l_tether = s.tether_lengths[3]
     ss.v_reelout = mean(tether_vel)
     ss.depower = rad2deg(mean(twist))
@@ -409,9 +412,9 @@ function update_sys_state!(ss::SysState, s::KPSQ, zoom=1.0)
 end
 
 function SysState(s::KPSQ, zoom=1.0) # TODO: add left and right lines, stop using getters and setters
-    isnothing(s.integrator) && @warn "Initialize kite first!"
-    pos = cat(s.get_pos(), s.get_kite_pos(); dims=2)
-    P = s.i_C + 1
+    isnothing(s.integrator) && throw(ArgumentError("run init!(s) first"))
+    pos, acc, Q_p_w, elevation, azimuth, e_x, tether_vel, twist, kite_vel = s.get_state(s.integrator)
+    P = length(s.point_system.points)
     X = zeros(MVector{P, MyFloat})
     Y = zeros(MVector{P, MyFloat})
     Z = zeros(MVector{P, MyFloat})
@@ -421,15 +424,14 @@ function SysState(s::KPSQ, zoom=1.0) # TODO: add left and right lines, stop usin
         Z[i] = pos[3, i] * zoom
     end
     
-    orient = MVector{4, Float32}(calc_orient_quat(s))
-    elevation = s.get_elevation()
-    azimuth = s.get_azimuth()
-    forces = s.get_tether_force()
-    heading = calc_heading_y(s.get_e_x())
-    course = calc_course(s)
+    orient = MVector{4, Float32}(Q_p_w) # TODO: add Q_b_w
+    # forces = s.get_tether_force() # TODO: add tether force
+    forces = zeros(3)
+    heading = calc_heading_y(e_x)
+    course = calc_course(1.0, 1.0) # TODO: implement
     t_sim = 0
-    depower = rad2deg(sum(s.get_trailing_edge_angle()))
-    steering = rad2deg(diff(s.get_trailing_edge_angle())[1])
+    depower = rad2deg(mean(twist))
+    steering = rad2deg(twist[end] - twist[1])
     ss = SysState{P}()
     ss.time = s.t_0
     ss.t_sim = t_sim
@@ -437,13 +439,13 @@ function SysState(s::KPSQ, zoom=1.0) # TODO: add left and right lines, stop usin
     ss.elevation = elevation
     ss.azimuth = azimuth
     ss.l_tether = s.tether_lengths[3]
-    ss.v_reelout = s.get_tether_vel()[3]
+    ss.v_reelout = tether_vel[3]
     ss.force = forces[3]
     ss.depower = depower
     ss.steering = steering
     ss.heading = heading
     ss.course = course
-    ss.vel_kite .= s.vel_kite
+    ss.vel_kite .= kite_vel
     ss.X = X
     ss.Y = Y
     ss.Z = Z
@@ -470,9 +472,7 @@ function calc_azimuth(s::KPSQ) return s.get_azimuth() end
 """
 course where straight up is zero, clockwise is positive
 """
-function calc_course(s::KPSQ)
-    elevation_vel = s.get_elevation_vel()
-    azimuth_vel = s.get_azimuth_vel()
+function calc_course(elevation_vel, azimuth_vel)
     course = atan(-azimuth_vel, elevation_vel)
     return course
 end
@@ -607,13 +607,6 @@ The parameter one_point is not used in this model.
 function kite_ref_frame(s::KPSQ; one_point=false)
     s.get_e_x(), s.get_e_y(), s.get_e_z()
 end
-
-"""
-    tether_force(s::KPSQ)
-
-Return the absolute value of the force at the winch as calculated during the last timestep. 
-"""
-function tether_force(s::KPSQ) s.get_tether_force() end
 
 # ====================== helper functions ====================================
 
