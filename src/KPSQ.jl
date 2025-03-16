@@ -291,8 +291,10 @@ $(TYPEDFIELDS)
 
     set_set_values::Function       = () -> nothing
     set_measure::Function          = () -> nothing
+    set_coefficients::Function     = () -> nothing
 
-    get_state::Function              = () -> nothing
+    get_state::Function            = () -> nothing
+    get_va_body::Function          = () -> nothing
 
     prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
     init_prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
@@ -543,14 +545,22 @@ function generate_getters!(s; init=false)
     c = collect
     set_set_values = setp(sys, sys.set_values)
     set_measure = setp(sys, sys.measured_wind_dir_gnd)
+    set_coefficients = setp(sys, [
+        sys.torque_coeff_dist,
+        sys.force_coefficients,
+        sys.torque_coefficients
+    ])
     get_state = getu(sys, 
         [c(sys.pos), c(sys.acc), c(sys.Q_p_w), sys.elevation, sys.azimuth, 
         c(sys.e_x), c(sys.tether_vel), c(sys.twist_angle), c(sys.kite_vel)]
     )
+    get_va_body = getu(sys, sys.va_kite_b)
 
     s.set_set_values = (integ, val) -> set_set_values(integ, val)
     s.set_measure = (integ, val) -> set_measure(integ, val)
+    s.set_coefficients = (integ, val) -> set_coefficients(integ, val)
     s.get_state = (integ) -> get_state(integ)
+    s.get_va_body = (integ) -> get_va_body(integ)
     nothing
 end
 
@@ -561,6 +571,13 @@ function next_step!(s::KPSQ; set_values=nothing, measure::Union{Measurement, Not
     if (!isnothing(measure))
         s.set_measure(s.integrator, s.measure.wind_dir_gnd)
     end
+    VortexStepMethod.set_va!(s.aero, s.get_va_body(s.integrator))
+    VortexStepMethod.solve!(s.vsm_solver, s.aero)
+    s.set_coefficients(s.integrator, [
+        s.vsm_solver.sol.moment_coefficient_distribution,
+        s.vsm_solver.sol.force_coefficients,
+        s.vsm_solver.sol.moment_coefficients
+    ])
     s.t_0 = s.integrator.t
     OrdinaryDiffEqCore.step!(s.integrator, dt, true)
     if !successful_retcode(s.integrator.sol)

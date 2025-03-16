@@ -6,8 +6,8 @@ if PLOT
     using ControlPlots
 end
 
-dt = 0.001
-total_time = 0.3
+dt = 0.01
+total_time = 2.0
 steps = Int(round(total_time / dt))
 
 set = se("system_3l.yaml")
@@ -34,9 +34,9 @@ if new_sys
     s.set.rel_tol = 0.001
     # s.measure.distance_acc = s.measure.tether_acc[3]
 
-    sys, defaults, guesses = KiteModels.model!(s)
+    sys, defaults_, guesses_ = KiteModels.model!(s)
     s.simple_sys = sys
-    @time s.prob = ODEProblem(sys, defaults, (0.0, 0.01); guesses)
+    @time s.prob = ODEProblem(sys, defaults_, (0.0, 0.01); guesses_)
     solver = FBDF( # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
         autodiff=ModelingToolkit.AutoFiniteDiff()
     )
