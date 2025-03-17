@@ -88,6 +88,8 @@ end
 function force_eqs!(s, system, eqs, defaults, guesses; 
         tether_kite_force, tether_kite_torque_b, R_b_w, kite_pos, kite_vel, q_inf, wind_vec_gnd)
 
+    @parameters acc_multiplier = 1
+
     points, groups, segments, pulleys, tethers, winches = 
         system.points, system.groups, system.segments, system.pulleys, system.tethers, system.winches
     
@@ -107,10 +109,10 @@ function force_eqs!(s, system, eqs, defaults, guesses;
     for point in points
         F::Vector{Num} = zeros(Num, 3)
         mass = 0.0
-        bridle_point = false
+        in_bridle = false
         for segment in segments
             if point.idx in segment.points
-                mass_per_meter = s.set.rho_tether * π * (segment.diameter/2000)^2
+                mass_per_meter = s.set.rho_tether * π * (segment.diameter/2)^2
                 inverted = segment.points[2] == point.idx
                 if inverted
                     F .-= spring_force_vec[:, segment.idx]
@@ -121,7 +123,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                 F .+= 0.5drag_force[:, segment.idx]
 
                 if segment.type === BRIDLE
-                    bridle_point = true
+                    in_bridle = true
                 end
             end
         end
@@ -169,11 +171,11 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                 acc[:, point.idx]    ~ zeros(3)
             ]
         elseif point.type === DYNAMIC
-            bridle_damp = bridle_point ? 10 : 0
+            @parameters bridle_damp = 0
             eqs = [
                 eqs
                 D(pos[:, point.idx]) ~ vel[:, point.idx]
-                D(vel[:, point.idx]) ~ acc[:, point.idx] - bridle_damp * (vel[:, point.idx] - kite_vel)
+                D(vel[:, point.idx]) ~ acc_multiplier * acc[:, point.idx] - in_bridle * bridle_damp * (vel[:, point.idx] - kite_vel)
                 acc[:, point.idx]    ~ point_force[:, point.idx] / mass + [0, 0, -G_EARTH]
             ]
             defaults = [
@@ -190,9 +192,9 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             ]
             guesses = [
                 guesses
-                # [vel[j, point.idx] => 0 for j in 1:3]
+                [acc[j, point.idx] => 0 for j in 1:3]
                 [pos[j, point.idx] => point.pos_w[j] for j in 1:3]
-                # [point_force[j, point.idx] => 0 for j in 1:3]
+                [point_force[j, point.idx] => 0 for j in 1:3]
             ]
         else
             throw(ArgumentError("Unknown point type: $(typeof(point))"))
@@ -233,21 +235,22 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         
         inertia = 1/3 * (s.set.mass/length(groups)) * (norm(group.chord))^2 # plate inertia around leading edge
         @assert !(inertia ≈ 0.0)
+        @parameters twist_damp = 10
         eqs = [
             eqs
-            # D(twist_angle[group.idx]) ~ twist_ω[group.idx]
-            # D(twist_ω[group.idx]) ~ twist_α[group.idx]
-            twist_angle[group.idx] ~ 0
-            twist_ω[group.idx] ~ 0
+            D(twist_angle[group.idx]) ~ twist_ω[group.idx]
+            D(twist_ω[group.idx]) ~ acc_multiplier * twist_α[group.idx] - twist_damp * twist_ω[group.idx]
+            # twist_angle[group.idx] ~ 0
+            # twist_ω[group.idx] ~ 0
             tether_torque[group.idx] ~ tether_torque_
             aero_torque[group.idx] ~ aero_torque_
-            twist_α[group.idx] ~ (aero_torque[group.idx] + tether_torque[group.idx]) / inertia - 100twist_ω[group.idx]
+            twist_α[group.idx] ~ (aero_torque[group.idx] + tether_torque[group.idx]) / inertia
         ]
-        # defaults = [
-        #     defaults
-        #     twist_angle[group.idx] => 0
-        #     twist_ω[group.idx] => 0
-        # ]
+        defaults = [
+            defaults
+            twist_angle[group.idx] => 0
+            twist_ω[group.idx] => 0
+        ]
     end
     !(used_panels == length(torque_dist)) && 
         throw(ArgumentError("$used_panels out of $(length(torque_dist)) panels are used in the torque distribution"))
@@ -278,6 +281,10 @@ function force_eqs!(s, system, eqs, defaults, guesses;
     end
     for segment in segments
         p1, p2 = segment.points[1], segment.points[2]
+        guesses = [
+            guesses
+            [segment_vec[i, segment.idx] => points[p2].pos_w[i] - points[p1].pos_w[i] for i in 1:3]
+        ]
 
         if segment.type === BRIDLE
             in_pulley = 0
@@ -382,7 +389,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
     pulley_damping = 10
     for pulley in pulleys
         segment = segments[pulley.segments[1]]
-        mass_per_meter = s.set.rho_tether * π * (segment.diameter/2000)^2
+        mass_per_meter = s.set.rho_tether * π * (segment.diameter/2)^2
         mass = pulley.sum_length * mass_per_meter
         @assert !(mass ≈ 0.0)
         eqs = [
@@ -394,7 +401,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             eqs = [
                 eqs 
                 D(pulley_l0[pulley.idx])  ~ pulley_vel[pulley.idx]
-                D(pulley_vel[pulley.idx]) ~ pulley_acc[pulley.idx]    
+                D(pulley_vel[pulley.idx]) ~ acc_multiplier * pulley_acc[pulley.idx]    
             ]
             defaults = [
                 defaults
@@ -529,8 +536,8 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::KiteWing; I_p, R_b_
             torque_b ~ torque_coefficients * q_inf * s.aero.projected_area + tether_kite_torque_b
             torque_p ~ R_b_p * torque_b
             
-            [D(kite_pos[i]) ~ kite_vel[i] for i in 1:3]
-            [D(kite_vel[i]) ~ kite_acc[i] for i in 1:3]
+            D(kite_pos) ~ kite_vel
+            D(kite_vel) ~ kite_acc
             aero_kite_force ~ (R_b_w * force_coefficients) * q_inf * s.aero.projected_area
             kite_acc        ~ (tether_kite_force + aero_kite_force) / s.set.mass
 
@@ -642,10 +649,9 @@ function model!(s::KPSQ; init=false)
     va_body = R_b_w' * [s.set.v_wind, 0., 0.]
     VortexStepMethod.set_va!(s.aero, va_body)
     VortexStepMethod.solve!(s.vsm_solver, s.aero)
-    @show s.vsm_solver.sol.aero_force
     
     sys, inputs, defaults, guesses = create_sys!(s, s.point_system, s.wing; I_p, R_b_p, Q_p_b, init_Q_p_w, init_kite_pos, init)
     @info "Simplifying the system"
-    @time sys = structural_simplify(sys; simplify=false)
+    @time sys = structural_simplify(sys)
     return sys, defaults, guesses
 end

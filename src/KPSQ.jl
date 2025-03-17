@@ -289,6 +289,10 @@ $(TYPEDFIELDS)
     "Tether diameter of the steering tethers [mm]"
     steering_tether_diameter::SimFloat = 1.
 
+    moment_coefficient_distribution::Vector{SimFloat} = zeros(SimFloat, length(aero.panels))
+    force_coefficients::Vector{SimFloat} = zeros(SimFloat, 3)
+    moment_coefficients::Vector{SimFloat} = zeros(SimFloat, 3)
+
     set_set_values::Function       = () -> nothing
     set_measure::Function          = () -> nothing
     set_coefficients::Function     = () -> nothing
@@ -495,9 +499,7 @@ function init_sim!(s::KPSQ; prn=false, torque_control=s.torque_control,
         force_new_sys=false, force_new_pos=false, init=false)
     dt = SimFloat(1/s.set.sample_freq)
     tspan   = (0.0, dt) 
-    solver = FBDF( # https://docs.sciml.ai/SciMLBenchmarksOutput/stable/#Results
-        autodiff=AutoFiniteDiff()
-    )
+    solver = Rodas5P(autodiff=AutoFiniteDiff())
     set_hash = struct_hash(s.set)
     measure_hash = struct_hash(s.measure)
     new_pos = s.last_measure_hash != measure_hash || force_new_pos
@@ -573,10 +575,17 @@ function next_step!(s::KPSQ; set_values=nothing, measure::Union{Measurement, Not
     end
     VortexStepMethod.set_va!(s.aero, s.get_va_body(s.integrator))
     VortexStepMethod.solve!(s.vsm_solver, s.aero)
+    damping = 0.0
+    s.moment_coefficient_distribution = (1-damping) * s.vsm_solver.sol.moment_coefficient_distribution + 
+        damping * s.moment_coefficient_distribution
+    s.force_coefficients .= (1-damping) .* s.vsm_solver.sol.force_coefficients .+ 
+        damping .* s.force_coefficients
+    s.moment_coefficients .= (1-damping) .* s.vsm_solver.sol.moment_coefficients .+ 
+        damping .* s.moment_coefficients
     s.set_coefficients(s.integrator, [
-        s.vsm_solver.sol.moment_coefficient_distribution,
-        s.vsm_solver.sol.force_coefficients,
-        s.vsm_solver.sol.moment_coefficients
+        s.moment_coefficient_distribution,
+        s.force_coefficients,
+        s.moment_coefficients
     ])
     s.t_0 = s.integrator.t
     OrdinaryDiffEqCore.step!(s.integrator, dt, true)
