@@ -6,14 +6,14 @@ if PLOT
     using ControlPlots
 end
 
-dt = 0.005
-total_time = 0.45
+dt = 0.01
+total_time = 2.0
 steps = Int(round(total_time / dt))
 
 set = se("system_3l.yaml")
 set.segments = 2
 
-new_sys = true
+new_sys = false
 if new_sys
     # if !@isdefined(s); s = KPSQ(KCU(set)); end
     wing = KiteWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat"; mass=set.mass, crease_frac=0.9)
@@ -54,7 +54,7 @@ try
     while t < total_time
         global t, runtime
         KiteModels.plot(s, t)
-        # global set_values = -s.set.drum_radius * s.integrator[sys.winch_force]
+        global set_values = -s.set.drum_radius * s.integrator[sys.winch_force]
         # if t < 1.0; set_values[2] -= 0.0; end
         steptime = @elapsed t = next_step!(s; set_values, dt)
         if (t > dt); runtime += steptime; end
@@ -71,10 +71,10 @@ try
         sys_state.var_10 = s.integrator[sys.twist_α[2]]
         sys_state.var_11 = s.integrator[sys.twist_α[3]]
         sys_state.var_12 = s.integrator[sys.twist_α[4]]
-        sys_state.var_13 = s.integrator[sys.tether_torque[1]]
-        sys_state.var_14 = s.integrator[sys.tether_torque[2]]
-        sys_state.var_15 = s.integrator[sys.tether_torque[3]]
-        sys_state.var_16 = s.integrator[sys.tether_torque[4]]
+        sys_state.var_13 = s.integrator[sys.twist_angle[1]]
+        sys_state.var_14 = s.integrator[sys.twist_angle[2]]
+        sys_state.var_15 = s.integrator[sys.twist_angle[3]]
+        sys_state.var_16 = s.integrator[sys.twist_angle[4]]
         log!(logger, sys_state)
     end
 catch e
@@ -92,7 +92,7 @@ p=plotx(logger.time_vec,
         [logger.var_09_vec, logger.var_10_vec, logger.var_11_vec, logger.var_12_vec],
         [logger.var_13_vec, logger.var_14_vec, logger.var_15_vec, logger.var_16_vec],
         ;
-    ylabels=["kite", "tether", "coefficients", "twist acc", "twist torque"], 
+    ylabels=["kite", "tether", "coefficients", "twist acc", "twist angle"], 
     labels=[
         ["acc[1]", "acc[2]", "acc[3]"],
         ["vel[1]", "vel[2]"],

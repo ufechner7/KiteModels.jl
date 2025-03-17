@@ -171,7 +171,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                 acc[:, point.idx]    ~ zeros(3)
             ]
         elseif point.type === DYNAMIC
-            @parameters bridle_damp = 0
+            @parameters bridle_damp = 100
             eqs = [
                 eqs
                 D(pos[:, point.idx]) ~ vel[:, point.idx]
@@ -235,7 +235,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         
         inertia = 1/3 * (s.set.mass/length(groups)) * (norm(group.chord))^2 # plate inertia around leading edge
         @assert !(inertia ≈ 0.0)
-        @parameters twist_damp = 10
+        @parameters twist_damp = 10000
         eqs = [
             eqs
             D(twist_angle[group.idx]) ~ twist_ω[group.idx]
@@ -578,7 +578,7 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::KiteWing; I_p, R_b_
             elevation_acc(t)
             x_acc(t)
             y_acc(t)
-            sphere_pos(t)[1:2, 1:2] # TODO: add equations for these, and think of a good measurement system, maybe rolling window?
+            sphere_pos(t)[1:2, 1:2]
             sphere_vel(t)[1:2, 1:2]
             sphere_acc(t)[1:2, 1:2]
         end
@@ -621,7 +621,7 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::KiteWing; I_p, R_b_
 
     # eqs = [
     #     eqs
-    #     trailing_edge_α[1] ~ (force[:, s.i_A]) ⋅ e_te_A * te_length / te_I - (rot_damping[1] / te_I) * trailing_edge_ω[1]
+    #     trailing_edge_α[1] ~ (force[:, s.i_A]) ⋅ e_te_A * te_length / te_I - (rot_damping[1] / te_I) * trailing_edge_ω[1] # TODO: add trailing edge
     #     trailing_edge_α[2] ~ (force[:, s.i_B]) ⋅ e_te_B * te_length / te_I - (rot_damping[2] / te_I) * trailing_edge_ω[2]
     # ]
     
