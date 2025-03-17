@@ -13,7 +13,7 @@ steps = Int(round(total_time / dt))
 set = se("system_3l.yaml")
 set.segments = 2
 
-new_sys = true
+new_sys = false
 if new_sys
     # if !@isdefined(s); s = KPSQ(KCU(set)); end
     wing = RamAirWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat"; mass=set.mass, crease_frac=0.9)
@@ -65,9 +65,9 @@ try
         sys_state.var_03 = s.integrator[sys.kite_acc[3]]
         sys_state.var_04 = s.integrator[sys.tether_vel[1]]
         sys_state.var_05 = s.integrator[sys.tether_vel[3]]
-        sys_state.var_06 = norm(s.force_coefficients)
-        sys_state.var_07 = s.moment_coefficients[2]
-        sys_state.var_08 = sum(s.moment_coefficient_distribution)
+        sys_state.var_06 = norm(s.vsm_solver.sol.force_coefficients)
+        sys_state.var_07 = s.vsm_solver.sol.moment_coefficients[2]
+        sys_state.var_08 = sum(s.vsm_solver.sol.moment_coefficient_distribution)
         sys_state.var_09 = s.integrator[sys.twist_α[1]]
         sys_state.var_10 = s.integrator[sys.twist_α[2]]
         sys_state.var_11 = s.integrator[sys.twist_α[3]]

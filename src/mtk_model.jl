@@ -157,7 +157,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
 
             group = groups[group_idx]
             if point.idx == group.fixed_point
-                pos_b = points[point_idx].pos_b
+                pos_b = point.pos_b
             else
                 fixed_pos = points[group.fixed_point].pos_b
                 chord_b = point.pos_b - fixed_pos

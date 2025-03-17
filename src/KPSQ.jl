@@ -576,14 +576,15 @@ function refine_twist!(s::KPSQ, twist_dist; window_size = 3)
             println("next group")
             group_idx += 1
         end
-        (i > length(groups)) && throw(ArgumentError("Panels and groups are not sorted in the same direction"))
+        (group_idx > length(groups)) && throw(ArgumentError("Panels and groups are not sorted in the same direction"))
         twist_dist[i] = twist_angles[group_idx]
     end
+    @assert (group_idx == length(groups))
     @show twist_dist
 
-    if n_panels > window_size
+    if length(panels) > window_size
         smoothed = copy(twist_dist)
-        for i in (window_size÷2 + 1):(n_panels - window_size÷2)
+        for i in (window_size÷2 + 1):(length(panels) - window_size÷2)
             smoothed[i] = mean(twist_dist[(i - window_size÷2):(i + window_size÷2)])
         end
         twist_dist .= smoothed
@@ -604,7 +605,7 @@ function next_step!(s::KPSQ; set_values=nothing, measure::Union{Measurement, Not
     twist_distribution = zeros(length(s.aero.panels))
     refine_twist!(s, twist_distribution)
     VortexStepMethod.deform!(s.wing, twist_distribution, zeros(length(s.aero.panels)))
-    VortexStepMethod.init!(body_aero)
+    VortexStepMethod.init!(s.aero)
 
     VortexStepMethod.set_va!(s.aero, s.get_va_body(s.integrator))
     VortexStepMethod.solve!(s.vsm_solver, s.aero; moment_frac = s.bridle_fracs[2])
