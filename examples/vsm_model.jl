@@ -6,17 +6,17 @@ if PLOT
     using ControlPlots
 end
 
-dt = 0.01
-total_time = 2.0
+dt = 0.001
+total_time = 0.01
 steps = Int(round(total_time / dt))
 
 set = se("system_3l.yaml")
 set.segments = 2
 
-new_sys = false
+new_sys = true
 if new_sys
     # if !@isdefined(s); s = KPSQ(KCU(set)); end
-    wing = KiteWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat"; mass=set.mass, crease_frac=0.9)
+    wing = RamAirWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat"; mass=set.mass, crease_frac=0.9)
     aero = BodyAerodynamics([wing])
     solver = Solver()
     s = KPSQ(set, wing, aero, solver)
@@ -24,8 +24,8 @@ if new_sys
     s.measure.tether_length = [51., 51., 49.]
     s.measure.tether_vel = [0.015, 0.015, 0.782]
     s.measure.tether_acc = [0.18, 0.18, 4.12]
-    s.measure.sphere_pos[1, 1] = deg2rad(80.)
-    s.measure.sphere_pos[1, 2] = deg2rad(80.)
+    s.measure.sphere_pos[1, 1] = deg2rad(50.)
+    s.measure.sphere_pos[1, 2] = deg2rad(50.)
     s.measure.sphere_pos[2, 1] = deg2rad(1)
     s.measure.sphere_pos[2, 2] = deg2rad(-1)
     s.measure.sphere_vel .= [0.13 0.13; 0 0]
@@ -40,6 +40,7 @@ if new_sys
     s.simple_sys = sys
     solver = FBDF(autodiff=ModelingToolkit.AutoFiniteDiff())
 end
+s.vsm_solver.sol.gamma_distribution .= 0.0
 s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
 KiteModels.generate_getters!(s)
 logger = Logger(length(s.point_system.points), steps)

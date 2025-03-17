@@ -155,8 +155,14 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             tether_kite_force .+= F
             tether_kite_torque_b .+= point.pos_b × (R_b_w' * F)
 
-            chord_b = point.pos_b - groups[group_idx].fixed_pos
-            pos_b = groups[group_idx].fixed_pos + rotate_v_around_k(chord_b, groups[group_idx].y_airf, twist_angle[group_idx])
+            group = groups[group_idx]
+            if point.idx == group.fixed_point
+                pos_b = points[point_idx].pos_b
+            else
+                fixed_pos = points[group.fixed_point].pos_b
+                chord_b = point.pos_b - fixed_pos
+                pos_b = fixed_pos + rotate_v_around_k(chord_b, group.y_airf, twist_angle[group_idx])
+            end
             eqs = [
                 eqs
                 pos[:, point.idx]    ~ kite_pos + R_b_w * pos_b
@@ -218,8 +224,8 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         panel_indices = Int16[]
         for (i, panel) in enumerate(s.aero.panels)
             y_airf = mean([panel.LE_point_1[2], panel.LE_point_2[2]])
-            @assert group.y_lim[1] < group.y_lim[2]
-            if group.y_lim[1] <= y_airf <= group.y_lim[2]
+            @assert group.y_lim[1] > group.y_lim[2]
+            if group.y_lim[1] >= y_airf >= group.y_lim[2]
                 push!(panel_indices, i)
                 used_panels += 1
             end
@@ -229,7 +235,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         tether_torque_ = zero(Num)
         x_airf = rotate_v_around_k(normalize(group.chord), group.y_airf, twist_angle[group.idx]) # TODO: change this when adding trailing edge deform
         z_airf = x_airf × group.y_airf
-        for point_idx in group.points
+        for point_idx in group.points[[1,3,4]] # TODO: move to torque around leading edge
             tether_torque_ += point_force[:, point_idx] ⋅ (R_b_w * z_airf)
         end
         
@@ -456,7 +462,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
     return eqs, defaults, guesses, set_values, tether_kite_force, tether_kite_torque_b
 end
 
-function create_sys!(s::KPSQ, system::PointMassSystem, wing::KiteWing; I_p, R_b_p, Q_p_b, init_Q_p_w, init_kite_pos, init=false)
+function create_sys!(s::KPSQ, system::PointMassSystem, wing::RamAirWing; I_p, R_b_p, Q_p_b, init_Q_p_w, init_kite_pos, init=false)
     eqs = []
     defaults = Pair{Num, Real}[]
     guesses = Pair{Num, Real}[]

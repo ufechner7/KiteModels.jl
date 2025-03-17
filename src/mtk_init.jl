@@ -1,5 +1,5 @@
 
-function PointMassSystem(s::KPSQ, wing::KiteWing)
+function PointMassSystem(s::KPSQ, wing::RamAirWing)
     # TODO: move as much of the code as possible from create_point_mass_system to other places, to make model creation easier.
     # 1. move bridle gamma calculation
     # 2. ...
@@ -24,7 +24,6 @@ function PointMassSystem(s::KPSQ, wing::KiteWing)
         for (gamma, limit) in zip(gammas, limits) # 2 gammas with 2 pairs of limits
             le_pos = [wing.le_interp[i](gamma) for i in 1:3]
             chord = [wing.te_interp[i](gamma) for i in 1:3] .- le_pos
-            fixed_pos = le_pos .+ chord .* s.bridle_fracs[1]
             y_airf = normalize([wing.le_interp[i](gamma-0.01) for i in 1:3] - le_pos)
 
             point_idxs = Int16[]
@@ -37,7 +36,7 @@ function PointMassSystem(s::KPSQ, wing::KiteWing)
             
             i_grp = 1 + length(groups)
             y_lim = (wing.le_interp[2](limit[1]), wing.le_interp[2](limit[2])) # TODO: ylim is slightly off-centre
-            groups = [groups; KitePointGroup(i_grp, point_idxs, y_lim, fixed_pos, chord, y_airf)]
+            groups = [groups; KitePointGroup(i_grp, point_idxs, y_lim, point_idxs[2], chord, y_airf)]
         end
 
         mean_le = [wing.le_interp[i](mean(gammas)) for i in 1:3]
@@ -181,7 +180,7 @@ function init!(system::PointMassSystem, s::KPSQ, R_b_w)
 end
 
 
-function find_bridle_gammas!(s::KPSQ, wing::KiteWing; n_groups=4)
+function find_bridle_gammas!(s::KPSQ, wing::RamAirWing; n_groups=4)
     @assert iseven(n_groups) "Number of groups must be even"
     half_area = wing.area_interp(0.0)
     
@@ -238,7 +237,7 @@ function init_bridle_pos!(s::KPSQ)
     return bridle_pos_b
 end
 
-function calc_inertia(wing::KiteWing)
+function calc_inertia(wing::RamAirWing)
     I_b = [wing.inertia_tensor[1,1], wing.inertia_tensor[2,2], wing.inertia_tensor[3,3]]
     
     # Find principal axes

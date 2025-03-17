@@ -92,8 +92,8 @@ A normal freely moving tether point
 """
 mutable struct Point
     idx::Int16
-    pos_b::Vector{SimFloat} # pos relative to kite COM in body frame
-    pos_w::Vector{SimFloat} # pos in world frame
+    pos_b::KVec3 # pos relative to kite COM in body frame
+    pos_w::KVec3 # pos in world frame
     type::DynamicsType
 end
 function Point(idx, pos_b, type)
@@ -107,9 +107,9 @@ struct KitePointGroup
     idx::Int16
     points::Vector{Int16}
     y_lim::Tuple{SimFloat, SimFloat}
-    fixed_pos::Union{Nothing, Vector{SimFloat}} # position in body frame which the group rotates around under kite deformation
-    chord::Union{Nothing, KVec3} # chord vector in body frame which the group rotates around under kite deformation
-    y_airf::Union{Nothing, KVec3} # spanwise vector in local panel frame which the group rotates around under kite deformation
+    fixed_point::Int16 # point which the group rotates around under kite deformation
+    chord::KVec3 # chord vector in body frame which the group rotates around under kite deformation
+    y_airf::KVec3 # spanwise vector in local panel frame which the group rotates around under kite deformation
 end
 
 """
@@ -211,9 +211,9 @@ $(TYPEDFIELDS)
     "Reference to the settings struct"
     set::Settings
     "Reference to the geometric wing model"
-    wing::KiteWing
+    wing::VortexStepMethod.RamAirWing
     "Reference to the aerodynamic wing model"
-    aero::BodyAerodynamics
+    aero::VortexStepMethod.BodyAerodynamics
     "Reference to the VSM aerodynamics solver"
     vsm_solver::VortexStepMethod.Solver
     "Reference to the point mass system with points, segments, pulleys and tethers"
@@ -289,15 +289,12 @@ $(TYPEDFIELDS)
     "Tether diameter of the steering tethers [mm]"
     steering_tether_diameter::SimFloat = 1.
 
-    moment_coefficient_distribution::Vector{SimFloat} = zeros(SimFloat, length(aero.panels))
-    force_coefficients::Vector{SimFloat} = zeros(SimFloat, 3)
-    moment_coefficients::Vector{SimFloat} = zeros(SimFloat, 3)
-
     set_set_values::Function       = () -> nothing
     set_measure::Function          = () -> nothing
     set_coefficients::Function     = () -> nothing
 
     get_state::Function            = () -> nothing
+    get_twist::Function            = () -> nothing
     get_va_body::Function          = () -> nothing
 
     prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
@@ -357,7 +354,7 @@ function clear!(s::KPSQ)
     nothing
 end
 
-function KPSQ(set::Settings, wing::KiteWing, aero::BodyAerodynamics, vsm_solver::VortexStepMethod.Solver)
+function KPSQ(set::Settings, wing::RamAirWing, aero::BodyAerodynamics, vsm_solver::VortexStepMethod.Solver)
     if set.winch_model == "TorqueControlledMachine"
         s = KPSQ{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
             ; set, wing, aero, vsm_solver
@@ -556,14 +553,44 @@ function generate_getters!(s; init=false)
         [c(sys.pos), c(sys.acc), c(sys.Q_p_w), sys.elevation, sys.azimuth, 
         c(sys.e_x), c(sys.tether_vel), c(sys.twist_angle), c(sys.kite_vel)]
     )
+    get_twist = getu(sys, sys.twist_angle)
     get_va_body = getu(sys, sys.va_kite_b)
 
     s.set_set_values = (integ, val) -> set_set_values(integ, val)
     s.set_measure = (integ, val) -> set_measure(integ, val)
     s.set_coefficients = (integ, val) -> set_coefficients(integ, val)
     s.get_state = (integ) -> get_state(integ)
+    s.get_twist = (integ) -> get_twist(integ)
     s.get_va_body = (integ) -> get_va_body(integ)
     nothing
+end
+
+function refine_twist!(s::KPSQ, twist_dist; window_size = 3)
+    twist_angles = s.get_twist(s.integrator)
+    groups = s.point_system.groups
+    panels = s.aero.panels
+    group_idx = 1
+    for (i, panel) in enumerate(panels)
+        @show 
+        if 0.5(panel.LE_point_2[2] + panel.LE_point_1[2]) < groups[group_idx].y_lim[2]
+            println("next group")
+            group_idx += 1
+        end
+        (i > length(groups)) && throw(ArgumentError("Panels and groups are not sorted in the same direction"))
+        twist_dist[i] = twist_angles[group_idx]
+    end
+    @show twist_dist
+
+    if n_panels > window_size
+        smoothed = copy(twist_dist)
+        for i in (window_size÷2 + 1):(n_panels - window_size÷2)
+            smoothed[i] = mean(twist_dist[(i - window_size÷2):(i + window_size÷2)])
+        end
+        twist_dist .= smoothed
+    end
+    @show twist_dist
+
+    return nothing
 end
 
 function next_step!(s::KPSQ; set_values=nothing, measure::Union{Measurement, Nothing}=nothing, dt=1/s.set.sample_freq)
@@ -573,20 +600,21 @@ function next_step!(s::KPSQ; set_values=nothing, measure::Union{Measurement, Not
     if (!isnothing(measure))
         s.set_measure(s.integrator, s.measure.wind_dir_gnd)
     end
+
+    twist_distribution = zeros(length(s.aero.panels))
+    refine_twist!(s, twist_distribution)
+    VortexStepMethod.deform!(s.wing, twist_distribution, zeros(length(s.aero.panels)))
+    VortexStepMethod.init!(body_aero)
+
     VortexStepMethod.set_va!(s.aero, s.get_va_body(s.integrator))
-    VortexStepMethod.solve!(s.vsm_solver, s.aero)
-    damping = 0.0
-    s.moment_coefficient_distribution = (1-damping) * s.vsm_solver.sol.moment_coefficient_distribution + 
-        damping * s.moment_coefficient_distribution
-    s.force_coefficients .= (1-damping) .* s.vsm_solver.sol.force_coefficients .+ 
-        damping .* s.force_coefficients
-    s.moment_coefficients .= (1-damping) .* s.vsm_solver.sol.moment_coefficients .+ 
-        damping .* s.moment_coefficients
+    VortexStepMethod.solve!(s.vsm_solver, s.aero; moment_frac = s.bridle_fracs[2])
+
     s.set_coefficients(s.integrator, [
-        s.moment_coefficient_distribution,
-        s.force_coefficients,
-        s.moment_coefficients
+        s.vsm_solver.sol.moment_coefficient_distribution,
+        s.vsm_solver.sol.force_coefficients,
+        s.vsm_solver.sol.moment_coefficients
     ])
+
     s.t_0 = s.integrator.t
     OrdinaryDiffEqCore.step!(s.integrator, dt, true)
     if !successful_retcode(s.integrator.sol)
