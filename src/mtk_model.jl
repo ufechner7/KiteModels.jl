@@ -238,7 +238,8 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         z_airf = x_airf × group.y_airf
         moving_points = filter(p -> p != group.points[group.fixed_index], group.points)
         for point_idx in moving_points
-            tether_torque_ += point_force[:, point_idx] ⋅ (R_b_w * z_airf)
+            r = norm(points[point_idx].pos_b - points[group.points[group.fixed_index]].pos_b)
+            tether_torque_ -= r * (point_force[:, point_idx] ⋅ (R_b_w * z_airf))
         end
         
         inertia = 1/3 * (s.set.mass/length(groups)) * (norm(group.chord))^2 # plate inertia around leading edge

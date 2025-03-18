@@ -97,7 +97,10 @@ function PointMassSystem(s::KPSQ, wing::RamAirWing)
         l0 = s.set.l_tether / s.set.segments
         segment_idxs = Int16[]
         for i in 1:s.set.segments
-            pos = attach_point.pos_b .+ [0, 0, -i*l0]
+            frac = i / s.set.segments
+            pos = [(1-frac) * attach_point.pos_b[1], 
+                    (1-frac) * attach_point.pos_b[2],
+                    attach_point.pos_b[3] - i*l0]
             i_pnt = length(points) # last point idx
             i_seg = length(segments) # last segment idx
             if i == 1

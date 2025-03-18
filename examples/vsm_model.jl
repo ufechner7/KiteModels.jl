@@ -7,14 +7,14 @@ if PLOT
 end
 
 dt = 0.001
-total_time = 1.0 # TODO: VSM IS FAILING, NOT KITEMODELS
+total_time = 0.4 # TODO: VSM IS FAILING, NOT KITEMODELS
 steps = Int(round(total_time / dt))
 
 set = se("system_3l.yaml")
 set.segments = 2
-set_values = [-60, -0.1, -0.1]
+set_values = [-80, -0.1, -0.1]
 
-new_sys = true
+new_sys = false
 if new_sys
     # if !@isdefined(s); s = KPSQ(KCU(set)); end
     wing = RamAirWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat"; mass=set.mass, crease_frac=0.9)

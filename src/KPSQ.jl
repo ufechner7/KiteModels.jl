@@ -606,7 +606,7 @@ function next_step!(s::KPSQ; set_values=nothing, measure::Union{Measurement, Not
 
     va_body = s.get_va_body(s.integrator)
     VortexStepMethod.set_va!(s.aero, va_body)
-    VortexStepMethod.solve!(s.vsm_solver, s.aero; moment_frac = s.bridle_fracs[2])
+    VortexStepMethod.solve!(s.vsm_solver, s.aero; moment_frac = s.bridle_fracs[s.point_system.groups[1].fixed_index])
     if !any(isnan.(va_body)) &&
         !any(isnan.(s.vsm_solver.sol.gamma_distribution))
 
