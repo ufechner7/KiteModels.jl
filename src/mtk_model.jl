@@ -392,7 +392,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         pulley_force(t)[eachindex(pulleys)]
         pulley_acc(t)[eachindex(pulleys)]
     end
-    pulley_damping = 10
+    @parameters pulley_damping = 10
     for pulley in pulleys
         segment = segments[pulley.segments[1]]
         mass_per_meter = s.set.rho_tether * π * (segment.diameter/2)^2
@@ -401,13 +401,13 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         eqs = [
             eqs
             pulley_force[pulley.idx]    ~ spring_force[pulley.segments[1]] - spring_force[pulley.segments[2]]
-            pulley_acc[pulley.idx]      ~ pulley_force[pulley.idx] / mass - pulley_damping * pulley_vel[pulley.idx]
+            pulley_acc[pulley.idx]      ~ pulley_force[pulley.idx] / mass
         ]
         if pulley.type === DYNAMIC
             eqs = [
                 eqs 
                 D(pulley_l0[pulley.idx])  ~ pulley_vel[pulley.idx]
-                D(pulley_vel[pulley.idx]) ~ acc_multiplier * pulley_acc[pulley.idx]    
+                D(pulley_vel[pulley.idx]) ~ acc_multiplier * pulley_acc[pulley.idx] - pulley_damping * pulley_vel[pulley.idx]
             ]
             defaults = [
                 defaults

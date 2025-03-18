@@ -6,21 +6,22 @@ if PLOT
     using ControlPlots
 end
 
-dt = 0.001
-total_time = 0.01
+dt = 0.005
+total_time = 1.0 # TODO: VSM IS FAILING, NOT KITEMODELS
 steps = Int(round(total_time / dt))
 
 set = se("system_3l.yaml")
 set.segments = 2
+set_values = [-60, -0.1, -0.1]
 
 new_sys = false
 if new_sys
     # if !@isdefined(s); s = KPSQ(KCU(set)); end
     wing = RamAirWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat"; mass=set.mass, crease_frac=0.9)
     aero = BodyAerodynamics([wing])
-    solver = Solver()
-    s = KPSQ(set, wing, aero, solver)
-    s.measure.set_values = [-14.1, -1.3, -1.3]
+    vsm_solver = Solver()
+    s = KPSQ(set, wing, aero, vsm_solver)
+    s.measure.set_values = set_values
     s.measure.tether_length = [51., 51., 49.]
     s.measure.tether_vel = [0.015, 0.015, 0.782]
     s.measure.tether_acc = [0.18, 0.18, 4.12]
@@ -38,9 +39,18 @@ if new_sys
     sys, defaults_, guesses_ = KiteModels.model!(s)
     @time s.prob = ODEProblem(sys, defaults_, (0.0, 0.01); guesses=guesses_)
     s.simple_sys = sys
-    solver = FBDF(autodiff=ModelingToolkit.AutoFiniteDiff())
+else
+    # wing = RamAirWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat"; mass=set.mass, crease_frac=0.9)
+    # aero = BodyAerodynamics([wing])
+    # vsm_solver = Solver()
+    # s.wing = wing
+    # s.aero = aero
+    # s.vsm_solver = vsm_solver
+    VortexStepMethod.deform!(s.wing, zeros(s.wing.n_panels), zeros(s.wing.n_panels))
+    VortexStepMethod.init!(s.aero)
+    s.vsm_solver.sol.gamma_distribution .= 0.0
 end
-s.vsm_solver.sol.gamma_distribution .= 0.0
+solver = FBDF(autodiff=ModelingToolkit.AutoFiniteDiff())
 s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
 KiteModels.generate_getters!(s)
 logger = Logger(length(s.point_system.points), steps)
@@ -55,7 +65,7 @@ try
     while t < total_time
         global t, runtime
         KiteModels.plot(s, t)
-        global set_values = -s.set.drum_radius * s.integrator[sys.winch_force]
+        # global set_values = -s.set.drum_radius .* s.integrator[sys.winch_force]
         # if t < 1.0; set_values[2] -= 0.0; end
         steptime = @elapsed t = next_step!(s; set_values, dt)
         if (t > dt); runtime += steptime; end

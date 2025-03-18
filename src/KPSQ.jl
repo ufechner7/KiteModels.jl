@@ -565,7 +565,7 @@ function generate_getters!(s; init=false)
     nothing
 end
 
-function refine_twist!(s::KPSQ, twist_dist; window_size = 3)
+function refine_twist!(s::KPSQ, twist_dist)
     twist_angles = s.get_twist(s.integrator)
     groups = s.point_system.groups
     panels = s.aero.panels
@@ -573,15 +573,14 @@ function refine_twist!(s::KPSQ, twist_dist; window_size = 3)
     for (i, panel) in enumerate(panels)
         @show 
         if 0.5(panel.LE_point_2[2] + panel.LE_point_1[2]) < groups[group_idx].y_lim[2]
-            println("next group")
             group_idx += 1
         end
         (group_idx > length(groups)) && throw(ArgumentError("Panels and groups are not sorted in the same direction"))
         twist_dist[i] = twist_angles[group_idx]
     end
     @assert (group_idx == length(groups))
-    @show twist_dist
 
+    window_size = length(panels) ÷ length(twist_angles)
     if length(panels) > window_size
         smoothed = copy(twist_dist)
         for i in (window_size÷2 + 1):(length(panels) - window_size÷2)
@@ -589,8 +588,6 @@ function refine_twist!(s::KPSQ, twist_dist; window_size = 3)
         end
         twist_dist .= smoothed
     end
-    @show twist_dist
-
     return nothing
 end
 
@@ -607,15 +604,21 @@ function next_step!(s::KPSQ; set_values=nothing, measure::Union{Measurement, Not
     VortexStepMethod.deform!(s.wing, twist_distribution, zeros(length(s.aero.panels)))
     VortexStepMethod.init!(s.aero)
 
-    VortexStepMethod.set_va!(s.aero, s.get_va_body(s.integrator))
+    va_body = s.get_va_body(s.integrator)
+    VortexStepMethod.set_va!(s.aero, va_body)
     VortexStepMethod.solve!(s.vsm_solver, s.aero; moment_frac = s.bridle_fracs[2])
+    if !any(isnan.(va_body)) &&
+        !any(isnan.(s.vsm_solver.sol.moment_coefficient_distribution))
 
-    s.set_coefficients(s.integrator, [
-        s.vsm_solver.sol.moment_coefficient_distribution,
-        s.vsm_solver.sol.force_coefficients,
-        s.vsm_solver.sol.moment_coefficients
-    ])
-
+        s.set_coefficients(s.integrator, [
+            s.vsm_solver.sol.moment_coefficient_distribution,
+            s.vsm_solver.sol.force_coefficients,
+            s.vsm_solver.sol.moment_coefficients
+        ])
+    else
+        @warn "Not converged"
+    end
+    
     s.t_0 = s.integrator.t
     OrdinaryDiffEqCore.step!(s.integrator, dt, true)
     if !successful_retcode(s.integrator.sol)
