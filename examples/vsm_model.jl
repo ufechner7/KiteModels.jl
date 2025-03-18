@@ -75,9 +75,9 @@ try
         sys_state.var_03 = s.integrator[sys.kite_acc[3]]
         sys_state.var_04 = s.integrator[sys.tether_vel[1]]
         sys_state.var_05 = s.integrator[sys.tether_vel[3]]
-        sys_state.var_06 = norm(s.vsm_solver.sol.force_coefficients)
-        sys_state.var_07 = s.vsm_solver.sol.moment_coefficients[2]
-        sys_state.var_08 = sum(s.vsm_solver.sol.moment_coefficient_distribution)
+        sys_state.var_06 = norm(s.vsm_solver.sol.aero_force)
+        sys_state.var_07 = s.vsm_solver.sol.aero_moments[2]
+        sys_state.var_08 = sum(s.vsm_solver.sol.moment_distribution)
         sys_state.var_09 = s.integrator[sys.twist_α[1]]
         sys_state.var_10 = s.integrator[sys.twist_α[2]]
         sys_state.var_11 = s.integrator[sys.twist_α[3]]

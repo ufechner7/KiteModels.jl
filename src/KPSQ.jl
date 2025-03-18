@@ -608,12 +608,12 @@ function next_step!(s::KPSQ; set_values=nothing, measure::Union{Measurement, Not
     VortexStepMethod.set_va!(s.aero, va_body)
     VortexStepMethod.solve!(s.vsm_solver, s.aero; moment_frac = s.bridle_fracs[2])
     if !any(isnan.(va_body)) &&
-        !any(isnan.(s.vsm_solver.sol.moment_coefficient_distribution))
+        !any(isnan.(s.vsm_solver.sol.gamma_distribution))
 
         s.set_coefficients(s.integrator, [
-            s.vsm_solver.sol.moment_coefficient_distribution,
-            s.vsm_solver.sol.force_coefficients,
-            s.vsm_solver.sol.moment_coefficients
+            s.vsm_solver.sol.moment_distribution,
+            s.vsm_solver.sol.aero_force,
+            s.vsm_solver.sol.aero_moments
         ])
     else
         @warn "Not converged"

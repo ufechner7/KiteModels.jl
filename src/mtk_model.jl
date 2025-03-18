@@ -208,7 +208,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
     end
 
     # ==================== GROUPS ==================== #
-    @parameters torque_coeff_dist[eachindex(s.aero.panels)] = s.vsm_solver.sol.moment_coefficient_distribution
+    @parameters torque_coeff_dist[eachindex(s.aero.panels)] = s.vsm_solver.sol.moment_distribution
     @variables begin
         trailing_edge_angle(t)[eachindex(groups)] # angle left / right
         trailing_edge_ω(t)[eachindex(groups)] # angular rate
@@ -218,7 +218,8 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         tether_torque(t)[eachindex(groups)]
         aero_torque(t)[eachindex(groups)]
     end
-    torque_dist = torque_coeff_dist * q_inf * s.aero.projected_area
+    # torque_dist = torque_coeff_dist * q_inf * s.aero.projected_area
+    torque_dist = torque_coeff_dist
     used_panels = 0
     for group in groups
         panel_indices = Int16[]
@@ -517,8 +518,8 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::RamAirWing; I_p, R_
 
     function diff_eqs!()
         @parameters begin
-            force_coefficients[1:3] = s.vsm_solver.sol.force_coefficients
-            torque_coefficients[1:3] = s.vsm_solver.sol.moment_coefficients
+            force_coefficients[1:3] = s.vsm_solver.sol.aero_force
+            torque_coefficients[1:3] = s.vsm_solver.sol.aero_moments
         end
         Q_b_p = quaternion_conjugate(Q_p_b)
         Ω = [0       -ω_p[1]  -ω_p[2]  -ω_p[3];
@@ -539,12 +540,14 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::RamAirWing; I_p, R_
             α_p[2] ~ (torque_p[2] + (I_p[3] - I_p[1]) * ω_p[3] * ω_p[1]) / I_p[2]
             α_p[3] ~ (torque_p[3] + (I_p[1] - I_p[2]) * ω_p[1] * ω_p[2]) / I_p[3]
             α_b ~ R_b_p' * α_p
-            torque_b ~ torque_coefficients * q_inf * s.aero.projected_area + tether_kite_torque_b
+            torque_b ~ torque_coefficients + tether_kite_torque_b
+            # torque_b ~ torque_coefficients * q_inf * s.aero.projected_area + tether_kite_torque_b
             torque_p ~ R_b_p * torque_b
             
             D(kite_pos) ~ kite_vel
             D(kite_vel) ~ kite_acc
-            aero_kite_force ~ (R_b_w * force_coefficients) * q_inf * s.aero.projected_area
+            # aero_kite_force ~ (R_b_w * force_coefficients) * q_inf * s.aero.projected_area
+            aero_kite_force ~ (R_b_w * force_coefficients)
             kite_acc        ~ (tether_kite_force + aero_kite_force) / s.set.mass
 
             distance            ~ norm(kite_pos)
