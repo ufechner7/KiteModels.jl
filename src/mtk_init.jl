@@ -36,7 +36,7 @@ function PointMassSystem(s::KPSQ, wing::RamAirWing)
             
             i_grp = 1 + length(groups)
             y_lim = (wing.le_interp[2](limit[1]), wing.le_interp[2](limit[2])) # TODO: ylim is slightly off-centre
-            groups = [groups; KitePointGroup(i_grp, point_idxs, y_lim, point_idxs[2], chord, y_airf)]
+            groups = [groups; KitePointGroup(i_grp, point_idxs, y_lim, 1, chord, y_airf)]
         end
 
         mean_le = [wing.le_interp[i](mean(gammas)) for i in 1:3]

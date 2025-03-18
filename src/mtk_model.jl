@@ -156,10 +156,10 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             tether_kite_torque_b .+= point.pos_b × (R_b_w' * F)
 
             group = groups[group_idx]
-            if point.idx == group.fixed_point
+            if point.idx == group.points[group.fixed_index]
                 pos_b = point.pos_b
             else
-                fixed_pos = points[group.fixed_point].pos_b
+                fixed_pos = points[group.points[group.fixed_index]].pos_b
                 chord_b = point.pos_b - fixed_pos
                 pos_b = fixed_pos + rotate_v_around_k(chord_b, group.y_airf, twist_angle[group_idx])
             end
@@ -236,7 +236,8 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         tether_torque_ = zero(Num)
         x_airf = rotate_v_around_k(normalize(group.chord), group.y_airf, twist_angle[group.idx]) # TODO: change this when adding trailing edge deform
         z_airf = x_airf × group.y_airf
-        for point_idx in group.points[[1,3,4]] # TODO: move to torque around leading edge
+        moving_points = filter(p -> p != group.points[group.fixed_index], group.points)
+        for point_idx in moving_points
             tether_torque_ += point_force[:, point_idx] ⋅ (R_b_w * z_airf)
         end
         

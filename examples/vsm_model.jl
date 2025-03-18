@@ -14,31 +14,32 @@ set = se("system_3l.yaml")
 set.segments = 2
 set_values = [-60, -0.1, -0.1]
 
-new_sys = false
+new_sys = true
 if new_sys
     # if !@isdefined(s); s = KPSQ(KCU(set)); end
     wing = RamAirWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat"; mass=set.mass, crease_frac=0.9)
     aero = BodyAerodynamics([wing])
     vsm_solver = Solver()
-    s = KPSQ(set, wing, aero, vsm_solver)
-    s.measure.set_values = set_values
-    s.measure.tether_length = [51., 51., 49.]
-    s.measure.tether_vel = [0.015, 0.015, 0.782]
-    s.measure.tether_acc = [0.18, 0.18, 4.12]
-    s.measure.sphere_pos[1, 1] = deg2rad(50.)
-    s.measure.sphere_pos[1, 2] = deg2rad(50.)
-    s.measure.sphere_pos[2, 1] = deg2rad(1)
-    s.measure.sphere_pos[2, 2] = deg2rad(-1)
-    s.measure.sphere_vel .= [0.13 0.13; 0 0]
-    s.measure.sphere_acc .= [0.09 0.09; 0 0]
-    s.set.damping = 473.0 * 2
-    s.set.abs_tol = 1e-4
-    s.set.rel_tol = 1e-2
+    s2 = KPSQ(set, wing, aero, vsm_solver)
+    s2.measure.set_values = set_values
+    s2.measure.tether_length = [51., 51., 49.]
+    s2.measure.tether_vel = [0.015, 0.015, 0.782]
+    s2.measure.tether_acc = [0.18, 0.18, 4.12]
+    s2.measure.sphere_pos[1, 1] = deg2rad(50.)
+    s2.measure.sphere_pos[1, 2] = deg2rad(50.)
+    s2.measure.sphere_pos[2, 1] = deg2rad(1)
+    s2.measure.sphere_pos[2, 2] = deg2rad(-1)
+    s2.measure.sphere_vel .= [0.13 0.13; 0 0]
+    s2.measure.sphere_acc .= [0.09 0.09; 0 0]
+    s2.set.damping = 473.0 * 2
+    s2.set.abs_tol = 1e-4
+    s2.set.rel_tol = 1e-2
     # s.measure.distance_acc = s.measure.tether_acc[3]
 
-    sys, defaults_, guesses_ = KiteModels.model!(s)
-    @time s.prob = ODEProblem(sys, defaults_, (0.0, 0.01); guesses=guesses_)
-    s.simple_sys = sys
+    sys, defaults_, guesses_ = KiteModels.model!(s2)
+    @time s2.prob = ODEProblem(sys, defaults_, (0.0, 0.01); guesses=guesses_)
+    s2.simple_sys = sys
+    s = s2
 else
     # wing = RamAirWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat"; mass=set.mass, crease_frac=0.9)
     # aero = BodyAerodynamics([wing])

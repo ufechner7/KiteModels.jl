@@ -107,7 +107,7 @@ struct KitePointGroup
     idx::Int16
     points::Vector{Int16}
     y_lim::Tuple{SimFloat, SimFloat}
-    fixed_point::Int16 # point which the group rotates around under kite deformation
+    fixed_index::Int16 # point which the group rotates around under kite deformation
     chord::KVec3 # chord vector in body frame which the group rotates around under kite deformation
     y_airf::KVec3 # spanwise vector in local panel frame which the group rotates around under kite deformation
 end
