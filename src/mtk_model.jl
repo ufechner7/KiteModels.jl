@@ -247,19 +247,37 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         @parameters twist_damp = 10000
         eqs = [
             eqs
-            D(twist_angle[group.idx]) ~ twist_ω[group.idx]
-            D(twist_ω[group.idx]) ~ acc_multiplier * twist_α[group.idx] - twist_damp * twist_ω[group.idx]
-            # twist_angle[group.idx] ~ 0
-            # twist_ω[group.idx] ~ 0
             tether_torque[group.idx] ~ tether_torque_
             aero_torque[group.idx] ~ aero_torque_
             twist_α[group.idx] ~ (aero_torque[group.idx] + tether_torque[group.idx]) / inertia
+            D(twist_angle[group.idx]) ~ twist_ω[group.idx]
+            D(twist_ω[group.idx]) ~ acc_multiplier * twist_α[group.idx] - twist_damp * twist_ω[group.idx]
         ]
-        defaults = [
-            defaults
-            twist_angle[group.idx] => 0
-            twist_ω[group.idx] => 0
-        ]
+        if group.type === DYNAMIC
+            eqs = [
+                eqs
+                D(twist_angle[group.idx]) ~ twist_ω[group.idx]
+                D(twist_ω[group.idx]) ~ acc_multiplier * twist_α[group.idx] - twist_damp * twist_ω[group.idx]
+            ]
+            defaults = [
+                defaults
+                twist_angle[group.idx] => 0
+                twist_ω[group.idx] => 0
+            ]
+        elseif group.type === STATIC
+            eqs = [
+                eqs
+                twist_ω[group.idx] ~ 0
+                twist_α[group.idx] ~ 0
+            ]
+            guesses = [
+                guesses
+                twist_angle[group.idx] => 0
+                twist_α[group.idx] => 0
+            ]
+        else
+            throw(ArgumentError("Wrong group type."))
+        end
     end
     !(used_panels == length(torque_dist)) && 
         throw(ArgumentError("$used_panels out of $(length(torque_dist)) panels are used in the torque distribution"))
