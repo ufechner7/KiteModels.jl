@@ -6,7 +6,7 @@ if PLOT
     using ControlPlots
 end
 
-dt = 0.005
+dt = 0.001
 total_time = 1.0 # TODO: VSM IS FAILING, NOT KITEMODELS
 steps = Int(round(total_time / dt))
 
