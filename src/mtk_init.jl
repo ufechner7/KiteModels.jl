@@ -71,17 +71,17 @@ function PointMassSystem(s::KPSQ, wing::RamAirWing)
             Segment(7+i_seg, (7+i_pnt, 11+i_pnt), BRIDLE)
             Segment(8+i_seg, (8+i_pnt, 12+i_pnt), BRIDLE)
 
-            Segment(9+i_seg, (9+i_pnt, 14+i_pnt), BRIDLE)
-            Segment(10+i_seg, (10+i_pnt, 13+i_pnt), BRIDLE)
-            Segment(11+i_seg, (11+i_pnt, 15+i_pnt), BRIDLE)
-            Segment(12+i_seg, (12+i_pnt, 17+i_pnt), BRIDLE)
+            Segment(9+i_seg, (9+i_pnt, 14+i_pnt), BRIDLE, 4)
+            Segment(10+i_seg, (10+i_pnt, 13+i_pnt), BRIDLE, 2)
+            Segment(11+i_seg, (11+i_pnt, 15+i_pnt), BRIDLE, 4)
+            Segment(12+i_seg, (12+i_pnt, 17+i_pnt), BRIDLE, 6)
             
-            Segment(13+i_seg, (13+i_pnt, 14+i_pnt), BRIDLE)
-            Segment(14+i_seg, (13+i_pnt, 15+i_pnt), BRIDLE)
+            Segment(13+i_seg, (13+i_pnt, 14+i_pnt), BRIDLE, 2)
+            Segment(14+i_seg, (13+i_pnt, 15+i_pnt), BRIDLE, 2)
             
-            Segment(15+i_seg, (14+i_pnt, 16+i_pnt), BRIDLE)
-            Segment(16+i_seg, (15+i_pnt, 16+i_pnt), BRIDLE)
-            Segment(17+i_seg, (15+i_pnt, 17+i_pnt), BRIDLE)
+            Segment(15+i_seg, (14+i_pnt, 16+i_pnt), BRIDLE, 2)
+            Segment(16+i_seg, (15+i_pnt, 16+i_pnt), BRIDLE, 2)
+            Segment(17+i_seg, (15+i_pnt, 17+i_pnt), BRIDLE, 2)
         ]
         pulleys = [
             pulleys

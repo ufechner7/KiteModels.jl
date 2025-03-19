@@ -12,9 +12,9 @@ steps = Int(round(total_time / dt))
 
 set = se("system_3l.yaml")
 set.segments = 2
-set_values = [-60, -0.1, -0.1]
+set_values = [-50, -2.1, -2.1]
 
-new_sys = true
+new_sys = false
 if new_sys
     # if !@isdefined(s); s = KPSQ(KCU(set)); end
     wing = RamAirWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat"; mass=set.mass, crease_frac=0.9)
@@ -25,8 +25,8 @@ if new_sys
     s2.measure.tether_length = [51., 51., 49.]
     s2.measure.tether_vel = [0.015, 0.015, 0.782]
     s2.measure.tether_acc = [0.18, 0.18, 4.12]
-    s2.measure.sphere_pos[1, 1] = deg2rad(50.)
-    s2.measure.sphere_pos[1, 2] = deg2rad(50.)
+    s2.measure.sphere_pos[1, 1] = deg2rad(80.)
+    s2.measure.sphere_pos[1, 2] = deg2rad(80.)
     s2.measure.sphere_pos[2, 1] = deg2rad(1)
     s2.measure.sphere_pos[2, 2] = deg2rad(-1)
     s2.measure.sphere_vel .= [0.13 0.13; 0 0]
@@ -41,17 +41,11 @@ if new_sys
     s2.simple_sys = sys
     s = s2
 else
-    # wing = RamAirWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat"; mass=set.mass, crease_frac=0.9)
-    # aero = BodyAerodynamics([wing])
-    # vsm_solver = Solver()
-    # s.wing = wing
-    # s.aero = aero
-    # s.vsm_solver = vsm_solver
     VortexStepMethod.deform!(s.wing, zeros(s.wing.n_panels), zeros(s.wing.n_panels))
     VortexStepMethod.init!(s.aero)
     s.vsm_solver.sol.gamma_distribution .= 0.0
 end
-solver = FBDF(autodiff=ModelingToolkit.AutoFiniteDiff())
+solver = FBDF()
 s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
 KiteModels.generate_getters!(s)
 logger = Logger(length(s.point_system.points), steps)
@@ -66,27 +60,27 @@ try
     while t < total_time
         global t, runtime
         KiteModels.plot(s, t)
-        # global set_values = -s.set.drum_radius .* s.integrator[sys.winch_force]
+        global set_values = -s.set.drum_radius .* s.integrator[sys.winch_force] .- [0, 1, 1]
         # if t < 1.0; set_values[2] -= 0.0; end
         steptime = @elapsed t = next_step!(s; set_values, dt)
         if (t > dt); runtime += steptime; end
         KiteModels.update_sys_state!(sys_state, s)
-        sys_state.var_01 = s.integrator[sys.kite_acc[1]]
-        sys_state.var_02 = s.integrator[sys.kite_acc[2]]
-        sys_state.var_03 = s.integrator[sys.kite_acc[3]]
+        sys_state.var_01 = s.integrator[sys.kite_pos[1]]
+        sys_state.var_02 = s.integrator[sys.kite_pos[2]]
+        sys_state.var_03 = s.integrator[sys.kite_pos[3]]
         sys_state.var_04 = s.integrator[sys.tether_vel[1]]
         sys_state.var_05 = s.integrator[sys.tether_vel[3]]
         sys_state.var_06 = norm(s.vsm_solver.sol.aero_force)
         sys_state.var_07 = s.vsm_solver.sol.aero_moments[2]
         sys_state.var_08 = sum(s.vsm_solver.sol.moment_distribution)
-        sys_state.var_09 = s.integrator[sys.twist_α[1]]
-        sys_state.var_10 = s.integrator[sys.twist_α[2]]
-        sys_state.var_11 = s.integrator[sys.twist_α[3]]
-        sys_state.var_12 = s.integrator[sys.twist_α[4]]
-        sys_state.var_13 = s.integrator[sys.twist_angle[1]]
-        sys_state.var_14 = s.integrator[sys.twist_angle[2]]
-        sys_state.var_15 = s.integrator[sys.twist_angle[3]]
-        sys_state.var_16 = s.integrator[sys.twist_angle[4]]
+
+        sys_state.var_09 = 0.1s.integrator[sys.twist_α[2]]
+        sys_state.var_10 = s.integrator[sys.aero_torque[2]]
+        sys_state.var_11 = s.integrator[sys.tether_torque[2]]
+        sys_state.var_12 = sum(s.integrator[sys.spring_force[5:8]])
+
+        sys_state.var_13 = s.integrator[sys.twist_angle[2]]
+        sys_state.var_14 = normalize(s.integrator[sys.kite_pos]) ⋅ s.integrator[sys.e_z]
         log!(logger, sys_state)
     end
 catch e
@@ -102,15 +96,17 @@ p=plotx(logger.time_vec,
         [logger.var_04_vec, logger.var_05_vec],
         [logger.var_06_vec, logger.var_07_vec, logger.var_08_vec],
         [logger.var_09_vec, logger.var_10_vec, logger.var_11_vec, logger.var_12_vec],
-        [logger.var_13_vec, logger.var_14_vec, logger.var_15_vec, logger.var_16_vec],
+        [logger.var_13_vec],
+        [logger.var_14_vec]
         ;
-    ylabels=["kite", "tether", "coefficients", "twist acc", "twist angle"], 
+    ylabels=["kite", "tether", "coefficients", "twist", "twist angle", "alignment"], 
     labels=[
         ["acc[1]", "acc[2]", "acc[3]"],
         ["vel[1]", "vel[2]"],
         ["force", "torque[2]", "moment"],
-        ["α[1]", "α[2]", "α[3]", "α[4]"],
-        ["angle[1]", "angle[2]", "angle[3]", "angle[4]"],
+        ["α[1]", "aero torque", "tether torque", "spring force"],
+        ["angle[2]"],
+        ["kite"]
         ],
     fig="Steering and heading MTK model")
 display(p)
