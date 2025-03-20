@@ -86,7 +86,7 @@ function rotation_matrix_to_quaternion(R)
 end
 
 function force_eqs!(s, system, eqs, defaults, guesses; 
-        tether_kite_force, tether_kite_torque_b, R_b_w, kite_pos, kite_vel, q_inf, wind_vec_gnd)
+        tether_kite_force, tether_kite_torque_b, R_b_w, kite_pos, kite_vel, q_inf, wind_vec_gnd, init_time)
 
     @parameters acc_multiplier = 1
 
@@ -99,6 +99,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         vel(t)[1:3, eachindex(points)]
         acc(t)[1:3, eachindex(points)]
         point_force(t)[1:3, eachindex(points)]
+        point_mass(t)[eachindex(points)]
 
         spring_force_vec(t)[1:3, eachindex(segments)]
         drag_force(t)[1:3, eachindex(segments)]
@@ -129,6 +130,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         end
         eqs = [
             eqs
+            point_mass[point.idx] ~ mass
             point_force[:, point.idx]  ~ F
         ]
 
@@ -138,41 +140,6 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                 winch_point = true
                 break
             end
-        end
-
-        # for segment1 in segments
-        #     if point.idx in segment1.points && segment1.type === BRIDLE
-        #         for segment2 in segments
-        #             if point.idx in segment2.points && !(segment2.type === BRIDLE) # find last bridle points
-        #                 F_kite::Vector{Num} = zeros(Num, 3)
-        #                 inverted = segment2.points[2] == point.idx
-        #                 if inverted
-        #                     F_kite .-= spring_force_vec[:, segment2.idx]
-        #                 else
-        #                     F_kite .+= spring_force_vec[:, segment2.idx]
-        #                 end
-        #                 F_kite .+= 0.5drag_force[:, segment2.idx]
-        #                 @show point.idx
-        #                 tether_kite_force .+= F_kite
-        #                 tether_kite_torque_b .+= R_b_w' * ((pos[:, point.idx] - kite_pos) × F_kite)
-        #                 break
-        #             end
-        #         end
-        #         break
-        #     end
-        # end
-
-        # Define a sigmoid-based smooth clamping function
-        function smooth_clamp(angle, min_val, max_val)
-            # Parameters for sigmoid sharpness
-            k = 10.0  # Higher values make the transition sharper
-            
-            # Sigmoid function that maps the real line to (0,1)
-            sigmoid_lower = 1.0 / (1.0 + exp(-k * (angle - min_val)))
-            sigmoid_upper = 1.0 / (1.0 + exp(-k * (max_val - angle)))
-            
-            # Combine the sigmoids to get a smooth clamp
-            return min_val + (max_val - min_val) * sigmoid_lower * sigmoid_upper
         end
 
         if point.type === KITE
@@ -296,7 +263,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             eqs = [
                 eqs
                 D(free_twist_angle[group.idx]) ~ twist_ω[group.idx]
-                D(twist_ω[group.idx]) ~ twist_α[group.idx] - twist_damp * twist_ω[group.idx]
+                D(twist_ω[group.idx]) ~ acc_multiplier * twist_α[group.idx] - twist_damp * twist_ω[group.idx]
             ]
             defaults = [
                 defaults
@@ -347,10 +314,10 @@ function force_eqs!(s, system, eqs, defaults, guesses;
     end
     for segment in segments
         p1, p2 = segment.points[1], segment.points[2]
-        # guesses = [
-        #     guesses
-        #     [segment_vec[i, segment.idx] => points[p2].pos_w[i] - points[p1].pos_w[i] for i in 1:3]
-        # ]
+        guesses = [
+            guesses
+            [segment_vec[i, segment.idx] => points[p2].pos_w[i] - points[p1].pos_w[i] for i in 1:3]
+        ]
 
         if segment.type === BRIDLE
             in_pulley = 0
@@ -411,11 +378,10 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         (segment.type === POWER) && (compression_frac = 0.1)
         (segment.type === STEERING) && (compression_frac = 0.1)
         
-        @parameters stiffness_frac = 1
+        @parameters stiffness_frac = 0.1
         (segment.type === BRIDLE) && (stiffness_m = stiffness_frac * stiffness_m)
 
         damping_m = (s.set.damping / s.set.c_spring) * stiffness_m
-        (segment.type === BRIDLE) && (damping_m = damping_m)
 
         eqs = [
             eqs
@@ -508,7 +474,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         eqs = [
             eqs
             D(tether_length[winch.idx]) ~ tether_vel[winch.idx]
-            D(tether_vel[winch.idx]) ~ tether_acc[winch.idx]
+            D(tether_vel[winch.idx]) ~ min(t/init_time, 1.0) * tether_acc[winch.idx]
             tether_acc[winch.idx] ~ calc_torque_acc( # TODO: torque and speed control
                 winch.model, tether_vel[winch.idx], 
                 winch_force[winch.idx], 
@@ -577,6 +543,7 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::RamAirWing; I_p, R_
     end
 
     q_inf = (0.5 * rho_kite * norm(va_kite_b)^2)
+    @parameters init_time = 4.0
 
     function diff_eqs!()
         @parameters begin
@@ -589,7 +556,6 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::RamAirWing; I_p, R_
             ω_p[2]   -ω_p[3]   0        ω_p[1];
             ω_p[3]    ω_p[2]  -ω_p[1]   0]
 
-        @parameters init_time = 4.0
         @assert !(s.set.mass ≈ 0)
         eqs = [
             eqs
@@ -683,7 +649,7 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::RamAirWing; I_p, R_
 
     eqs, defaults, guesses, set_values, tether_kite_force, tether_kite_torque_b, twist_angle = 
         force_eqs!(s, system, eqs, defaults, guesses; 
-            tether_kite_force, tether_kite_torque_b, R_b_w, kite_pos, kite_vel, q_inf, wind_vec_gnd)
+            tether_kite_force, tether_kite_torque_b, R_b_w, kite_pos, kite_vel, q_inf, wind_vec_gnd, init_time)
     diff_eqs!()
     scalar_eqs!()
     

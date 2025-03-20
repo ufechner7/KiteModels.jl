@@ -282,7 +282,7 @@ $(TYPEDFIELDS)
     "Distance of the kite com from winch"
     distance::S = zero(S)
     "X coordinate on normalized 2d foil of bridle attachments"
-    bridle_fracs::V = [0.05, 0.3, 0.6, 0.95]
+    bridle_fracs::V = [0.083, 0.3, 0.57, 0.93]
     "The top bridle points that are not on the kite, in CAD frame"
     top_bridle_points::Vector{V} = [[0.290199, 0.784697, -2.61305], [0.392683, 0.785271, -2.61201], [0.498202, 0.786175, -2.62148], [0.535543, 0.786175, -2.62148]]
     "Tether diameter of tethers in bridle system [mm]"

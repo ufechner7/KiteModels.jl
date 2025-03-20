@@ -37,7 +37,7 @@ function PointMassSystem(s::KPSQ, wing::RamAirWing)
             
             i_grp = 1 + length(groups)
             y_lim = (wing.le_interp[2](limit[1]), wing.le_interp[2](limit[2])) # TODO: ylim is slightly off-centre
-            groups = [groups; KitePointGroup(i_grp, point_idxs, y_lim, 1, chord, y_airf, STATIC)]
+            groups = [groups; KitePointGroup(i_grp, point_idxs, y_lim, 1, chord, y_airf, DYNAMIC)]
         end
 
         points = [
@@ -55,17 +55,19 @@ function PointMassSystem(s::KPSQ, wing::RamAirWing)
             Point(16+i_pnt, bridle_top[1] .+ [0, 0, -3], DYNAMIC)
             Point(17+i_pnt, bridle_top[3] .+ [0, 0, -3], DYNAMIC)
         ]
+        l1 = norm(points[9+i_pnt].pos_b - points[1+i_pnt].pos_b)
+        l2 = norm(points[9+i_pnt].pos_b - points[5+i_pnt].pos_b)
         segments = [
             segments
-            Segment(1+i_seg, (1+i_pnt, 9+i_pnt), BRIDLE)
-            Segment(2+i_seg, (2+i_pnt, 10+i_pnt), BRIDLE)
-            Segment(3+i_seg, (3+i_pnt, 11+i_pnt), BRIDLE)
-            Segment(4+i_seg, (4+i_pnt, 12+i_pnt), BRIDLE)
+            Segment(1+i_seg, (1+i_pnt, 9+i_pnt), BRIDLE, l1)
+            Segment(2+i_seg, (2+i_pnt, 10+i_pnt), BRIDLE, l1)
+            Segment(3+i_seg, (3+i_pnt, 11+i_pnt), BRIDLE, l1)
+            Segment(4+i_seg, (4+i_pnt, 12+i_pnt), BRIDLE, l1)
 
-            Segment(5+i_seg, (5+i_pnt, 9+i_pnt), BRIDLE)
-            Segment(6+i_seg, (6+i_pnt, 10+i_pnt), BRIDLE)
-            Segment(7+i_seg, (7+i_pnt, 11+i_pnt), BRIDLE)
-            Segment(8+i_seg, (8+i_pnt, 12+i_pnt), BRIDLE)
+            Segment(5+i_seg, (5+i_pnt, 9+i_pnt), BRIDLE, l2)
+            Segment(6+i_seg, (6+i_pnt, 10+i_pnt), BRIDLE, l2)
+            Segment(7+i_seg, (7+i_pnt, 11+i_pnt), BRIDLE, l2)
+            Segment(8+i_seg, (8+i_pnt, 12+i_pnt), BRIDLE, l2)
 
             Segment(9+i_seg, (9+i_pnt, 14+i_pnt), BRIDLE, 2)
             Segment(10+i_seg, (10+i_pnt, 13+i_pnt), BRIDLE, 1)
