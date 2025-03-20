@@ -7,7 +7,7 @@ if PLOT
     using ControlPlots
 end
 
-dt = 0.005
+dt = 0.05
 total_time = 4.0
 steps = Int(round(total_time / dt))
 
