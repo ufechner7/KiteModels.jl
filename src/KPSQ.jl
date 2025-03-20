@@ -306,10 +306,6 @@ $(TYPEDFIELDS)
     init_integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Sundials.CVODEIntegrator, Nothing} = nothing
 end
 
-function kite_torque_b(s)
-    return rotate_by_quaternion(kite_torque_p(s), s.Q_p_b)
-end
-
 """
     clear!(s::KPSQ)
 
@@ -548,9 +544,9 @@ function generate_getters!(s; init=false)
     set_set_values = setp(sys, sys.set_values)
     set_measure = setp(sys, sys.measured_wind_dir_gnd)
     set_coefficients = setp(sys, [
-        sys.torque_coeff_dist,
-        sys.force_coefficients,
-        sys.torque_coefficients
+        sys.moment_distribution,
+        sys.aero_kite_force_b,
+        sys.aero_kite_moment_b
     ])
     get_state = getu(sys, 
         [c(sys.pos), c(sys.acc), c(sys.Q_p_w), sys.elevation, sys.azimuth, 

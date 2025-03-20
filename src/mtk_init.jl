@@ -14,9 +14,10 @@ function PointMassSystem(s::KPSQ, wing::RamAirWing)
     attach_points = Point[]
     
     bridle_gammas, bridle_limits = find_bridle_gammas!(s, wing)
-    bridle_top = [s.top_bridle_points[i] - s.wing.center_of_mass for i in eachindex(s.top_bridle_points)] # cad to kite frame
+    bridle_top_left = [s.top_bridle_points[i] - s.wing.center_of_mass for i in eachindex(s.top_bridle_points)] # cad to kite frame
+    bridle_top_right = [bridle_top_left[i] .* [1, -1, 1] for i in eachindex(s.top_bridle_points)]
 
-    function create_bridle(gammas, limits)
+    function create_bridle(gammas, limits, bridle_top)
         i_pnt = length(points) # last point idx
         i_seg = length(segments) # last segment idx
         i_pul = length(pulleys) # last pulley idx
@@ -120,8 +121,8 @@ function PointMassSystem(s::KPSQ, wing::RamAirWing)
         return tethers[end].idx
     end
 
-    create_bridle(bridle_gammas[1:2], bridle_limits[1:2])
-    create_bridle(bridle_gammas[3:4], bridle_limits[3:4])
+    create_bridle(bridle_gammas[1:2], bridle_limits[1:2], bridle_top_left)
+    create_bridle(bridle_gammas[3:4], bridle_limits[3:4], bridle_top_right)
 
     left_power_idx = create_tether(attach_points[1], POWER)
     right_power_idx = create_tether(attach_points[3], POWER)
@@ -255,8 +256,14 @@ function calc_inertia(wing::RamAirWing)
     end
 
     # Store results
-    I_p = eigenvals
-    R_b_p = eigenvecs
+    # I_p = eigenvals
+    # R_b_p = eigenvecs
+    I_p = I_b
+    R_b_p = [
+        1 0 0
+        0 1 0
+        0 0 1
+    ]
     Q_p_b = rotation_matrix_to_quaternion(R_b_p')
     return I_p, I_b, R_b_p, Q_p_b
 end

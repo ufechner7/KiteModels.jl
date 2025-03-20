@@ -71,9 +71,9 @@ try
         steptime = @elapsed t = next_step!(s; set_values, dt)
         if (t > dt); runtime += steptime; end
         KiteModels.update_sys_state!(sys_state, s)
-        sys_state.var_02 = s.integrator[sys.α_b[3]]
-        sys_state.var_03 = s.integrator.ps[sys.torque_coefficients[3]]
-        sys_state.var_01 = s.integrator[sys.torque_b[3]] - sys_state.var_03
+        sys_state.var_01 = s.integrator[sys.α_b[3]]
+        sys_state.var_02 = s.integrator.ps[sys.torque_coefficients[3]]
+        sys_state.var_03 = s.integrator[sys.torque_b[3]]
 
         sys_state.var_04 = s.integrator[sys.tether_vel[1]]
         sys_state.var_05 = s.integrator[sys.tether_vel[3]]
@@ -87,7 +87,12 @@ try
 
         sys_state.var_15 = norm(s.integrator[sys.acc[:, 9]])
         sys_state.var_16 = norm(s.integrator[sys.acc[:, 10]])
-        @show  s.get_va_body(s.integrator)
+        println(
+            "Va[1]: ", s.get_va_body(s.integrator)[1], 
+            "\tTwist: ", sum(s.get_twist(s.integrator)), 
+            "\tM[3]: ", s.vsm_solver.sol.aero_moments[3],
+            "\tω_b[1*2]: ", (s.integrator[sys.ω_b[1]] * s.integrator[sys.ω_b[2]]),
+            )
         log!(logger, sys_state)
     end
 catch e
@@ -107,7 +112,7 @@ p=plotx(logger.time_vec,
         ;
     ylabels=["z acc", "tether", "coefficients", "twist angle", "bridle"], 
     labels=[
-        ["α[3]", "aero_moment[3]", "tether_moment[3]"],
+        ["α[3]", "aero_moment[3]", "moment[3]"],
         ["vel[1]", "vel[2]"],
         ["force", "torque[2]", "moment"],
         ["angle[1]", "angle[4]"],

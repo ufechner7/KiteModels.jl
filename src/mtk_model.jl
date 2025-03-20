@@ -2,13 +2,13 @@
 # Implementation of the three-line model using ModellingToolkit.jl
 
 function calc_speed_acc(winch::AsyncMachine, tether_vel, norm_, set_speed)
-    calc_acceleration(winch, tether_vel, norm_; set_speed, set_torque=nothing, use_brake=false) # TODO: add brake setting
+    calc_acceleration(winch, tether_vel, norm_; set_speed, set_moment=nothing, use_brake=false) # TODO: add brake setting
 end
-function calc_torque_acc(winch::TorqueControlledMachine, tether_vel, norm_, set_torque)
-    calc_acceleration(winch, tether_vel, norm_; set_speed=nothing, set_torque, use_brake=false)
+function calc_moment_acc(winch::TorqueControlledMachine, tether_vel, norm_, set_moment)
+    calc_acceleration(winch, tether_vel, norm_; set_speed=nothing, set_moment, use_brake=false)
 end
 @register_symbolic calc_speed_acc(winch::AsyncMachine, tether_vel, norm_, set_speed)
-@register_symbolic calc_torque_acc(winch::TorqueControlledMachine, tether_vel, norm_, set_torque)
+@register_symbolic calc_moment_acc(winch::TorqueControlledMachine, tether_vel, norm_, set_moment)
 
 function sym_interp(interp::Function, aoa, trailing_edge_angle)
     return interp(rad2deg(aoa), rad2deg(trailing_edge_angle-aoa)) # TODO: register callable struct https://docs.sciml.ai/Symbolics/dev/manual/functions/#Symbolics.@register_array_symbolic
@@ -86,7 +86,7 @@ function rotation_matrix_to_quaternion(R)
 end
 
 function force_eqs!(s, system, eqs, defaults, guesses; 
-        tether_kite_force, tether_kite_torque_b, R_b_w, kite_pos, kite_vel, q_inf, wind_vec_gnd, init_time)
+        tether_kite_force, tether_kite_moment_b, R_b_w, kite_pos, kite_vel, q_inf, wind_vec_gnd, init_time)
 
     @parameters acc_multiplier = 1
 
@@ -155,7 +155,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                 and should be part of exactly 1 groups."))
 
             tether_kite_force .+= F
-            tether_kite_torque_b .+= point.pos_b × (R_b_w' * F)
+            tether_kite_moment_b .+= point.pos_b × (R_b_w' * F)
 
             group = groups[group_idx]
             if point.idx == group.points[group.fixed_index]
@@ -210,7 +210,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
     end
 
     # ==================== GROUPS ==================== #
-    @parameters torque_coeff_dist[eachindex(s.aero.panels)] = s.vsm_solver.sol.moment_distribution
+    @parameters moment_dist[eachindex(s.aero.panels)] = s.vsm_solver.sol.moment_distribution
     @variables begin
         trailing_edge_angle(t)[eachindex(groups)] # angle left / right
         trailing_edge_ω(t)[eachindex(groups)] # angular rate
@@ -218,11 +218,10 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         free_twist_angle(t)[eachindex(groups)]
         twist_ω(t)[eachindex(groups)] # angular rate
         twist_α(t)[eachindex(groups)] # angular acc
-        tether_torque(t)[eachindex(groups)]
-        aero_torque(t)[eachindex(groups)]
+        tether_moment(t)[eachindex(groups)]
+        aero_moment(t)[eachindex(groups)]
     end
-    # torque_dist = torque_coeff_dist * q_inf * s.aero.projected_area
-    torque_dist = torque_coeff_dist
+    # moment_dist = moment_dist * q_inf * s.aero.projected_area
     used_panels = 0
     for group in groups
         panel_indices = Int16[]
@@ -234,16 +233,16 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                 used_panels += 1
             end
         end
-        aero_torque_ = sum([torque_dist[i] for i in panel_indices])
+        aero_moment_ = sum([moment_dist[i] for i in panel_indices])
 
-        tether_torque_ = zero(Num)
+        tether_moment_ = zero(Num)
         # TODO: clamp all use of twist_angle
         x_airf = rotate_v_around_k(normalize(group.chord), group.y_airf, twist_angle[group.idx]) # TODO: change this when adding trailing edge deform
         z_airf = x_airf × group.y_airf
         moving_points = filter(p -> p != group.points[group.fixed_index], group.points)
         for point_idx in moving_points
             r = (points[point_idx].pos_b - points[group.points[group.fixed_index]].pos_b) ⋅ normalize(group.chord)
-            tether_torque_ += r * (point_force[:, point_idx] ⋅ (R_b_w * -z_airf))
+            tether_moment_ += r * (point_force[:, point_idx] ⋅ (R_b_w * -z_airf))
         end
         
         inertia = 1/3 * (s.set.mass/length(groups)) * (norm(group.chord))^2 # plate inertia around leading edge
@@ -254,9 +253,9 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         end
         eqs = [
             eqs
-            tether_torque[group.idx] ~ tether_torque_
-            aero_torque[group.idx] ~ aero_torque_
-            twist_α[group.idx] ~ twist_multiplier * (aero_torque[group.idx] + tether_torque[group.idx]) / inertia
+            tether_moment[group.idx] ~ tether_moment_
+            aero_moment[group.idx] ~ aero_moment_
+            twist_α[group.idx] ~ twist_multiplier * (aero_moment[group.idx] + tether_moment[group.idx]) / inertia
             twist_angle[group.idx] ~ clamp(free_twist_angle[group.idx], -π/2, π/2)
         ]
         if group.type === DYNAMIC
@@ -285,8 +284,8 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             throw(ArgumentError("Wrong group type."))
         end
     end
-    !(used_panels == length(torque_dist)) && 
-        throw(ArgumentError("$used_panels out of $(length(torque_dist)) panels are used in the torque distribution"))
+    !(used_panels == length(moment_dist)) && 
+        throw(ArgumentError("$used_panels out of $(length(moment_dist)) panels are used in the moment distribution"))
 
     # ==================== SEGMENTS ==================== #
     @variables begin
@@ -475,7 +474,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             eqs
             D(tether_length[winch.idx]) ~ tether_vel[winch.idx]
             D(tether_vel[winch.idx]) ~ min(t/init_time, 1.0) * tether_acc[winch.idx]
-            tether_acc[winch.idx] ~ calc_torque_acc( # TODO: torque and speed control
+            tether_acc[winch.idx] ~ calc_moment_acc( # TODO: moment and speed control
                 winch.model, tether_vel[winch.idx], 
                 winch_force[winch.idx], 
                 set_values[winch.idx]
@@ -488,7 +487,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             tether_vel[winch.idx] => 0
         ]
     end
-    return eqs, defaults, guesses, set_values, tether_kite_force, tether_kite_torque_b, twist_angle
+    return eqs, defaults, guesses, set_values, tether_kite_force, tether_kite_moment_b, twist_angle
 end
 
 function create_sys!(s::KPSQ, system::PointMassSystem, wing::RamAirWing; I_p, R_b_p, Q_p_b, init_Q_p_w, init_kite_pos, init=false)
@@ -496,7 +495,7 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::RamAirWing; I_p, R_
     defaults = Pair{Num, Real}[]
     guesses = Pair{Num, Real}[]
     tether_kite_force = zeros(Num, 3)
-    tether_kite_torque_b = zeros(Num, 3)
+    tether_kite_moment_b = zeros(Num, 3)
 
     @parameters begin
         measured_wind_dir_gnd = s.measure.wind_dir_gnd
@@ -530,9 +529,9 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::RamAirWing; I_p, R_
         e_y(t)[1:3]
         e_z(t)[1:3]
 
-        # rest: forces, torques, vectors and scalar values
-        torque_p(t)[1:3] # torque in principal frame
-        torque_b(t)[1:3] # torque in body frame
+        # rest: forces, moments, vectors and scalar values
+        moment_p(t)[1:3] # moment in principal frame
+        moment_b(t)[1:3] # moment in body frame
         total_kite_force(t)[1:3]
         aero_kite_force(t)[1:3]
         rho_kite(t)
@@ -547,8 +546,8 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::RamAirWing; I_p, R_
 
     function diff_eqs!()
         @parameters begin
-            force_coefficients[1:3] = s.vsm_solver.sol.aero_force
-            torque_coefficients[1:3] = s.vsm_solver.sol.aero_moments
+            aero_kite_force_b[1:3] = s.vsm_solver.sol.aero_force
+            aero_kite_moment_b[1:3] = s.vsm_solver.sol.aero_moments
         end
         Q_b_p = quaternion_conjugate(Q_p_b)
         Ω = [0       -ω_p[1]  -ω_p[2]  -ω_p[3];
@@ -565,20 +564,22 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::RamAirWing; I_p, R_
             [R_p_w[:, i] ~ quaternion_to_rotation_matrix(Q_p_w)[:, i] for i in 1:3]
             D(ω_p) ~ min(t/init_time, 1.0) * α_p
             ω_b ~ R_b_p' * ω_p
-            α_p[1] ~ (torque_p[1] + (I_p[2] - I_p[3]) * ω_p[2] * ω_p[3]) / I_p[1]
-            α_p[2] ~ (torque_p[2] + (I_p[3] - I_p[1]) * ω_p[3] * ω_p[1]) / I_p[2]
-            α_p[3] ~ (torque_p[3] + (I_p[1] - I_p[2]) * ω_p[1] * ω_p[2]) / I_p[3]
+            α_p[1] ~ (moment_p[1] + (I_p[2] - I_p[3]) * ω_p[2] * ω_p[3]) / I_p[1]
+            α_p[2] ~ (moment_p[2] + (I_p[3] - I_p[1]) * ω_p[3] * ω_p[1]) / I_p[2]
+            α_p[3] ~ (moment_p[3] + (I_p[1] - I_p[2]) * ω_p[1] * ω_p[2]) / I_p[3]
+            # α_p[1] ~ (moment_p[1] + (I_p[2] - I_p[3]) * ω_p[2] * ω_p[3]) / I_p[1]
+            # α_p[2] ~ (moment_p[2] + (I_p[3] - I_p[1]) * ω_p[3] * ω_p[1]) / I_p[2]
+            # α_p[3] ~ (moment_p[3] + (I_p[1] - I_p[2]) * ω_p[1] * ω_p[2]) / I_p[3]
             α_b ~ R_b_p' * α_p
-            torque_b ~ torque_coefficients + tether_kite_torque_b
-            # torque_b ~ torque_coefficients * q_inf * s.aero.projected_area + tether_kite_torque_b
-            torque_p ~ R_b_p * torque_b
+            moment_b ~ aero_kite_moment_b + tether_kite_moment_b
+            moment_p ~ R_b_p * moment_b
             
             D(kite_pos) ~ kite_vel
             # D(kite_pos) ~ kite_vel
             D(kite_vel) ~ min(t/init_time, 1.0) * kite_acc
             # D(kite_vel) ~ kite_acc
-            # aero_kite_force ~ (R_b_w * force_coefficients) * q_inf * s.aero.projected_area
-            aero_kite_force ~ (R_b_w * force_coefficients)
+            # aero_kite_force ~ (R_b_w * aero_kite_force_b) * q_inf * s.aero.projected_area
+            aero_kite_force ~ (R_b_w * aero_kite_force_b)
             kite_acc        ~ (tether_kite_force + aero_kite_force) / s.set.mass
 
             distance            ~ norm(kite_pos)
@@ -647,9 +648,9 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::RamAirWing; I_p, R_
         return nothing
     end
 
-    eqs, defaults, guesses, set_values, tether_kite_force, tether_kite_torque_b, twist_angle = 
+    eqs, defaults, guesses, set_values, tether_kite_force, tether_kite_moment_b, twist_angle = 
         force_eqs!(s, system, eqs, defaults, guesses; 
-            tether_kite_force, tether_kite_torque_b, R_b_w, kite_pos, kite_vel, q_inf, wind_vec_gnd, init_time)
+            tether_kite_force, tether_kite_moment_b, R_b_w, kite_pos, kite_vel, q_inf, wind_vec_gnd, init_time)
     diff_eqs!()
     scalar_eqs!()
     
