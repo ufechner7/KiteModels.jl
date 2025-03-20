@@ -7,7 +7,7 @@ if PLOT
 end
 
 dt = 0.001
-total_time = 0.01 # TODO: VSM IS FAILING, NOT KITEMODELS
+total_time = 0.015
 steps = Int(round(total_time / dt))
 
 set = se("system_3l.yaml")
@@ -65,11 +65,13 @@ try
         steptime = @elapsed t = next_step!(s; set_values, dt)
         if (t > dt); runtime += steptime; end
         KiteModels.update_sys_state!(sys_state, s)
-        sys_state.var_01 = s.integrator[sys.kite_pos[1]]
-        sys_state.var_02 = s.integrator[sys.kite_pos[2]]
-        sys_state.var_03 = s.integrator[sys.kite_pos[3]]
+        sys_state.var_01 = s.integrator[sys.kite_acc[1]]
+        sys_state.var_02 = s.integrator[sys.kite_acc[2]]
+        sys_state.var_03 = s.integrator[sys.kite_acc[3]]
+
         sys_state.var_04 = s.integrator[sys.tether_vel[1]]
         sys_state.var_05 = s.integrator[sys.tether_vel[3]]
+
         sys_state.var_06 = norm(s.vsm_solver.sol.aero_force)
         sys_state.var_07 = s.vsm_solver.sol.aero_moments[2]
         sys_state.var_08 = sum(s.vsm_solver.sol.moment_distribution)
@@ -80,7 +82,12 @@ try
         sys_state.var_12 = sum(s.integrator[sys.spring_force[5:8]])
 
         sys_state.var_13 = s.integrator[sys.twist_angle[2]]
-        sys_state.var_14 = normalize(s.integrator[sys.kite_pos]) ⋅ s.integrator[sys.e_z]
+        sys_state.var_14 = s.integrator[sys.twist_angle[2]]
+
+        sys_state.var_15 = norm(s.integrator[sys.acc[:, 9]])
+        sys_state.var_16 = norm(s.integrator[sys.acc[:, 10]])
+        # sys_state.var_17 = norm(s.integrator[sys.acc[:, 11]])
+        # sys_state.var_18 = norm(s.integrator[sys.acc[:, 12]])
         log!(logger, sys_state)
     end
 catch e
@@ -96,17 +103,17 @@ p=plotx(logger.time_vec,
         [logger.var_04_vec, logger.var_05_vec],
         [logger.var_06_vec, logger.var_07_vec, logger.var_08_vec],
         [logger.var_09_vec, logger.var_10_vec, logger.var_11_vec, logger.var_12_vec],
-        [logger.var_13_vec],
-        [logger.var_14_vec]
+        [logger.var_13_vec, logger.var_14_vec],
+        [logger.var_15_vec, logger.var_16_vec]
         ;
-    ylabels=["kite", "tether", "coefficients", "twist", "twist angle", "alignment"], 
+    ylabels=["kite", "tether", "coefficients", "twist", "twist angle", "bridle"], 
     labels=[
         ["acc[1]", "acc[2]", "acc[3]"],
         ["vel[1]", "vel[2]"],
         ["force", "torque[2]", "moment"],
         ["α[1]", "aero torque", "tether torque", "spring force"],
-        ["angle[2]"],
-        ["kite"]
+        ["angle[1]", "angle[2]"],
+        ["acc[9]", "acc[10]"]
         ],
     fig="Steering and heading MTK model")
 display(p)
