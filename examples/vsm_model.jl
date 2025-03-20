@@ -8,12 +8,28 @@ if PLOT
 end
 
 dt = 0.005
-total_time = 1.0
+total_time = 4.0
 steps = Int(round(total_time / dt))
 
 set = se("system_3l.yaml")
 set.segments = 2
 set_values = [-50, -2.1, -2.1]
+
+"""
+With aligned principal frame at t = 1.0
+julia> s.integrator[sys.R_b_w]
+3×3 Matrix{Float64}:
+  0.957587  -0.00302636   0.288128
+  0.003092   0.999995     0.000227269
+ -0.288127   0.000673263  0.957592
+
+With unaligned principal frame at t = 1.0
+julia> s.integrator[sys.R_b_w]
+3×3 Matrix{Float64}:
+  0.948203   -0.0143791   0.31734
+  0.0127404   0.999893    0.0072386
+ -0.31741    -0.00282062  0.948284
+"""
 
 new_sys = false
 if new_sys

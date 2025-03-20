@@ -221,11 +221,11 @@ function find_bridle_gammas!(s::KPSQ, wing::RamAirWing; n_groups=4)
     return bridle_gamma, limits
 end
 
-function calc_inertia(wing::RamAirWing)
-    I_b = [wing.inertia_tensor[1,1], wing.inertia_tensor[2,2], wing.inertia_tensor[3,3]]
+function calc_inertia(I_b_tensor)
+    I_b = [I_b_tensor[1,1], I_b_tensor[2,2], I_b_tensor[3,3]]
     
     # Find principal axes
-    eigenvals, eigenvecs = eigen(wing.inertia_tensor)
+    eigenvals, eigenvecs = eigen(I_b_tensor)
     
     # Sort by magnitude
     p = sortperm(eigenvals)
