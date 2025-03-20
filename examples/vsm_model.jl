@@ -7,36 +7,22 @@ if PLOT
     using ControlPlots
 end
 
-dt = 0.05
-total_time = 4.0
+dt = 0.01
+total_time = 5.0
 steps = Int(round(total_time / dt))
 
 set = se("system_3l.yaml")
 set.segments = 2
-set_values = [-50, -2.1, -2.1]
-
-"""
-With aligned principal frame at t = 1.0
-julia> s.integrator[sys.R_b_w]
-3×3 Matrix{Float64}:
-  0.957587  -0.00302636   0.288128
-  0.003092   0.999995     0.000227269
- -0.288127   0.000673263  0.957592
-
-With unaligned principal frame at t = 1.0
-julia> s.integrator[sys.R_b_w]
-3×3 Matrix{Float64}:
-  0.948203   -0.0143791   0.31734
-  0.0127404   0.999893    0.0072386
- -0.31741    -0.00282062  0.948284
-"""
+set_values = [-50, -1.1, -1.1]
 
 new_sys = false
+if !@isdefined(s); new_sys = true; end
 if new_sys
     # if !@isdefined(s); s = KPSQ(KCU(set)); end
-    wing = RamAirWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat"; mass=set.mass, crease_frac=0.9)
+    wing = RamAirWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat"; mass=set.mass, crease_frac=0.82)
     aero = BodyAerodynamics([wing])
-    vsm_solver = Solver()
+    P = length(aero.panels)
+    vsm_solver = Solver{P}()
     s2 = KPSQ(set, wing, aero, vsm_solver)
     s2.measure.set_values = set_values
     s2.measure.tether_length = [51., 51., 49.]
@@ -56,7 +42,7 @@ if new_sys
     s2.simple_sys = sys
     s = s2
 else
-    # s.wing = RamAirWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat"; mass=set.mass, crease_frac=0.9)
+    # s.wing = RamAirWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat"; mass=set.mass, crease_frac=0.825)
     # s.aero = BodyAerodynamics([s.wing])
     # s.vsm_solver = Solver()
 
@@ -81,15 +67,15 @@ runtime = 0.
 try
     while t < total_time
         global t, runtime
-        KiteModels.plot(s, t)
-        global set_values = -s.set.drum_radius .* s.integrator[sys.winch_force]
+        KiteModels.plot(s, t; zoom=true, front=true)
+        global set_values = -s.set.drum_radius .* s.integrator[sys.winch_force] - [0, 0, 5]
         # if t < 1.0; set_values[2] -= 0.0; end
         steptime = @elapsed t = next_step!(s; set_values, dt)
         if (t > dt); runtime += steptime; end
         KiteModels.update_sys_state!(sys_state, s)
-        sys_state.var_01 = s.integrator[sys.α_b[3]]
-        sys_state.var_02 = s.integrator.ps[sys.aero_kite_moment_b[3]]
-        sys_state.var_03 = s.integrator[sys.moment_b[3]]
+        sys_state.var_01 = s.integrator[sys.ω_b[1]]
+        # sys_state.var_02 = s.integrator[sys.ω_b[2]]
+        sys_state.var_03 = s.integrator[sys.ω_b[3]]
 
         sys_state.var_04 = s.integrator[sys.tether_vel[1]]
         sys_state.var_05 = s.integrator[sys.tether_vel[3]]
@@ -101,13 +87,13 @@ try
         sys_state.var_13 = s.integrator[sys.twist_angle[1]]
         sys_state.var_14 = s.integrator[sys.twist_angle[4]]
 
-        sys_state.var_15 = norm(s.integrator[sys.acc[:, 9]])
-        sys_state.var_16 = norm(s.integrator[sys.acc[:, 10]])
+        sys_state.var_15 = norm(s.integrator[sys.spring_force[3]])
+        sys_state.var_16 = norm(s.integrator[sys.spring_force[7]])
         println(
             "Va[1]: ", s.get_va_body(s.integrator)[1], 
-            "\tTwist: ", sum(s.get_twist(s.integrator)), 
-            "\tM[3]: ", s.vsm_solver.sol.aero_moments[3],
-            "\tω_b: ", (s.integrator[sys.ω_b]),
+            "\tTwist alpha: ", s.integrator[sys.twist_α[2]], 
+            "\tAero moment: ", s.integrator[sys.aero_moment[1]],
+            "\tTether moment: ", s.integrator[sys.tether_moment[1]],
             )
         log!(logger, sys_state)
     end
@@ -128,7 +114,7 @@ p=plotx(logger.time_vec,
         ;
     ylabels=["z acc", "tether", "coefficients", "twist angle", "bridle"], 
     labels=[
-        ["α_b[3]", "aero_kite_moment_b[3]", "moment_b[3]"],
+        ["ω_b[1]", "ω_b[2]", "ω_b[3]"],
         ["vel[1]", "vel[2]"],
         ["force", "torque[2]", "moment"],
         ["angle[1]", "angle[4]"],

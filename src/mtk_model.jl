@@ -179,7 +179,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                 acc[:, point.idx]    ~ zeros(3)
             ]
         elseif point.type === DYNAMIC
-            @parameters bridle_damp = 100
+            @parameters bridle_damp = 10
             eqs = [
                 eqs
                 D(pos[:, point.idx]) ~ vel[:, point.idx]
