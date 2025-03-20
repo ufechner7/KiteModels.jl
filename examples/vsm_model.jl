@@ -14,7 +14,7 @@ set = se("system_3l.yaml")
 set.segments = 2
 set_values = [-50, -2.1, -2.1]
 
-new_sys = false
+new_sys = true
 if new_sys
     # if !@isdefined(s); s = KPSQ(KCU(set)); end
     wing = RamAirWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat"; mass=set.mass, crease_frac=0.9)
@@ -81,7 +81,7 @@ try
         sys_state.var_11 = s.integrator[sys.tether_torque[2]]
         sys_state.var_12 = sum(s.integrator[sys.spring_force[5:8]])
 
-        sys_state.var_13 = s.integrator[sys.twist_angle[2]]
+        sys_state.var_13 = s.integrator[sys.twist_angle[1]]
         sys_state.var_14 = s.integrator[sys.twist_angle[2]]
 
         sys_state.var_15 = norm(s.integrator[sys.acc[:, 9]])

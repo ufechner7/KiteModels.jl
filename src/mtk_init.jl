@@ -14,7 +14,7 @@ function PointMassSystem(s::KPSQ, wing::RamAirWing)
     attach_points = Point[]
     
     bridle_gammas, bridle_limits = find_bridle_gammas!(s, wing)
-    [s.bridle_top[i] .-= s.wing.center_of_mass for i in eachindex(bridle_top)]
+    bridle_top = [s.top_bridle_points[i] - s.wing.center_of_mass for i in eachindex(s.top_bridle_points)] # cad to kite frame
 
     function create_bridle(gammas, limits)
         i_pnt = length(points) # last point idx
@@ -42,18 +42,18 @@ function PointMassSystem(s::KPSQ, wing::RamAirWing)
 
         points = [
             points
-            Point(9+i_pnt, s.bridle_top[1], DYNAMIC)
-            Point(10+i_pnt, s.bridle_top[2], DYNAMIC)
-            Point(11+i_pnt, s.bridle_top[3], DYNAMIC)
-            Point(12+i_pnt, s.bridle_top[4], DYNAMIC)
+            Point(9+i_pnt, bridle_top[1], DYNAMIC)
+            Point(10+i_pnt, bridle_top[2], DYNAMIC)
+            Point(11+i_pnt, bridle_top[3], DYNAMIC)
+            Point(12+i_pnt, bridle_top[4], DYNAMIC)
 
-            Point(13+i_pnt, s.bridle_top[2] .+ [0, 0, -1], DYNAMIC)
+            Point(13+i_pnt, bridle_top[2] .+ [0, 0, -1], DYNAMIC)
 
-            Point(14+i_pnt, s.bridle_top[1] .+ [0, 0, -2], DYNAMIC)
-            Point(15+i_pnt, s.bridle_top[3] .+ [0, 0, -2], DYNAMIC)
+            Point(14+i_pnt, bridle_top[1] .+ [0, 0, -2], DYNAMIC)
+            Point(15+i_pnt, bridle_top[3] .+ [0, 0, -2], DYNAMIC)
 
-            Point(16+i_pnt, s.bridle_top[1] .+ [0, 0, -3], DYNAMIC)
-            Point(17+i_pnt, s.bridle_top[3] .+ [0, 0, -3], DYNAMIC)
+            Point(16+i_pnt, bridle_top[1] .+ [0, 0, -3], DYNAMIC)
+            Point(17+i_pnt, bridle_top[3] .+ [0, 0, -3], DYNAMIC)
         ]
         segments = [
             segments
