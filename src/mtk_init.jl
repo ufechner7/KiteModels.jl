@@ -221,24 +221,6 @@ function find_bridle_gammas!(s::KPSQ, wing::RamAirWing; n_groups=4)
     return bridle_gamma, limits
 end
 
-
-function init_bridle_pos!(s::KPSQ)
-    bridle_pos_b = zeros(SimFloat, 3, 4, 4) # xyz, length, width
-    bridle_gamma = zeros(SimFloat, 4)
-
-    calc_inertia!(s, s.wing)
-    find_attachment_gamma!(s, bridle_gamma)
-
-    bridle_fracs = (s.set.bridle_connect[2:5] .- s.set.bridle_connect[1]) / (s.set.bridle_connect[1] - s.set.bridle_connect[5])
-    for (i, gamma) in enumerate(bridle_gamma)
-        for (j, frac) in enumerate(bridle_fracs)
-            bridle_pos_b[:, j, i] .= s.pos_circle_center_b + 
-                [s.leading_edge(gamma) + frac * (s.trailing_edge(gamma) - s.leading_edge(gamma)), cos(gamma) * s.set.radius, sin(gamma) * s.set.radius]
-        end
-    end
-    return bridle_pos_b
-end
-
 function calc_inertia(wing::RamAirWing)
     I_b = [wing.inertia_tensor[1,1], wing.inertia_tensor[2,2], wing.inertia_tensor[3,3]]
     
@@ -256,16 +238,91 @@ function calc_inertia(wing::RamAirWing)
     end
 
     # Store results
-    # I_p = eigenvals
-    # R_b_p = eigenvecs
-    I_p = I_b
-    R_b_p = [
-        1 0 0
-        0 1 0
-        0 0 1
-    ]
+    I_p = eigenvals
+    R_b_p = eigenvecs
     Q_p_b = rotation_matrix_to_quaternion(R_b_p')
     return I_p, I_b, R_b_p, Q_p_b
+end
+
+function calc_inertia2(I_b_tensor)
+    
+    # Find principal axes (eigenvalues and eigenvectors)
+    eigenvals, eigenvecs = eigen(I_b_tensor)
+    
+    # Sort by magnitude of eigenvalues
+    p = sortperm(eigenvals)
+    I_p = eigenvals[p]
+    eigenvecs = eigenvecs[:, p]
+    
+    # Ensure right-handed coordinate system
+    if det(eigenvecs) < 0
+        eigenvecs[:, 3] *= -1
+    end
+    
+    # Find the best alignment with the standard basis [1,0,0], [0,1,0], [0,0,1]
+    # Calculate how well each eigenvector aligns with each standard basis vector
+    alignment = abs.([
+        eigenvecs[:,1]⋅[1,0,0] eigenvecs[:,1]⋅[0,1,0] eigenvecs[:,1]⋅[0,0,1];
+        eigenvecs[:,2]⋅[1,0,0] eigenvecs[:,2]⋅[0,1,0] eigenvecs[:,2]⋅[0,0,1];
+        eigenvecs[:,3]⋅[1,0,0] eigenvecs[:,3]⋅[0,1,0] eigenvecs[:,3]⋅[0,0,1]
+    ])
+    
+    # Find best assignment of eigenvectors to coordinate axes
+    assigned_cols = zeros(Int, 3)
+    assigned_rows = zeros(Int, 3)
+    
+    # Greedy algorithm to find best matching
+    for _ in 1:3
+        # Find max value in alignment matrix among unassigned rows/columns
+        max_val = -1.0
+        best_row = 0
+        best_col = 0
+        
+        for row in 1:3
+            if assigned_rows[row] == 0
+                for col in 1:3
+                    if assigned_cols[col] == 0 && alignment[row, col] > max_val
+                        max_val = alignment[row, col]
+                        best_row = row
+                        best_col = col
+                    end
+                end
+            end
+        end
+        
+        # Assign this eigenvector to this axis
+        assigned_rows[best_row] = best_col
+        assigned_cols[best_col] = best_row
+    end
+    
+    # Create reordered eigenvector matrix and reordered eigenvalues
+    R_b_p = zeros(3, 3)
+    I_p_reordered = zeros(3)
+    
+    for i in 1:3
+        axis = assigned_rows[i]
+        # Make sure the eigenvector points in the positive direction of standard basis
+        sign_factor = sign(eigenvecs[:,i]⋅[axis==1, axis==2, axis==3])
+        if sign_factor == 0
+            sign_factor = 1  # Default to positive if dot product is zero
+        end
+        
+        R_b_p[:,axis] = sign_factor * eigenvecs[:,i]
+        I_p_reordered[axis] = I_p[i]
+    end
+    
+    # Ensure the matrix is still a rotation matrix (det = 1)
+    if det(R_b_p) < 0
+        R_b_p[:,3] *= -1
+    end
+    
+    # Calculate the quaternion representation
+    Q_p_b = rotation_matrix_to_quaternion(R_b_p')
+    
+    # Get the diagonal terms of the original tensor 
+    I_b = [I_b_tensor[1,1], I_b_tensor[2,2], I_b_tensor[3,3]]
+    
+    return I_p_reordered, I_b, R_b_p, Q_p_b
 end
 
 function measure_to_q(measure::Measurement, R_b_p)

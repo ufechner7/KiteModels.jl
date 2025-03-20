@@ -544,7 +544,7 @@ function generate_getters!(s; init=false)
     set_set_values = setp(sys, sys.set_values)
     set_measure = setp(sys, sys.measured_wind_dir_gnd)
     set_coefficients = setp(sys, [
-        sys.moment_distribution,
+        sys.moment_dist,
         sys.aero_kite_force_b,
         sys.aero_kite_moment_b
     ])

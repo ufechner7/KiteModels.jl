@@ -2,13 +2,13 @@
 # Implementation of the three-line model using ModellingToolkit.jl
 
 function calc_speed_acc(winch::AsyncMachine, tether_vel, norm_, set_speed)
-    calc_acceleration(winch, tether_vel, norm_; set_speed, set_moment=nothing, use_brake=false) # TODO: add brake setting
+    calc_acceleration(winch, tether_vel, norm_; set_speed, set_torque=nothing, use_brake=false) # TODO: add brake setting
 end
-function calc_moment_acc(winch::TorqueControlledMachine, tether_vel, norm_, set_moment)
-    calc_acceleration(winch, tether_vel, norm_; set_speed=nothing, set_moment, use_brake=false)
+function calc_moment_acc(winch::TorqueControlledMachine, tether_vel, norm_, set_torque)
+    calc_acceleration(winch, tether_vel, norm_; set_speed=nothing, set_torque, use_brake=false)
 end
 @register_symbolic calc_speed_acc(winch::AsyncMachine, tether_vel, norm_, set_speed)
-@register_symbolic calc_moment_acc(winch::TorqueControlledMachine, tether_vel, norm_, set_moment)
+@register_symbolic calc_moment_acc(winch::TorqueControlledMachine, tether_vel, norm_, set_torque)
 
 function sym_interp(interp::Function, aoa, trailing_edge_angle)
     return interp(rad2deg(aoa), rad2deg(trailing_edge_angle-aoa)) # TODO: register callable struct https://docs.sciml.ai/Symbolics/dev/manual/functions/#Symbolics.@register_array_symbolic
@@ -567,9 +567,6 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::RamAirWing; I_p, R_
             α_p[1] ~ (moment_p[1] + (I_p[2] - I_p[3]) * ω_p[2] * ω_p[3]) / I_p[1]
             α_p[2] ~ (moment_p[2] + (I_p[3] - I_p[1]) * ω_p[3] * ω_p[1]) / I_p[2]
             α_p[3] ~ (moment_p[3] + (I_p[1] - I_p[2]) * ω_p[1] * ω_p[2]) / I_p[3]
-            # α_p[1] ~ (moment_p[1] + (I_p[2] - I_p[3]) * ω_p[2] * ω_p[3]) / I_p[1]
-            # α_p[2] ~ (moment_p[2] + (I_p[3] - I_p[1]) * ω_p[3] * ω_p[1]) / I_p[2]
-            # α_p[3] ~ (moment_p[3] + (I_p[1] - I_p[2]) * ω_p[1] * ω_p[2]) / I_p[3]
             α_b ~ R_b_p' * α_p
             moment_b ~ aero_kite_moment_b + tether_kite_moment_b
             moment_p ~ R_b_p * moment_b
@@ -682,7 +679,7 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::RamAirWing; I_p, R_
 end
 
 function model!(s::KPSQ; init=false)
-    I_p, I_b, R_b_p, Q_p_b = calc_inertia(s.wing)
+    I_p, I_b, R_b_p, Q_p_b = calc_inertia2(s.wing.inertia_tensor)
     init_Q_p_w, R_b_w = measure_to_q(s.measure, R_b_p)
 
     s.point_system = PointMassSystem(s, s.wing)
