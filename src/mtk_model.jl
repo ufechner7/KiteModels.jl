@@ -495,7 +495,7 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::RamAirWing; I_p, R_
     tether_kite_moment_b = zeros(Num, 3)
 
     @parameters begin
-        init = true
+        init = false
         measured_wind_dir_gnd = s.measure.wind_dir_gnd
         # measured_sphere_pos[1:2, 1:2] = s.measure.sphere_pos
         # measured_sphere_vel[1:2, 1:2] = s.measure.sphere_vel
@@ -509,6 +509,7 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::RamAirWing; I_p, R_
         kite_pos(t)[1:3] # xyz pos of kite in world frame
         kite_vel(t)[1:3]
         kite_acc(t)[1:3]
+        kite_acc_b(t)[1:3]
         distance(t)
         distance_vel(t)
         distance_acc(t)
@@ -569,14 +570,11 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::RamAirWing; I_p, R_
             moment_p ~ R_b_p * moment_b
             
             D(kite_pos) ~ kite_vel
-            # D(kite_pos) ~ kite_vel
-            D(kite_vel[1]) ~ kite_acc[1]
-            D(kite_vel[2]) ~ kite_acc[2]
-            D(kite_vel[3]) ~ ifelse(init == true, 0, kite_acc[3])
-            # D(kite_vel) ~ kite_acc
-            # aero_kite_force ~ (R_b_w * aero_kite_force_b) * q_inf * s.aero.projected_area
-            aero_kite_force ~ (R_b_w * aero_kite_force_b)
-            kite_acc        ~ (tether_kite_force + aero_kite_force) / s.set.mass
+            D(kite_vel) ~ kite_acc
+            kite_acc ~ R_b_w * [ifelse(init == true, 0, kite_acc_b[1]),
+                                ifelse(init == true, 0, kite_acc_b[2]),
+                                kite_acc_b[3]]
+            kite_acc_b        ~ (R_b_w' * tether_kite_force + aero_kite_force_b) / s.set.mass
 
             distance            ~ norm(kite_pos)
             distance_vel        ~ kite_vel ⋅ normalize(kite_pos)
