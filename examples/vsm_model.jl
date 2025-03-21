@@ -7,8 +7,8 @@ if PLOT
     using ControlPlots
 end
 
-dt = 0.01
-total_time = 5.0
+dt = 0.05
+total_time = 3.0
 steps = Int(round(total_time / dt))
 
 set = se("system_3l.yaml")
@@ -67,7 +67,7 @@ runtime = 0.
 try
     while t < total_time
         global t, runtime
-        KiteModels.plot(s, t; zoom=true, front=true)
+        KiteModels.plot(s, t; zoom=false, front=false)
         global set_values = -s.set.drum_radius .* s.integrator[sys.winch_force] - [0, 0, 5]
         # if t < 1.0; set_values[2] -= 0.0; end
         steptime = @elapsed t = next_step!(s; set_values, dt)
@@ -84,16 +84,15 @@ try
         sys_state.var_07 = s.vsm_solver.sol.aero_moments[2]
         sys_state.var_08 = sum(s.vsm_solver.sol.moment_distribution)
 
-        sys_state.var_13 = s.integrator[sys.twist_angle[1]]
-        sys_state.var_14 = s.integrator[sys.twist_angle[4]]
+        sys_state.var_09 = 0.01s.integrator[sys.aero_moment[4]]
+        sys_state.var_10 = 0.01s.integrator[sys.tether_moment[4]]
+        sys_state.var_11 = s.integrator[sys.twist_α[4]]
+        sys_state.var_12 = s.integrator[sys.twist_angle[4]]
 
-        sys_state.var_15 = norm(s.integrator[sys.spring_force[3]])
-        sys_state.var_16 = norm(s.integrator[sys.spring_force[7]])
+        sys_state.var_13 = norm(s.integrator[sys.spring_force[3]])
+        sys_state.var_14 = norm(s.integrator[sys.spring_force[7]])
         println(
-            "Va[1]: ", s.get_va_body(s.integrator)[1], 
-            "\tTwist alpha: ", s.integrator[sys.twist_α[2]], 
-            "\tAero moment: ", s.integrator[sys.aero_moment[1]],
-            "\tTether moment: ", s.integrator[sys.tether_moment[1]],
+            "\tPulley acc: ", s.integrator[sys.pulley_acc],
             )
         log!(logger, sys_state)
     end
@@ -109,15 +108,15 @@ p=plotx(logger.time_vec,
         [logger.var_01_vec, logger.var_02_vec, logger.var_03_vec],
         [logger.var_04_vec, logger.var_05_vec],
         [logger.var_06_vec, logger.var_07_vec, logger.var_08_vec],
-        [logger.var_13_vec, logger.var_14_vec],
-        [logger.var_15_vec, logger.var_16_vec]
+        [logger.var_09_vec, logger.var_10_vec, logger.var_11_vec, logger.var_12_vec],
+        [logger.var_13_vec, logger.var_14_vec]
         ;
-    ylabels=["z acc", "tether", "coefficients", "twist angle", "bridle"], 
+    ylabels=["z acc", "tether", "coefficients", "twist", "bridle"], 
     labels=[
         ["ω_b[1]", "ω_b[2]", "ω_b[3]"],
         ["vel[1]", "vel[2]"],
         ["force", "torque[2]", "moment"],
-        ["angle[1]", "angle[4]"],
+        ["aero_moment[4]", "tether_moment[4]", "twist_α[4]", "twist_angle[4]"],
         ["acc[9]", "acc[10]"]
         ],
     fig="Steering and heading MTK model")
