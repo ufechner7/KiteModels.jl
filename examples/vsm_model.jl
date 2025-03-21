@@ -7,7 +7,7 @@ if PLOT
     using ControlPlots
 end
 
-dt = 0.05
+dt = 0.01
 total_time = 3.0
 steps = Int(round(total_time / dt))
 
@@ -67,7 +67,7 @@ runtime = 0.
 try
     while t < total_time
         global t, runtime
-        KiteModels.plot(s, t; zoom=false, front=false)
+        KiteModels.plot(s, t; zoom=true, front=true)
         global set_values = -s.set.drum_radius .* s.integrator[sys.winch_force] - [0, 0, 5]
         # if t < 1.0; set_values[2] -= 0.0; end
         steptime = @elapsed t = next_step!(s; set_values, dt)

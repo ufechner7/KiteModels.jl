@@ -86,7 +86,7 @@ function rotation_matrix_to_quaternion(R)
 end
 
 function force_eqs!(s, system, eqs, defaults, guesses; 
-        tether_kite_force, tether_kite_moment_b, R_b_w, kite_pos, kite_vel, q_inf, wind_vec_gnd)
+        tether_kite_force, tether_kite_moment_b, R_b_w, kite_pos, kite_vel, q_inf, wind_vec_gnd, init)
 
     @parameters acc_multiplier = 1
 
@@ -470,7 +470,8 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         eqs = [
             eqs
             D(tether_length[winch.idx]) ~ tether_vel[winch.idx]
-            D(tether_vel[winch.idx]) ~ tether_acc[winch.idx]
+            D(tether_vel[winch.idx]) ~ ifelse(init==true, 0, tether_acc[winch.idx])
+
             tether_acc[winch.idx] ~ calc_moment_acc( # TODO: moment and speed control
                 winch.model, tether_vel[winch.idx], 
                 winch_force[winch.idx], 
@@ -510,9 +511,6 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::RamAirWing; I_p, R_
         kite_vel(t)[1:3]
         kite_acc(t)[1:3]
         kite_acc_b(t)[1:3]
-        distance(t)
-        distance_vel(t)
-        distance_acc(t)
         ω_p(t)[1:3] # turn rate in principal frame
         ω_b(t)[1:3] # turn rate in body frame
         α_p(t)[1:3] # angular acceleration in principal frame
@@ -560,8 +558,12 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::RamAirWing; I_p, R_
             [Q_vel[i] ~ 0.5 * sum(Ω[i, j] * Q_p_w[j] for j in 1:4) for i in 1:4]
             [R_b_w[:, i] ~ quaternion_to_rotation_matrix(quaternion_multiply(Q_p_w, Q_b_p))[:, i] for i in 1:3] # https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation#Performance_comparisons
             [R_p_w[:, i] ~ quaternion_to_rotation_matrix(Q_p_w)[:, i] for i in 1:3]
-            D(ω_p) ~ α_p
+
+            D(ω_p[1]) ~ α_p[1]
+            D(ω_p[2]) ~ α_p[2]
+            D(ω_p[3]) ~ ifelse(init==true, 0, α_p[3])
             ω_b ~ R_b_p' * ω_p
+
             α_p[1] ~ (moment_p[1] + (I_p[2] - I_p[3]) * ω_p[2] * ω_p[3]) / I_p[1]
             α_p[2] ~ (moment_p[2] + (I_p[3] - I_p[1]) * ω_p[3] * ω_p[1]) / I_p[2]
             α_p[3] ~ (moment_p[3] + (I_p[1] - I_p[2]) * ω_p[1] * ω_p[2]) / I_p[3]
@@ -571,14 +573,10 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::RamAirWing; I_p, R_
             
             D(kite_pos) ~ kite_vel
             D(kite_vel) ~ kite_acc
-            kite_acc ~ R_b_w * [ifelse(init == true, 0, kite_acc_b[1]),
-                                ifelse(init == true, 0, kite_acc_b[2]),
+            kite_acc ~ R_b_w * [ifelse(init==true, 0, kite_acc_b[1]),
+                                ifelse(init==true, 0, kite_acc_b[2]),
                                 kite_acc_b[3]]
             kite_acc_b        ~ (R_b_w' * tether_kite_force + aero_kite_force_b) / s.set.mass
-
-            distance            ~ norm(kite_pos)
-            distance_vel        ~ kite_vel ⋅ normalize(kite_pos)
-            distance_acc        ~ kite_acc ⋅ normalize(kite_pos)    
         ]
         defaults = [
             defaults
@@ -644,7 +642,7 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::RamAirWing; I_p, R_
 
     eqs, defaults, guesses, set_values, tether_kite_force, tether_kite_moment_b, twist_angle = 
         force_eqs!(s, system, eqs, defaults, guesses; 
-            tether_kite_force, tether_kite_moment_b, R_b_w, kite_pos, kite_vel, q_inf, wind_vec_gnd)
+            tether_kite_force, tether_kite_moment_b, R_b_w, kite_pos, kite_vel, q_inf, wind_vec_gnd, init)
     diff_eqs!()
     scalar_eqs!()
     
