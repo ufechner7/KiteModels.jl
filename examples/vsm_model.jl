@@ -8,14 +8,14 @@ if PLOT
 end
 
 dt = 0.01
-total_time = 2.0
+total_time = 3.0
 steps = Int(round(total_time / dt))
 
 set = se("system_3l.yaml")
-set.segments = 2
+set.segments = 3
 set_values = [-50, -1.1, -1.1]
 
-new_sys = true
+new_sys = false
 if !@isdefined(s); new_sys = true; end
 if new_sys
     # if !@isdefined(s); s = KPSQ(KCU(set)); end
@@ -50,8 +50,8 @@ else
     VortexStepMethod.init!(s.aero)
     s.vsm_solver.sol.gamma_distribution .= 0.0
 end
-s.set.abs_tol = 1e-5
-s.set.rel_tol = 1e-3
+s.set.abs_tol = 1e-4
+s.set.rel_tol = 1e-2
 
 solver = FBDF()
 s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
@@ -64,14 +64,17 @@ sys = s.simple_sys
 l = s.set.l_tether + 10
 t = 0.
 runtime = 0.
+integ_runtime = 0.
 try
     while t < total_time
-        global t, runtime
-        KiteModels.plot(s, t; zoom=true, front=true)
+        global t, runtime, integ_runtime
+        KiteModels.plot(s, t; zoom=false, front=true)
         global set_values = -s.set.drum_radius .* s.integrator[sys.winch_force] - [0, 0, 5]
         # if t < 1.0; set_values[2] -= 0.0; end
-        steptime = @elapsed t = next_step!(s; set_values, dt)
-        if (t > dt); runtime += steptime; end
+        vsm_interval = t < 1.0 ? 1 : 5
+        steptime = @elapsed (t, integ_steptime) = next_step!(s; set_values, dt, vsm_interval)
+        if (t > total_time/2); runtime += steptime; end
+        if (t > total_time/2); integ_runtime += integ_steptime; end
         KiteModels.update_sys_state!(sys_state, s)
         sys_state.var_01 = s.integrator[sys.ω_b[1]]
         # sys_state.var_02 = s.integrator[sys.ω_b[2]]
@@ -91,9 +94,9 @@ try
 
         sys_state.var_13 = norm(s.integrator[sys.spring_force[3]])
         sys_state.var_14 = norm(s.integrator[sys.spring_force[7]])
-        println(
-            "\tPos: ", s.integrator[sys.pos[:, 17]],
-            )
+        # println(
+        #     "\tPos: ", s.integrator[sys.pos[:, 17]],
+        #     )
         log!(logger, sys_state)
     end
 catch e
@@ -122,7 +125,7 @@ p=plotx(logger.time_vec,
     fig="Steering and heading MTK model")
 display(p)
 
-println("Total runtime: ", runtime)
-println("Times realtime: ", (total_time) / runtime)
+println("Times realtime: ", (total_time/2) / runtime)
+println("Times realtime, just integrator: ", (total_time/2) / integ_runtime)
 
 nothing

@@ -183,7 +183,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             n = normalize(kite_pos)
             n = n * (p ⋅ n)
             r = (p - n) # https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line#Vector_formulation
-            @parameters bridle_damp = 10
+            @parameters bridle_damp = 20
             @parameters measured_ω_z = 0.6
             eqs = [
                 eqs

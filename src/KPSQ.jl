@@ -292,6 +292,8 @@ $(TYPEDFIELDS)
     power_tether_diameter::SimFloat = 2.
     "Tether diameter of the steering tethers [mm]"
     steering_tether_diameter::SimFloat = 1.
+    "Number of solve! calls"
+    iter::Int64 = 0
 
     set_set_values::Function       = () -> nothing
     set_measure::Function          = () -> nothing
@@ -591,7 +593,7 @@ function refine_twist!(s::KPSQ, twist_dist)
     return nothing
 end
 
-function next_step!(s::KPSQ; set_values=nothing, measure::Union{Measurement, Nothing}=nothing, dt=1/s.set.sample_freq)
+function next_step!(s::KPSQ; set_values=nothing, measure::Union{Measurement, Nothing}=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
     if (!isnothing(set_values)) 
         s.set_set_values(s.integrator, set_values)
     end
@@ -604,28 +606,31 @@ function next_step!(s::KPSQ; set_values=nothing, measure::Union{Measurement, Not
     VortexStepMethod.deform!(s.wing, twist_distribution, zeros(length(s.aero.panels)))
     VortexStepMethod.init!(s.aero)
 
-    va_body = s.get_va_body(s.integrator)
-    VortexStepMethod.set_va!(s.aero, va_body)
-    VortexStepMethod.solve!(s.vsm_solver, s.aero; moment_frac=s.bridle_fracs[s.point_system.groups[1].fixed_index])
-    if !any(isnan.(va_body)) &&
-        !any(isnan.(s.vsm_solver.sol.gamma_distribution))
-
-        s.set_coefficients(s.integrator, [
-            s.vsm_solver.sol.moment_distribution,
-            s.vsm_solver.sol.aero_force,
-            s.vsm_solver.sol.aero_moments
-        ])
-    else
-        @warn "Not converged"
+    if s.iter % vsm_interval == 0
+        va_body = s.get_va_body(s.integrator)
+        VortexStepMethod.set_va!(s.aero, va_body)
+        VortexStepMethod.solve!(s.vsm_solver, s.aero; moment_frac=s.bridle_fracs[s.point_system.groups[1].fixed_index])
+        if !any(isnan.(va_body)) &&
+            !any(isnan.(s.vsm_solver.sol.gamma_distribution))
+            s.set_coefficients(s.integrator, [
+                s.vsm_solver.sol.moment_distribution,
+                s.vsm_solver.sol.aero_force,
+                s.vsm_solver.sol.aero_moments
+            ])
+        else
+            @warn "Not converged"
+            s.vsm_solver.sol.gamma_distribution .= 0.0
+        end
     end
     
     s.t_0 = s.integrator.t
-    OrdinaryDiffEqCore.step!(s.integrator, dt, true)
+    steptime = @elapsed OrdinaryDiffEqCore.step!(s.integrator, dt, true)
     if !successful_retcode(s.integrator.sol)
         println("Return code for solution: ", s.integrator.sol.retcode)
     end
     @assert successful_retcode(s.integrator.sol)
-    s.integrator.t
+    s.iter += 1
+    s.integrator.t, steptime
 end
 
 """
