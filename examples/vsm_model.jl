@@ -8,14 +8,14 @@ if PLOT
 end
 
 dt = 0.01
-total_time = 3.0
+total_time = 2.0
 steps = Int(round(total_time / dt))
 
 set = se("system_3l.yaml")
 set.segments = 2
 set_values = [-50, -1.1, -1.1]
 
-new_sys = false
+new_sys = true
 if !@isdefined(s); new_sys = true; end
 if new_sys
     # if !@isdefined(s); s = KPSQ(KCU(set)); end
@@ -92,7 +92,7 @@ try
         sys_state.var_13 = norm(s.integrator[sys.spring_force[3]])
         sys_state.var_14 = norm(s.integrator[sys.spring_force[7]])
         println(
-            "\tPulley acc: ", s.integrator[sys.pulley_acc],
+            "\tPos: ", s.integrator[sys.pos[:, 17]],
             )
         log!(logger, sys_state)
     end

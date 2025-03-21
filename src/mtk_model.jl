@@ -86,7 +86,7 @@ function rotation_matrix_to_quaternion(R)
 end
 
 function force_eqs!(s, system, eqs, defaults, guesses; 
-        tether_kite_force, tether_kite_moment_b, R_b_w, kite_pos, kite_vel, q_inf, wind_vec_gnd, init)
+        tether_kite_force, tether_kite_moment_b, R_b_w, kite_pos, kite_vel, q_inf, wind_vec_gnd, ω_b, init)
 
     @parameters acc_multiplier = 1
 
@@ -179,12 +179,19 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                 acc[:, point.idx]    ~ zeros(3)
             ]
         elseif point.type === DYNAMIC
+            p = pos[:, point.idx]
+            n = normalize(kite_pos)
+            n = n * (p ⋅ n)
+            r = (p - n) # https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line#Vector_formulation
             @parameters bridle_damp = 10
+            @parameters measured_ω_z = 0.6
             eqs = [
                 eqs
                 D(pos[:, point.idx]) ~ vel[:, point.idx]
                 D(vel[:, point.idx]) ~ acc_multiplier * acc[:, point.idx] - in_bridle * bridle_damp * (vel[:, point.idx] - kite_vel)
-                acc[:, point.idx]    ~ point_force[:, point.idx] / mass + [0, 0, -G_EARTH]
+                acc[:, point.idx]    ~ point_force[:, point.idx] / mass + 
+                                        [0, 0, -G_EARTH] + 
+                                        ifelse.(init==true, r * norm(measured_ω_z)^2, zeros(3)) # TODO: add other init accelerations
             ]
             defaults = [
                 defaults
@@ -642,7 +649,7 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::RamAirWing; I_p, R_
 
     eqs, defaults, guesses, set_values, tether_kite_force, tether_kite_moment_b, twist_angle = 
         force_eqs!(s, system, eqs, defaults, guesses; 
-            tether_kite_force, tether_kite_moment_b, R_b_w, kite_pos, kite_vel, q_inf, wind_vec_gnd, init)
+            tether_kite_force, tether_kite_moment_b, R_b_w, kite_pos, kite_vel, q_inf, wind_vec_gnd, ω_b, init)
     diff_eqs!()
     scalar_eqs!()
     

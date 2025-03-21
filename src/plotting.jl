@@ -17,7 +17,6 @@ function plot(sys::PointMassSystem, reltime; kite_pos=nothing, zoom=false, front
         ylim = (0, 60)
     end
     ControlPlots.plot2d(pos, seg, reltime; zoom, front, xlim, ylim, dz_zoom=0.6)
-    # ControlPlots.plot2d(pos, seg, reltime; zoom=false, front=false)
 end
 
 function plot(s::KPSQ, reltime; kwargs...)
