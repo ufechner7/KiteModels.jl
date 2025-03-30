@@ -13,17 +13,16 @@ function PointMassSystem(s::KPSQ, wing::RamAirWing)
 
     attach_points = Point[]
     
-    bridle_gammas, bridle_limits = find_bridle_gammas!(s, wing)
-    bridle_top_left = [s.top_bridle_points[i] - s.wing.center_of_mass for i in eachindex(s.top_bridle_points)] # cad to kite frame
+    bridle_top_left = [s.wing.R_cad_body * (s.top_bridle_points[i] + s.wing.T_cad_body) for i in eachindex(s.top_bridle_points)] # cad to kite frame
     bridle_top_right = [bridle_top_left[i] .* [1, -1, 1] for i in eachindex(s.top_bridle_points)]
 
-    function create_bridle(gammas, limits, bridle_top)
+    function create_bridle(bridle_top, gammas)
         i_pnt = length(points) # last point idx
         i_seg = length(segments) # last segment idx
         i_pul = length(pulleys) # last pulley idx
 
         i = 1
-        for (gamma, limit) in zip(gammas, limits) # 2 gammas with 2 pairs of limits
+        for gamma in gammas # 2 gammas per bridle system
             le_pos = [wing.le_interp[i](gamma) for i in 1:3]
             chord = [wing.te_interp[i](gamma) for i in 1:3] .- le_pos
             y_airf = normalize([wing.le_interp[i](gamma-0.01) for i in 1:3] - le_pos)
@@ -37,8 +36,7 @@ function PointMassSystem(s::KPSQ, wing::RamAirWing)
             end
             
             i_grp = 1 + length(groups)
-            y_lim = (wing.le_interp[2](limit[1]), wing.le_interp[2](limit[2])) # TODO: ylim is slightly off-centre
-            groups = [groups; KitePointGroup(i_grp, point_idxs, y_lim, 1, chord, y_airf, DYNAMIC)]
+            groups = [groups; KitePointGroup(i_grp, point_idxs, 1, chord, y_airf, DYNAMIC)]
         end
 
         points = [
@@ -121,8 +119,9 @@ function PointMassSystem(s::KPSQ, wing::RamAirWing)
         return tethers[end].idx
     end
 
-    create_bridle(bridle_gammas[1:2], bridle_limits[1:2], bridle_top_left)
-    create_bridle(bridle_gammas[3:4], bridle_limits[3:4], bridle_top_right)
+    gammas = [-3/4, -1/4, 1/4, 3/4] * wing.gamma_tip
+    create_bridle(bridle_top_left, gammas[1:2])
+    create_bridle(bridle_top_right, gammas[3:4])
 
     left_power_idx = create_tether(attach_points[1], POWER)
     right_power_idx = create_tether(attach_points[3], POWER)
@@ -181,151 +180,7 @@ function init!(system::PointMassSystem, s::KPSQ, R_b_w)
     return init_kite_pos
 end
 
-
-function find_bridle_gammas!(s::KPSQ, wing::RamAirWing; n_groups=4)
-    @assert iseven(n_groups) "Number of groups must be even"
-    half_area = wing.area_interp(0.0)
-    
-    # Create target areas - evenly distributed on left side of the wing
-    target_areas = [(i / n_groups) * (half_area) for i in 1:n_groups-1]
-    
-    function equations!(F, gamma, p)
-        for i in 1:n_groups-1
-            F[i] = wing.area_interp(gamma[i]) - target_areas[i]
-        end
-    end
-    
-    # Initial guess: evenly spaced between -gamma_tip and middle
-    gamma_tip = wing.gamma_tip
-    gamma0 = [-gamma_tip + (i / n_groups) * gamma_tip for i in 1:n_groups-1]
-    
-    prob = NonlinearProblem(equations!, gamma0, nothing)
-    result = NonlinearSolve.solve(prob, NewtonRaphson())
-    
-    # Mirror the solution for both sides
-    bridle_gamma = zeros(n_groups)
-    bridle_gamma[1:n_groups÷2] .= result.u[1:2:end]
-    bridle_gamma[n_groups÷2+1:end] .= -reverse(result.u[1:2:end])
-
-    limits = [zeros(2) for _ in 1:n_groups]
-    for i in eachindex(limits[1:n_groups÷2])
-        if i == 1
-            limits[i] .= (-gamma_tip, result.u[2i])
-        elseif 2i == length(result.u)+1
-            limits[i] .= (result.u[2i-2], 0.0)
-        else
-            limits[i] .= (result.u[2i-2], result.u[2i])
-        end
-        limits[n_groups+1-i] .= -reverse(limits[i])
-    end
-    return bridle_gamma, limits
-end
-
-function calc_inertia(I_b_tensor)
-    I_b = [I_b_tensor[1,1], I_b_tensor[2,2], I_b_tensor[3,3]]
-    
-    # Find principal axes
-    eigenvals, eigenvecs = eigen(I_b_tensor)
-    
-    # Sort by magnitude
-    p = sortperm(eigenvals)
-    eigenvals = eigenvals[p]
-    eigenvecs = eigenvecs[:, p]
-    
-    # Ensure right-handed coordinate system
-    if det(eigenvecs) < 0
-        eigenvecs[:, 3] .*= -1
-    end
-
-    # Store results
-    I_p = eigenvals
-    R_b_p = eigenvecs
-    Q_p_b = rotation_matrix_to_quaternion(R_b_p')
-    return I_p, I_b, R_b_p, Q_p_b
-end
-
-function calc_inertia2(I_b_tensor)
-    
-    # Find principal axes (eigenvalues and eigenvectors)
-    eigenvals, eigenvecs = eigen(I_b_tensor)
-    
-    # Sort by magnitude of eigenvalues
-    p = sortperm(eigenvals)
-    I_p = eigenvals[p]
-    eigenvecs = eigenvecs[:, p]
-    
-    # Ensure right-handed coordinate system
-    if det(eigenvecs) < 0
-        eigenvecs[:, 3] *= -1
-    end
-    
-    # Find the best alignment with the standard basis [1,0,0], [0,1,0], [0,0,1]
-    # Calculate how well each eigenvector aligns with each standard basis vector
-    alignment = abs.([
-        eigenvecs[:,1]⋅[1,0,0] eigenvecs[:,1]⋅[0,1,0] eigenvecs[:,1]⋅[0,0,1];
-        eigenvecs[:,2]⋅[1,0,0] eigenvecs[:,2]⋅[0,1,0] eigenvecs[:,2]⋅[0,0,1];
-        eigenvecs[:,3]⋅[1,0,0] eigenvecs[:,3]⋅[0,1,0] eigenvecs[:,3]⋅[0,0,1]
-    ])
-    
-    # Find best assignment of eigenvectors to coordinate axes
-    assigned_cols = zeros(Int, 3)
-    assigned_rows = zeros(Int, 3)
-    
-    # Greedy algorithm to find best matching
-    for _ in 1:3
-        # Find max value in alignment matrix among unassigned rows/columns
-        max_val = -1.0
-        best_row = 0
-        best_col = 0
-        
-        for row in 1:3
-            if assigned_rows[row] == 0
-                for col in 1:3
-                    if assigned_cols[col] == 0 && alignment[row, col] > max_val
-                        max_val = alignment[row, col]
-                        best_row = row
-                        best_col = col
-                    end
-                end
-            end
-        end
-        
-        # Assign this eigenvector to this axis
-        assigned_rows[best_row] = best_col
-        assigned_cols[best_col] = best_row
-    end
-    
-    # Create reordered eigenvector matrix and reordered eigenvalues
-    R_b_p = zeros(3, 3)
-    I_p_reordered = zeros(3)
-    
-    for i in 1:3
-        axis = assigned_rows[i]
-        # Make sure the eigenvector points in the positive direction of standard basis
-        sign_factor = sign(eigenvecs[:,i]⋅[axis==1, axis==2, axis==3])
-        if sign_factor == 0
-            sign_factor = 1  # Default to positive if dot product is zero
-        end
-        
-        R_b_p[:,axis] = sign_factor * eigenvecs[:,i]
-        I_p_reordered[axis] = I_p[i]
-    end
-    
-    # Ensure the matrix is still a rotation matrix (det = 1)
-    if det(R_b_p) < 0
-        R_b_p[:,3] *= -1
-    end
-    
-    # Calculate the quaternion representation
-    Q_p_b = rotation_matrix_to_quaternion(R_b_p')
-    
-    # Get the diagonal terms of the original tensor 
-    I_b = [I_b_tensor[1,1], I_b_tensor[2,2], I_b_tensor[3,3]]
-    
-    return I_p_reordered, I_b, R_b_p, Q_p_b
-end
-
-function measure_to_q(measure::Measurement, R_b_p)
+function measure_to_q(measure::Measurement)
     x = [0, 0, -1] # laying flat along x axis
     z = [1, 0, 0] # laying flat along x axis
     x = rotate_around_y(x, -measure.elevation)
@@ -333,8 +188,7 @@ function measure_to_q(measure::Measurement, R_b_p)
     x = rotate_around_z(x, measure.azimuth)
     z = rotate_around_z(z, measure.azimuth)
     R_b_w = hcat(x, z × x, z)
-    R_p_w = R_b_w * R_b_p'
-    Q_p_w = rotation_matrix_to_quaternion(R_p_w)
-    return Q_p_w, R_b_w
+    Q_b_w = rotation_matrix_to_quaternion(R_b_w)
+    return Q_b_w, R_b_w
 end
 

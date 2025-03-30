@@ -1,5 +1,5 @@
 using Revise, KiteModels, ModelingToolkit, LinearAlgebra, Statistics, VortexStepMethod
-using OrdinaryDiffEqBDF, OrdinaryDiffEqCore, OrdinaryDiffEqRosenbrock
+using OrdinaryDiffEqBDF, OrdinaryDiffEqCore, OrdinaryDiffEqRosenbrock, Serialization
 using ModelingToolkit: setp
 
 PLOT = true
@@ -7,22 +7,20 @@ if PLOT
     using ControlPlots
 end
 
-dt = 0.01
-total_time = 3.0
+dt = 0.05
+total_time = 2.2
 steps = Int(round(total_time / dt))
 
 set = se("system_3l.yaml")
-set.segments = 3
+set.segments = 2
 set_values = [-50, -1.1, -1.1]
 
-new_sys = false
-if !@isdefined(s); new_sys = true; end
-if new_sys
+new_sys = 1
+if new_sys == 1
     # if !@isdefined(s); s = KPSQ(KCU(set)); end
-    wing = RamAirWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat"; mass=set.mass, crease_frac=0.82)
+    wing = RamAirWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat"; mass=set.mass, crease_frac=0.82, align_to_principal=true)
     aero = BodyAerodynamics([wing])
-    P = length(aero.panels)
-    vsm_solver = Solver{P}()
+    vsm_solver = Solver(aero)
     s2 = KPSQ(set, wing, aero, vsm_solver)
     s2.measure.set_values = set_values
     s2.measure.tether_length = [51., 51., 49.]
@@ -39,13 +37,20 @@ if new_sys
 
     sys, defaults_, guesses_ = KiteModels.model!(s2)
     @time s2.prob = ODEProblem(sys, defaults_, (0.0, 0.01); guesses=guesses_)
-    s2.simple_sys = sys
+    serialize("data/kite.bin", s2.prob)
+    # @info "Deserializing problem"
+    # @time s2.prob = deserialize("data/kite.bin")
+    s2.simple_sys = s2.prob.f.sys
     s = s2
-else
-    # s.wing = RamAirWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat"; mass=set.mass, crease_frac=0.825)
-    # s.aero = BodyAerodynamics([s.wing])
-    # s.vsm_solver = Solver()
-
+elseif new_sys == 2
+    wing = RamAirWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat"; mass=set.mass, crease_frac=0.82, align_to_principal=true)
+    aero = BodyAerodynamics([wing])
+    vsm_solver = Solver(aero)
+    s = KPSQ(set, wing, aero, vsm_solver)
+    s.prob = deserialize("data/kite.bin")
+    s.simple_sys = s.prob.f.sys
+    s.point_system = KiteModels.PointMassSystem(s, s.wing)
+elseif new_sys == 3
     VortexStepMethod.deform!(s.wing, zeros(s.wing.n_panels), zeros(s.wing.n_panels))
     VortexStepMethod.init!(s.aero)
     s.vsm_solver.sol.gamma_distribution .= 0.0
@@ -54,7 +59,8 @@ s.set.abs_tol = 1e-4
 s.set.rel_tol = 1e-2
 
 solver = FBDF()
-s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
+@info "Initializing integrator"
+@time s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
 KiteModels.generate_getters!(s)
 logger = Logger(length(s.point_system.points), steps)
 
@@ -71,7 +77,7 @@ try
         KiteModels.plot(s, t; zoom=false, front=true)
         global set_values = -s.set.drum_radius .* s.integrator[sys.winch_force] - [0, 0, 5]
         # if t < 1.0; set_values[2] -= 0.0; end
-        vsm_interval = t < 1.0 ? 1 : 5
+        vsm_interval = t < 1.0 ? 1 : 1
         steptime = @elapsed (t, integ_steptime) = next_step!(s; set_values, dt, vsm_interval)
         if (t > total_time/2); runtime += steptime; end
         if (t > total_time/2); integ_runtime += integ_steptime; end
@@ -83,12 +89,12 @@ try
         sys_state.var_04 = s.integrator[sys.tether_vel[1]]
         sys_state.var_05 = s.integrator[sys.tether_vel[3]]
 
-        sys_state.var_06 = norm(s.vsm_solver.sol.aero_force)
-        sys_state.var_07 = s.vsm_solver.sol.aero_moments[2]
+        sys_state.var_06 = norm(s.vsm_solver.sol.force)
+        sys_state.var_07 = s.vsm_solver.sol.moment[2]
         sys_state.var_08 = sum(s.vsm_solver.sol.moment_distribution)
 
         sys_state.var_09 = 0.01s.integrator[sys.aero_moment[4]]
-        sys_state.var_10 = 0.01s.integrator[sys.tether_moment[4]]
+        sys_state.var_10 = 0.01s.integrator[sys.group_tether_moment[4]]
         sys_state.var_11 = s.integrator[sys.twist_α[4]]
         sys_state.var_12 = s.integrator[sys.twist_angle[4]]
 

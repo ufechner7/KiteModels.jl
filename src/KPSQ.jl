@@ -106,7 +106,6 @@ Set of bridle lines that share the same twist angle and trailing edge angle
 struct KitePointGroup
     idx::Int16
     points::Vector{Int16}
-    y_lim::Tuple{SimFloat, SimFloat}
     fixed_index::Int16 # point which the group rotates around under kite deformation
     chord::KVec3 # chord vector in body frame which the group rotates around under kite deformation
     y_airf::KVec3 # spanwise vector in local panel frame which the group rotates around under kite deformation
@@ -220,13 +219,13 @@ $(TYPEDFIELDS)
     "Reference to the point mass system with points, segments, pulleys and tethers"
     point_system::PointMassSystem = PointMassSystem(Point[], KitePointGroup[], Segment[], Pulley[], Tether[], Winch[])
     "The last initial elevation"
-    last_init_elevation::S     = 0.0
+    prev_init_elevation::S     = 0.0
     "The last initial tether length"
-    last_init_tether_length::S = 0.0
+    prev_init_tether_length::S = 0.0
     "Reference to the last settings hash"
-    last_set_hash::UInt64   = 0
+    prev_set_hash::UInt64   = 0
     "Reference to the last measurement hash"
-    last_measure_hash::UInt64 = 0
+    prev_measure_hash::UInt64 = 0
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
     "tether positions"
@@ -295,9 +294,13 @@ $(TYPEDFIELDS)
     "Number of solve! calls"
     iter::Int64 = 0
 
+    prev_force::Vector{MeasureFloat} = zeros(MeasureFloat, 3)
+    prev_moment::Vector{MeasureFloat} = zeros(MeasureFloat, 3)
+    prev_moment_dist::Vector{MeasureFloat} = zeros(MeasureFloat, length(aero.panels))
+
     set_set_values::Function       = () -> nothing
     set_measure::Function          = () -> nothing
-    set_coefficients::Function     = () -> nothing
+    set_vsm::Function     = () -> nothing
 
     get_state::Function            = () -> nothing
     get_twist::Function            = () -> nothing
@@ -307,53 +310,6 @@ $(TYPEDFIELDS)
     init_prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
     integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Sundials.CVODEIntegrator, Nothing} = nothing
     init_integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Sundials.CVODEIntegrator, Nothing} = nothing
-end
-
-"""
-    clear!(s::KPSQ)
-
-Initialize the kite power model.
-"""
-function clear!(s::KPSQ)
-    # P = 3s.set.segments + 3
-    # S = eltype(s.pos)
-    # s.pos = zeros(S, 3, P)
-    # s.masses = zeros(S, P)
-    # s.expected_tether_pos_vel_buffer = zeros(S, 2, 3, (P ÷ 3))
-    # s.J_buffer = zeros(S, P, 2)
-    # s.y_buffer = zeros(S, P)
-    # s.t_0 = 0.0                              # relative start time of the current time interval
-    # s.e_x .= 0.0
-    # s.e_y .= 0.0
-    # s.e_z .= 0.0
-    # s.tether_lengths .= [s.set.l_tether for _ in 1:3]
-    # s.γ_l = π/2 - s.set.min_steering_line_distance/(2*s.set.radius)
-    # s.segment_lengths .= s.tether_lengths ./ s.set.segments
-    # s.i_A = s.set.segments*3+1
-    # s.i_B = s.set.segments*3+2
-    # s.i_C = s.set.segments*3+3
-    # s.rho = s.set.rho_0
-    # c_spring = s.set.e_tether * (s.set.d_tether/2000.0)^2 * pi
-    # s.c_spring .= [c_spring, c_spring, 2c_spring]
-    # s.damping .= (s.set.damping / s.set.c_spring) * s.c_spring
-    # s.kite_length = function (γ)
-    #     if γ < π/2
-    #         return s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (γ - s.γ_l) / (π/2 - s.γ_l)
-    #     else
-    #         return s.set.tip_length + (s.set.middle_length-s.set.tip_length) * (π - s.γ_l - γ) / (π/2 - s.γ_l)
-    #     end
-    # end
-    # init_masses!(s)
-
-    # width, radius, tip_length, middle_length = s.set.width, s.set.radius, s.set.tip_length, s.set.middle_length
-    # s.γ_l = pi/2 - width/2/radius
-    # s.γ_D = s.γ_l + width*(-2*tip_length + sqrt(2*middle_length^2 + 2*tip_length^2)) /
-    #     (4*(middle_length - tip_length)) / radius
-    # s.kite_length_D = tip_length + (middle_length-tip_length) * (s.γ_D - s.γ_l) / (π/2 - s.γ_l)
-
-    # calc_inertia!(s, s.wing)
-    # calc_pos_principal!(s)
-    nothing
 end
 
 function KPSQ(set::Settings, wing::RamAirWing, aero::BodyAerodynamics, vsm_solver::VortexStepMethod.Solver)
@@ -368,7 +324,6 @@ function KPSQ(set::Settings, wing::RamAirWing, aero::BodyAerodynamics, vsm_solve
             )
         s.torque_control = false
     end
-    clear!(s)
     return s
 end
 
@@ -390,7 +345,7 @@ end
 
 function update_sys_state!(ss::SysState, s::KPSQ, zoom=1.0)
     ss.time = s.t_0
-    pos, acc, Q_p_w, elevation, azimuth, e_x, tether_vel, twist, kite_vel = s.get_state(s.integrator)
+    pos, acc, Q_b_w, elevation, azimuth, e_x, tether_vel, twist, kite_vel = s.get_state(s.integrator)
     P = length(s.point_system.points)
     for i in 1:P
         ss.X[i] = pos[1, i] * zoom
@@ -402,7 +357,7 @@ function update_sys_state!(ss::SysState, s::KPSQ, zoom=1.0)
     # ss.left_tether_vel = tether_vel[1]
     # ss.right_tether_vel = tether_vel[2]
     ss.acc = norm(acc)
-    ss.orient .= Q_p_w
+    ss.orient .= Q_b_w
     ss.elevation = elevation
     ss.azimuth = azimuth
     ss.force = zero(SimFloat)
@@ -417,8 +372,8 @@ function update_sys_state!(ss::SysState, s::KPSQ, zoom=1.0)
 end
 
 function SysState(s::KPSQ, zoom=1.0) # TODO: add left and right lines, stop using getters and setters
-    isnothing(s.integrator) && throw(ArgumentError("run init!(s) first"))
-    pos, acc, Q_p_w, elevation, azimuth, e_x, tether_vel, twist, kite_vel = s.get_state(s.integrator)
+    isnothing(s.integrator) && throw(ArgumentError("run init_sim!(s) first"))
+    pos, acc, Q_b_w, elevation, azimuth, e_x, tether_vel, twist, kite_vel = s.get_state(s.integrator)
     P = length(s.point_system.points)
     X = zeros(MVector{P, MyFloat})
     Y = zeros(MVector{P, MyFloat})
@@ -429,7 +384,7 @@ function SysState(s::KPSQ, zoom=1.0) # TODO: add left and right lines, stop usin
         Z[i] = pos[3, i] * zoom
     end
     
-    orient = MVector{4, Float32}(Q_p_w) # TODO: add Q_b_w
+    orient = MVector{4, Float32}(Q_b_w) # TODO: add Q_b_w
     # forces = s.get_tether_force() # TODO: add tether force
     forces = zeros(3)
     heading = calc_heading_y(e_x)
@@ -495,17 +450,17 @@ Nothing.
 """
 function init_sim!(s::KPSQ; prn=false, torque_control=s.torque_control, 
         init_set_values=s.init_set_values, ϵ=s.ϵ, flap_damping=s.flap_damping, 
-        force_new_sys=false, force_new_pos=false, init=false)
+        force_new_sys=false, force_new_pos=false, init=false) # TODO: serialize and deserialize s.prob
     dt = SimFloat(1/s.set.sample_freq)
     tspan   = (0.0, dt) 
-    solver = Rodas5P(autodiff=AutoFiniteDiff())
+    solver = FBDF()
     set_hash = struct_hash(s.set)
     measure_hash = struct_hash(s.measure)
-    new_pos = s.last_measure_hash != measure_hash || force_new_pos
+    new_pos = s.prev_measure_hash != measure_hash || force_new_pos
     new_sys = force_new_sys ||
                     isnothing(s.prob) || 
                     s.torque_control != torque_control || 
-                    s.last_set_hash != set_hash ||
+                    s.prev_set_hash != set_hash ||
                     s.ϵ != ϵ ||
                     s.flap_damping != flap_damping
     s.torque_control = torque_control
@@ -514,11 +469,7 @@ function init_sim!(s::KPSQ; prn=false, torque_control=s.torque_control,
 
     if new_sys
         if prn; println("initializing with new model and new pos"); end
-        clear!(s)
         sys, defaults, guesses = model!(s; init)
-        # for u in unknowns(sys)
-        #     println(u)
-        # end
         @info "Creating the problem"
         @time s.prob = ODEProblem(sys, defaults, tspan; guesses)
         s.simple_sys = s.prob.f.sys
@@ -533,10 +484,10 @@ function init_sim!(s::KPSQ; prn=false, torque_control=s.torque_control,
         OrdinaryDiffEqCore.reinit!(s.integrator, s.prob.u0)
     end
 
-    s.last_init_elevation = s.set.elevation
-    s.last_init_tether_length = s.set.l_tether
-    s.last_set_hash = set_hash
-    s.last_measure_hash = measure_hash
+    s.prev_init_elevation = s.set.elevation
+    s.prev_init_tether_length = s.set.l_tether
+    s.prev_set_hash = set_hash
+    s.prev_measure_hash = measure_hash
     s.init_set_values .= init_set_values
     return nothing
 end
@@ -546,13 +497,18 @@ function generate_getters!(s; init=false)
     c = collect
     set_set_values = setp(sys, sys.set_values)
     set_measure = setp(sys, sys.measured_wind_dir_gnd)
-    set_coefficients = setp(sys, [
-        sys.moment_dist,
-        sys.aero_kite_force_b,
-        sys.aero_kite_moment_b
+    set_vsm = setp(sys, [
+        sys.vsm_force,
+        sys.vsm_moment,
+        sys.vsm_moment_dist,
+        sys.prev_force,
+        sys.prev_moment,
+        sys.prev_moment_dist,
+        sys.vsm_t,
+        sys.dt
     ])
     get_state = getu(sys, 
-        [c(sys.pos), c(sys.acc), c(sys.Q_p_w), sys.elevation, sys.azimuth, 
+        [c(sys.pos), c(sys.acc), c(sys.Q_b_w), sys.elevation, sys.azimuth, 
         c(sys.e_x), c(sys.tether_vel), c(sys.twist_angle), c(sys.kite_vel)]
     )
     get_twist = getu(sys, sys.twist_angle)
@@ -560,7 +516,7 @@ function generate_getters!(s; init=false)
 
     s.set_set_values = (integ, val) -> set_set_values(integ, val)
     s.set_measure = (integ, val) -> set_measure(integ, val)
-    s.set_coefficients = (integ, val) -> set_coefficients(integ, val)
+    s.set_vsm = (integ, val) -> set_vsm(integ, val)
     s.get_state = (integ) -> get_state(integ)
     s.get_twist = (integ) -> get_twist(integ)
     s.get_va_body = (integ) -> get_va_body(integ)
@@ -603,20 +559,29 @@ function next_step!(s::KPSQ; set_values=nothing, measure::Union{Measurement, Not
 
     twist_distribution = zeros(length(s.aero.panels))
     refine_twist!(s, twist_distribution)
-    VortexStepMethod.deform!(s.wing, twist_distribution, zeros(length(s.aero.panels)))
-    VortexStepMethod.init!(s.aero)
+    println("step")
+    @time VortexStepMethod.deform!(s.wing, twist_distribution, zeros(length(s.aero.panels)))
+    @time VortexStepMethod.init!(s.aero)
 
     if s.iter % vsm_interval == 0
         va_body = s.get_va_body(s.integrator)
-        VortexStepMethod.set_va!(s.aero, va_body)
-        VortexStepMethod.solve!(s.vsm_solver, s.aero; moment_frac=s.bridle_fracs[s.point_system.groups[1].fixed_index])
+        @time VortexStepMethod.set_va!(s.aero, va_body)
+        @time VortexStepMethod.solve!(s.vsm_solver, s.aero; moment_frac=s.bridle_fracs[s.point_system.groups[1].fixed_index])
         if !any(isnan.(va_body)) &&
             !any(isnan.(s.vsm_solver.sol.gamma_distribution))
-            s.set_coefficients(s.integrator, [
+            s.set_vsm(s.integrator, [
+                s.vsm_solver.sol.force,
+                s.vsm_solver.sol.moment,
                 s.vsm_solver.sol.moment_distribution,
-                s.vsm_solver.sol.aero_force,
-                s.vsm_solver.sol.aero_moments
+                s.prev_force,
+                s.prev_moment,
+                s.prev_moment_dist,
+                s.integrator.t,
+                dt*1000,
             ])
+            s.prev_force .= s.vsm_solver.sol.force
+            s.prev_moment .= s.vsm_solver.sol.moment
+            s.prev_moment_dist .= s.vsm_solver.sol.moment_distribution
         else
             @warn "Not converged"
             s.vsm_solver.sol.gamma_distribution .= 0.0
