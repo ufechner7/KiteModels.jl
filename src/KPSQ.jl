@@ -303,8 +303,7 @@ $(TYPEDFIELDS)
     set_vsm::Function     = () -> nothing
 
     get_state::Function            = () -> nothing
-    get_twist::Function            = () -> nothing
-    get_va_body::Function          = () -> nothing
+    get_y::Function          = () -> nothing
 
     prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
     init_prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
@@ -498,55 +497,22 @@ function generate_getters!(s; init=false)
     set_set_values = setp(sys, sys.set_values)
     set_measure = setp(sys, sys.measured_wind_dir_gnd)
     set_vsm = setp(sys, [
-        sys.vsm_force,
-        sys.vsm_moment,
-        sys.vsm_moment_dist,
-        sys.prev_force,
-        sys.prev_moment,
-        sys.prev_moment_dist,
-        sys.vsm_t,
-        sys.dt
+        c(sys.last_x),
+        c(sys.last_y),
+        c(sys.vsm_jac),
     ])
     get_state = getu(sys, 
         [c(sys.pos), c(sys.acc), c(sys.Q_b_w), sys.elevation, sys.azimuth, 
         c(sys.e_x), c(sys.tether_vel), c(sys.twist_angle), c(sys.kite_vel)]
     )
-    get_twist = getu(sys, sys.twist_angle)
-    get_va_body = getu(sys, sys.va_kite_b)
+    get_y = getu(sys, sys.y)
 
     s.set_set_values = (integ, val) -> set_set_values(integ, val)
     s.set_measure = (integ, val) -> set_measure(integ, val)
     s.set_vsm = (integ, val) -> set_vsm(integ, val)
     s.get_state = (integ) -> get_state(integ)
-    s.get_twist = (integ) -> get_twist(integ)
-    s.get_va_body = (integ) -> get_va_body(integ)
+    s.get_y = (integ) -> get_y(integ)
     nothing
-end
-
-function refine_twist!(s::KPSQ, twist_dist)
-    twist_angles = s.get_twist(s.integrator)
-    groups = s.point_system.groups
-    panels = s.aero.panels
-    group_idx = 1
-    for (i, panel) in enumerate(panels)
-        @show 
-        if 0.5(panel.LE_point_2[2] + panel.LE_point_1[2]) < groups[group_idx].y_lim[2]
-            group_idx += 1
-        end
-        (group_idx > length(groups)) && throw(ArgumentError("Panels and groups are not sorted in the same direction"))
-        twist_dist[i] = twist_angles[group_idx]
-    end
-    @assert (group_idx == length(groups))
-
-    window_size = length(panels) ÷ length(twist_angles)
-    if length(panels) > window_size
-        smoothed = copy(twist_dist)
-        for i in (window_size÷2 + 1):(length(panels) - window_size÷2)
-            smoothed[i] = mean(twist_dist[(i - window_size÷2):(i + window_size÷2)])
-        end
-        twist_dist .= smoothed
-    end
-    return nothing
 end
 
 function next_step!(s::KPSQ; set_values=nothing, measure::Union{Measurement, Nothing}=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
@@ -557,35 +523,17 @@ function next_step!(s::KPSQ; set_values=nothing, measure::Union{Measurement, Not
         s.set_measure(s.integrator, s.measure.wind_dir_gnd)
     end
 
-    twist_distribution = zeros(length(s.aero.panels))
-    refine_twist!(s, twist_distribution)
-    println("step")
-    @time VortexStepMethod.deform!(s.wing, twist_distribution, zeros(length(s.aero.panels)))
-    @time VortexStepMethod.init!(s.aero)
-
     if s.iter % vsm_interval == 0
-        va_body = s.get_va_body(s.integrator)
-        @time VortexStepMethod.set_va!(s.aero, va_body)
-        @time VortexStepMethod.solve!(s.vsm_solver, s.aero; moment_frac=s.bridle_fracs[s.point_system.groups[1].fixed_index])
-        if !any(isnan.(va_body)) &&
-            !any(isnan.(s.vsm_solver.sol.gamma_distribution))
-            s.set_vsm(s.integrator, [
-                s.vsm_solver.sol.force,
-                s.vsm_solver.sol.moment,
-                s.vsm_solver.sol.moment_distribution,
-                s.prev_force,
-                s.prev_moment,
-                s.prev_moment_dist,
-                s.integrator.t,
-                dt*1000,
-            ])
-            s.prev_force .= s.vsm_solver.sol.force
-            s.prev_moment .= s.vsm_solver.sol.moment
-            s.prev_moment_dist .= s.vsm_solver.sol.moment_distribution
-        else
-            @warn "Not converged"
-            s.vsm_solver.sol.gamma_distribution .= 0.0
-        end
+        y = s.get_y(s.integrator)
+        jac, x = VortexStepMethod.linearize(
+            s.vsm_solver, 
+            s.aero, 
+            y;
+            theta_idxs=1:4,
+            va_idxs=5:7,
+            omega_idxs=8:10,
+            moment_frac=s.bridle_fracs[s.point_system.groups[1].fixed_index])
+        s.set_vsm(s.integrator, [x, y, jac])
     end
     
     s.t_0 = s.integrator.t

@@ -614,8 +614,7 @@ function linear_vsm_eqs!(s, eqs; aero_force_b, aero_moment_b, group_aero_moment,
     @assert length(s.point_system.groups) == length(sol.group_moment_dist)
 
     y_ = [zeros(4); init_va; zeros(3)]
-    @show y_
-    jac_, results_ = VortexStepMethod.linearize(
+    jac_, x_ = VortexStepMethod.linearize(
         s.vsm_solver, 
         s.aero, 
         y_;
@@ -624,20 +623,24 @@ function linear_vsm_eqs!(s, eqs; aero_force_b, aero_moment_b, group_aero_moment,
         omega_idxs=8:10,
         moment_frac=s.bridle_fracs[s.point_system.groups[1].fixed_index])
     display(jac_)
-    display(results_)
+    display(x_)
 
     @parameters begin
-        y[eachindex(y_)] = y_
-        results[eachindex(results_)] = results_
-        jac[eachindex(results_), eachindex(y_)] = jac_
+        last_y[eachindex(y_)] = y_
+        last_x[eachindex(x_)] = x_
+        vsm_jac[eachindex(x_), eachindex(y_)] = jac_
     end
 
-    @variables dy(t)[eachindex(y_)]
+    @variables begin
+        y(t)[eachindex(y_)]
+        dy(t)[eachindex(y_)]
+    end
 
     eqs = [
         eqs
-        dy ~ [twist_angle; va_kite_b; ω_b] - y
-        [aero_force_b; aero_moment_b; group_aero_moment] ~ results + jac * dy
+        y ~ [twist_angle; va_kite_b; ω_b]
+        dy ~ y - last_y
+        [aero_force_b; aero_moment_b; group_aero_moment] ~ last_x + vsm_jac * dy
     ]
 
     return eqs
@@ -658,36 +661,21 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::RamAirWing; I_b, in
         # measured_tether_acc[1:3]    = s.measure.tether_acc
     end
     @variables begin
-        # # potential differential variables
+        # potential differential variables
         kite_pos(t)[1:3] # xyz pos of kite in world frame
         kite_vel(t)[1:3]
         kite_acc(t)[1:3]
-        # kite_acc_b(t)[1:3]
         ω_b(t)[1:3] # turn rate in principal frame
-        # α_b(t)[1:3] # angular acceleration in principal frame
 
-        # # rotations and frames
+        # rotations and frames
         R_b_w(t)[1:3, 1:3] # rotation of the kite body frame relative to the world frame
-        # Q_b_w(t)[1:4] # quaternion orientation of the kite body frame relative to the world frame
-        # Q_vel(t)[1:4] # quaternion rate of change
-        # e_x(t)[1:3]
-        # e_y(t)[1:3]
-        # e_z(t)[1:3]
 
-        # # rest: forces, moments, vectors and scalar values
+        # rest: forces, moments, vectors and scalar values
         aero_force_b(t)[1:3]
         aero_moment_b(t)[1:3]
         twist_angle(t)[eachindex(system.groups)]
         group_aero_moment(t)[eachindex(system.groups)]
-        # moment_b(t)[1:3] # moment in principal frame
-        # total_kite_force(t)[1:3]
-        # total_tether_kite_force(t)[1:3]
-        # total_tether_kite_moment(t)[1:3]
-        # aero_kite_force(t)[1:3]
-        # rho_kite(t)
         wind_vec_gnd(t)[1:3]
-        # wind_vel_kite(t)[1:3]
-        # va_kite(t)[1:3]
         va_kite_b(t)[1:3]
     end
 
@@ -718,7 +706,7 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::RamAirWing; I_b, in
     #         [twist_angle[i] ~ clamp(twist_angle[i], -π/2, π/2) for i in eachindex(s.point_system.groups)]
     #         ]
     #     ]
-    
+
     @info "Creating ODESystem"
     # @named sys = ODESystem(eqs, t; discrete_events)
     @time @named sys = ODESystem(eqs, t)
