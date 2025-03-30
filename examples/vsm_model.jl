@@ -7,8 +7,8 @@ if PLOT
     using ControlPlots
 end
 
-dt = 0.05
-total_time = 7.0
+dt = 0.5
+total_time = 6.5
 steps = Int(round(total_time / dt))
 
 set = se("system_3l.yaml")
@@ -56,10 +56,20 @@ elseif new_sys == 3
     # VortexStepMethod.init!(s.aero)
     # s.vsm_solver.sol.gamma_distribution .= 0.0
 end
-s.set.abs_tol = 1e-4
-s.set.rel_tol = 1e-2
+s.set.abs_tol = 1e-5
+s.set.rel_tol = 1e-3
 
 solver = FBDF()
+y = s.get_y(s.prob)
+jac, x = VortexStepMethod.linearize(
+    s.vsm_solver, 
+    s.aero, 
+    y;
+    theta_idxs=1:4,
+    va_idxs=5:7,
+    omega_idxs=8:10,
+    moment_frac=s.bridle_fracs[s.point_system.groups[1].fixed_index])
+s.set_vsm(s.prob, [x, y, jac])
 @info "Initializing integrator"
 @time s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
 KiteModels.generate_getters!(s)
