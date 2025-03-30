@@ -578,6 +578,7 @@ function scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel,
         elevation(t)
         elevation_vel(t)
         elevation_acc(t)
+        course(t)
         x_acc(t)
         y_acc(t)
         sphere_pos(t)[1:2, 1:2]
@@ -591,7 +592,7 @@ function scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel,
 
     eqs = [
         eqs
-        heading_y       ~ calc_heading_y(-e_x)
+        heading_y       ~ atan(e_x[2]/e_x[1])
 
         elevation           ~ atan(z / x)
         # elevation_vel = d/dt(atan(z/x)) = (x*ż' - z*ẋ')/(x^2 + z^2) according to wolframalpha
@@ -605,6 +606,7 @@ function scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel,
         azimuth_acc         ~ ((x^2 + y^2)*(-y*x´´ + x*y´´) + 2(y*x´ - x*y´)*(x*x´ + y*y´))/(x^2 + y^2)^2
         x_acc               ~ kite_acc ⋅ e_x
         y_acc               ~ kite_acc ⋅ e_y
+        course              ~ atan(-azimuth_vel, elevation_vel)
     ]
     return eqs
 end
@@ -711,19 +713,4 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::RamAirWing; I_b, in
     # @named sys = ODESystem(eqs, t; discrete_events)
     @time @named sys = ODESystem(eqs, t)
     return sys, collect(set_values), defaults, guesses
-end
-
-function model!(s::KPSQ)
-    I_b = [s.wing.inertia_tensor[1,1], s.wing.inertia_tensor[2,2], s.wing.inertia_tensor[3,3]]
-    init_Q_b_w, R_b_w = measure_to_q(s.measure)
-
-    s.point_system = PointMassSystem(s, s.wing)
-    init_kite_pos = init!(s.point_system, s, R_b_w)
-
-    init_va = R_b_w' * [s.set.v_wind, 0., 0.]
-    
-    sys, inputs, defaults, guesses = create_sys!(s, s.point_system, s.wing; I_b, init_Q_b_w, init_kite_pos, init_va)
-    @info "Simplifying the system"
-    @time sys = structural_simplify(sys)
-    return sys, defaults, guesses
 end

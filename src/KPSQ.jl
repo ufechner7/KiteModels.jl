@@ -218,14 +218,6 @@ $(TYPEDFIELDS)
     vsm_solver::VortexStepMethod.Solver
     "Reference to the point mass system with points, segments, pulleys and tethers"
     point_system::PointMassSystem = PointMassSystem(Point[], KitePointGroup[], Segment[], Pulley[], Tether[], Winch[])
-    "The last initial elevation"
-    prev_init_elevation::S     = 0.0
-    "The last initial tether length"
-    prev_init_tether_length::S = 0.0
-    "Reference to the last settings hash"
-    prev_set_hash::UInt64   = 0
-    "Reference to the last measurement hash"
-    prev_measure_hash::UInt64 = 0
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
     "tether positions"
@@ -253,33 +245,17 @@ $(TYPEDFIELDS)
     "z vector of kite reference frame"
     e_z::V =                 zeros(S, 3)
     "Simplified system of the mtk model"
-    simple_sys::Union{ModelingToolkit.ODESystem, Nothing} = nothing
+    sys::Union{ModelingToolkit.ODESystem, Nothing} = nothing
     "Velocity of the kite"
     vel_kite::V =           zeros(S, 3)
-    "Initial torque or speed set values"
-    init_set_values::V =    zeros(S, 3)
-    "Smooth sign constant"
-    ϵ::S =      0.0
-    "Relative damping for flaps"
-    flap_damping::S     = 0.75
     "Measured data points used to create an initial state"
     measure::Measurement = Measurement()
-    "Makes autodiff faster"
-    prep::Union{Nothing, Any} = nothing
-    "Buffer for jacobian y values (vectorized velocities)"
-    y_buffer::V = zeros(S, P)
-    "Buffer for jacobian x values (angle, distance)"
-    x_buffer::V = zeros(S, 2)
     "Inertia around kite x y and z axis of the body frame"
     I_b::V = zeros(S, 3)
-    "Damping of the kite rotation"
-    orient_damping::S = zero(S)
     "Initialization values for kite state"
     u0map::Union{Vector{Pair{Num, S}}, Nothing} = nothing
     "Initialization values for kite parameters"
     p0map::Union{Vector{Pair{Num, S}}, Nothing} = nothing
-    "Distance of the kite com from winch"
-    distance::S = zero(S)
     "X coordinate on normalized 2d foil of bridle attachments"
     bridle_fracs::V = [0.088, 0.31, 0.58, 0.93]
     crease_frac::S = 0.82
@@ -293,10 +269,6 @@ $(TYPEDFIELDS)
     steering_tether_diameter::SimFloat = 1.
     "Number of solve! calls"
     iter::Int64 = 0
-
-    prev_force::Vector{MeasureFloat} = zeros(MeasureFloat, 3)
-    prev_moment::Vector{MeasureFloat} = zeros(MeasureFloat, 3)
-    prev_moment_dist::Vector{MeasureFloat} = zeros(MeasureFloat, length(aero.panels))
 
     set_set_values::Function       = () -> nothing
     set_measure::Function          = () -> nothing
@@ -326,25 +298,9 @@ function KPSQ(set::Settings, wing::RamAirWing, aero::BodyAerodynamics, vsm_solve
     return s
 end
 
-function calc_kite_ref_frame!(s::KPSQ, E, C, D)
-    P_c = 0.5 .* (C+D)
-    s.e_y .= normalize(C - D)
-    s.e_z .= normalize(E - P_c)
-    s.e_x .= cross(s.e_y, s.e_z)
-    return nothing
-end
-
-function calc_tether_elevation(s::KPSQ)
-    KiteUtils.calc_elevation(s.pos[6])
-end
-
-function calc_tether_azimuth(s::KPSQ)
-    KiteUtils.azimuth_east(s.pos[6])
-end
-
 function update_sys_state!(ss::SysState, s::KPSQ, zoom=1.0)
     ss.time = s.t_0
-    pos, acc, Q_b_w, elevation, azimuth, e_x, tether_vel, twist, kite_vel = s.get_state(s.integrator)
+    pos, acc, Q_b_w, elevation, azimuth, course, e_x, tether_vel, twist, kite_vel = s.get_state(s.integrator)
     P = length(s.point_system.points)
     for i in 1:P
         ss.X[i] = pos[1, i] * zoom
@@ -361,7 +317,7 @@ function update_sys_state!(ss::SysState, s::KPSQ, zoom=1.0)
     ss.azimuth = azimuth
     ss.force = zero(SimFloat)
     ss.heading = calc_heading_y(e_x)
-    ss.course = calc_course(1.0, 1.0) # TODO: implement
+    ss.course = course
     ss.l_tether = s.tether_lengths[3]
     ss.v_reelout = mean(tether_vel)
     ss.depower = rad2deg(mean(twist))
@@ -372,7 +328,7 @@ end
 
 function SysState(s::KPSQ, zoom=1.0) # TODO: add left and right lines, stop using getters and setters
     isnothing(s.integrator) && throw(ArgumentError("run init_sim!(s) first"))
-    pos, acc, Q_b_w, elevation, azimuth, e_x, tether_vel, twist, kite_vel = s.get_state(s.integrator)
+    pos, acc, Q_b_w, elevation, azimuth, course, e_x, tether_vel, twist, kite_vel = s.get_state(s.integrator)
     P = length(s.point_system.points)
     X = zeros(MVector{P, MyFloat})
     Y = zeros(MVector{P, MyFloat})
@@ -387,7 +343,6 @@ function SysState(s::KPSQ, zoom=1.0) # TODO: add left and right lines, stop usin
     # forces = s.get_tether_force() # TODO: add tether force
     forces = zeros(3)
     heading = calc_heading_y(e_x)
-    course = calc_course(1.0, 1.0) # TODO: implement
     t_sim = 0
     depower = rad2deg(mean(twist))
     steering = rad2deg(twist[end] - twist[1])
@@ -411,83 +366,48 @@ function SysState(s::KPSQ, zoom=1.0) # TODO: add left and right lines, stop usin
     ss
 end
 
-
-# function calc_heading(e_x, pos_kite)
-#     # turn s.e_x by -azimuth around global z-axis and then by elevation around global y-axis
-#     vec = rotate_around_y(rotate_around_z(e_x, -KiteUtils.azimuth_east(pos_kite)), -KiteUtils.calc_elevation(pos_kite))
-#     heading = atan(-vec[2], vec[3])
-#     return heading
-# end
-# @register_symbolic calc_heading(e_x, pos_kite)
-
-function calc_heading_y(e_x)
-    return atan(-e_x[2]/-e_x[1])
-end
-@register_symbolic calc_heading_y(e_x)
-
-function calc_elevation(s::KPSQ) return s.get_elevation() end
-function calc_azimuth(s::KPSQ) return s.get_azimuth() end
+"""
 
 """
-course where straight up is zero, clockwise is positive
-"""
-function calc_course(elevation_vel, azimuth_vel)
-    course = atan(-azimuth_vel, elevation_vel)
-    return course
+function init!(s::KPSQ)
+    I_b = [s.wing.inertia_tensor[1,1], s.wing.inertia_tensor[2,2], s.wing.inertia_tensor[3,3]]
+    init_Q_b_w, R_b_w = measure_to_q(s.measure)
+
+    s.point_system = PointMassSystem(s, s.wing)
+    init_kite_pos = init!(s.point_system, s, R_b_w)
+
+    init_va = R_b_w' * [s.set.v_wind, 0., 0.]
+    
+    sys, inputs, defaults, guesses = create_sys!(s, s.point_system, s.wing; I_b, init_Q_b_w, init_kite_pos, init_va)
+    @info "Simplifying the system"
+    @time sys = structural_simplify(sys)
+    return sys, defaults, guesses
 end
 
 """
-Initialises the integrator of the model.
 
-Parameters:
-- s:     an instance of a 3 line kite model
-- prn: if set to true, print the detailed solver results
-- torque_control: wether or not to use torque control
-
-Returns:
-Nothing.
 """
-function init_sim!(s::KPSQ; prn=false, torque_control=s.torque_control, 
-        init_set_values=s.init_set_values, ϵ=s.ϵ, flap_damping=s.flap_damping, 
-        force_new_sys=false, force_new_pos=false, init=false) # TODO: serialize and deserialize s.prob
+function reset!(s::KPSQ; prn=false, torque_control=s.torque_control, 
+        force_new_sys=false, force_new_pos=false, init=false)
     dt = SimFloat(1/s.set.sample_freq)
     tspan   = (0.0, dt) 
     solver = FBDF()
-    set_hash = struct_hash(s.set)
-    measure_hash = struct_hash(s.measure)
-    new_pos = s.prev_measure_hash != measure_hash || force_new_pos
-    new_sys = force_new_sys ||
-                    isnothing(s.prob) || 
-                    s.torque_control != torque_control || 
-                    s.prev_set_hash != set_hash ||
-                    s.ϵ != ϵ ||
-                    s.flap_damping != flap_damping
-    s.torque_control = torque_control
-    s.ϵ = ϵ
-    s.flap_damping = flap_damping
-
     if new_sys
-        if prn; println("initializing with new model and new pos"); end
+        prn && @info "initializing with new model and new pos"
         sys, defaults, guesses = model!(s; init)
         @info "Creating the problem"
         @time s.prob = ODEProblem(sys, defaults, tspan; guesses)
-        s.simple_sys = s.prob.f.sys
+        s.sys = s.prob.f.sys
         s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
         generate_getters!(s; init)
         if (!init) reinit!(s; new_sys) end
     elseif new_pos
-        if prn; println("initializing with last model and new pos"); end
+        prn && @info "initializing with last model and new pos"
         if (!init) reinit!(s; new_sys) end
     else
         if prn; println("initializing with last model and last pos"); end
         OrdinaryDiffEqCore.reinit!(s.integrator, s.prob.u0)
     end
-
-    s.prev_init_elevation = s.set.elevation
-    s.prev_init_tether_length = s.set.l_tether
-    s.prev_set_hash = set_hash
-    s.prev_measure_hash = measure_hash
-    s.init_set_values .= init_set_values
     return nothing
 end
 
@@ -502,7 +422,7 @@ function generate_getters!(s; init=false)
         c(sys.vsm_jac),
     ])
     get_state = getu(sys, 
-        [c(sys.pos), c(sys.acc), c(sys.Q_b_w), sys.elevation, sys.azimuth, 
+        [c(sys.pos), c(sys.acc), c(sys.Q_b_w), sys.elevation, sys.azimuth, sys.course, 
         c(sys.e_x), c(sys.tether_vel), c(sys.twist_angle), c(sys.kite_vel)]
     )
     get_y = getu(sys, sys.y)
@@ -546,88 +466,3 @@ function next_step!(s::KPSQ; set_values=nothing, measure::Union{Measurement, Not
     s.integrator.t, steptime
 end
 
-"""
-    unstretched_length(s::KPSQ)
-
-Getter for the unstretched tether reel-out length (at zero force).
-"""
-function unstretched_length(s::KPSQ) s.tether_lengths[3] end
-
-
-# =================== getter functions ====================================================
-
-"""
-    calc_height(s::KPSQ)
-
-Determine the height of the topmost kite particle above ground.
-"""
-function calc_height(s::KPSQ)
-    pos_kite(s)[3]
-end
-
-"""
-    pos_kite(s::KPSQ)
-
-Return the position of the kite (top particle).
-"""
-function pos_kite(s::KPSQ)
-    s.kite_pos
-end
-
-"""
-    kite_ref_frame(s::KPSQ; one_point=false)
-
-Returns a tuple of the x, y, and z vectors of the kite reference frame.
-The parameter one_point is not used in this model.
-"""
-function kite_ref_frame(s::KPSQ; one_point=false)
-    s.get_e_x(), s.get_e_y(), s.get_e_z()
-end
-
-# ====================== helper functions ====================================
-
-function struct_hash(st)
-    fields = fieldnames(typeof(st))
-    h = zero(UInt)
-    for field in fields
-        field_value = getfield(st, field)
-        h = hash(field_value, h)
-    end
-    return h
-end
-
-function replace_nan!(matrix)
-    rows, cols = size(matrix)
-    distance = max(rows, cols)
-    for i in 1:rows
-        for j in 1:cols
-            if isnan(matrix[i, j])
-                neighbors = []
-                for d in 1:distance
-                    found = false
-                    if i-d >= 1 && !isnan(matrix[i-d, j]);
-                        push!(neighbors, matrix[i-d, j])
-                        found = true
-                    end
-                    if i+d <= rows && !isnan(matrix[i+d, j])
-                        push!(neighbors, matrix[i+d, j])
-                        found = true
-                    end
-                    if j-d >= 1 && !isnan(matrix[i, j-d])
-                        push!(neighbors, matrix[i, j-d])
-                        found = true
-                    end
-                    if j+d <= cols && !isnan(matrix[i, j+d])
-                        push!(neighbors, matrix[i, j+d])
-                        found = true
-                    end
-                    if found; break; end
-                end
-                if !isempty(neighbors)
-                    matrix[i, j] = sum(neighbors) / length(neighbors)
-                end
-            end
-        end
-    end
-    return nothing
-end
