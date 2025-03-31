@@ -195,7 +195,7 @@ struct PointMassSystem
 end
 
 """
-    mutable struct KPSQ{S, T, P, Q, SP} <: AbstractKiteModel
+    mutable struct RamAirKite{S, T, P, Q, SP} <: AbstractKiteModel
 
 State of the kite power system, using a quaternion kite model and three steering lines to the ground. Parameters:
 - S: Scalar type, e.g. SimFloat
@@ -207,7 +207,7 @@ use the input and output functions instead.
 
 $(TYPEDFIELDS)
 """
-@with_kw mutable struct KPSQ{S, V, P} <: AbstractKiteModel
+@with_kw mutable struct RamAirKite{S, V, P} <: AbstractKiteModel
     "Reference to the settings struct"
     set::Settings
     "Reference to the geometric wing model"
@@ -284,14 +284,14 @@ $(TYPEDFIELDS)
     init_integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Sundials.CVODEIntegrator, Nothing} = nothing
 end
 
-function KPSQ(set::Settings, wing::RamAirWing, aero::BodyAerodynamics, vsm_solver::VortexStepMethod.Solver)
+function RamAirKite(set::Settings, wing::RamAirWing, aero::BodyAerodynamics, vsm_solver::VortexStepMethod.Solver)
     if set.winch_model == "TorqueControlledMachine"
-        s = KPSQ{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
+        s = RamAirKite{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
             ; set, wing, aero, vsm_solver
             )
         s.torque_control = true
     else
-        s = KPSQ{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
+        s = RamAirKite{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
             ; set, wing, aero, vsm_solver
             )
         s.torque_control = false
@@ -299,7 +299,7 @@ function KPSQ(set::Settings, wing::RamAirWing, aero::BodyAerodynamics, vsm_solve
     return s
 end
 
-function update_sys_state!(ss::SysState, s::KPSQ, zoom=1.0)
+function update_sys_state!(ss::SysState, s::RamAirKite, zoom=1.0)
     ss.time = s.t_0
     pos, acc, Q_b_w, elevation, azimuth, course, heading, e_x, tether_vel, twist, kite_vel = s.get_state(s.integrator)
     P = length(s.point_system.points)
@@ -327,7 +327,7 @@ function update_sys_state!(ss::SysState, s::KPSQ, zoom=1.0)
     nothing
 end
 
-function SysState(s::KPSQ, zoom=1.0) # TODO: add left and right lines, stop using getters and setters
+function SysState(s::RamAirKite, zoom=1.0) # TODO: add left and right lines, stop using getters and setters
     isnothing(s.integrator) && throw(ArgumentError("run init_sim!(s) first"))
     pos, acc, Q_b_w, elevation, azimuth, course, heading, e_x, tether_vel, twist, kite_vel = s.get_state(s.integrator)
     P = length(s.point_system.points)
@@ -367,7 +367,7 @@ function SysState(s::KPSQ, zoom=1.0) # TODO: add left and right lines, stop usin
 end
 
 """
-    init!(s::KPSQ; prn=true) -> Nothing
+    init!(s::RamAirKite; prn=true) -> Nothing
 
 Initialize a complete kite power system model from scratch.
 
@@ -385,13 +385,13 @@ structure changes. For normal simulations, prefer calling `reinit!` directly if 
 problem already exists.
 
 # Arguments
-- `s::KPSQ`: The kite power system state object
+- `s::RamAirKite`: The kite power system state object
 - `prn::Bool=true`: Whether to print progress information
 
 # Returns
 - `Nothing`
 """
-function init!(s::KPSQ; prn=true)
+function init!(s::RamAirKite; prn=true)
     init_Q_b_w, R_b_w = measure_to_q(s.measure)
 
     s.point_system = PointMassSystem(s, s.wing)
@@ -414,7 +414,7 @@ function init!(s::KPSQ; prn=true)
 end
 
 """
-    reinit!(s::KPSQ; prn=true) -> Nothing
+    reinit!(s::RamAirKite; prn=true) -> Nothing
 
 Reinitialize an existing kite power system model with new state values.
 
@@ -433,7 +433,7 @@ This is more efficient than `init!` as it reuses the existing model structure
 and only updates the state variables to match the current `s.measure`.
 
 # Arguments
-- `s::KPSQ`: The kite power system state object
+- `s::RamAirKite`: The kite power system state object
 - `prn::Bool=true`: Whether to print progress information
 
 # Returns
@@ -442,13 +442,15 @@ and only updates the state variables to match the current `s.measure`.
 # Throws
 - `ArgumentError`: If no serialized problem exists (run `init!` first)
 """
-function reinit!(s::KPSQ; prn=true)
+function reinit!(s::RamAirKite; prn=true)
     dt = SimFloat(1/s.set.sample_freq)
     tspan   = (0.0, dt) 
     solver = FBDF()
     if isnothing(s.integrator)
+        s.point_system = PointMassSystem(s, s.wing)
+
         prob_path = joinpath(KiteUtils.get_data_path(), "prob.bin")
-        !ispath(prob_path) && throw(ArgumentError("$prob_path not found. Run init!(s::KPSQ) first."))
+        !ispath(prob_path) && throw(ArgumentError("$prob_path not found. Run init!(s::RamAirKite) first."))
         t = @elapsed begin
             s.prob = deserialize(prob_path)
             s.sys = s.prob.f.sys
@@ -459,7 +461,6 @@ function reinit!(s::KPSQ; prn=true)
     end
 
     init_Q_b_w, R_b_w = measure_to_q(s.measure)
-    s.point_system = PointMassSystem(s, s.wing)
     init_kite_pos = init!(s.point_system, s, R_b_w)
 
     points, pulleys, segments, winches = s.point_system.points, s.point_system.pulleys, s.point_system.segments, s.point_system.winches
@@ -518,7 +519,7 @@ function generate_getters!(s; init=false)
     nothing
 end
 
-function next_step!(s::KPSQ; set_values=nothing, measure::Union{Measurement, Nothing}=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
+function next_step!(s::RamAirKite; set_values=nothing, measure::Union{Measurement, Nothing}=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
     if (!isnothing(set_values)) 
         s.set_set_values(s.integrator, set_values)
     end

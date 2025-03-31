@@ -55,7 +55,7 @@ using ModelingToolkit: t_nounits as t, D_nounits as D
 using ADTypes: AutoFiniteDiff
 import ModelingToolkit.SciMLBase: successful_retcode
 
-export KPS3, KPS4, KPSQ, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                     # constants and types
+export KPS3, KPS4, RamAirKite, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                     # constants and types
 export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                            # helper functions
 export clear!, find_steady_state!, residual!                                                  # low level workers
 export init_sim!, init!, reinit!, next_step!, init_pos_vel, init_pos, model!                                 # high level workers
@@ -118,7 +118,7 @@ function __init__()
 end
 
 include("KPS4.jl") # include code, specific for the four point kite model
-include("KPSQ.jl") # include code, specific for the four point 3 line kite model
+include("RamAirKite.jl") # include code, specific for the four point 3 line kite model
 include("mtk_model.jl")
 include("KPS3.jl") # include code, specific for the one point kite model
 include("init.jl") # functions to calculate the initial state vector, the initial masses and initial springs
@@ -786,7 +786,7 @@ end
 #     kps4_::KPS4 = KPS4(KCU(set))
 #     kps3_::KPS3 = KPS3(KCU(se("system.yaml")))
 #     if ! haskey(ENV, "NO_MTK")    
-#         kpsq_::KPSQ = KPSQ(KCU(se(SYS_3L)))
+#         kpsq_::RamAirKite = RamAirKite(KCU(se(SYS_3L)))
 #     end
 #     @assert ! isnothing(kps4_.wm)
 #     @compile_workload begin

@@ -16,7 +16,7 @@ const wing = RamAirWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.da
 const aero = BodyAerodynamics([wing])
 const vsm_solver = Solver(aero; solver_type=NONLIN, atol=1e-8, rtol=1e-8)
 
-@testset verbose = true "KPSQ MTK Model Tests" begin
+@testset verbose = true "RamAirKite MTK Model Tests" begin
     # Utility functions for setup
     function create_test_model()
         set.segments = 2
@@ -25,7 +25,7 @@ const vsm_solver = Solver(aero; solver_type=NONLIN, atol=1e-8, rtol=1e-8)
 
         VortexStepMethod.init!(aero)
         
-        return KPSQ(set, wing, aero, vsm_solver)
+        return RamAirKite(set, wing, aero, vsm_solver)
     end
     
     @testset "Model Initialization Chain" begin

@@ -8,7 +8,7 @@ const StateVec = MVector{11, Float32}
 
 @with_kw mutable struct Env
     kcu::KCU = KCU(se())
-    s::KPSQ = KPSQ(kcu)
+    s::RamAirKite = RamAirKite(kcu)
     max_render_length::Int = 10000
     i::Int = 1
     logger::Logger = Logger(s.i_A, max_render_length)
@@ -69,7 +69,7 @@ function render(e::Env)
     end
 end
 
-function _calc_state(e::Env, s::KPSQ)
+function _calc_state(e::Env, s::RamAirKite)
     e.state .= vcat(
         _calc_speed_reward(e,s),                # length 1
         calc_orient_quat(s),            # length 4
@@ -94,7 +94,7 @@ function _calc_state(e::Env, s::KPSQ)
     return vcat(e.state, e.state_d, e.state_dd)
 end
 
-function _calc_reward(e::Env, s::KPSQ)
+function _calc_reward(e::Env, s::RamAirKite)
     if  s.vel_kite ⋅ s.e_x < 0 ||
         (KiteModels.calc_tether_elevation(s) < e.wanted_elevation ||
         !(-2*π < e.rotation < 2*π) ||
@@ -108,7 +108,7 @@ function _calc_reward(e::Env, s::KPSQ)
     return reward
 end
 
-function _calc_speed_reward(e::Env, s::KPSQ)
+function _calc_speed_reward(e::Env, s::RamAirKite)
     speed = s.vel_kite ⋅ s.e_x
     if  (KiteModels.calc_tether_elevation(s) < e.wanted_elevation ||
         !(-2*π < e.rotation < 2*π) ||
@@ -123,7 +123,7 @@ function _calc_speed_reward(e::Env, s::KPSQ)
     return reward
 end
 
-function _calc_direction_reward(e::Env, s::KPSQ)
+function _calc_direction_reward(e::Env, s::RamAirKite)
     if  s.vel_kite ⋅ s.e_x < 0.0 ||
         (KiteModels.calc_tether_elevation(s) < e.wanted_elevation ||
         !(-2*π < e.rotation < 2*π) ||
@@ -137,7 +137,7 @@ function _calc_direction_reward(e::Env, s::KPSQ)
     return reward
 end
 
-function _calc_force_component(e::Env, s::KPSQ)
+function _calc_force_component(e::Env, s::RamAirKite)
     wanted_force_vector = [cos(e.wanted_elevation)*cos(e.wanted_azimuth), cos(e.wanted_elevation)*-sin(e.wanted_azimuth), sin(e.wanted_elevation)]
     tether_force = sum(s.winch_forces)
     force_component = tether_force ⋅ wanted_force_vector

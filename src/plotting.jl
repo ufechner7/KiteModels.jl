@@ -19,7 +19,7 @@ function plot(sys::PointMassSystem, reltime; kite_pos=nothing, zoom=false, front
     ControlPlots.plot2d(pos, seg, reltime; zoom, front, xlim, ylim, dz_zoom=0.6)
 end
 
-function plot(s::KPSQ, reltime; kwargs...)
+function plot(s::RamAirKite, reltime; kwargs...)
     pos = s.integrator[s.sys.pos]
     kite_pos = s.integrator[s.sys.kite_pos]
     for (i, point) in enumerate(s.point_system.points)

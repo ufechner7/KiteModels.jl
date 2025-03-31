@@ -39,7 +39,7 @@ kite:
     model: "data/ram_air_kite_body.obj" # 3D model of the kite
     foil_file: "data/ram_air_kite_foil.dat"  # filename for the foil shape
     polar_file: "data/ram_air_kite_foil_polar.bin"   # filename for the polars
-    physical_model: "KPSQ" # name of the kite model to use (KPS3, KPS4 or KPSQ)
+    physical_model: "RamAirKite" # name of the kite model to use (KPS3, KPS4 or RamAirKite)
     version: 2             # version of the model to use
     mass:  0.9             # kite mass [kg]
     height: 2.23           # height of the kite           [m]

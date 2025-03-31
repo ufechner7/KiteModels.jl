@@ -18,7 +18,7 @@ if !@isdefined s
     wing = RamAirWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat"; mass=set.mass, crease_frac=0.82, align_to_principal=true)
     aero = BodyAerodynamics([wing])
     vsm_solver = Solver(aero; solver_type=NONLIN, atol=1e-8, rtol=1e-8)
-    s = KPSQ(set, wing, aero, vsm_solver)
+    s = RamAirKite(set, wing, aero, vsm_solver)
 end
 s.set.abs_tol = 1e-5
 s.set.rel_tol = 1e-3

@@ -646,7 +646,7 @@ function linear_vsm_eqs!(s, eqs; aero_force_b, aero_moment_b, group_aero_moment,
     return eqs
 end
 
-function create_sys!(s::KPSQ, system::PointMassSystem; init_Q_b_w, init_kite_pos, init_va)
+function create_sys!(s::RamAirKite, system::PointMassSystem; init_Q_b_w, init_kite_pos, init_va)
     eqs = []
     defaults = Pair{Num, Real}[]
     guesses = Pair{Num, Real}[]

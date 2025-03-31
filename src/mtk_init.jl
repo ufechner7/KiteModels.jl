@@ -1,5 +1,5 @@
 
-function PointMassSystem(s::KPSQ, wing::RamAirWing)
+function PointMassSystem(s::RamAirKite, wing::RamAirWing)
     # TODO: move as much of the code as possible from create_point_mass_system to other places, to make model creation easier.
     # 1. move bridle gamma calculation
     # 2. ...
@@ -136,7 +136,7 @@ function PointMassSystem(s::KPSQ, wing::RamAirWing)
 end
 
 
-function init!(system::PointMassSystem, s::KPSQ, R_b_w)
+function init!(system::PointMassSystem, s::RamAirKite, R_b_w)
     points, groups, segments, pulleys, tethers, winches = 
         system.points, system.groups, system.segments, system.pulleys, system.tethers, system.winches
 
