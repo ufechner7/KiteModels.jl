@@ -272,10 +272,11 @@ $(TYPEDFIELDS)
 
     set_set_values::Function       = () -> nothing
     set_measure::Function          = () -> nothing
-    set_vsm::Function     = () -> nothing
+    set_vsm::Function              = () -> nothing
+    set_init::Function             = () -> nothing
 
     get_state::Function            = () -> nothing
-    get_y::Function          = () -> nothing
+    get_y::Function                = () -> nothing
 
     prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
     init_prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
@@ -300,7 +301,7 @@ end
 
 function update_sys_state!(ss::SysState, s::KPSQ, zoom=1.0)
     ss.time = s.t_0
-    pos, acc, Q_b_w, elevation, azimuth, course, e_x, tether_vel, twist, kite_vel = s.get_state(s.integrator)
+    pos, acc, Q_b_w, elevation, azimuth, course, heading, e_x, tether_vel, twist, kite_vel = s.get_state(s.integrator)
     P = length(s.point_system.points)
     for i in 1:P
         ss.X[i] = pos[1, i] * zoom
@@ -316,7 +317,7 @@ function update_sys_state!(ss::SysState, s::KPSQ, zoom=1.0)
     ss.elevation = elevation
     ss.azimuth = azimuth
     ss.force = zero(SimFloat)
-    ss.heading = calc_heading_y(e_x)
+    ss.heading = heading
     ss.course = course
     ss.l_tether = s.tether_lengths[3]
     ss.v_reelout = mean(tether_vel)
@@ -328,7 +329,7 @@ end
 
 function SysState(s::KPSQ, zoom=1.0) # TODO: add left and right lines, stop using getters and setters
     isnothing(s.integrator) && throw(ArgumentError("run init_sim!(s) first"))
-    pos, acc, Q_b_w, elevation, azimuth, course, e_x, tether_vel, twist, kite_vel = s.get_state(s.integrator)
+    pos, acc, Q_b_w, elevation, azimuth, course, heading, e_x, tether_vel, twist, kite_vel = s.get_state(s.integrator)
     P = length(s.point_system.points)
     X = zeros(MVector{P, MyFloat})
     Y = zeros(MVector{P, MyFloat})
@@ -342,7 +343,6 @@ function SysState(s::KPSQ, zoom=1.0) # TODO: add left and right lines, stop usin
     orient = MVector{4, Float32}(Q_b_w) # TODO: add Q_b_w
     # forces = s.get_tether_force() # TODO: add tether force
     forces = zeros(3)
-    heading = calc_heading_y(e_x)
     t_sim = 0
     depower = rad2deg(mean(twist))
     steering = rad2deg(twist[end] - twist[1])
@@ -367,10 +367,31 @@ function SysState(s::KPSQ, zoom=1.0) # TODO: add left and right lines, stop usin
 end
 
 """
+    init!(s::KPSQ; prn=true) -> Nothing
 
+Initialize a complete kite power system model from scratch.
+
+This function performs the following operations:
+1. Converts measurement data to quaternion orientation
+2. Initializes the point mass system representing the kite and tethers
+3. Creates the symbolic MTK system with all equations
+4. Simplifies the system equations
+5. Creates an ODEProblem
+6. Serializes the problem to disk for future reuse
+7. Calls `reinit!` to set up the integrator
+
+This is a computationally expensive operation and should only be called when the model
+structure changes. For normal simulations, prefer calling `reinit!` directly if a serialized
+problem already exists.
+
+# Arguments
+- `s::KPSQ`: The kite power system state object
+- `prn::Bool=true`: Whether to print progress information
+
+# Returns
+- `Nothing`
 """
-function init!(s::KPSQ)
-    I_b = [s.wing.inertia_tensor[1,1], s.wing.inertia_tensor[2,2], s.wing.inertia_tensor[3,3]]
+function init!(s::KPSQ; prn=true)
     init_Q_b_w, R_b_w = measure_to_q(s.measure)
 
     s.point_system = PointMassSystem(s, s.wing)
@@ -378,51 +399,111 @@ function init!(s::KPSQ)
 
     init_va = R_b_w' * [s.set.v_wind, 0., 0.]
     
-    sys, inputs, defaults, guesses = create_sys!(s, s.point_system, s.wing; I_b, init_Q_b_w, init_kite_pos, init_va)
-    @info "Simplifying the system"
-    @time sys = structural_simplify(sys)
-    return sys, defaults, guesses
+    sys, defaults, guesses = create_sys!(s, s.point_system; init_Q_b_w, init_kite_pos, init_va)
+    prn && @info "Simplifying the system"
+    prn && @time sys = structural_simplify(sys)
+    !prn && (sys = structural_simplify(sys))
+    s.sys = sys
+    dt = SimFloat(1/s.set.sample_freq)
+    s.prob = ODEProblem(s.sys, defaults, (0.0, dt); guesses)
+    data_path = KiteUtils.get_data_path()
+    serialize(joinpath(data_path, "prob.bin"), s.prob)
+
+    reinit!(s)
+    return nothing
 end
 
 """
+    reinit!(s::KPSQ; prn=true) -> Nothing
 
+Reinitialize an existing kite power system model with new state values.
+
+This function performs the following operations:
+1. If no integrator exists yet:
+   - Loads a serialized ODEProblem from disk
+   - Initializes a new ODE integrator 
+   - Generates getter/setter functions for the system
+2. Converts measurement data to quaternion orientation
+3. Initializes the point mass system with new positions
+4. Sets initial values for all state variables
+5. Reinitializes the ODE integrator
+6. Updates the linearized aerodynamic model
+
+This is more efficient than `init!` as it reuses the existing model structure
+and only updates the state variables to match the current `s.measure`.
+
+# Arguments
+- `s::KPSQ`: The kite power system state object
+- `prn::Bool=true`: Whether to print progress information
+
+# Returns
+- `Nothing`
+
+# Throws
+- `ArgumentError`: If no serialized problem exists (run `init!` first)
 """
-function reset!(s::KPSQ; prn=false, torque_control=s.torque_control, 
-        force_new_sys=false, force_new_pos=false, init=false)
+function reinit!(s::KPSQ; prn=true)
     dt = SimFloat(1/s.set.sample_freq)
     tspan   = (0.0, dt) 
     solver = FBDF()
-    if new_sys
-        prn && @info "initializing with new model and new pos"
-        sys, defaults, guesses = model!(s; init)
-        @info "Creating the problem"
-        @time s.prob = ODEProblem(sys, defaults, tspan; guesses)
-        s.sys = s.prob.f.sys
-        s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
-        generate_getters!(s; init)
-        if (!init) reinit!(s; new_sys) end
-    elseif new_pos
-        prn && @info "initializing with last model and new pos"
-        if (!init) reinit!(s; new_sys) end
-    else
-        if prn; println("initializing with last model and last pos"); end
-        OrdinaryDiffEqCore.reinit!(s.integrator, s.prob.u0)
+    if isnothing(s.integrator)
+        prob_path = joinpath(KiteUtils.get_data_path(), "prob.bin")
+        !ispath(prob_path) && throw(ArgumentError("$prob_path not found. Run init!(s::KPSQ) first."))
+        t = @elapsed begin
+            s.prob = deserialize(prob_path)
+            s.sys = s.prob.f.sys
+            s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
+            generate_getters!(s)
+        end
+        prn && @info "Loaded problem from $prob_path and initialized integrator in $t seconds"
     end
+
+    init_Q_b_w, R_b_w = measure_to_q(s.measure)
+    s.point_system = PointMassSystem(s, s.wing)
+    init_kite_pos = init!(s.point_system, s, R_b_w)
+
+    points, pulleys, segments, winches = s.point_system.points, s.point_system.pulleys, s.point_system.segments, s.point_system.winches
+    init_pos = zeros(3, length(points))
+    init_pulley_l0 = zeros(length(pulleys))
+    init_tether_length = zeros(length(winches))
+    [init_pos[:, i] .= points[i].pos_w for i in eachindex(points)]
+    [init_pulley_l0[i] = segments[pulleys[i].segments[1]].l0 for i in eachindex(pulleys)]
+    [init_tether_length[i] = winches[i].tether_length for i in eachindex(winches)]
+
+    s.set_init(s.integrator, [init_Q_b_w, init_kite_pos, init_pos, init_pulley_l0, init_tether_length])
+
+    ModelingToolkit.reinit!(s.integrator)
+
+    y = s.get_y(s.integrator)
+    jac, x = VortexStepMethod.linearize(
+        s.vsm_solver, 
+        s.aero, 
+        y;
+        theta_idxs=1:4,
+        va_idxs=5:7,
+        omega_idxs=8:10,
+        moment_frac=s.bridle_fracs[s.point_system.groups[1].fixed_index])
+    s.set_vsm(s.integrator, [x, y, jac])
     return nothing
 end
 
 function generate_getters!(s; init=false)
-    sys = s.prob.f.sys
+    sys = s.sys
     c = collect
+    dynamic_static_points = filter(p -> p.type == DYNAMIC || p.type == STATIC, s.point_system.points)
+    init_pos = [sys.pos[:, p.idx] for p in dynamic_static_points]
+
     set_set_values = setp(sys, sys.set_values)
     set_measure = setp(sys, sys.measured_wind_dir_gnd)
-    set_vsm = setp(sys, [
-        c(sys.last_x),
-        c(sys.last_y),
-        c(sys.vsm_jac),
-    ])
+    set_vsm = setp(sys, c.([
+        sys.last_x,
+        sys.last_y,
+        sys.vsm_jac,
+    ]))
+    set_init = setu(sys, c.([sys.Q_b_w, sys.kite_pos, init_pos, sys.pulley_l0, sys.tether_length]))
+
     get_state = getu(sys, 
-        [c(sys.pos), c(sys.acc), c(sys.Q_b_w), sys.elevation, sys.azimuth, sys.course, 
+        [c(sys.pos), c(sys.acc), c(sys.Q_b_w), sys.elevation, sys.azimuth, sys.course, sys.heading_y, 
         c(sys.e_x), c(sys.tether_vel), c(sys.twist_angle), c(sys.kite_vel)]
     )
     get_y = getu(sys, sys.y)
@@ -430,6 +511,8 @@ function generate_getters!(s; init=false)
     s.set_set_values = (integ, val) -> set_set_values(integ, val)
     s.set_measure = (integ, val) -> set_measure(integ, val)
     s.set_vsm = (integ, val) -> set_vsm(integ, val)
+    s.set_init = (integ, val) -> set_init(integ, val)
+
     s.get_state = (integ) -> get_state(integ)
     s.get_y = (integ) -> get_y(integ)
     nothing

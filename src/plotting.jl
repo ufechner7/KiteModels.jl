@@ -20,8 +20,8 @@ function plot(sys::PointMassSystem, reltime; kite_pos=nothing, zoom=false, front
 end
 
 function plot(s::KPSQ, reltime; kwargs...)
-    pos = s.integrator[s.simple_sys.pos]
-    kite_pos = s.integrator[s.simple_sys.kite_pos]
+    pos = s.integrator[s.sys.pos]
+    kite_pos = s.integrator[s.sys.kite_pos]
     for (i, point) in enumerate(s.point_system.points)
         point.pos_w .= pos[:, i]
     end

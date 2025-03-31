@@ -624,8 +624,6 @@ function linear_vsm_eqs!(s, eqs; aero_force_b, aero_moment_b, group_aero_moment,
         va_idxs=5:7, 
         omega_idxs=8:10,
         moment_frac=s.bridle_fracs[s.point_system.groups[1].fixed_index])
-    display(jac_)
-    display(x_)
 
     @parameters begin
         last_y[eachindex(y_)] = y_
@@ -648,7 +646,7 @@ function linear_vsm_eqs!(s, eqs; aero_force_b, aero_moment_b, group_aero_moment,
     return eqs
 end
 
-function create_sys!(s::KPSQ, system::PointMassSystem, wing::RamAirWing; I_b, init_Q_b_w, init_kite_pos, init_va)
+function create_sys!(s::KPSQ, system::PointMassSystem; init_Q_b_w, init_kite_pos, init_va)
     eqs = []
     defaults = Pair{Num, Real}[]
     guesses = Pair{Num, Real}[]
@@ -712,5 +710,5 @@ function create_sys!(s::KPSQ, system::PointMassSystem, wing::RamAirWing; I_b, in
     @info "Creating ODESystem"
     # @named sys = ODESystem(eqs, t; discrete_events)
     @time @named sys = ODESystem(eqs, t)
-    return sys, collect(set_values), defaults, guesses
+    return sys, defaults, guesses
 end
