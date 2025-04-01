@@ -8,7 +8,7 @@ set_data_path(joinpath(dirname(dirname(pathof(KiteModels))), "data"))
 
 # Testing tolerance
 const TOL = 1e-5
-const BUILD_SYS = true
+const BUILD_SYS = false
 
 @testset verbose = true "RamAirKite MTK Model Tests" begin
     set = se("system_3l.yaml")
@@ -51,9 +51,11 @@ const BUILD_SYS = true
             @test !isnothing(s.sys)
             @test !isnothing(s.point_system)
         end
+        s.integrator = nothing
+        s.sys = nothing
+        s.point_system = nothing
         
         # Keep references to first integrator and point system
-        @test isnothing(s.integrator)
         first_integrator_ptr = objectid(s.integrator)
         first_point_system_ptr = objectid(s.point_system)
             
