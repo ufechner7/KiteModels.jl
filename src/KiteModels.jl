@@ -53,6 +53,7 @@ import OrdinaryDiffEqCore.step!
 using ModelingToolkit, SymbolicIndexingInterface
 using ModelingToolkit: t_nounits as t, D_nounits as D
 using ADTypes: AutoFiniteDiff
+using UnPack
 import ModelingToolkit.SciMLBase: successful_retcode
 
 export KPS3, KPS4, RamAirKite, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                     # constants and types

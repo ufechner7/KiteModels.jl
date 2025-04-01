@@ -217,7 +217,7 @@ $(TYPEDFIELDS)
     "Reference to the VSM aerodynamics solver"
     vsm_solver::VortexStepMethod.Solver
     "Reference to the point mass system with points, segments, pulleys and tethers"
-    point_system::PointMassSystem = PointMassSystem(Point[], KitePointGroup[], Segment[], Pulley[], Tether[], Winch[])
+    point_system::Union{PointMassSystem, Nothing} = nothing
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
     "tether positions"
@@ -270,10 +270,12 @@ $(TYPEDFIELDS)
     "Number of solve! calls"
     iter::Int64 = 0
 
+    unknowns_vec::Vector{SimFloat} = zeros(SimFloat, 3)
+
     set_set_values::Function       = () -> nothing
     set_measure::Function          = () -> nothing
     set_vsm::Function              = () -> nothing
-    set_init::Function             = () -> nothing
+    set_unknowns::Function             = () -> nothing
 
     get_state::Function            = () -> nothing
     get_y::Function                = () -> nothing
@@ -443,37 +445,49 @@ and only updates the state variables to match the current `s.measure`.
 - `ArgumentError`: If no serialized problem exists (run `init!` first)
 """
 function reinit!(s::RamAirKite; prn=true)
+    isnothing(s.point_system) && (s.point_system = PointMassSystem(s, s.wing))
+
+    init_Q_b_w, R_b_w = measure_to_q(s.measure)
+    init_kite_pos = init!(s.point_system, s, R_b_w)
+    @show s.point_system.points[1].pos_w
+    
     dt = SimFloat(1/s.set.sample_freq)
     tspan   = (0.0, dt) 
     solver = FBDF()
-    if isnothing(s.integrator)
-        s.point_system = PointMassSystem(s, s.wing)
-
+    if isnothing(s.integrator) || true
         prob_path = joinpath(KiteUtils.get_data_path(), "prob.bin")
         !ispath(prob_path) && throw(ArgumentError("$prob_path not found. Run init!(s::RamAirKite) first."))
         t = @elapsed begin
             s.prob = deserialize(prob_path)
             s.sys = s.prob.f.sys
-            s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false)
-            generate_getters!(s)
+            s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, save_everystep=false)
+            sym_vec = zeros(Num, length(s.integrator.u))
+            s.unknowns_vec = zeros(SimFloat, length(s.integrator.u))
+            init_unknowns_vec!(s, s.point_system, s.unknowns_vec, init_Q_b_w, init_kite_pos, sym_vec)
+            generate_getters!(s, s.point_system, s.unknowns_vec, sym_vec)
+            # for (u, s) in zip(s.unknowns_vec, sym_vec)
+            #     println(u, "\t", s)
+            # end
         end
         prn && @info "Loaded problem from $prob_path and initialized integrator in $t seconds"
     end
 
-    init_Q_b_w, R_b_w = measure_to_q(s.measure)
-    init_kite_pos = init!(s.point_system, s, R_b_w)
 
-    points, pulleys, segments, winches = s.point_system.points, s.point_system.pulleys, s.point_system.segments, s.point_system.winches
-    init_pos = zeros(3, length(points))
-    init_pulley_l0 = zeros(length(pulleys))
-    init_tether_length = zeros(length(winches))
-    [init_pos[:, i] .= points[i].pos_w for i in eachindex(points)]
-    [init_pulley_l0[i] = segments[pulleys[i].segments[1]].l0 for i in eachindex(pulleys)]
-    [init_tether_length[i] = winches[i].tether_length for i in eachindex(winches)]
+    @unpack points, pulleys, segments, winches = s.point_system
 
-    s.set_init(s.integrator, [init_Q_b_w, init_kite_pos, init_pos, init_pulley_l0, init_tether_length])
+    # dynamic_static_points = filter(p -> p.type == DYNAMIC || p.type == STATIC, points)
+    # init_pos = [point.pos_w for point in dynamic_static_points]
 
-    ModelingToolkit.reinit!(s.integrator)
+    # init_pulley_l0 = zeros(length(pulleys))
+    # init_tether_length = zeros(length(winches))
+    # [init_pulley_l0[i] = segments[pulleys[i].segments[1]].l0 for i in eachindex(pulleys)]
+    # [init_tether_length[i] = winches[i].tether_length for i in eachindex(winches)]
+
+    init_unknowns_vec!(s, s.point_system, s.unknowns_vec, init_Q_b_w, init_kite_pos)
+    @show s.unknowns_vec
+
+    # s.set_unknowns(s.prob, [init_Q_b_w, init_kite_pos, init_pos, init_pulley_l0, init_tether_length])
+    s.set_unknowns(s.integrator, s.unknowns_vec)
 
     y = s.get_y(s.integrator)
     jac, x = VortexStepMethod.linearize(
@@ -488,11 +502,9 @@ function reinit!(s::RamAirKite; prn=true)
     return nothing
 end
 
-function generate_getters!(s; init=false)
+function generate_getters!(s, point_system, vec, sym_vec; init=false)
     sys = s.sys
     c = collect
-    dynamic_static_points = filter(p -> p.type == DYNAMIC || p.type == STATIC, s.point_system.points)
-    init_pos = [sys.pos[:, p.idx] for p in dynamic_static_points]
 
     set_set_values = setp(sys, sys.set_values)
     set_measure = setp(sys, sys.measured_wind_dir_gnd)
@@ -501,7 +513,7 @@ function generate_getters!(s; init=false)
         sys.last_y,
         sys.vsm_jac,
     ]))
-    set_init = setu(sys, c.([sys.Q_b_w, sys.kite_pos, init_pos, sys.pulley_l0, sys.tether_length]))
+    set_unknowns = setu(sys, sym_vec)
 
     get_state = getu(sys, 
         [c(sys.pos), c(sys.acc), c(sys.Q_b_w), sys.elevation, sys.azimuth, sys.course, sys.heading_y, 
@@ -512,7 +524,7 @@ function generate_getters!(s; init=false)
     s.set_set_values = (integ, val) -> set_set_values(integ, val)
     s.set_measure = (integ, val) -> set_measure(integ, val)
     s.set_vsm = (integ, val) -> set_vsm(integ, val)
-    s.set_init = (integ, val) -> set_init(integ, val)
+    s.set_unknowns = (integ, val) -> set_unknowns(integ, val)
 
     s.get_state = (integ) -> get_state(integ)
     s.get_y = (integ) -> get_y(integ)

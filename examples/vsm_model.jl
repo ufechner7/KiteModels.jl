@@ -6,7 +6,7 @@ if PLOT
 end
 
 dt = 0.05
-total_time = 6.5
+total_time = 0.5
 vsm_interval = 5
 steps = Int(round(total_time / dt))
 
@@ -22,6 +22,7 @@ if !@isdefined s
 end
 s.set.abs_tol = 1e-5
 s.set.rel_tol = 1e-3
+# s.measure.sphere_pos .= deg2rad.([89.0 89.0; 1.0 -1.0])
 
 # KiteModels.init!(s)
 @time KiteModels.reinit!(s)
@@ -37,7 +38,7 @@ integ_runtime = 0.
 try
     while t < total_time
         global t, runtime, integ_runtime
-        KiteModels.plot(s, t; zoom=false, front=true)
+        KiteModels.plot(s, t; zoom=false, front=false)
         global set_values = -s.set.drum_radius .* s.integrator[sys.winch_force] - [0, 0, 5]
         steptime = @elapsed (t, integ_steptime) = next_step!(s; set_values, dt, vsm_interval)
         if (t > total_time/2); runtime += steptime; end
@@ -58,6 +59,8 @@ try
         sys_state.var_10 = s.integrator[sys.twist_angle[2]]
         sys_state.var_11 = s.integrator[sys.twist_angle[3]]
         sys_state.var_12 = s.integrator[sys.twist_angle[4]]
+
+        @show sys_state.course
 
         log!(logger, sys_state)
     end

@@ -137,8 +137,7 @@ end
 
 
 function init!(system::PointMassSystem, s::RamAirKite, R_b_w)
-    points, groups, segments, pulleys, tethers, winches = 
-        system.points, system.groups, system.segments, system.pulleys, system.tethers, system.winches
+    @unpack points, groups, segments, pulleys, tethers, winches = system
 
     for segment in segments
         (segment.type === BRIDLE) && (segment.diameter = 0.001s.bridle_tether_diameter)
@@ -173,8 +172,7 @@ function init!(system::PointMassSystem, s::RamAirKite, R_b_w)
         end
     end
     for point in points
-        point.pos_w[3] -= min_z
-        point.pos_w .= R_b_w * point.pos_w
+        point.pos_w .= R_b_w * [point.pos_b[1], point.pos_b[2], point.pos_b[3] - min_z]
     end
     init_kite_pos = R_b_w * [0.0, 0.0, -min_z]
     return init_kite_pos

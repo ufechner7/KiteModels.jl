@@ -124,7 +124,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                 mass += mass_per_meter * l0[segment.idx] / 2
                 F .+= 0.5drag_force[:, segment.idx]
 
-                if segment.type === BRIDLE
+                if segment.type == BRIDLE
                     in_bridle = true
                 end
             end
@@ -151,7 +151,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             ]
         end
 
-        if point.type === KITE
+        if point.type == KITE
             found = 0
             group_idx = 0
             for group in groups
@@ -181,14 +181,14 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                 vel[:, point.idx]    ~ zeros(3)
                 acc[:, point.idx]    ~ zeros(3)
             ]
-        elseif point.type === WINCH
+        elseif point.type == WINCH
             eqs = [
                 eqs
                 pos[:, point.idx]    ~ point.pos_w
                 vel[:, point.idx]    ~ zeros(3)
                 acc[:, point.idx]    ~ zeros(3)
             ]
-        elseif point.type === DYNAMIC
+        elseif point.type == DYNAMIC
             p = pos[:, point.idx]
             n = normalize(kite_pos)
             n = n * (p ⋅ n)
@@ -208,7 +208,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                 [pos[j, point.idx] => point.pos_w[j] for j in 1:3]
                 [vel[j, point.idx] => 0 for j in 1:3]
             ]
-        elseif point.type === STATIC
+        elseif point.type == STATIC
             eqs = [
                 eqs
                 vel[:, point.idx]    ~ zeros(3)
@@ -261,7 +261,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             twist_α[group.idx] ~ (group_aero_moment[group.idx] + group_tether_moment[group.idx]) / inertia
             twist_angle[group.idx] ~ clamp(free_twist_angle[group.idx], -π/2, π/2)
         ]
-        if group.type === DYNAMIC
+        if group.type == DYNAMIC
             eqs = [
                 eqs
                 D(free_twist_angle[group.idx]) ~ twist_ω[group.idx]
@@ -272,7 +272,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                 free_twist_angle[group.idx] => 0
                 twist_ω[group.idx] => 0
             ]
-        elseif group.type === STATIC
+        elseif group.type == STATIC
             eqs = [
                 eqs
                 twist_ω[group.idx] ~ 0
@@ -319,7 +319,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             [segment_vec[i, segment.idx] => points[p2].pos_w[i] - points[p1].pos_w[i] for i in 1:3]
         ]
 
-        if segment.type === BRIDLE
+        if segment.type == BRIDLE
             in_pulley = 0
             for pulley in pulleys
                 if segment.idx == pulley.segments[1] # each bridle segment has to be part of no pulley or one pulley
@@ -345,7 +345,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             end
             (in_pulley > 1) && throw(ArgumentError("Bridle segment number $(segment.idx) is part of
                 $in_pulley pulleys, and should be part of either 0 or 1 pulleys."))
-        elseif segment.type === POWER || segment.type === STEERING
+        elseif segment.type == POWER || segment.type == STEERING
             in_tether = 0
             for tether in tethers
                 if segment.idx in tether.segments # each tether segment has to be part of exactly one tether
@@ -374,12 +374,12 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         end
 
         stiffness_m = s.set.e_tether * (segment.diameter/2)^2 * pi
-        (segment.type === BRIDLE) && (compression_frac = 0.1)
-        (segment.type === POWER) && (compression_frac = 0.1)
-        (segment.type === STEERING) && (compression_frac = 0.1)
+        (segment.type == BRIDLE) && (compression_frac = 0.1)
+        (segment.type == POWER) && (compression_frac = 0.1)
+        (segment.type == STEERING) && (compression_frac = 0.1)
         
         @parameters stiffness_frac = 0.1
-        (segment.type === BRIDLE) && (stiffness_m = stiffness_frac * stiffness_m)
+        (segment.type == BRIDLE) && (stiffness_m = stiffness_frac * stiffness_m)
 
         damping_m = (s.set.damping / s.set.c_spring) * stiffness_m
 
@@ -432,7 +432,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             pulley_force[pulley.idx]    ~ spring_force[pulley.segments[1]] - spring_force[pulley.segments[2]]
             pulley_acc[pulley.idx]      ~ pulley_force[pulley.idx] / mass
         ]
-        if pulley.type === DYNAMIC
+        if pulley.type == DYNAMIC
             eqs = [
                 eqs 
                 D(pulley_l0[pulley.idx])  ~ pulley_vel[pulley.idx]
@@ -443,7 +443,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                 pulley_l0[pulley.idx] => segments[pulley.segments[1]].l0
                 pulley_vel[pulley.idx] => 0
             ]
-        elseif pulley.type === STATIC
+        elseif pulley.type == STATIC
             eqs = [
                 eqs 
                 pulley_vel[pulley.idx] ~ 0
@@ -646,6 +646,92 @@ function linear_vsm_eqs!(s, eqs; aero_force_b, aero_moment_b, group_aero_moment,
     return eqs
 end
 
+function init_unknowns_vec!(
+    s::RamAirKite, 
+    system::PointMassSystem, 
+    vec,
+    init_Q_b_w,
+    init_kite_pos,
+    sym_vec::Union{Vector{Num}, Nothing}=nothing
+)
+    (length(vec) != length(s.integrator.u)) && 
+        throw(ArgumentError("Unknowns of length $(length(s.integrator.u)) but vector provided of length $(length(vec))"))
+
+    @unpack points, groups, segments, pulleys, winches = system
+    
+    vec_idx = 1
+    for point in points
+        if point.type == DYNAMIC
+            for i in 1:3
+                vec[vec_idx] = point.pos_w[i]
+                !isnothing(sym_vec) && (sym_vec[vec_idx] = s.sys.pos[i, point.idx])
+                vec_idx += 1
+            end
+            for i in 1:3 # TODO: add speed to init
+                vec[vec_idx] = 0.0
+                !isnothing(sym_vec) && (sym_vec[vec_idx] = s.sys.vel[i, point.idx])
+                vec_idx += 1
+            end
+        end
+    end
+
+    for group in groups
+        if group.type == DYNAMIC
+            vec[vec_idx] = 0
+            !isnothing(sym_vec) && (sym_vec[vec_idx] = s.sys.free_twist_angle[group.idx])
+            vec_idx += 1
+
+            vec[vec_idx] = 0
+            !isnothing(sym_vec) && (sym_vec[vec_idx] = s.sys.twist_ω[group.idx])
+            vec_idx += 1
+        end
+    end
+
+    for pulley in pulleys
+        if pulley.type == DYNAMIC
+            vec[vec_idx] = segments[pulley.segments[1]].l0
+            !isnothing(sym_vec) && (sym_vec[vec_idx] = s.sys.pulley_l0[pulley.idx])
+            vec_idx += 1
+
+            vec[vec_idx] = 0
+            !isnothing(sym_vec) && (sym_vec[vec_idx] = s.sys.pulley_vel[pulley.idx])
+            vec_idx += 1
+        end
+    end
+
+    for winch in winches
+        vec[vec_idx] = winch.tether_length
+        !isnothing(sym_vec) && (sym_vec[vec_idx] = s.sys.tether_length[winch.idx])
+        vec_idx += 1
+        vec[vec_idx] = 0
+        !isnothing(sym_vec) && (sym_vec[vec_idx] = s.sys.tether_vel[winch.idx])
+        vec_idx += 1
+    end
+
+    for i in 1:4
+        vec[vec_idx] = init_Q_b_w[i]
+        !isnothing(sym_vec) && (sym_vec[vec_idx] = s.sys.Q_b_w[i])
+        vec_idx += 1
+    end
+    for i in 1:3
+        vec[vec_idx] = 0
+        !isnothing(sym_vec) && (sym_vec[vec_idx] = s.sys.ω_b[i])
+        vec_idx += 1
+    end
+    for i in 1:3
+        vec[vec_idx] = init_kite_pos[i]
+        !isnothing(sym_vec) && (sym_vec[vec_idx] = s.sys.kite_pos[i])
+        vec_idx += 1
+    end
+    for i in 1:3
+        vec[vec_idx] = 0
+        !isnothing(sym_vec) && (sym_vec[vec_idx] = s.sys.kite_vel[i])
+        vec_idx += 1
+    end
+    (vec_idx-1 != length(vec)) && throw(ArgumentError("Unknowns vec is of length $(length(vec)) but the last index is $(vec_idx-1)"))
+    nothing
+end
+
 function create_sys!(s::RamAirKite, system::PointMassSystem; init_Q_b_w, init_kite_pos, init_va)
     eqs = []
     defaults = Pair{Num, Real}[]
@@ -712,3 +798,4 @@ function create_sys!(s::RamAirKite, system::PointMassSystem; init_Q_b_w, init_ki
     @time @named sys = ODESystem(eqs, t)
     return sys, defaults, guesses
 end
+
