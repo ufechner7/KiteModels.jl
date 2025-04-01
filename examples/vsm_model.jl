@@ -1,12 +1,12 @@
 using Revise, KiteModels, LinearAlgebra, VortexStepMethod
 
-PLOT = true
+PLOT = false
 if PLOT
     using ControlPlots
 end
 
-dt = 0.05
-total_time = 0.5
+dt = 0.01
+total_time = 1.5
 vsm_interval = 5
 steps = Int(round(total_time / dt))
 
@@ -22,7 +22,7 @@ if !@isdefined s
 end
 s.set.abs_tol = 1e-5
 s.set.rel_tol = 1e-3
-# s.measure.sphere_pos .= deg2rad.([89.0 89.0; 1.0 -1.0])
+s.measure.sphere_pos .= deg2rad.([50.0 50.0; 1.0 -1.0])
 
 # KiteModels.init!(s)
 @time KiteModels.reinit!(s)
@@ -38,7 +38,7 @@ integ_runtime = 0.
 try
     while t < total_time
         global t, runtime, integ_runtime
-        KiteModels.plot(s, t; zoom=false, front=false)
+        PLOT && KiteModels.plot(s, t; zoom=false, front=false)
         global set_values = -s.set.drum_radius .* s.integrator[sys.winch_force] - [0, 0, 5]
         steptime = @elapsed (t, integ_steptime) = next_step!(s; set_values, dt, vsm_interval)
         if (t > total_time/2); runtime += steptime; end
@@ -48,7 +48,7 @@ try
         sys_state.var_02 = s.integrator[sys.ω_b[2]]
         sys_state.var_03 = s.integrator[sys.ω_b[3]]
 
-        sys_state.var_04 = s.integrator[sys.tether_vel[1]]
+        sys_state.var_04 = s.integrator[sys.tether_vel[2]]
         sys_state.var_05 = s.integrator[sys.tether_vel[3]]
 
         sys_state.var_06 = s.integrator[sys.aero_force_b[3]]
@@ -60,8 +60,7 @@ try
         sys_state.var_11 = s.integrator[sys.twist_angle[3]]
         sys_state.var_12 = s.integrator[sys.twist_angle[4]]
 
-        @show sys_state.course
-
+        @show s.vsm_solver.sol.moment
         log!(logger, sys_state)
     end
 catch e
@@ -77,13 +76,15 @@ p=plotx(logger.time_vec,
         [logger.var_04_vec, logger.var_05_vec],
         [logger.var_06_vec, logger.var_07_vec, logger.var_08_vec],
         [logger.var_09_vec, logger.var_10_vec, logger.var_11_vec, logger.var_12_vec],
+        [logger.heading_vec]
         ;
-    ylabels=["kite", "tether", "vsm", "twist"], 
+    ylabels=["kite", "tether", "vsm", "twist", "heading"], 
     labels=[
         ["ω_b[1]", "ω_b[2]", "ω_b[3]"],
         ["vel[1]", "vel[2]"],
         ["force[3]", "kite moment[2]", "group moment[1]"],
         ["twist_angle[1]", "twist_angle[2]", "twist_angle[3]", "twist_angle[4]"],
+        ["heading"]
         ],
     fig="Steering and heading MTK model")
 display(p)

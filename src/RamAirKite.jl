@@ -49,11 +49,11 @@ const KITE_PARTICLES_3L = 4
 const MeasureFloat = Float32
 
 @with_kw mutable struct Measurement
-    set_values::MVector{3, MeasureFloat}    = [-1., -1., -50.]
-    tether_length::MVector{3, MeasureFloat} = [51., 51., 49.]
+    set_values::MVector{3, MeasureFloat}    = [-50., -1., -1.]
+    tether_length::MVector{3, MeasureFloat} = [51., 51., 51.]
     tether_vel::MVector{3, MeasureFloat}    = zeros(MeasureFloat, 3)
     tether_acc::MVector{3, MeasureFloat}    = zeros(MeasureFloat, 3)
-    tether_force::MVector{3, MeasureFloat}  = [3., 3., 540.]
+    tether_force::MVector{3, MeasureFloat}  = [540., 3., 3.]
     "elevation and azimuth in spherical coordinate system with columns (left, right) and rows (elevation, azimuth)"
     sphere_pos::Matrix{MeasureFloat}            = deg2rad.([89.0 89.0; 1.0 -1.0])
     sphere_vel::Matrix{MeasureFloat}            = zeros(MeasureFloat, 2, 2)
@@ -411,7 +411,9 @@ function init!(s::RamAirKite; prn=true)
     data_path = KiteUtils.get_data_path()
     serialize(joinpath(data_path, "prob.bin"), s.prob)
 
+    s.integrator = nothing
     reinit!(s)
+
     return nothing
 end
 
@@ -449,12 +451,11 @@ function reinit!(s::RamAirKite; prn=true)
 
     init_Q_b_w, R_b_w = measure_to_q(s.measure)
     init_kite_pos = init!(s.point_system, s, R_b_w)
-    @show s.point_system.points[1].pos_w
     
     dt = SimFloat(1/s.set.sample_freq)
     tspan   = (0.0, dt) 
     solver = FBDF()
-    if isnothing(s.integrator) || true
+    if isnothing(s.integrator)
         prob_path = joinpath(KiteUtils.get_data_path(), "prob.bin")
         !ispath(prob_path) && throw(ArgumentError("$prob_path not found. Run init!(s::RamAirKite) first."))
         t = @elapsed begin
@@ -465,40 +466,14 @@ function reinit!(s::RamAirKite; prn=true)
             s.unknowns_vec = zeros(SimFloat, length(s.integrator.u))
             init_unknowns_vec!(s, s.point_system, s.unknowns_vec, init_Q_b_w, init_kite_pos, sym_vec)
             generate_getters!(s, s.point_system, s.unknowns_vec, sym_vec)
-            # for (u, s) in zip(s.unknowns_vec, sym_vec)
-            #     println(u, "\t", s)
-            # end
         end
         prn && @info "Loaded problem from $prob_path and initialized integrator in $t seconds"
     end
 
-
-    @unpack points, pulleys, segments, winches = s.point_system
-
-    # dynamic_static_points = filter(p -> p.type == DYNAMIC || p.type == STATIC, points)
-    # init_pos = [point.pos_w for point in dynamic_static_points]
-
-    # init_pulley_l0 = zeros(length(pulleys))
-    # init_tether_length = zeros(length(winches))
-    # [init_pulley_l0[i] = segments[pulleys[i].segments[1]].l0 for i in eachindex(pulleys)]
-    # [init_tether_length[i] = winches[i].tether_length for i in eachindex(winches)]
-
     init_unknowns_vec!(s, s.point_system, s.unknowns_vec, init_Q_b_w, init_kite_pos)
-    @show s.unknowns_vec
-
-    # s.set_unknowns(s.prob, [init_Q_b_w, init_kite_pos, init_pos, init_pulley_l0, init_tether_length])
     s.set_unknowns(s.integrator, s.unknowns_vec)
+    OrdinaryDiffEqCore.set_t!(s.integrator, 0.0)
 
-    y = s.get_y(s.integrator)
-    jac, x = VortexStepMethod.linearize(
-        s.vsm_solver, 
-        s.aero, 
-        y;
-        theta_idxs=1:4,
-        va_idxs=5:7,
-        omega_idxs=8:10,
-        moment_frac=s.bridle_fracs[s.point_system.groups[1].fixed_index])
-    s.set_vsm(s.integrator, [x, y, jac])
     return nothing
 end
 
