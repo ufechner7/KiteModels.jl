@@ -16,6 +16,10 @@ This package is part of Julia Kite Power Tools, which consists of the following 
 <p align="center"><img src="./docs/src/kite_power_tools.png" width="500" /></p>
 
 ## News
+#### Work in progress
+- a much better aerodynamic model is being integrated using the package [VortexStepMethod](https://github.com/Albatross-Kite-Transport/VortexStepMethod.jl)
+- a new 5-point model based on ModelingToolkit (MTK) is in development;  
+  this will allow to create linearized models around any operation point and to do analysis in the frequency domain.
 #### November 2024
 - the four point kite model KPS4 was extended to include aerodynamic damping of pitch oscillations;
   for this purpose, the parameters `cmq` and `cord_length` must be defined in `settings.yaml`
@@ -133,6 +137,7 @@ If you like this software, please consider donating to [Flood in Kenya](https://
 - the package [KiteUtils](https://github.com/ufechner7/KiteUtils.jl)
 - the packages [WinchModels](https://github.com/aenarete/WinchModels.jl) and [KitePodModels](https://github.com/aenarete/KitePodModels.jl) and [AtmosphericModels](https://github.com/aenarete/AtmosphericModels.jl)
 - the packages [KiteControllers](https://github.com/aenarete/KiteControllers.jl) and [KiteViewers](https://github.com/aenarete/KiteViewers.jl)
+- soon the [VortexStepMethod](https://github.com/Albatross-Kite-Transport/VortexStepMethod.jl) will be used
 
 **Documentation** [Stable Version](https://ufechner7.github.io/KiteModels.jl/stable) --- [Development Version](https://ufechner7.github.io/KiteModels.jl/dev)
 

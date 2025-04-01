@@ -28,8 +28,15 @@ if ! command -v juliaup &> /dev/null; then
     exit 1
 fi
 
-juliaup add 1.10
-juliaup default 1.10
+# if julia is not installed, install Julia 1.11
+if ! command -v julia &> /dev/null; then
+    juliaup add 1.11
+    juliaup default 1.11
+fi
+
+# TODO: check if the julia version is 1.10 or 1.11
+
+julia --startup-file=no --pkgimages=no --project -e "using Pkg; Pkg.resolve()"
 
 PYTHON_PATH=$(which python3)
 if [ -x "$PYTHON_PATH" ]; then
@@ -86,18 +93,32 @@ if [[ $update == true ]]; then
     if test -f "Manifest.toml"; then
         mv Manifest.toml Manifest.toml.bak
     fi
+    if [[ $julia_major == "1.10" ]]; then
+        if test -f "Manifest-v1.10.toml"; then
+            mv Manifest-v1.10.toml Manifest-v1.10.toml.bak
+        fi
+    else
+        if test -f "Manifest-v1.11.toml"; then
+            mv Manifest-v1.11.toml Manifest-v1.11.toml.bak
+        fi
+    fi
     julia --startup-file=no --pkgimages=no --project -e "using TestEnv; TestEnv.activate(); using Pkg; Pkg.add(\"PyCall\"); Pkg.build(\"PyCall\")"
     if [[ $PYTHON == "" ]]; then
         julia --startup-file=no --pkgimages=no --project -e "using TestEnv; TestEnv.activate(); using Pkg; Pkg.add(\"Conda\"); using Conda; Conda.add(\"matplotlib\"); using ControlPlots"
     fi
     julia --startup-file=no --pkgimages=no --project -e "using Pkg; Pkg.update()"
-else
-    if [[ $julia_major == "1.9" ]]; then
-        cp Manifest-1.9.toml.default Manifest.toml
-        echo "Using Manifest-1.9.toml.default ..."        
+    if [[ $julia_major == "1.10" ]]; then
+        mv Manifest.toml Manifest-v1.10.toml
     else
-        cp Manifest-1.10.toml.default Manifest.toml
-        echo "Using Manifest-1.10.toml.default ..."
+        mv Manifest.toml Manifest-v1.11.toml
+    fi
+else
+    if [[ $julia_major == "1.10" ]]; then
+        cp Manifest-v1.10.toml.default Manifest-v1.10.toml
+        echo "Using Manifest-v1.10.toml.default ..."        
+    else
+        cp Manifest-v1.11.toml.default Manifest-v1.11.toml
+        echo "Using Manifest-v1.11.toml.default ..."
     fi
 fi
 julia --startup-file=no --pkgimages=no --project -e "include(\"./test/create_sys_image.jl\");"
