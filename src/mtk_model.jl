@@ -651,87 +651,123 @@ end
 function init_unknowns_vec!(
     s::RamAirKite, 
     system::PointMassSystem, 
-    vec,
+    vec::Vector{SimFloat},
     init_Q_b_w,
-    init_kite_pos,
-    sym_vec::Union{Vector{Num}, Nothing}=nothing
+    init_kite_pos;
+    non_observed=true
 )
-    (length(vec) != length(s.integrator.u)) && 
+    non_observed && (length(vec) != length(s.integrator.u)) && 
         throw(ArgumentError("Unknowns of length $(length(s.integrator.u)) but vector provided of length $(length(vec))"))
-
+        
     @unpack points, groups, segments, pulleys, winches = system
-    
     vec_idx = 1
-    for point in points
-        if point.type == DYNAMIC
-            for i in 1:3
-                vec[vec_idx] = point.pos_w[i]
-                !isnothing(sym_vec) && (sym_vec[vec_idx] = s.sys.pos[i, point.idx])
-                vec_idx += 1
+    
+    if non_observed
+        for point in points
+            if point.type == DYNAMIC
+                for i in 1:3
+                    vec[vec_idx] = point.pos_w[i]
+                    vec_idx += 1
+                end
+                for i in 1:3 # TODO: add speed to init
+                    vec[vec_idx] = 0.0
+                    vec_idx += 1
+                end
             end
-            for i in 1:3 # TODO: add speed to init
-                vec[vec_idx] = 0.0
-                !isnothing(sym_vec) && (sym_vec[vec_idx] = s.sys.vel[i, point.idx])
+        end
+
+        for group in groups
+            if group.type == DYNAMIC
+                vec[vec_idx] = 0
+                vec_idx += 1
+                vec[vec_idx] = 0
                 vec_idx += 1
             end
         end
-    end
 
-    for group in groups
-        if group.type == DYNAMIC
-            vec[vec_idx] = 0
-            !isnothing(sym_vec) && (sym_vec[vec_idx] = s.sys.free_twist_angle[group.idx])
-            vec_idx += 1
-
-            vec[vec_idx] = 0
-            !isnothing(sym_vec) && (sym_vec[vec_idx] = s.sys.twist_ω[group.idx])
-            vec_idx += 1
-        end
-    end
-
-    for pulley in pulleys
-        if pulley.type == DYNAMIC
-            vec[vec_idx] = segments[pulley.segments[1]].l0
-            !isnothing(sym_vec) && (sym_vec[vec_idx] = s.sys.pulley_l0[pulley.idx])
-            vec_idx += 1
-
-            vec[vec_idx] = 0
-            !isnothing(sym_vec) && (sym_vec[vec_idx] = s.sys.pulley_vel[pulley.idx])
-            vec_idx += 1
+        for pulley in pulleys
+            if pulley.type == DYNAMIC
+                vec[vec_idx] = segments[pulley.segments[1]].l0
+                vec_idx += 1
+                vec[vec_idx] = 0
+                vec_idx += 1
+            end
         end
     end
 
     for winch in winches
         vec[vec_idx] = winch.tether_length
-        !isnothing(sym_vec) && (sym_vec[vec_idx] = s.sys.tether_length[winch.idx])
         vec_idx += 1
         vec[vec_idx] = 0
-        !isnothing(sym_vec) && (sym_vec[vec_idx] = s.sys.tether_vel[winch.idx])
         vec_idx += 1
     end
 
     for i in 1:4
         vec[vec_idx] = init_Q_b_w[i]
-        !isnothing(sym_vec) && (sym_vec[vec_idx] = s.sys.Q_b_w[i])
         vec_idx += 1
     end
     for i in 1:3
         vec[vec_idx] = 0
-        !isnothing(sym_vec) && (sym_vec[vec_idx] = s.sys.ω_b[i])
         vec_idx += 1
     end
     for i in 1:3
         vec[vec_idx] = init_kite_pos[i]
-        !isnothing(sym_vec) && (sym_vec[vec_idx] = s.sys.kite_pos[i])
         vec_idx += 1
     end
     for i in 1:3
         vec[vec_idx] = 0
-        !isnothing(sym_vec) && (sym_vec[vec_idx] = s.sys.kite_vel[i])
         vec_idx += 1
     end
-    (vec_idx-1 != length(vec)) && throw(ArgumentError("Unknowns vec is of length $(length(vec)) but the last index is $(vec_idx-1)"))
+    non_observed && (vec_idx-1 != length(vec)) && 
+        throw(ArgumentError("Unknowns vec is of length $(length(vec)) but the last index is $(vec_idx-1)"))
     nothing
+end
+
+function get_unknowns_vec(
+    s::RamAirKite, 
+    system::PointMassSystem;
+    non_observed=true
+)
+    @unpack points, groups, segments, pulleys, winches = system
+    vec = Num[]
+    
+    if non_observed
+        for point in points
+            if point.type == DYNAMIC
+                for i in 1:3
+                    push!(vec, s.sys.pos[i, point.idx])
+                end
+                for i in 1:3 # TODO: add speed to init
+                    push!(vec, s.sys.vel[i, point.idx])
+                end
+            end
+        end
+        for group in groups
+            if group.type == DYNAMIC
+                push!(vec, s.sys.free_twist_angle[group.idx])
+                push!(vec, s.sys.twist_ω[group.idx])
+            end
+        end
+        for pulley in pulleys
+            if pulley.type == DYNAMIC
+                push!(vec, s.sys.pulley_l0[pulley.idx])
+                push!(vec, s.sys.pulley_vel[pulley.idx])
+            end
+        end
+    end
+
+    for winch in winches
+        push!(vec, s.sys.tether_length[winch.idx])
+        push!(vec, s.sys.tether_vel[winch.idx])
+    end
+
+    [push!(vec, s.sys.Q_b_w[i]) for i in 1:4]
+    [push!(vec, s.sys.ω_b[i]) for i in 1:3]
+    [push!(vec, s.sys.kite_pos[i]) for i in 1:3]
+    [push!(vec, s.sys.kite_vel[i]) for i in 1:3]
+    non_observed && (length(vec) != length(s.integrator.u)) &&
+        throw(ArgumentError("Integrator unknowns of length $(length(s.integrator.u)) should equal vec of length $(length(vec))"))
+    return vec
 end
 
 function create_sys!(s::RamAirKite, system::PointMassSystem; init_Q_b_w, init_kite_pos, init_va)

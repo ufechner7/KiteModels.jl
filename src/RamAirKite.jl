@@ -369,7 +369,7 @@ function SysState(s::RamAirKite, zoom=1.0) # TODO: add left and right lines, sto
 end
 
 """
-    init!(s::RamAirKite; prn=true) -> Nothing
+    init_sim!(s::RamAirKite; prn=true) -> Nothing
 
 Initialize a complete kite power system model from scratch.
 
@@ -393,7 +393,7 @@ problem already exists.
 # Returns
 - `Nothing`
 """
-function init!(s::RamAirKite; prn=true)
+function init_sim!(s::RamAirKite; prn=true)
     init_Q_b_w, R_b_w = measure_to_q(s.measure)
 
     s.point_system = PointMassSystem(s, s.wing)
@@ -457,15 +457,15 @@ function reinit!(s::RamAirKite; prn=true)
     solver = FBDF()
     if isnothing(s.integrator)
         prob_path = joinpath(KiteUtils.get_data_path(), "prob.bin")
-        !ispath(prob_path) && throw(ArgumentError("$prob_path not found. Run init!(s::RamAirKite) first."))
+        !ispath(prob_path) && throw(ArgumentError("$prob_path not found. Run init_sim!(s::RamAirKite) first."))
         t = @elapsed begin
             s.prob = deserialize(prob_path)
             s.sys = s.prob.f.sys
             s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, save_everystep=false)
             sym_vec = zeros(Num, length(s.integrator.u))
             s.unknowns_vec = zeros(SimFloat, length(s.integrator.u))
-            init_unknowns_vec!(s, s.point_system, s.unknowns_vec, init_Q_b_w, init_kite_pos, sym_vec)
-            generate_getters!(s, s.point_system, s.unknowns_vec, sym_vec)
+            sym_vec = get_unknowns_vec(s, s.point_system)
+            generate_getters!(s, sym_vec)
         end
         prn && @info "Loaded problem from $prob_path and initialized integrator in $t seconds"
     end
@@ -477,7 +477,7 @@ function reinit!(s::RamAirKite; prn=true)
     return nothing
 end
 
-function generate_getters!(s, point_system, vec, sym_vec; init=false)
+function generate_getters!(s, sym_vec; init=false)
     sys = s.sys
     c = collect
 

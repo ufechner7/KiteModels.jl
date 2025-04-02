@@ -5,7 +5,7 @@ if PLOT
     using ControlPlots
 end
 
-dt = 0.01
+dt = 0.05
 total_time = 1.5
 vsm_interval = 5
 steps = Int(round(total_time / dt))
@@ -24,7 +24,7 @@ s.set.abs_tol = 1e-5
 s.set.rel_tol = 1e-3
 s.measure.sphere_pos .= deg2rad.([50.0 50.0; 1.0 -1.0])
 
-# KiteModels.init!(s)
+# KiteModels.init_sim!(s)
 @time KiteModels.reinit!(s)
 
 logger = Logger(length(s.point_system.points), steps)

@@ -12,11 +12,10 @@ const BUILD_SYS = false
 
 @testset verbose = true "RamAirKite MTK Model Tests" begin
     set = se("system_3l.yaml")
-    wing = RamAirWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat"; 
+    wing = RamAirWing(joinpath(data_path(), "ram_air_kite_body.obj"), joinpath(data_path(), "ram_air_kite_foil.dat"); 
                 mass=set.mass, crease_frac=0.82, align_to_principal=true)
     aero = BodyAerodynamics([wing])
     vsm_solver = Solver(aero; solver_type=NONLIN, atol=1e-8, rtol=1e-8)
-    
 
     # Utility functions for setup
     function create_test_model()
@@ -41,7 +40,7 @@ const BUILD_SYS = false
             
             # 1. First time initialization - should create new model
             @info "Testing initial init! (should create new model)..."
-            @time KiteModels.init!(s; prn=true)
+            @time KiteModels.init_sim!(s; prn=true)
             
             # Check that serialization worked
             @test isfile(prob_path)
