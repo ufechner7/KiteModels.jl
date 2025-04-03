@@ -37,13 +37,14 @@ if !@isdefined s
     s = RamAirKite(set, aero, vsm_solver, point_system)
 
     measure = Measurement()
-    # KiteModels.init_sim!(s, measure)
 end
 s.set.abs_tol = 1e-2
 s.set.rel_tol = 1e-2
 measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
 
-
+if !ispath(joinpath(get_data_path(), "prob.bin"))
+    KiteModels.init_sim!(s, measure)
+end
 @time KiteModels.reinit!(s, measure)
 sys = s.sys
 s.integrator.ps[sys.steady] = true
@@ -62,7 +63,7 @@ function step_with_input(x, u, _, p)
     (s, stiff_x, set_x, set_sx, get_x, dt) = p
     set_x(s.integrator, x)
     set_sx(s.integrator, stiff_x)
-    next_step!(s; set_values=u, dt=dt, vsm_interval=0)
+    next_step!(s, u; dt=dt, vsm_interval=0)
     return get_x(s.integrator)
 end
 

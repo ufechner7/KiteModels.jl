@@ -695,8 +695,8 @@ function copy_examples()
 end
 
 function copy_model_settings()
-    files = ["settings.yaml", "MH82.dat", "polars.bin", "system.yaml", "settings_3l.yaml", 
-             "system_3l.yaml"]
+    files = ["settings.yaml", "ram_air_kite_body.obj", "ram_air_kite_foil.dat", "system.yaml", "settings_ram.yaml", 
+             "system_ram.yaml"]
     dst_path = abspath(joinpath(pwd(), "data"))
     copy_files("data", files)
     set_data_path(joinpath(pwd(), "data"))
@@ -775,30 +775,24 @@ function copy_bin()
     chmod(joinpath(PATH, "update_packages.jl"), 0o664)
 end
 
-# @setup_workload begin
-#     # Putting some things in `@setup_workload` instead of `@compile_workload` can reduce the size of the
-#     # precompile file and potentially make loading faster.
-#     # list = [OtherType("hello"), OtherType("world!")]
-#     path = dirname(pathof(@__MODULE__))
-#     set_data_path(joinpath(path, "..", "data"))
+@setup_workload begin
+    # Putting some things in `@setup_workload` instead of `@compile_workload` can reduce the size of the
+    # precompile file and potentially make loading faster.
+    # list = [OtherType("hello"), OtherType("world!")]
+    path = dirname(pathof(@__MODULE__))
+    set_data_path(joinpath(path, "..", "data"))
 
-#     set = se("system.yaml")
-#     set.kcu_diameter = 0
-#     kps4_::KPS4 = KPS4(KCU(set))
-#     kps3_::KPS3 = KPS3(KCU(se("system.yaml")))
-#     if ! haskey(ENV, "NO_MTK")    
-#         kpsq_::RamAirKite = RamAirKite(KCU(se(SYS_3L)))
-#     end
-#     @assert ! isnothing(kps4_.wm)
-#     @compile_workload begin
-#         # all calls in this block will be precompiled, regardless of whether
-#         # they belong to your package or not (on Julia 1.8 and higher)
-#         integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
-#         integrator = KiteModels.init_sim!(kps4_; delta=0.03, stiffness_factor=0.05, prn=false) 
-#         if ! haskey(ENV, "NO_MTK")
-#             integrator = KiteModels.init_sim!(kpsq_)
-#         end
-#         nothing
-#     end
-# end
+    set = se("system.yaml")
+    set.kcu_diameter = 0
+    kps4_::KPS4 = KPS4(KCU(set))
+    kps3_::KPS3 = KPS3(KCU(se("system.yaml")))
+    @assert ! isnothing(kps4_.wm)
+    @compile_workload begin
+        # all calls in this block will be precompiled, regardless of whether
+        # they belong to your package or not (on Julia 1.8 and higher)
+        integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
+        integrator = KiteModels.init_sim!(kps4_; delta=0.03, stiffness_factor=0.05, prn=false) 
+        nothing
+    end
+end
 end

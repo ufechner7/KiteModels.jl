@@ -14,7 +14,8 @@ options = ["bench = include(\"bench.jl\")",
            "simulate_steering = include(\"simulate_steering.jl\")",
            "steering_test_1p = include(\"steering_test_1p.jl\")",
            "steering_test_4p = include(\"steering_test_4p.jl\")",
-           "simple_3l_control = include(\"simple_3l_control.jl\")",
+           "ram_air_kite_loop = include(\"ram_air_kite_loop.jl\")",
+           "input_output_function = include(\"input_output_function.jl\")",
            "calculate_rotational_inertia = include(\"calculate_rotational_inertia.jl\")",
            "quit"]
 

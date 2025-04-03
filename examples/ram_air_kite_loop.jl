@@ -22,11 +22,13 @@ if !@isdefined s
     s = RamAirKite(set, aero, vsm_solver, point_system)
 
     measure = Measurement()
-    # KiteModels.init_sim!(s, measure)
 end
 s.set.abs_tol = 1e-5
 s.set.rel_tol = 1e-3
 
+if !ispath(joinpath(get_data_path(), "prob.bin"))
+    KiteModels.init_sim!(s, measure)
+end
 measure.sphere_pos .= deg2rad.([50.0 50.0; 1.0 -1.0])
 @time KiteModels.reinit!(s, measure)
 
@@ -43,7 +45,7 @@ try
         global t, runtime, integ_runtime
         PLOT && KiteModels.plot(s, t; zoom=false, front=true)
         global set_values = -s.set.drum_radius .* s.integrator[sys.winch_force] - [0, 0, 5]
-        steptime = @elapsed (t, integ_steptime) = next_step!(s; set_values, dt, vsm_interval)
+        steptime = @elapsed (t, integ_steptime) = next_step!(s, set_values; dt, vsm_interval)
         if (t > total_time/2); runtime += steptime; end
         if (t > total_time/2); integ_runtime += integ_steptime; end
         KiteModels.update_sys_state!(sys_state, s)
