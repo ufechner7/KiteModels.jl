@@ -1,0 +1,36 @@
+Model:
+    VSM: Vortex Step Method
+    LLT: Lifting Line Theory
+PanelDistribution:
+    LINEAR:             Linear distribution
+    COSINE:             Cosine distribution
+    COSINE_VAN_GARREL:  van Garrel cosine distribution
+    SPLIT_PROVIDED:     Split provided sections
+    UNCHANGED:          Keep original sections
+InitialGammaDistribution:
+    ELLIPTIC:           Elliptic distribution
+    ZEROS:              Constant distribution
+
+wings:
+    - name: main_wing
+      n_panels: 40
+      n_groups: 40
+      spanwise_panel_distribution: LINEAR
+      spanwise_direction: [0.0, 1.0, 0.0]
+      remove_nan: true
+solver_settings:
+    n_panels: 40
+    n_groups: 40
+    aerodynamic_model_type: VSM
+    density: 1.225                   # air density  [kg/m³]
+    max_iterations: 1500
+    rtol: 1e-5                       # relative error   [-]
+    tol_reference_error: 0.001
+    relaxation_factor: 0.03          # relaxation factor for convergence
+    artificial_damping: false        # whether to apply artificial damping
+    k2: 0.1                          # artificial damping parameter
+    k4: 0.0                          # artificial damping parameter
+    type_initial_gamma_distribution: ELLIPTIC
+    core_radius_fraction: 1e-20
+    mu: 1.81e-5                      # dynamic viscosity [N·s/m²]
+    calc_only_f_and_gamma: false     # whether to only output f and gamma
