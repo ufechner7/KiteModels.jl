@@ -3,9 +3,7 @@ using ModelingToolkit
 using ModelingToolkit: setu, getu
 using ControlPlots
 
-dt = 0.05
-total_time = 1.5
-steps = Int(round(total_time / dt))
+dt = 0.1
 
 set = se("system_ram.yaml")
 set.segments = 2
@@ -20,8 +18,8 @@ if !@isdefined s
     measure = Measurement()
     # KiteModels.init_sim!(s, measure)
 end
-s.set.abs_tol = 1e-5
-s.set.rel_tol = 1e-3
+s.set.abs_tol = 1e-2
+s.set.rel_tol = 1e-2
 measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
 
 
@@ -43,7 +41,7 @@ function step_with_input(x, u, _, p)
     (s, stiff_x, set_x, set_sx, get_x, dt) = p
     set_x(s.integrator, x)
     set_sx(s.integrator, stiff_x)
-    @time next_step!(s; set_values=u, dt=dt, vsm_interval=0)
+    next_step!(s; set_values=u, dt=dt, vsm_interval=0)
     return get_x(s.integrator)
 end
 
@@ -63,6 +61,8 @@ function test_response(s, input_range, input_idx, num_steps=3)
     angular_vels = zeros(3, length(input_range))
     kite_positions = zeros(3, length(input_range))
     kite_vels = zeros(3, length(input_range))
+    total_time = 0.0
+    iter = 0
 
     # For each input value
     for (i, input_val) in enumerate(input_range)
@@ -75,7 +75,8 @@ function test_response(s, input_range, input_idx, num_steps=3)
         # Run multiple steps if requested
         for step in 1:num_steps
             p = (s, sx0, set_x, set_sx, get_x, dt)
-            x = step_with_input(x, u, nothing, p)
+            total_time += @elapsed x = step_with_input(x, u, nothing, p)
+            iter += 1
         end
         
         # Record responses
@@ -89,6 +90,7 @@ function test_response(s, input_range, input_idx, num_steps=3)
         kite_positions[:, i] = x[14:16]
         kite_vels[:, i] = x[17:19]
     end
+    @info "Number of steps: $iter, Times realtime: $(dt*iter/total_time)"
     
     return time_vec, tether_lengths, tether_vels, orientations, angular_vels, kite_positions, kite_vels
 end
@@ -117,7 +119,7 @@ p_power = plotx(time_vec_power,
 display(p_power)
 
 # Test left steering input response (second input)
-left_range = range(-10.0, 10.0, length=20)
+left_range = range(-1.0, 1.0, length=20)
 time_vec_left, tether_lengths_left, tether_vels_left, orientations_left, 
 angular_vels_left, kite_positions_left, kite_vels_left = test_response(s, left_range, 2)
 
@@ -140,7 +142,7 @@ p_left = plotx(time_vec_left,
 display(p_left)
 
 # Test right steering input response (third input)
-right_range = range(-5.0, 5.0, length=20)
+right_range = range(-1.0, 1.0, length=20)
 time_vec_right, tether_lengths_right, tether_vels_right, orientations_right, 
 angular_vels_right, kite_positions_right, kite_vels_right = test_response(s, right_range, 3)
 
