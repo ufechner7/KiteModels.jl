@@ -11,44 +11,48 @@ set = se("system_ram.yaml")
 set.segments = 2
 
 if !@isdefined s
-    wing = RamAirWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat"; 
-                     mass=set.mass, crease_frac=0.82, align_to_principal=true)
+    wing = RamAirWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat"; mass=set.mass, crease_frac=0.82, align_to_principal=true)
     aero = BodyAerodynamics([wing])
     vsm_solver = Solver(aero; solver_type=NONLIN, atol=1e-8, rtol=1e-8)
     point_system = PointMassSystem(set, wing)
-    s = RamAirKite(set)
+    s = RamAirKite(set, aero, vsm_solver, point_system)
+
+    measure = Measurement()
+    # KiteModels.init_sim!(s, measure)
 end
 s.set.abs_tol = 1e-5
 s.set.rel_tol = 1e-3
-s.measure.sphere_pos .= deg2rad.([50.0 50.0; 1.0 -1.0])
+measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
 
 sys = s.sys
 
-KiteModels.init_sim!(s, point_system)
-@time KiteModels.reinit!(s, point_system)
-for i in 1:5
+@time KiteModels.reinit!(s, measure)
+s.integrator.ps[sys.steady] = true
+for i in 1:20
     set_values = -s.set.drum_radius .* s.integrator[sys.winch_force]
-    linearize_vsm!(s, vsm_solver, aero)
-    next_step!(s; set_values, dt)
+    next_step!(s; set_values, dt, vsm_interval=1)
 end
+s.integrator.ps[sys.steady] = false
 
-x_vec = KiteModels.get_nonstiff_vec(s, point_system)
-p_vec = KiteModels.get_stiff_vec(s, point_system)
+x_vec = KiteModels.get_nonstiff_unknowns(s)
+sx_vec = KiteModels.get_stiff_unknowns(s)
 set_x = setu(s.integrator, x_vec)
+set_sx = setu(s.integrator, sx_vec)
 get_x = getu(s.integrator, x_vec)
-set_sx = setu(s.integrator, p_vec)
+get_sx = getu(s.integrator, sx_vec)
 
 # Function to step simulation with input u
-function step_with_input!(x, u, _, p)
-    (s, stiff_x, set_x, set_sx) = p
+function step_with_input(x, u, _, p)
+    (s, stiff_x, set_x, set_sx, get_x, dt) = p
     set_x(s.integrator, x)
     set_sx(s.integrator, stiff_x)
-    next_step!(s; set_values=u, dt=dt)
+    @time next_step!(s; set_values=u, dt=dt, vsm_interval=0)
     return get_x(s.integrator)
 end
 
 # Get initial state
 x0 = get_x(s.integrator)
+sx0 = get_sx(s.integrator)
 
 # Test a range of inputs and record responses
 function test_response(s, input_range, input_idx, num_steps=3)
@@ -73,7 +77,8 @@ function test_response(s, input_range, input_idx, num_steps=3)
         
         # Run multiple steps if requested
         for step in 1:num_steps
-            x = step_with_input!(s, x, u)
+            p = (s, sx0, set_x, set_sx, get_x, dt)
+            x = step_with_input(x, u, nothing, p)
         end
         
         # Record responses

@@ -450,19 +450,18 @@ function reinit!(s::RamAirKite, measure::Measurement; prn=true)
     init_Q_b_w, R_b_w = measure_to_q(measure)
     init_kite_pos = init!(s.point_system, s.set, R_b_w)
     
-    dt = SimFloat(1/s.set.sample_freq)
-    tspan   = (0.0, dt) 
-    solver = FBDF()
     if isnothing(s.integrator) || !successful_retcode(s.integrator.sol)
         prob_path = joinpath(KiteUtils.get_data_path(), "prob.bin")
         !ispath(prob_path) && throw(ArgumentError("$prob_path not found. Run init_sim!(s::RamAirKite) first."))
         t = @elapsed begin
+            dt = SimFloat(1/s.set.sample_freq)
+            solver = FBDF()
             s.prob = deserialize(prob_path)
             s.sys = s.prob.f.sys
             s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, save_everystep=false)
             sym_vec = zeros(Num, length(s.integrator.u))
             s.unknowns_vec = zeros(SimFloat, length(s.integrator.u))
-            sym_vec = get_unknowns_vec(s, s.point_system)
+            sym_vec = get_unknowns(s)
             generate_getters!(s, sym_vec)
         end
         prn && @info "Loaded problem from $prob_path and initialized integrator in $t seconds"
@@ -472,7 +471,6 @@ function reinit!(s::RamAirKite, measure::Measurement; prn=true)
     s.set_unknowns(s.integrator, s.unknowns_vec)
     OrdinaryDiffEqCore.set_t!(s.integrator, 0.0)
     linearize_vsm!(s)
-
     return nothing
 end
 
@@ -526,7 +524,7 @@ function next_step!(s::RamAirKite; set_values=nothing, measure::Union{Measuremen
     if (!isnothing(measure))
         s.set_measure(s.integrator, measure.wind_dir_gnd)
     end
-    if !isnothing(vsm_interval) && s.iter % vsm_interval == 0
+    if vsm_interval != 0 && s.iter % vsm_interval == 0
         linearize_vsm!(s)
     end
     

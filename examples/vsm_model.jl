@@ -22,7 +22,7 @@ if !@isdefined s
     s = RamAirKite(set, aero, vsm_solver, point_system)
 
     measure = Measurement()
-    KiteModels.init_sim!(s, measure)
+    # KiteModels.init_sim!(s, measure)
 end
 s.set.abs_tol = 1e-5
 s.set.rel_tol = 1e-3
