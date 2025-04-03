@@ -24,14 +24,11 @@ s.set.abs_tol = 1e-5
 s.set.rel_tol = 1e-3
 measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
 
-sys = s.sys
 
 @time KiteModels.reinit!(s, measure)
+sys = s.sys
 s.integrator.ps[sys.steady] = true
-for i in 1:20
-    set_values = -s.set.drum_radius .* s.integrator[sys.winch_force]
-    next_step!(s; set_values, dt, vsm_interval=1)
-end
+next_step!(s; dt=10.0, vsm_interval=1)
 s.integrator.ps[sys.steady] = false
 
 x_vec = KiteModels.get_nonstiff_unknowns(s)
@@ -97,7 +94,7 @@ function test_response(s, input_range, input_idx, num_steps=3)
 end
 
 # Test power input response (first input)
-power_range = range(-60.0, -50.0, length=20)
+power_range = range(-50.0, -40.0, length=20)
 time_vec_power, tether_lengths_power, tether_vels_power, orientations_power, 
     angular_vels_power, kite_positions_power, kite_vels_power = test_response(s, power_range, 1)
 
