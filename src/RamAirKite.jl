@@ -455,7 +455,7 @@ function reinit!(s::RamAirKite; prn=true)
     dt = SimFloat(1/s.set.sample_freq)
     tspan   = (0.0, dt) 
     solver = FBDF()
-    if isnothing(s.integrator)
+    if isnothing(s.integrator) || !successful_retcode(s.integrator.sol)
         prob_path = joinpath(KiteUtils.get_data_path(), "prob.bin")
         !ispath(prob_path) && throw(ArgumentError("$prob_path not found. Run init_sim!(s::RamAirKite) first."))
         t = @elapsed begin

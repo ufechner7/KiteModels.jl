@@ -1,12 +1,12 @@
 using Revise, KiteModels, LinearAlgebra, VortexStepMethod
 
-PLOT = false
+PLOT = true
 if PLOT
     using ControlPlots
 end
 
 dt = 0.05
-total_time = 1.5
+total_time = 5
 vsm_interval = 5
 steps = Int(round(total_time / dt))
 
@@ -19,12 +19,12 @@ if !@isdefined s
     aero = BodyAerodynamics([wing])
     vsm_solver = Solver(aero; solver_type=NONLIN, atol=1e-8, rtol=1e-8)
     s = RamAirKite(set, wing, aero, vsm_solver)
+    KiteModels.init_sim!(s)
 end
 s.set.abs_tol = 1e-5
 s.set.rel_tol = 1e-3
 s.measure.sphere_pos .= deg2rad.([50.0 50.0; 1.0 -1.0])
 
-# KiteModels.init_sim!(s)
 @time KiteModels.reinit!(s)
 
 logger = Logger(length(s.point_system.points), steps)
@@ -38,7 +38,7 @@ integ_runtime = 0.
 try
     while t < total_time
         global t, runtime, integ_runtime
-        PLOT && KiteModels.plot(s, t; zoom=false, front=false)
+        PLOT && KiteModels.plot(s, t; zoom=false, front=true)
         global set_values = -s.set.drum_radius .* s.integrator[sys.winch_force] - [0, 0, 5]
         steptime = @elapsed (t, integ_steptime) = next_step!(s; set_values, dt, vsm_interval)
         if (t > total_time/2); runtime += steptime; end
