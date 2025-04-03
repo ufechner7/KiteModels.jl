@@ -8,7 +8,7 @@ set_data_path(joinpath(dirname(dirname(pathof(KiteModels))), "data"))
 
 # Testing tolerance
 const TOL = 1e-5
-const BUILD_SYS = false
+const BUILD_SYS = true
 
 @testset verbose = true "RamAirKite MTK Model Tests" begin
     set = se("system_ram.yaml")
@@ -24,9 +24,7 @@ const BUILD_SYS = false
         set.segments = 2
         set.abs_tol = TOL
         set.rel_tol = TOL
-
         VortexStepMethod.init!(aero; init_aero=false)
-        
         return RamAirKite(set, aero, vsm_solver, point_system)
     end
     
@@ -42,7 +40,7 @@ const BUILD_SYS = false
             
             # 1. First time initialization - should create new model
             @info "Testing initial init! (should create new model)..."
-            @time KiteModels.init_sim!(s; prn=true)
+            @time KiteModels.init_sim!(s, measure; prn=true)
             
             # Check that serialization worked
             @test isfile(prob_path)
