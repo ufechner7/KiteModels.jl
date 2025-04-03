@@ -1,5 +1,5 @@
 
-function PointMassSystem(s::RamAirKite, wing::RamAirWing)
+function PointMassSystem(set::Settings, wing::RamAirWing)
     # TODO: move as much of the code as possible from create_point_mass_system to other places, to make model creation easier.
     # 1. move bridle gamma calculation
     # 2. ...
@@ -13,8 +13,8 @@ function PointMassSystem(s::RamAirKite, wing::RamAirWing)
 
     attach_points = Point[]
     
-    bridle_top_left = [s.wing.R_cad_body * (s.top_bridle_points[i] + s.wing.T_cad_body) for i in eachindex(s.top_bridle_points)] # cad to kite frame
-    bridle_top_right = [bridle_top_left[i] .* [1, -1, 1] for i in eachindex(s.top_bridle_points)]
+    bridle_top_left = [wing.R_cad_body * (set.top_bridle_points[i] + wing.T_cad_body) for i in eachindex(set.top_bridle_points)] # cad to kite frame
+    bridle_top_right = [bridle_top_left[i] .* [1, -1, 1] for i in eachindex(set.top_bridle_points)]
 
     function create_bridle(bridle_top, gammas)
         i_pnt = length(points) # last point idx
@@ -28,7 +28,7 @@ function PointMassSystem(s::RamAirKite, wing::RamAirWing)
             y_airf = normalize([wing.le_interp[i](gamma-0.01) for i in 1:3] - le_pos)
 
             point_idxs = Int16[]
-            for frac in s.bridle_fracs # 4 fracs
+            for frac in set.bridle_fracs # 4 fracs
                 pos = le_pos .+ chord .* frac
                 points = [points; Point(i+i_pnt, pos, KITE)]
                 push!(point_idxs, points[end].idx)
@@ -91,10 +91,10 @@ function PointMassSystem(s::RamAirKite, wing::RamAirWing)
     end
 
     function create_tether(attach_point, type)
-        l0 = s.set.l_tether / s.set.segments
+        l0 = set.l_tether / set.segments
         segment_idxs = Int16[]
-        for i in 1:s.set.segments
-            frac = i / s.set.segments
+        for i in 1:set.segments
+            frac = i / set.segments
             pos = [(1-frac) * attach_point.pos_b[1], 
                     (1-frac) * attach_point.pos_b[2],
                     attach_point.pos_b[3] - i*l0]
@@ -103,7 +103,7 @@ function PointMassSystem(s::RamAirKite, wing::RamAirWing)
             if i == 1
                 points = [points; Point(1+i_pnt, pos, DYNAMIC)]
                 segments = [segments; Segment(1+i_seg, (attach_point.idx, 1+i_pnt), type)]
-            elseif i == s.set.segments
+            elseif i == set.segments
                 points = [points; Point(1+i_pnt, pos, WINCH)]
                 segments = [segments; Segment(1+i_seg, (i_pnt, 1+i_pnt), type)]
             else
@@ -128,21 +128,21 @@ function PointMassSystem(s::RamAirKite, wing::RamAirWing)
     left_steering_idx = create_tether(attach_points[2], STEERING)
     right_steering_idx = create_tether(attach_points[4], STEERING)
 
-    winches = [winches; Winch(1, TorqueControlledMachine(s.set), [left_power_idx, right_power_idx])]
-    winches = [winches; Winch(2, TorqueControlledMachine(s.set), [left_steering_idx])]
-    winches = [winches; Winch(3, TorqueControlledMachine(s.set), [right_steering_idx])]
+    winches = [winches; Winch(1, TorqueControlledMachine(set), [left_power_idx, right_power_idx])]
+    winches = [winches; Winch(2, TorqueControlledMachine(set), [left_steering_idx])]
+    winches = [winches; Winch(3, TorqueControlledMachine(set), [right_steering_idx])]
 
     return PointMassSystem(points, groups, segments, pulleys, tethers, winches)
 end
 
 
-function init!(system::PointMassSystem, s::RamAirKite, R_b_w)
+function init!(system::PointMassSystem, set::Settings, R_b_w)
     @unpack points, groups, segments, pulleys, tethers, winches = system
 
     for segment in segments
-        (segment.type === BRIDLE) && (segment.diameter = 0.001s.bridle_tether_diameter)
-        (segment.type === POWER) && (segment.diameter = 0.001s.power_tether_diameter)
-        (segment.type === STEERING) && (segment.diameter = 0.001s.steering_tether_diameter)
+        (segment.type === BRIDLE) && (segment.diameter = 0.001set.bridle_tether_diameter)
+        (segment.type === POWER) && (segment.diameter = 0.001set.power_tether_diameter)
+        (segment.type === STEERING) && (segment.diameter = 0.001set.steering_tether_diameter)
         (segment.l0 ≈ 0) && (segment.l0 = norm(points[segment.points[1]].pos_b - points[segment.points[2]].pos_b) * 0.9999)
         @assert (0 < segment.diameter < 1)
         @assert (segment.l0 > 0)

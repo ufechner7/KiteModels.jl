@@ -217,7 +217,7 @@ $(TYPEDFIELDS)
     "Reference to the VSM aerodynamics solver"
     vsm_solver::VortexStepMethod.Solver
     "Reference to the point mass system with points, segments, pulleys and tethers"
-    point_system::Union{PointMassSystem, Nothing} = nothing
+    point_system::PointMassSystem
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
     "tether positions"
@@ -248,8 +248,6 @@ $(TYPEDFIELDS)
     sys::Union{ModelingToolkit.ODESystem, Nothing} = nothing
     "Velocity of the kite"
     vel_kite::V =           zeros(S, 3)
-    "Measured data points used to create an initial state"
-    measure::Measurement = Measurement()
     "Inertia around kite x y and z axis of the body frame"
     I_b::V = zeros(S, 3)
     "Initialization values for kite state"
@@ -286,15 +284,17 @@ $(TYPEDFIELDS)
     init_integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Sundials.CVODEIntegrator, Nothing} = nothing
 end
 
-function RamAirKite(set::Settings, wing::RamAirWing, aero::BodyAerodynamics, vsm_solver::VortexStepMethod.Solver)
+function RamAirKite(set::Settings, aero::BodyAerodynamics, vsm_solver::VortexStepMethod.Solver, point_system::PointMassSystem)
+    length(aero.wings) > 1 && throw(ArgumentError("Just one wing allowed in BodyAerodynamics object"))
+    wing = aero.wings[1]
     if set.winch_model == "TorqueControlledMachine"
         s = RamAirKite{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
-            ; set, wing, aero, vsm_solver
+            ; set, wing, aero, vsm_solver, point_system
             )
         s.torque_control = true
     else
         s = RamAirKite{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
-            ; set, wing, aero, vsm_solver
+            ; set, wing, aero, vsm_solver, point_system
             )
         s.torque_control = false
     end
@@ -393,15 +393,13 @@ problem already exists.
 # Returns
 - `Nothing`
 """
-function init_sim!(s::RamAirKite; prn=true)
-    init_Q_b_w, R_b_w = measure_to_q(s.measure)
-
-    s.point_system = PointMassSystem(s, s.wing)
-    init_kite_pos = init!(s.point_system, s, R_b_w)
+function init_sim!(s::RamAirKite, measure::Measurement; prn=true)
+    init_Q_b_w, R_b_w = measure_to_q(measure)
+    init_kite_pos = init!(s.point_system, s.set, R_b_w)
 
     init_va = R_b_w' * [s.set.v_wind, 0., 0.]
     
-    sys, defaults, guesses = create_sys!(s, s.point_system; init_Q_b_w, init_kite_pos, init_va)
+    sys, defaults, guesses = create_sys!(s, s.point_system, measure; init_Q_b_w, init_kite_pos, init_va)
     prn && @info "Simplifying the system"
     prn && @time sys = structural_simplify(sys)
     !prn && (sys = structural_simplify(sys))
@@ -412,7 +410,7 @@ function init_sim!(s::RamAirKite; prn=true)
     serialize(joinpath(data_path, "prob.bin"), s.prob)
 
     s.integrator = nothing
-    reinit!(s)
+    reinit!(s, measure)
 
     return nothing
 end
@@ -434,7 +432,7 @@ This function performs the following operations:
 6. Updates the linearized aerodynamic model
 
 This is more efficient than `init!` as it reuses the existing model structure
-and only updates the state variables to match the current `s.measure`.
+and only updates the state variables to match the current `measure`.
 
 # Arguments
 - `s::RamAirKite`: The kite power system state object
@@ -444,13 +442,13 @@ and only updates the state variables to match the current `s.measure`.
 - `Nothing`
 
 # Throws
-- `ArgumentError`: If no serialized problem exists (run `init!` first)
+- `ArgumentError`: If no serialized problem exists (run `init_sim!` first)
 """
-function reinit!(s::RamAirKite; prn=true)
+function reinit!(s::RamAirKite, measure::Measurement; prn=true)
     isnothing(s.point_system) && (s.point_system = PointMassSystem(s, s.wing))
 
-    init_Q_b_w, R_b_w = measure_to_q(s.measure)
-    init_kite_pos = init!(s.point_system, s, R_b_w)
+    init_Q_b_w, R_b_w = measure_to_q(measure)
+    init_kite_pos = init!(s.point_system, s.set, R_b_w)
     
     dt = SimFloat(1/s.set.sample_freq)
     tspan   = (0.0, dt) 
@@ -473,11 +471,12 @@ function reinit!(s::RamAirKite; prn=true)
     init_unknowns_vec!(s, s.point_system, s.unknowns_vec, init_Q_b_w, init_kite_pos)
     s.set_unknowns(s.integrator, s.unknowns_vec)
     OrdinaryDiffEqCore.set_t!(s.integrator, 0.0)
+    linearize_vsm!(s)
 
     return nothing
 end
 
-function generate_getters!(s, sym_vec; init=false)
+function generate_getters!(s, sym_vec)
     sys = s.sys
     c = collect
 
@@ -506,25 +505,29 @@ function generate_getters!(s, sym_vec; init=false)
     nothing
 end
 
+function linearize_vsm!(s::RamAirKite)
+    y = s.get_y(s.integrator)
+    jac, x = VortexStepMethod.linearize(
+        s.vsm_solver, 
+        s.aero, 
+        y;
+        theta_idxs=1:4,
+        va_idxs=5:7,
+        omega_idxs=8:10,
+        moment_frac=s.bridle_fracs[s.point_system.groups[1].fixed_index])
+    s.set_vsm(s.integrator, [x, y, jac])
+    nothing
+end
+
 function next_step!(s::RamAirKite; set_values=nothing, measure::Union{Measurement, Nothing}=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
     if (!isnothing(set_values)) 
         s.set_set_values(s.integrator, set_values)
     end
     if (!isnothing(measure))
-        s.set_measure(s.integrator, s.measure.wind_dir_gnd)
+        s.set_measure(s.integrator, measure.wind_dir_gnd)
     end
-
-    if s.iter % vsm_interval == 0
-        y = s.get_y(s.integrator)
-        jac, x = VortexStepMethod.linearize(
-            s.vsm_solver, 
-            s.aero, 
-            y;
-            theta_idxs=1:4,
-            va_idxs=5:7,
-            omega_idxs=8:10,
-            moment_frac=s.bridle_fracs[s.point_system.groups[1].fixed_index])
-        s.set_vsm(s.integrator, [x, y, jac])
+    if !isnothing(vsm_interval) && s.iter % vsm_interval == 0
+        linearize_vsm!(s)
     end
     
     s.t_0 = s.integrator.t

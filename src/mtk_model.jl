@@ -552,9 +552,9 @@ function diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero
 end
 
 
-function scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc)
+function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc)
     @parameters wind_scale_gnd = s.set.v_wind
-    @parameters measured_wind_dir_gnd = s.measure.wind_dir_gnd
+    @parameters measured_wind_dir_gnd = measure.wind_dir_gnd
     @variables begin
         e_x(t)[1:3]
         e_y(t)[1:3]
@@ -770,19 +770,19 @@ function get_unknowns_vec(
     return vec
 end
 
-function create_sys!(s::RamAirKite, system::PointMassSystem; init_Q_b_w, init_kite_pos, init_va)
+function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measurement; init_Q_b_w, init_kite_pos, init_va)
     eqs = []
     defaults = Pair{Num, Real}[]
     guesses = Pair{Num, Real}[]
 
     @parameters begin
         steady = false
-        # measured_sphere_pos[1:2, 1:2] = s.measure.sphere_pos
-        # measured_sphere_vel[1:2, 1:2] = s.measure.sphere_vel
-        # measured_sphere_acc[1:2, 1:2] = s.measure.sphere_acc
-        # measured_tether_length[1:3] = s.measure.tether_length
-        # measured_tether_vel[1:3]    = s.measure.tether_vel
-        # measured_tether_acc[1:3]    = s.measure.tether_acc
+        # measured_sphere_pos[1:2, 1:2] = measure.sphere_pos
+        # measured_sphere_vel[1:2, 1:2] = measure.sphere_vel
+        # measured_sphere_acc[1:2, 1:2] = measure.sphere_acc
+        # measured_tether_length[1:3] = measure.tether_length
+        # measured_tether_vel[1:3]    = measure.tether_vel
+        # measured_tether_acc[1:3]    = measure.tether_acc
     end
     @variables begin
         # potential differential variables
@@ -809,7 +809,7 @@ function create_sys!(s::RamAirKite, system::PointMassSystem; init_Q_b_w, init_ki
     eqs = linear_vsm_eqs!(s, eqs; aero_force_b, aero_moment_b, group_aero_moment, init_va, twist_angle, va_kite_b, ω_b)
     eqs, defaults = diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero_force_b, aero_moment_b, 
         ω_b, R_b_w, kite_pos, kite_vel, kite_acc, init_Q_b_w, init_kite_pos, steady)
-    eqs = scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc)
+    eqs = scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc)
     
     # te_I = (1/3 * (s.set.mass/8) * te_length^2)
     # # -damping / I * ω = α_damping

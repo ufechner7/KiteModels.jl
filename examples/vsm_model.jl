@@ -10,7 +10,7 @@ total_time = 5
 vsm_interval = 5
 steps = Int(round(total_time / dt))
 
-set = se("system_3l.yaml")
+set = se("system_ram.yaml")
 set.segments = 2
 set_values = [-50, -1.1, -1.1]
 
@@ -18,14 +18,17 @@ if !@isdefined s
     wing = RamAirWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat"; mass=set.mass, crease_frac=0.82, align_to_principal=true)
     aero = BodyAerodynamics([wing])
     vsm_solver = Solver(aero; solver_type=NONLIN, atol=1e-8, rtol=1e-8)
-    s = RamAirKite(set, wing, aero, vsm_solver)
-    KiteModels.init_sim!(s)
+    point_system = PointMassSystem(set, wing)
+    s = RamAirKite(set, aero, vsm_solver, point_system)
+
+    measure = Measurement()
+    KiteModels.init_sim!(s, measure)
 end
 s.set.abs_tol = 1e-5
 s.set.rel_tol = 1e-3
-s.measure.sphere_pos .= deg2rad.([50.0 50.0; 1.0 -1.0])
 
-@time KiteModels.reinit!(s)
+measure.sphere_pos .= deg2rad.([50.0 50.0; 1.0 -1.0])
+@time KiteModels.reinit!(s, measure)
 
 logger = Logger(length(s.point_system.points), steps)
 
