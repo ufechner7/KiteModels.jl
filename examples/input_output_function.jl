@@ -1,3 +1,24 @@
+#=
+This example analyzes the input-output behavior of a ram air kite model by:
+
+1. Creating a ram air kite model and initializing it at 60° elevation
+2. Stabilizing the system
+3. Extracting stiff and non-stiff state components
+4. Testing the system response to different control inputs:
+   - Main tether torque
+   - Left steering line torque
+   - Right steering line torque
+
+The script plots relationships between inputs and resulting states:
+- Tether velocities
+- Angular velocities (rotation rates)
+- Kite orientation (quaternion)
+- Kite position and velocity
+
+This is useful for understanding control characteristics, identifying 
+non-linearities, and supporting control system design.
+=#
+
 using Revise, KiteModels, LinearAlgebra, VortexStepMethod
 using ModelingToolkit
 using ModelingToolkit: setu, getu

@@ -119,11 +119,11 @@ function __init__()
 end
 
 include("KPS4.jl") # include code, specific for the four point kite model
-include("RamAirKite.jl") # include code, specific for the four point 3 line kite model
+include("ram_air_kite.jl") # include code, specific for the four point 3 line kite model
 include("mtk_model.jl")
 include("KPS3.jl") # include code, specific for the one point kite model
 include("init.jl") # functions to calculate the initial state vector, the initial masses and initial springs
-include("mtk_init.jl")
+include("point_mass_system.jl")
 include("plotting.jl")
 
 function menu2()

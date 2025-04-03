@@ -1,5 +1,5 @@
 # ==================== mtk model functions ================================================
-# Implementation of the three-line model using ModellingToolkit.jl
+# Implementation of the ram air kite model using ModelingToolkit.jl
 
 function calc_speed_acc(winch::AsyncMachine, tether_vel, norm_, set_speed)
     calc_acceleration(winch, tether_vel, norm_; set_speed, set_torque=nothing, use_brake=false) # TODO: add brake setting

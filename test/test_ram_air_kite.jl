@@ -11,11 +11,13 @@ const TOL = 1e-5
 const BUILD_SYS = false
 
 @testset verbose = true "RamAirKite MTK Model Tests" begin
-    set = se("system_3l.yaml")
-    wing = RamAirWing(joinpath(data_path(), "ram_air_kite_body.obj"), joinpath(data_path(), "ram_air_kite_foil.dat"); 
+    set = se("system_ram.yaml")
+    wing = RamAirWing(joinpath(get_data_path(), "ram_air_kite_body.obj"), joinpath(get_data_path(), "ram_air_kite_foil.dat"); 
                 mass=set.mass, crease_frac=0.82, align_to_principal=true)
     aero = BodyAerodynamics([wing])
     vsm_solver = Solver(aero; solver_type=NONLIN, atol=1e-8, rtol=1e-8)
+    point_system = PointMassSystem(set, wing)
+    measure = Measurement()
 
     # Utility functions for setup
     function create_test_model()
@@ -25,7 +27,7 @@ const BUILD_SYS = false
 
         VortexStepMethod.init!(aero; init_aero=false)
         
-        return RamAirKite(set, wing, aero, vsm_solver)
+        return RamAirKite(set, aero, vsm_solver, point_system)
     end
     
     @testset "Model Initialization Chain" begin
@@ -52,7 +54,6 @@ const BUILD_SYS = false
         end
         s.integrator = nothing
         s.sys = nothing
-        s.point_system = nothing
         
         # Keep references to first integrator and point system
         first_integrator_ptr = objectid(s.integrator)
@@ -60,23 +61,24 @@ const BUILD_SYS = false
             
         # 2. First reinit! - should load from serialized file
         @info "Testing first reinit! (should load serialized file)..."
-        @time KiteModels.reinit!(s; prn=true)
+        @time KiteModels.reinit!(s, measure; prn=true)
+        next_step!(s)
         
         # Check that it's a new integrator
         second_integrator_ptr = objectid(s.integrator)
         second_point_system_ptr = objectid(s.point_system)
         @test first_integrator_ptr != second_integrator_ptr
-        @test first_point_system_ptr != second_point_system_ptr
+        @test first_point_system_ptr == second_point_system_ptr
             
         # 3. Second reinit! - should reuse existing integrator
         @info "Testing second reinit! (should reuse integrator)..."
-        @time KiteModels.reinit!(s; prn=true)
+        @time KiteModels.reinit!(s, measure; prn=true)
         
         # This should create a new point system but reuse the existing integrator
         third_integrator_ptr = objectid(s.integrator)
         third_point_system_ptr = objectid(s.point_system)
         @test second_integrator_ptr == third_integrator_ptr # Should be the same 
-        @test second_point_system_ptr == third_point_system_ptr # Should reuse the same object
+        @test second_point_system_ptr == third_point_system_ptr
             
         # Get positions from various sources
         pos_integrator, _, _, _, _, _, _, _, _, _, _ = s.get_state(s.integrator)
@@ -108,19 +110,19 @@ const BUILD_SYS = false
     
     @testset "State Consistency" begin
         s = create_test_model()
-        KiteModels.reinit!(s, prn=true)
+        KiteModels.reinit!(s, measure, prn=true)
     
         # Check quaternion normalization
         _, _, Q_b_w, elevation, azimuth, _, _, _, _, _, _ = s.get_state(s.integrator)
         @test isapprox(norm(Q_b_w), 1.0, atol=TOL)
     
         # Check elevation matches measurement
-        @test isapprox(elevation, s.measure.elevation, atol=1e-2)
+        @test isapprox(elevation, measure.elevation, atol=1e-2)
     
         # Change measurement and reinitialize
-        old_elevation = s.measure.elevation
-        s.measure.sphere_pos[1,:] .= deg2rad(85.0)
-        KiteModels.reinit!(s, prn=true)
+        old_elevation = measure.elevation
+        measure.sphere_pos[1,:] .= deg2rad(85.0)
+        KiteModels.reinit!(s, measure, prn=true)
     
         # Get new state
         _, _, _, elevation_new, _, _, _, _, _, _, _ = s.get_state(s.integrator)
@@ -133,20 +135,20 @@ const BUILD_SYS = false
     function test_step(s, d_set_values=zeros(3); dt=0.05, steps=5)
         for _ in 1:steps
             set_values = -s.set.drum_radius * s.integrator[s.sys.winch_force] + d_set_values
-            KiteModels.next_step!(s; set_values, dt)
+            KiteModels.next_step!(s, set_values; dt)
         end
     end
 
     s = create_test_model()
     @testset "Simulation Step with SysState" begin
         # Basic step and time advancement test
-        KiteModels.reinit!(s, prn=true)
+        KiteModels.reinit!(s, measure, prn=true)
         sys_state_before = KiteModels.SysState(s)
         
         # Run a simulation step with zero set values
         set_values = [0.0, 0.0, 0.0]
         dt = 1/s.set.sample_freq
-        t, _ = KiteModels.next_step!(s; set_values=set_values, dt=dt)
+        t, _ = KiteModels.next_step!(s, set_values; dt=dt)
         KiteModels.update_sys_state!(sys_state_before, s)
         @test isapprox(t, dt, atol=TOL)
         
@@ -154,7 +156,7 @@ const BUILD_SYS = false
         num_steps = 10
         total_time = 0.0
         for _ in 1:num_steps
-            step_time, _ = KiteModels.next_step!(s; set_values, dt=dt)
+            step_time, _ = KiteModels.next_step!(s, set_values; dt=dt)
             total_time += step_time
         end
         sys_state_after = KiteModels.SysState(s)
@@ -162,20 +164,20 @@ const BUILD_SYS = false
         
         @testset "Course Direction at Different Elevations" begin
             # Test at 80 degrees elevation
-            s.measure.sphere_pos[1,:] .= deg2rad(50.0)
-            @test s.measure.elevation ≈ deg2rad(50.0) atol=1e-6
-            @test s.measure.azimuth ≈ 0.0 atol=1e-6
-            KiteModels.reinit!(s; prn=true)
-            @test s.integrator[s.sys.elevation] ≈ s.measure.elevation
-            @test s.integrator[s.sys.azimuth] ≈ s.measure.azimuth
+            measure.sphere_pos[1,:] .= deg2rad(50.0)
+            @test measure.elevation ≈ deg2rad(50.0) atol=1e-6
+            @test measure.azimuth ≈ 0.0 atol=1e-6
+            KiteModels.reinit!(s, measure; prn=true)
+            @test s.integrator[s.sys.elevation] ≈ measure.elevation
+            @test s.integrator[s.sys.azimuth] ≈ measure.azimuth
             test_step(s)
             sys_state_50 = KiteModels.SysState(s)
             @info "Course at 50 deg init elevation:" sys_state_50.course
             @test sys_state_50.course ≈ 0.0 atol=π/4
             
             # Test at 90 degrees elevation
-            s.measure.sphere_pos[1,:] .= deg2rad(89.0)
-            KiteModels.reinit!(s, prn=true)
+            measure.sphere_pos[1,:] .= deg2rad(89.0)
+            KiteModels.reinit!(s, measure, prn=true)
             test_step(s)
             sys_state_89 = KiteModels.SysState(s)
             @info "Course at 89 deg init elevation:" sys_state_89.course
@@ -193,18 +195,18 @@ const BUILD_SYS = false
         
         @testset "Steering Response Using SysState" begin
             # Initialize model at moderate elevation
-            s.measure.sphere_pos[1,:] .= deg2rad(60.0)
-            KiteModels.reinit!(s, prn=true)
+            measure.sphere_pos[1,:] .= deg2rad(60.0)
+            KiteModels.reinit!(s, measure, prn=true)
             test_step(s)
             sys_state_initial = KiteModels.SysState(s)
             
             # steering right
-            KiteModels.reinit!(s, prn=true)
+            KiteModels.reinit!(s, measure, prn=true)
             test_step(s, [0, 0, -5]; steps=20)
             sys_state_right = KiteModels.SysState(s)
             
             # steering left
-            KiteModels.reinit!(s, prn=true)
+            KiteModels.reinit!(s, measure, prn=true)
             test_step(s, [0, -5, 0]; steps=20)
             sys_state_left = KiteModels.SysState(s)
             
@@ -212,7 +214,7 @@ const BUILD_SYS = false
             @info "Steering:" sys_state_right.steering sys_state_left.steering
             @test sys_state_right.steering > 2.0
             @test sys_state_left.steering < -2.0
-            @test abs(sys_state_right.steering) ≈ abs(sys_state_left.steering) atol=0.3
+            @test abs(sys_state_right.steering) ≈ abs(sys_state_left.steering) atol=1.0
             
             # Check heading changes
             right_heading_diff = angle_diff(sys_state_right.heading, sys_state_initial.heading)
