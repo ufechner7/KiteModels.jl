@@ -2,8 +2,10 @@ using Test, LinearAlgebra, KiteUtils, VortexStepMethod
 using KiteModels
 using Statistics
 
-# Save original data path and set to package data directory
 old_path = get_data_path()
+package_data_path = joinpath(dirname(dirname(pathof(KiteModels))))
+temp_data_path = joinpath(tempdir(), "data")
+Base.Filesystem.cptree(package_data_path, temp_data_path; force=true)
 set_data_path(joinpath(dirname(dirname(pathof(KiteModels))), "data"))
 
 # Testing tolerance
