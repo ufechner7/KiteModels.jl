@@ -664,7 +664,11 @@ function find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0
     function test_initial_condition!(F, x::Vector)
         x1 = copy(x)
         y0, yd0 = init(s, x1; delta)
-        residual!(res, yd0, y0, s, 0.0)
+        try
+            residual!(res, yd0, y0, s, 0.0)
+        catch e
+            println("Warning in test_initial_condition!")
+        end
         for i in 1:s.set.segments+KITE_PARTICLES-1
             if i != s.set.segments+KITE_PARTICLES-1
                 j = i
