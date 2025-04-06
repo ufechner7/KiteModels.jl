@@ -24,6 +24,8 @@ using ModelingToolkit
 using ModelingToolkit: setu, getu
 using ControlPlots
 
+include(joinpath(@__DIR__, "plotting.jl"))
+
 dt = 0.1
 
 set = se("system_ram.yaml")

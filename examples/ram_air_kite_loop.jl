@@ -5,6 +5,8 @@ if PLOT
     using ControlPlots
 end
 
+include("./plotting.jl")
+
 dt = 0.05
 total_time = 5
 vsm_interval = 5

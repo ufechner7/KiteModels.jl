@@ -36,7 +36,7 @@ module KiteModels
 using PrecompileTools: @setup_workload, @compile_workload 
 using Dierckx, Interpolations, Serialization, StaticArrays, LinearAlgebra, Parameters, NLsolve,
       DocStringExtensions, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK, NonlinearSolve, FiniteDiff, DifferentiationInterface
-using VortexStepMethod, ControlPlots
+using VortexStepMethod
 import Sundials
 using Reexport, Pkg
 @reexport using KitePodModels
@@ -124,7 +124,6 @@ include("mtk_model.jl")
 include("KPS3.jl") # include code, specific for the one point kite model
 include("init.jl") # functions to calculate the initial state vector, the initial masses and initial springs
 include("point_mass_system.jl")
-include("plotting.jl")
 
 function menu2()
     Main.include("examples/menu2.jl")
