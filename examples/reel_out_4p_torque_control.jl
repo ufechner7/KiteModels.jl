@@ -11,7 +11,7 @@ PLOT = true
 FRONT_VIEW = false
 ZOOM = false
 PRINT = false
-STATISTIC = false
+STATISTIC = true
 ALPHA_ZERO = 8.8 
 # end of user parameter section #
 
@@ -59,7 +59,7 @@ function simulate(integrator, steps, plot=false)
         if plot
             reltime = i*dt-dt
             if mod(i, 5) == 1
-                plot2d(kps4.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, xlim = (-100, 100), ylim=(-200, 00), 
+                plot2d(kps4.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, xlim = (-100, 100), ylim=(0, 200), 
                                         segments=set.segments, fig="side_view")            
             end
         end

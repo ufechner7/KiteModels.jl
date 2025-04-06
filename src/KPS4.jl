@@ -664,7 +664,7 @@ function find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0
     end
     
     # Number of variables in our nonlinear system
-    n_vars = 2*(s.set.segments+KITE_PARTICLES-1)
+    n_vars = 2*(s.set.segments+KITE_PARTICLES-1)-1
     iter = 1
     # Define the function that computes our nonlinear system
     function compute_residuals!(F, x, _)
@@ -676,24 +676,24 @@ function find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0
 
         j = 1        
         # Extract the relevant residuals for our nonlinear system
-        for i in 1:s.set.segments
+        for i in 1:s.set.segments-1
             # X-component of acceleration residual
             F[j] = res[acc_index(i+1, 1)]
             # Z-component of acceleration residual
             F[j+1] = res[acc_index(i+1, 3)]
             j += 2
         end
-        for i in [s.set.segments+1+1, s.set.segments+1+3]
+        i = s.set.segments+1
+        # F[j] = res[acc_index(i, 1):acc_index(i, 3)] ⋅ normalize(s.pos[i])
+        # j += 1
+
+        for i in s.set.segments+1+1:s.set.segments+1+3
             # X-component of acceleration residual
             F[j] = res[acc_index(i, 1)]
             # Z-component of acceleration residual
             F[j+1] = res[acc_index(i, 3)]
             j += 2
         end
-
-        # Kite distance acceleration
-        i = s.set.segments+1+2
-        F[end-1] = res[acc_index(i, 1):acc_index(i, 3)] ⋅ normalize(s.pos[i])
         
         i = s.set.segments+1+3  # Point C
         F[end] = res[acc_index(i, 2)]

@@ -577,6 +577,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.5, delta=0.0001, upwind
         if e isa AssertionError
             println("ERROR: Failure to find initial steady state in find_steady_state! function!\n"*
                     "Try to increase the delta parameter or to decrease the initial_stiffness of the init_sim! function.")
+            rethrow(e)
             return nothing
         else
             rethrow(e)
