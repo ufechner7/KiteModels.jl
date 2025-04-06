@@ -509,7 +509,7 @@ end
     STEPS = 500
     kps4.set.depower = 23.6
     kps4.set.solver = "IDA"
-    integrator = KiteModels.init_sim!(kps4; stiffness_factor=0.5, delta=0.0, prn=false)
+    integrator = KiteModels.init_sim!(kps4; stiffness_factor=0.5, prn=false)
     # println("\nStarting simulation...")
     simulate(integrator, 100)
     av_steps = simulate(integrator, STEPS-100)
