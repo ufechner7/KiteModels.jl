@@ -9,7 +9,7 @@ set.solver="DFBDF" # IDA or DFBDF
 STEPS = 600
 PLOT = true
 FRONT_VIEW = false
-ZOOM = true
+ZOOM = false
 PRINT = false
 STATISTIC = false
 ALPHA_ZERO = 8.8 
@@ -22,13 +22,13 @@ set.winch_model = "TorqueControlledMachine"
 kcu::KCU = KCU(set)
 kps4::KPS4 = KPS4(kcu)
 
-# if PLOT
+if PLOT
     using Pkg
     if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
         using TestEnv; TestEnv.activate()
     end
     using ControlPlots
-# end
+end
 
 v_time = zeros(STEPS)
 v_speed = zeros(STEPS)
@@ -59,7 +59,7 @@ function simulate(integrator, steps, plot=false)
         if plot
             reltime = i*dt-dt
             if mod(i, 5) == 1
-                plot2d(kps4.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, xlim=(37, 78), 
+                plot2d(kps4.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, xlim = (-100, 100), ylim=(-200, 00), 
                                         segments=set.segments, fig="side_view")            
             end
         end

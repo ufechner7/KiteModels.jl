@@ -649,50 +649,79 @@ function turn(res, upwind_dir)
 end
 
 """
-    find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0.035, upwind_dir=-pi/2))
+    find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0.035, upwind_dir=-pi/2)
 
 Find an initial equilibrium, based on the initial parameters
-`l_tether`, elevation and `v_reel_out`.
+`l_tether`, elevation and `v_reel_out`. Uses NonlinearSolve for efficient root finding.
 """
 function find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0.035, upwind_dir=-pi/2)
     set_v_wind_ground!(s, calc_height(s), s.set.v_wind; upwind_dir=-pi/2)
     s.stiffness_factor = stiffness_factor
     res = zeros(MVector{6*(s.set.segments+KITE_PARTICLES)+2, SimFloat})
-    iter = 0
 
-    # helper function for the steady state finder
-    function test_initial_condition!(F, x::Vector)
-        x1 = copy(x)
-        y0, yd0 = init(s, x1; delta)
-        residual!(res, yd0, y0, s, 0.0)
-        for i in 1:s.set.segments+KITE_PARTICLES-1
-            if i != s.set.segments+KITE_PARTICLES-1
-                j = i
-            else
-                j = i + 1
-            end
-            # copy the x-component of the residual res2 (acceleration)
-            F[i]                               = res[1 + 3*(j-1) + 3*(s.set.segments+KITE_PARTICLES)]
-            # copy the z-component of the residual res2
-            F[i+s.set.segments+KITE_PARTICLES] = res[3 + 3*(j-1) + 3*(s.set.segments+KITE_PARTICLES)]
-        end
-        # copy the acceleration of point KCU in x direction
-        i = s.set.segments+1
-        F[end-1]                               = res[1 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)] 
-        # copy the acceleration of point C in y direction
-        i = s.set.segments+3 
-        x = res[1 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)]
-        y = res[2 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)]
-        F[end]                                 = res[2 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)] 
-        iter += 1
-        return nothing 
+    function acc_index(point_index, xyz_index)
+        return xyz_index + 3*(point_index-2) + 3*(s.set.segments+KITE_PARTICLES)
     end
-    if prn println("\nStarted function test_nlsolve...") end
-    X00 = zeros(SimFloat, 2*(s.set.segments+KITE_PARTICLES-1)+2)
-    results = nlsolve(test_initial_condition!, X00, autoscale=true, xtol=4e-7, ftol=4e-7, iterations=s.set.max_iter)
-    if prn println("\nresult: $results") end
-    y0, yd0 = init(s, results.zero; upwind_dir)
+    
+    # Number of variables in our nonlinear system
+    n_vars = 2*(s.set.segments+KITE_PARTICLES-1)
+    iter = 1
+    # Define the function that computes our nonlinear system
+    function compute_residuals!(F, x, _)
+        # Initialize the state with the current guess
+        y0, yd0 = init(s, x; delta)
+        
+        # Calculate residuals using the full system
+        residual!(res, yd0, y0, s, 0.0)
+
+        j = 1        
+        # Extract the relevant residuals for our nonlinear system
+        for i in 1:s.set.segments
+            # X-component of acceleration residual
+            F[j] = res[acc_index(i+1, 1)]
+            # Z-component of acceleration residual
+            F[j+1] = res[acc_index(i+1, 3)]
+            j += 2
+        end
+        for i in [s.set.segments+1+1, s.set.segments+1+3]
+            # X-component of acceleration residual
+            F[j] = res[acc_index(i, 1)]
+            # Z-component of acceleration residual
+            F[j+1] = res[acc_index(i, 3)]
+            j += 2
+        end
+
+        # Kite distance acceleration
+        i = s.set.segments+1+2
+        F[end-1] = res[acc_index(i, 1):acc_index(i, 3)] ⋅ normalize(s.pos[i])
+        
+        i = s.set.segments+1+3  # Point C
+        F[end] = res[acc_index(i, 2)]
+        iter += 1
+        return nothing
+    end
+    
+    if prn
+        println("\nStarting nonlinear system solve...")
+    end
+    
+    # Initial guess
+    x0 = zeros(SimFloat, n_vars)
+    prob = NonlinearProblem(compute_residuals!, x0, nothing)
+    cache = NonlinearSolve.init(prob, NewtonRaphson(autodiff=AutoFiniteDiff()); abstol=4e-3, reltol=4e-3)
+    sol = NonlinearSolve.solve!(cache)
+
+    if prn
+        println("\nSolution found. Converged: $(SciMLBase.successful_retcode(sol))")
+        println("Final residual norm: $(norm(sol.resid))")
+    end
+    
+    # Initialize the system with the solution
+    y0, yd0 = init(s, sol.u; upwind_dir)
+    
+    # Set wind in the correct direction and recalculate residual
     set_v_wind_ground!(s, calc_height(s), s.set.v_wind; upwind_dir)
     residual!(res, yd0, y0, s, 0.0)
-    y0, yd0
+    
+    return y0, yd0
 end

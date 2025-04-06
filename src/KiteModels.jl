@@ -34,7 +34,7 @@ Scientific background: http://arxiv.org/abs/1406.6218 =#
 module KiteModels
 
 using PrecompileTools: @setup_workload, @compile_workload 
-using Dierckx, Interpolations, Serialization, StaticArrays, LinearAlgebra, Parameters, NLsolve, 
+using Dierckx, Interpolations, Serialization, StaticArrays, LinearAlgebra, Parameters, NLsolve, NonlinearSolve,
       DocStringExtensions, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK
 import Sundials
 using Reexport, Pkg
@@ -777,18 +777,18 @@ end
     set.kcu_diameter = 0
     kps4_::KPS4 = KPS4(KCU(set))
     kps3_::KPS3 = KPS3(KCU(se("system.yaml")))
-    if ! haskey(ENV, "NO_MTK")    
-        kps4_3l_::KPS4_3L = KPS4_3L(KCU(se(SYS_3L)))
-    end
+    # if ! haskey(ENV, "NO_MTK")    
+    #     kps4_3l_::KPS4_3L = KPS4_3L(KCU(se(SYS_3L)))
+    # end
     @assert ! isnothing(kps4_.wm)
     @compile_workload begin
         # all calls in this block will be precompiled, regardless of whether
         # they belong to your package or not (on Julia 1.8 and higher)
         integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
         integrator = KiteModels.init_sim!(kps4_; delta=0.03, stiffness_factor=0.05, prn=false) 
-        if ! haskey(ENV, "NO_MTK")
-            integrator = KiteModels.init_sim!(kps4_3l_)
-        end   
+        # if ! haskey(ENV, "NO_MTK")
+        #     integrator = KiteModels.init_sim!(kps4_3l_)
+        # end   
         nothing
     end
 end
