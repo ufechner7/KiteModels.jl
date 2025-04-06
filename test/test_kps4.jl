@@ -466,8 +466,7 @@ end
     height = sin(deg2rad(kps4.set.elevation)) * kps4.set.l_tether
     kps4.v_wind .= kps4.v_wind_gnd * calc_wind_factor(kps4.am, height)
     res1, res2 = find_steady_state!(kps4; stiffness_factor=0.035, prn=false) 
-    # TODO check why -9.81 appears in the residual
-    @test sum(res2) ≈ -9.81*(set.segments+ KiteModels.KITE_PARTICLES) # velocity and acceleration must be near zero
+    @test sum(res2) ≈ 0.0 # velocity and acceleration must be near zero
     pre_tension = KiteModels.calc_pre_tension(kps4)
     @test pre_tension > 1.0001
     @test pre_tension < 1.01

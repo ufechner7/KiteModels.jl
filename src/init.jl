@@ -93,7 +93,8 @@ function init_masses!(s::KPS4_3L)
     return s.masses 
 end
 
-function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1); old=false, delta = 0.0)
+function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)); old=false, delta = 0.0)
+    j = 1
     pos = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
     vel = zeros(MVector{s.set.segments+1+KITE_PARTICLES, KVec3})
     acc = zeros(SVector{s.set.segments+1+KITE_PARTICLES, KVec3})
@@ -101,12 +102,19 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
     vel[1] .= [delta, delta, delta]
     acc[1] .= [delta, delta, delta]
     sin_el, cos_el = sin(s.set.elevation / 180.0 * pi), cos(s.set.elevation / 180.0 * pi)
-    for i in 1:s.set.segments
+    for i in 1:s.set.segments-1
         radius = -i * (s.set.l_tether/s.set.segments)
-        pos[i+1] .= [-cos_el * radius + X[i], delta, -sin_el * radius + X[s.set.segments+KITE_PARTICLES-1+i]]
+        pos[i+1] .= [-cos_el * radius + X[j], delta, -sin_el * radius + X[j+1]]
+        j += 2
         vel[i+1] .= [delta, delta, 0]
-        acc[i+1] .= [delta, delta, -9.81]
+        acc[i+1] .= [delta, delta, 0]
     end
+    radius = -s.set.l_tether
+    pos[s.set.segments+1] .= (1 + 1e-3X[j]) * [-cos_el * radius, delta, -sin_el * radius]
+    j += 1
+    vel[s.set.segments+1] .= [delta, delta, 0]
+    acc[s.set.segments+1] .= [delta, delta, 0]
+
     vec_c = pos[s.set.segments] - pos[s.set.segments+1]
     if old
         particles = KiteUtils.get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k)
@@ -114,20 +122,20 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
         particles = KiteUtils.get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k, 
                               pos[s.set.segments+1], rotate_in_xz(vec_c, deg2rad(KITE_ANGLE)), s.v_apparent)
     end
-    j = 1
-    for i in [1,2,3] # set p8, p9, p10
-        pos[s.set.segments+1+i] .= particles[i+2] + [X[s.set.segments+j], 0, X[2*s.set.segments+KITE_PARTICLES-1+j]]
+    for i in 1:3 # set p8, p9, p10
+        pos[s.set.segments+1+i] .= particles[i+2] + [X[j], 0, X[j+1]]
+        j += 2
         vel[s.set.segments+1+i] .= [delta, delta, delta]
-        acc[s.set.segments+1+i] .= [delta, delta, -9.81]
-        j +=1
+        acc[s.set.segments+1+i] .= [delta, delta, 0]
     end
-    acc[s.set.segments+1+4] .= [delta, delta, -9.81]
-    vel[s.set.segments+1+4] .= [delta, delta, delta]
+
     # set p10=C and p11=D
     # x and z component of the right and left particle must be equal
+    acc[s.set.segments+1+4] .= [delta, delta, 0]
+    vel[s.set.segments+1+4] .= [delta, delta, delta]
     pos[s.set.segments+1+4][1] = pos[s.set.segments+1+3][1]  # D.x = C.x
     pos[s.set.segments+1+4][3] = pos[s.set.segments+1+3][3]  # D.z = C.z
-    pos[s.set.segments+1+3][2] += X[end]                     # Y position of point C
+    pos[s.set.segments+1+3][2] += X[j]                     # Y position of point C
     pos[s.set.segments+1+4][2] = -pos[s.set.segments+1+3][2] # Y position of point D
     for i in eachindex(pos)
         s.pos[i] .= pos[i]
@@ -135,7 +143,7 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES)+1
     for i in 2:s.set.segments+1
         vel[i] .+= (pos[i+1] - pos[i]) * (s.set.v_reel_out*(i-1)/s.set.segments)
     end
-    # the velocity vector of the kite particles is the same as the velocity of the last tether pointj
+    # the velocity vector of the kite particles is the same as the velocity of the last tether point
     for i in s.set.segments+2:s.set.segments+KITE_PARTICLES+1
         vel[i] .+= vel[s.set.segments+1] 
     end
