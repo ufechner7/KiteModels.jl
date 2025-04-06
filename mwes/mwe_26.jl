@@ -1,4 +1,6 @@
 using KiteModels
+# test to check for bug in NLSolve package (or one of its dependencies)
+# run it three times, if it always prints a force > 9000 newton no buggy package is in the dependencies
 
 set = deepcopy(se())
 set.solver="DFBDF"
