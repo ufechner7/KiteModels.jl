@@ -541,12 +541,7 @@ end
     integrator = KiteModels.init_sim!(kps4_; stiffness_factor=0.035, prn=false)
     kps4_.set.version = 2
     kps4_.stiffness_factor = 3
-    force = maximum(spring_forces(kps4_; prn=false))
-    if isnan(force)
-        @test_broken false
-    else
-        @test force > 9000
-    end
+    @test maximum(spring_forces(kps4_; prn=false)) > 9000
 end
 
 # TODO Add test for winch_force
