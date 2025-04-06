@@ -110,7 +110,8 @@ function init_pos_vel_acc(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES));
         acc[i+1] .= [delta, delta, 0]
     end
     radius = -s.set.l_tether
-    pos[s.set.segments+1] .= [-cos_el * radius, delta, -sin_el * radius]
+    pos[s.set.segments+1] .= (1 + 1e-3X[j]) * [-cos_el * radius, delta, -sin_el * radius]
+    j += 1
     vel[s.set.segments+1] .= [delta, delta, 0]
     acc[s.set.segments+1] .= [delta, delta, 0]
 

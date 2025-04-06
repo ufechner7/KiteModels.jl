@@ -664,7 +664,7 @@ function find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0
     end
     
     # Number of variables in our nonlinear system
-    n_vars = 2*(s.set.segments+KITE_PARTICLES-1)-1
+    n_vars = 2*(s.set.segments+KITE_PARTICLES-1)
     iter = 1
     # Define the function that computes our nonlinear system
     function compute_residuals!(F, x, _)
@@ -684,8 +684,8 @@ function find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0
             j += 2
         end
         i = s.set.segments+1
-        # F[j] = res[acc_index(i, 1):acc_index(i, 3)] ⋅ normalize(s.pos[i])
-        # j += 1
+        F[j] = res[acc_index(i, 1):acc_index(i, 3)] ⋅ normalize(s.pos[i])
+        j += 1
 
         for i in s.set.segments+1+1:s.set.segments+1+3
             # X-component of acceleration residual
@@ -706,9 +706,15 @@ function find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0
     end
     
     # Initial guess
+    scaling = ones(SimFloat, n_vars)
+    scaling[3] = 10.0  # This variable will now change 10x more slowly
     x0 = zeros(SimFloat, n_vars)
     prob = NonlinearProblem(compute_residuals!, x0, nothing)
-    cache = NonlinearSolve.init(prob, NewtonRaphson(autodiff=AutoFiniteDiff()); abstol=4e-3, reltol=4e-3)
+    cache = NonlinearSolve.init(prob, 
+        TrustRegion(autodiff=AutoFiniteDiff()); 
+        abstol=4e-7, 
+        reltol=4e-7
+    )
     sol = NonlinearSolve.solve!(cache)
 
     if prn
