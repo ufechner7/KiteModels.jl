@@ -8,7 +8,7 @@ KiteUtils.set_data_path("")
     include("test_kps3.jl")
     include("test_kps4.jl")
     if ! haskey(ENV, "NO_MTK")  
-        # include("test_kps4_3l.jl")
+        include("test_kps4_3l.jl")
     end
     include("bench3.jl")
     include("bench4.jl")
