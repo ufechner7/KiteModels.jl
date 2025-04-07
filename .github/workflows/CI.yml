@@ -23,15 +23,19 @@ jobs:
           - '1'
         os:
           - ubuntu-latest
+        build_is_production_build:
+          - true
         arch:
           - x64
         include:
           - os: windows-latest
             arch: x64
             version: 1
+            build_is_production_build: true
           - os: macOS-latest
             arch: x64
             version: 1
+            build_is_production_build: true
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
@@ -55,6 +59,39 @@ jobs:
         with:
           files: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}
+  test-with-code-coverage:
+    name: Julia ${{ matrix.julia_version }} - ${{ matrix.os }} - ${{ matrix.julia_arch }} - with code coverage
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        julia_version:
+          - "1.10"
+          - "1.11"
+        julia_arch:
+          - x64
+        os:
+          - ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: Install matplotlib
+      run: if [ "$RUNNER_OS" = "Linux" ]; then sudo apt-get install -y python3-matplotlib; fi
+      shell: bash
+    - uses: actions/checkout@v4
+    - uses: julia-actions/setup-julia@v2
+      with:
+        arch: ${{ matrix.julia_arch }}
+        version: ${{ matrix.julia_version }}
+    - uses: julia-actions/cache@v2
+    - uses: julia-actions/julia-runtest@v1
+      env:
+        BUILD_IS_PRODUCTION_BUILD: false
+    - uses: julia-actions/julia-processcoverage@v1
+    - uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: lcov.info
+      continue-on-error: true
   docs:
     name: Documentation
     runs-on: ubuntu-latest
