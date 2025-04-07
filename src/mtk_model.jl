@@ -15,10 +15,10 @@ function sym_interp(interp::Function, aoa, trailing_edge_angle)
 end
 @register_symbolic sym_interp(interp::Function, aoa, trailing_edge_angle)
 
-function normalize(vec)
+function sym_normalize(vec)
     return vec / norm(vec)
 end
-@register_symbolic normalize(vec)
+@register_symbolic sym_normalize(vec)
 
 function mean(vec::AbstractVector)
     return sum(vec) / length(vec)

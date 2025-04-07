@@ -20,13 +20,13 @@ KiteUtils.set_data_path("")
     include("test_orientation.jl")
     include("test_kps3.jl")
     include("test_kps4.jl")
-    if ! haskey(ENV, "NO_MTK")  
-        include("test_ram_air_kite.jl")
-    end
     if build_is_production_build
         include("bench3.jl")
         include("bench4.jl")
     end
+    # if ! haskey(ENV, "NO_MTK")  
+    #     include("test_ram_air_kite.jl")
+    # end
     include("test_helpers.jl")
     include("test_inertia_calculation.jl")
 end

@@ -1,5 +1,11 @@
+using Pkg
+if ! ("PackageCompiler" ∈ keys(Pkg.project().dependencies))
+    using TestEnv; TestEnv.activate()
+    Pkg.update()
+end
 using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils
 using KiteModels, KitePodModels
+@show pkgversion(BenchmarkTools)
 
 set_data_path(joinpath(dirname(dirname(pathof(KiteModels))), "data"))
 set = deepcopy(load_settings("system.yaml"))
