@@ -45,7 +45,7 @@ integ_runtime = 0.
 try
     while t < total_time
         global t, runtime, integ_runtime
-        PLOT && KiteModels.plot(s, t; zoom=false, front=true)
+        PLOT && plot(s, t; zoom=false, front=true)
         global set_values = -s.set.drum_radius .* s.integrator[sys.winch_force] - [0, 0, 5]
         steptime = @elapsed (t, integ_steptime) = next_step!(s, set_values; dt, vsm_interval)
         if (t > total_time/2); runtime += steptime; end
@@ -67,7 +67,6 @@ try
         sys_state.var_11 = s.integrator[sys.twist_angle[3]]
         sys_state.var_12 = s.integrator[sys.twist_angle[4]]
 
-        @show s.vsm_solver.sol.moment
         log!(logger, sys_state)
     end
 catch e
