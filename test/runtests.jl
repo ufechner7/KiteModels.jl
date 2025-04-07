@@ -24,9 +24,9 @@ KiteUtils.set_data_path("")
         include("bench3.jl")
         include("bench4.jl")
     end
-    # if ! haskey(ENV, "NO_MTK")  
-    #     include("test_ram_air_kite.jl")
-    # end
+    if ! haskey(ENV, "NO_MTK")  
+        include("test_ram_air_kite.jl")
+    end
     include("test_helpers.jl")
     include("test_inertia_calculation.jl")
 end
