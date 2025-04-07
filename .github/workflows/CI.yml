@@ -54,6 +54,10 @@ jobs:
             ${{ runner.os }}-
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
+        env:
+          BUILD_IS_PRODUCTION_BUILD: ${{ matrix.build_is_production_build }}
+        with:
+          coverage: false
   test-with-code-coverage:
     name: Julia ${{ matrix.julia_version }} - ${{ matrix.os }} - ${{ matrix.julia_arch }} - with code coverage
     timeout-minutes: 30
