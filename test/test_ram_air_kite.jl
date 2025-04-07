@@ -3,10 +3,10 @@ using KiteModels
 using Statistics
 
 old_path = get_data_path()
-package_data_path = joinpath(dirname(dirname(pathof(KiteModels))))
+package_data_path = joinpath(dirname(dirname(pathof(KiteModels))), "data")
 temp_data_path = joinpath(tempdir(), "data")
 Base.Filesystem.cptree(package_data_path, temp_data_path; force=true)
-set_data_path(joinpath(dirname(dirname(pathof(KiteModels))), "data"))
+set_data_path(temp_data_path)
 
 # Testing tolerance
 const TOL = 1e-5
@@ -34,9 +34,10 @@ const BUILD_SYS = true
         s = create_test_model()
         if BUILD_SYS
             # Delete existing problem file to force init!
+            @info "Data path: $(get_data_path())"
             prob_path = joinpath(get_data_path(), "prob.bin")
             if isfile(prob_path)
-                @info "Removing existing serialized problem to test full initialization"
+                @info "Removing existing serialized problem from $prob_path to test full initialization"
                 rm(prob_path)
             end
             

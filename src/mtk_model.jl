@@ -190,7 +190,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             ]
         elseif point.type == DYNAMIC
             p = pos[:, point.idx]
-            n = normalize(kite_pos)
+            n = sym_normalize(kite_pos)
             n = n * (p ⋅ n)
             r = (p - n) # https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line#Vector_formulation
             @parameters bridle_damp = 20
