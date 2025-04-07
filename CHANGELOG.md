@@ -1,3 +1,9 @@
+### Unreleased
+#### Fixed
+- fixed broken installation by freezing some package versions in Project.toml
+#### Added
+- added `mwe_26.jl` for debugging the initial state solver
+
 ### KiteModels v0.6.17 2025-02-11
 #### Changed
 - always use the brake if the `set_speed` is zero; this fixes the example `steering_test_4p.jl`
