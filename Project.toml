@@ -101,7 +101,3 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
 test = ["Test", "BenchmarkTools", "PackageCompiler", "Documenter", "ControlPlots", "Colors", "LaTeXStrings", "StatsBase", "JLD2"]
-
-[sources]
-KiteUtils = {rev = "ram", url = "https://github.com/ufechner7/KiteUtils.jl"}
-VortexStepMethod = {rev = "main", url = "https://github.com/Albatross-Kite-Transport/VortexStepMethod.jl"}
