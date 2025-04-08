@@ -6,8 +6,10 @@ old_path = get_data_path()
 package_data_path = joinpath(dirname(dirname(pathof(KiteModels))), "data")
 temp_data_path = joinpath(tempdir(), "data")
 Base.Filesystem.cptree(package_data_path, temp_data_path; force=true)
-rm(joinpath(temp_data_path, "ram_air_kite_body_info.bin"))
-rm(joinpath(temp_data_path, "ram_air_kite_foil_polar.bin"))
+for bin_file in ["ram_air_kite_body_info.bin", "ram_air_kite_foil_polar.bin"]
+    bin_path = joinpath(temp_data_path, bin_file)
+    isfile(bin_path) && rm(bin_path)
+end
 set_data_path(temp_data_path)
 
 # Testing tolerance
