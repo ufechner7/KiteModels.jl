@@ -1,4 +1,4 @@
-using Revise, KiteModels, LinearAlgebra, VortexStepMethod
+using KiteModels, LinearAlgebra
 
 PLOT = true
 if PLOT
@@ -8,7 +8,7 @@ end
 include("./plotting.jl")
 
 dt = 0.05
-total_time = 5
+total_time = 4.5
 vsm_interval = 5
 steps = Int(round(total_time / dt))
 
@@ -17,7 +17,7 @@ set.segments = 2
 set_values = [-50, -1.1, -1.1]
 
 if !@isdefined s
-    wing = RamAirWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat"; mass=set.mass, crease_frac=0.82, align_to_principal=true)
+    wing = RamAirWing(set)
     aero = BodyAerodynamics([wing])
     vsm_solver = Solver(aero; solver_type=NONLIN, atol=1e-8, rtol=1e-8)
     point_system = PointMassSystem(set, wing)
@@ -45,8 +45,9 @@ integ_runtime = 0.
 try
     while t < total_time
         global t, runtime, integ_runtime
-        PLOT && plot(s, t; zoom=false, front=true)
-        global set_values = -s.set.drum_radius .* s.integrator[sys.winch_force] - [0, 0, 5]
+        PLOT && plot(s, t; zoom=false, front=false)
+        global set_values = -s.set.drum_radius .* s.integrator[sys.winch_force]
+        if (t < 3.0); set_values -= [0, 0, 5]; end
         steptime = @elapsed (t, integ_steptime) = next_step!(s, set_values; dt, vsm_interval)
         if (t > total_time/2); runtime += steptime; end
         if (t > total_time/2); integ_runtime += integ_steptime; end

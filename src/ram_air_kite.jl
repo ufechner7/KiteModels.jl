@@ -473,7 +473,7 @@ function reinit!(s::RamAirKite, measure::Measurement; prn=true)
 
     init_unknowns_vec!(s, s.point_system, s.unknowns_vec, init_Q_b_w, init_kite_pos)
     s.set_unknowns(s.integrator, s.unknowns_vec)
-    OrdinaryDiffEqCore.set_t!(s.integrator, 0.0)
+    OrdinaryDiffEqCore.reinit!(s.integrator, s.integrator.u; reinit_dae=true)
     linearize_vsm!(s)
     return nothing
 end

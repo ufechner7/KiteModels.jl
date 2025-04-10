@@ -104,14 +104,14 @@ if ! haskey(ENV, "NO_MTK")
     using Base: summarysize
 
     update_settings()
-    set = se("system_3l.yaml")
-    set.abs_tol = 0.006
-    set.rel_tol = 0.01
-    set.foil_file = "data/MH82.dat"
-    dt = 1/set.sample_freq
-    tspan   = (0.0, dt)
-
-    logger = Logger(3*set.segments + 4, 5)
+    set = se("system_ram.yaml")
+    set.segments = 2
+    set_values = [-50, -1.1, -1.1]
+    wing = RamAirWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat"; mass=set.mass, crease_frac=0.82, align_to_principal=true)
+    aero = BodyAerodynamics([wing])
+    vsm_solver = Solver(aero; solver_type=NONLIN, atol=1e-8, rtol=1e-8)
+    point_system = PointMassSystem(set, wing)
+    s = RamAirKite(set, aero, vsm_solver, point_system)
 
     if ! @isdefined mtk_kite; mtk_kite = RamAirKite(KCU(set)); end
     KiteModels.init_sim!(mtk_kite)

@@ -1,4 +1,10 @@
 
+function VortexStepMethod.RamAirWing(set::Settings)
+    obj_path = joinpath(dirname(get_data_path()), set.model)
+    dat_path = joinpath(dirname(get_data_path()), set.foil_file)
+    return RamAirWing(obj_path, dat_path; mass=set.mass, crease_frac=set.crease_frac, align_to_principal=true)
+end
+
 function PointMassSystem(set::Settings, wing::RamAirWing)
     # TODO: move as much of the code as possible from create_point_mass_system to other places, to make model creation easier.
     # 1. move bridle gamma calculation
