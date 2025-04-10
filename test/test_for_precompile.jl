@@ -107,17 +107,17 @@ if ! haskey(ENV, "NO_MTK")
     set = se("system_ram.yaml")
     set.segments = 2
     set_values = [-50, -1.1, -1.1]
-    wing = RamAirWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat"; mass=set.mass, crease_frac=0.82, align_to_principal=true)
+    wing = RamAirWing(set)
     aero = BodyAerodynamics([wing])
     vsm_solver = Solver(aero; solver_type=NONLIN, atol=1e-8, rtol=1e-8)
     point_system = PointMassSystem(set, wing)
-    s = RamAirKite(set, aero, vsm_solver, point_system)
-
-    if ! @isdefined mtk_kite; mtk_kite = RamAirKite(KCU(set)); end
-    KiteModels.init_sim!(mtk_kite)
+    mtk_kite = RamAirKite(set, aero, vsm_solver, point_system)
+    measure = Measurement()
+    KiteModels.init_sim!(mtk_kite, measure)
+    logger = Logger(length(s.point_system.points), 5)
 
     for i in 1:5
-        next_step!(mtk_kite)
+        next_step!(mtk_kite, set_values)
         sys_state = KiteModels.SysState(mtk_kite)
         log!(logger, sys_state)
     end

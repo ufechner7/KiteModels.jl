@@ -19,7 +19,7 @@ This is useful for understanding control characteristics, identifying
 non-linearities, and supporting control system design.
 =#
 
-using Revise, KiteModels, LinearAlgebra, VortexStepMethod
+using KiteModels, LinearAlgebra, VortexStepMethod, OrdinaryDiffEqCore
 using ModelingToolkit
 using ModelingToolkit: setu, getu
 using ControlPlots
@@ -32,7 +32,7 @@ set = se("system_ram.yaml")
 set.segments = 2
 
 if !@isdefined s
-    wing = RamAirWing("data/ram_air_kite_body.obj", "data/ram_air_kite_foil.dat"; mass=set.mass, crease_frac=0.82, align_to_principal=true)
+    wing = RamAirWing(set)
     aero = BodyAerodynamics([wing])
     vsm_solver = Solver(aero; solver_type=NONLIN, atol=1e-8, rtol=1e-8)
     point_system = PointMassSystem(set, wing)
@@ -65,6 +65,7 @@ function step_with_input(x, u, _, p)
     (s, stiff_x, set_x, set_sx, get_x, dt) = p
     set_x(s.integrator, x)
     set_sx(s.integrator, stiff_x)
+    OrdinaryDiffEqCore.reinit!(s.integrator, s.integrator.u; reinit_dae=false)
     next_step!(s, u; dt=dt, vsm_interval=0)
     return get_x(s.integrator)
 end
