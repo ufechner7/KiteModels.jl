@@ -381,8 +381,9 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         @parameters stiffness_frac = 0.1
         (segment.type == BRIDLE) && (stiffness_m = stiffness_frac * stiffness_m)
 
-        damping_m = (s.set.damping / s.set.c_spring) * stiffness_m
-
+        @parameters set_damping = s.set.damping
+        damping_m = (set_damping / s.set.c_spring) * stiffness_m
+        
         eqs = [
             eqs
             # spring force equations
@@ -399,7 +400,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             spring_force[segment.idx] ~  (stiffness[segment.idx] * (len[segment.idx] - l0[segment.idx]) - 
                             damping[segment.idx] * spring_vel[segment.idx])
             spring_force_vec[:, segment.idx]  ~ spring_force[segment.idx] * unit_vector[:, segment.idx]
-
+            
             # drag force equations
             height[segment.idx]          ~ max(0.0, 0.5(pos[:, p1][3] + pos[:, p2][3]))
             segment_vel[:, segment.idx]  ~ 0.5(vel[:, p1] + vel[:, p2])
