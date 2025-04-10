@@ -295,7 +295,7 @@ end
    pre_tension = KiteModels.calc_pre_tension(kps)
    @test pre_tension > 1.0001
    @test pre_tension < 1.01
-   @test unstretched_length(kps) ≈ 392.0              # initial, unstreched tether lenght
+   @test unstretched_length(kps) ≈ 392.0              # initial, unstreched tether length
    @test tether_length(kps) ≈ 392.1861381318156 rtol = 1e-5 # real, streched tether length
    @test winch_force(kps) ≈ 276.25751212763817 rtol = 3e-2       # initial force at the winch [N]
    lift, drag = lift_drag(kps)

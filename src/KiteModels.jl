@@ -34,10 +34,11 @@ Scientific background: http://arxiv.org/abs/1406.6218 =#
 module KiteModels
 
 using PrecompileTools: @setup_workload, @compile_workload 
-using Dierckx, Interpolations, Serialization, StaticArrays, LinearAlgebra, Parameters, NLsolve, 
-      DocStringExtensions, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK
+using Dierckx, Interpolations, Serialization, StaticArrays, LinearAlgebra, Parameters, NLsolve,
+      DocStringExtensions, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK, NonlinearSolve, FiniteDiff, DifferentiationInterface
 import Sundials
 using Reexport, Pkg
+@reexport using VortexStepMethod
 @reexport using KitePodModels
 @reexport using WinchModels
 @reexport using AtmosphericModels
@@ -49,15 +50,16 @@ import KiteUtils.calc_course
 import KiteUtils.SysState
 import OrdinaryDiffEqCore.init
 import OrdinaryDiffEqCore.step!
-using ModelingToolkit, SymbolicIndexingInterface, SteadyStateDiffEq
+using ModelingToolkit, SymbolicIndexingInterface
 using ModelingToolkit: t_nounits as t, D_nounits as D
 using ADTypes: AutoFiniteDiff
+using UnPack
 import ModelingToolkit.SciMLBase: successful_retcode
 
-export KPS3, KPS4, KPS4_3L, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                     # constants and types
+export KPS3, KPS4, RamAirKite, KVec3, SimFloat, Measurement, PointMassSystem, ProfileLaw, EXP, LOG, EXPLOG     # constants and types
 export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                            # helper functions
 export clear!, find_steady_state!, residual!                                                  # low level workers
-export init_sim!, reset_sim!, next_step!, init_pos_vel, init_pos, model!                                 # high level workers
+export init_sim!, init!, reinit!, next_step!, init_pos_vel, init_pos, model!                                 # high level workers
 export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, calc_orient_quat  # getters
 export calc_azimuth_north, calc_azimuth_east
 export winch_force, lift_drag, cl_cd, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
@@ -117,9 +119,11 @@ function __init__()
 end
 
 include("KPS4.jl") # include code, specific for the four point kite model
-include("KPS4_3L.jl") # include code, specific for the four point 3 line kite model
+include("ram_air_kite.jl") # include code, specific for the four point 3 line kite model
+include("mtk_model.jl")
 include("KPS3.jl") # include code, specific for the one point kite model
 include("init.jl") # functions to calculate the initial state vector, the initial masses and initial springs
+include("point_mass_system.jl")
 
 function menu2()
     Main.include("examples/menu2.jl")
@@ -225,17 +229,21 @@ function set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind; upwind_dir=
 end
 
 function upwind_dir(s::AKM)
-    if s.v_wind_gnd[1] == 0.0 && s.v_wind_gnd[2] == 0.0
+    upwind_dir(s.v_wind_gnd)
+end
+function upwind_dir(v_wind_gnd)
+    if v_wind_gnd[1] == 0.0 && v_wind_gnd[2] == 0.0
         return NaN
     end
-    wind_dir = atan(s.v_wind_gnd[2], s.v_wind_gnd[1])
+    wind_dir = atan(v_wind_gnd[2], v_wind_gnd[1])
     -(wind_dir + π/2)
 end
+@register_symbolic upwind_dir(v_wind_gnd)
 
 """
     tether_length(s::AKM)
 
-Calculate and return the real, stretched tether lenght.
+Calculate and return the real, stretched tether length.
 """
 function tether_length(s::AKM)
     length = 0.0
@@ -686,8 +694,8 @@ function copy_examples()
 end
 
 function copy_model_settings()
-    files = ["settings.yaml", "MH82.dat", "polars.bin", "system.yaml", "settings_3l.yaml", 
-             "system_3l.yaml"]
+    files = ["settings.yaml", "ram_air_kite_body.obj", "ram_air_kite_foil.dat", "system.yaml", "settings_ram.yaml", 
+             "system_ram.yaml"]
     dst_path = abspath(joinpath(pwd(), "data"))
     copy_files("data", files)
     set_data_path(joinpath(pwd(), "data"))
@@ -777,18 +785,12 @@ end
     set.kcu_diameter = 0
     kps4_::KPS4 = KPS4(KCU(set))
     kps3_::KPS3 = KPS3(KCU(se("system.yaml")))
-    if ! haskey(ENV, "NO_MTK")    
-        kps4_3l_::KPS4_3L = KPS4_3L(KCU(se(SYS_3L)))
-    end
     @assert ! isnothing(kps4_.wm)
     @compile_workload begin
         # all calls in this block will be precompiled, regardless of whether
         # they belong to your package or not (on Julia 1.8 and higher)
         integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
         integrator = KiteModels.init_sim!(kps4_; delta=0.03, stiffness_factor=0.05, prn=false) 
-        if ! haskey(ENV, "NO_MTK")
-            integrator = KiteModels.init_sim!(kps4_3l_)
-        end   
         nothing
     end
 end

@@ -2,7 +2,7 @@
 #### Fixed
 - fixed broken installation by freezing some package versions in Project.toml
 #### Added
-- added `mwe_26.jl` for debugging the initial state solver
+- added `mwe_26.jl` for debugging the initial state solver 
 #### Changed
 - bump KiteUtils to `v0.10`
 
@@ -80,7 +80,7 @@
 - added tests for calc_azimuth(s::AKM), the azimuth in wind reference frame
 - re-enable logging of the angles of attack of the three plates
 - `steering_test_4p.jl` now calculates both `c1` and `c2` of the turn-rate law
-- the environment variable `NO_MTK` disables the pre-compilation of the `KPS4_3L` model
+- the environment variable `NO_MTK` disables the pre-compilation of the `RamAirKite` model
   to save time during development
 - the script `menu2.jl` for model verification was added
 
@@ -120,7 +120,7 @@
 - always specify the `system.yaml` file to use in the examples, always use `load_settings` instead of `se`. 
 This ensures that the settings are always freshly loaded from the file when the script is launched, so any changes 
 to the settings become immediately effective.
-- the KPS4_3L model was replaced by the pure ModelingToolkit (MTK) based version. This allows not only a much faster simulation, but the results are also much more accurate.
+- the RamAirKite model was replaced by the pure ModelingToolkit (MTK) based version. This allows not only a much faster simulation, but the results are also much more accurate.
 
 ### KiteModels v0.6.5 - 2024-08-12
 #### Changed
@@ -199,7 +199,7 @@ to the settings become immediately effective.
 - update Documenter to v1.0
 
 #### Added
-- add type `KPS4_3L`, which is now only a copy of `KPS4`, but shall implement a kite with the steering
+- add type `RamAirKite`, which is now only a copy of `KPS4`, but shall implement a kite with the steering
   lines going to the ground
 
 ### KiteModels v0.5.11 - 2024-04-04

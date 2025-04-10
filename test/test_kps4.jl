@@ -1,3 +1,8 @@
+using Pkg
+if ! ("PackageCompiler" ∈ keys(Pkg.project().dependencies))
+    using TestEnv; TestEnv.activate()
+    Pkg.update()
+end
 using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils
 using KiteModels, KitePodModels
 
