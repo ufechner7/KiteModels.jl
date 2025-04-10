@@ -448,13 +448,13 @@ and only updates the state variables to match the current `measure`.
 # Throws
 - `ArgumentError`: If no serialized problem exists (run `init_sim!` first)
 """
-function reinit!(s::RamAirKite, measure::Measurement; prn=true)
+function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=false)
     isnothing(s.point_system) && (s.point_system = PointMassSystem(s, s.wing))
 
     init_Q_b_w, R_b_w = measure_to_q(measure)
     init_kite_pos = init!(s.point_system, s.set, R_b_w)
     
-    if isnothing(s.integrator) || !successful_retcode(s.integrator.sol)
+    if isnothing(s.integrator) || !successful_retcode(s.integrator.sol) || reload
         prob_path = joinpath(KiteUtils.get_data_path(), "prob.bin")
         !ispath(prob_path) && throw(ArgumentError("$prob_path not found. Run init_sim!(s::RamAirKite) first."))
         t = @elapsed begin
@@ -473,7 +473,8 @@ function reinit!(s::RamAirKite, measure::Measurement; prn=true)
 
     init_unknowns_vec!(s, s.point_system, s.unknowns_vec, init_Q_b_w, init_kite_pos)
     s.set_unknowns(s.integrator, s.unknowns_vec)
-    OrdinaryDiffEqCore.reinit!(s.integrator, s.integrator.u; reinit_dae=true)
+    set_t!(s.integrator, 0.0)
+    # OrdinaryDiffEqCore.reinit!(s.integrator, s.integrator.u; reinit_dae=false)
     linearize_vsm!(s)
     return nothing
 end
