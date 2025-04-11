@@ -13,9 +13,9 @@ vsm_interval = 5
 steps = Int(round(total_time / dt))
 
 set = se("system_ram.yaml")
-set.segments = 6
+set.segments = 7
 set_values = [-50, -1.1, -1.1]
-set.quasi_static = false
+set.quasi_static = true
 
 if !@isdefined s
     wing = RamAirWing(set)

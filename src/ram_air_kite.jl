@@ -400,7 +400,7 @@ function init_sim!(s::RamAirKite, measure::Measurement; prn=true)
     return nothing
 end
 
-function init_sim!(s::RamAirKite; prn=true)
+function init_sim!(::RamAirKite; prn=true)
     throw(ArgumentError("Use the function init_sim!(s::RamAirKite, measure::Measurement) instead."))
 end
 
