@@ -17,7 +17,6 @@ using KiteModels, LinearAlgebra, VortexStepMethod, OrdinaryDiffEqCore
 using ModelingToolkit
 using ModelingToolkit: setu, getu
 using ControlPlots
-toc()
 
 set = se("system_ram.yaml")
 set.segments = 2
@@ -39,6 +38,7 @@ measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
 if !ispath(joinpath(get_data_path(), "prob.bin"))
     KiteModels.init_sim!(s, measure)
 end
+toc()
 
 @time KiteModels.reinit!(s, measure; reload=true)
 sys = s.sys
