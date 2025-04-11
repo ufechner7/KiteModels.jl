@@ -189,7 +189,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             n = sym_normalize(kite_pos)
             n = n * (p ⋅ n)
             r = (p - n) # https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line#Vector_formulation
-            @parameters bridle_damp = 20
+            @parameters bridle_damp = 100
             @parameters measured_ω_z = 0.6
             eqs = [
                 eqs
@@ -250,7 +250,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         
         inertia = 1/3 * (s.set.mass/length(groups)) * (norm(group.chord))^2 # plate inertia around leading edge
         @assert !(inertia ≈ 0.0)
-        @parameters twist_damp = 20
+        @parameters twist_damp = s.set.quasi_static ? 200 : 50
         eqs = [
             eqs
             group_tether_moment[group.idx] ~ sum(tether_moment[group.idx, :])
@@ -261,7 +261,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             eqs = [
                 eqs
                 D(free_twist_angle[group.idx]) ~ twist_ω[group.idx]
-                D(twist_ω[group.idx]) ~ acc_multiplier * twist_α[group.idx] - twist_damp * twist_ω[group.idx]
+                D(twist_ω[group.idx]) ~ twist_α[group.idx] - twist_damp * twist_ω[group.idx]
             ]
             defaults = [
                 defaults
@@ -377,8 +377,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         @parameters stiffness_frac = 0.1
         (segment.type == BRIDLE) && (stiffness_m = stiffness_frac * stiffness_m)
 
-        @parameters set_damping = s.set.damping
-        damping_m = (set_damping / s.set.c_spring) * stiffness_m
+        damping_m = (s.set.damping / s.set.c_spring) * stiffness_m
         
         eqs = [
             eqs
@@ -418,7 +417,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         pulley_force(t)[eachindex(pulleys)]
         pulley_acc(t)[eachindex(pulleys)]
     end
-    @parameters pulley_damping = 10
+    @parameters pulley_damp = 20
     for pulley in pulleys
         segment = segments[pulley.segments[1]]
         mass_per_meter = s.set.rho_tether * π * (segment.diameter/2)^2
@@ -431,9 +430,9 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         ]
         if pulley.type == DYNAMIC
             eqs = [
-                eqs 
+                eqs
                 D(pulley_l0[pulley.idx])  ~ pulley_vel[pulley.idx]
-                D(pulley_vel[pulley.idx]) ~ acc_multiplier * pulley_acc[pulley.idx] - pulley_damping * pulley_vel[pulley.idx]
+                D(pulley_vel[pulley.idx]) ~ acc_multiplier * pulley_acc[pulley.idx] - pulley_damp * pulley_vel[pulley.idx]
             ]
             defaults = [
                 defaults
@@ -506,6 +505,7 @@ function diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero
         total_tether_kite_force(t)[1:3]
         total_tether_kite_moment(t)[1:3]
     end
+    @parameters ω_damp = s.set.quasi_static ? 100 : 0
 
     Ω = [0       -ω_b[1]  -ω_b[2]  -ω_b[3];
         ω_b[1]    0        ω_b[3]  -ω_b[2];
@@ -521,7 +521,7 @@ function diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero
         [R_b_w[:, i] ~ quaternion_to_rotation_matrix(Q_b_w)[:, i] for i in 1:3]
 
         D(ω_b[1]) ~ α_b[1]
-        D(ω_b[2]) ~ α_b[2]
+        D(ω_b[2]) ~ α_b[2] - ω_damp * ω_b[2]
         D(ω_b[3]) ~ ifelse(steady==true, 0, α_b[3])
 
         α_b[1] ~ (moment_b[1] + (I_b[2] - I_b[3]) * ω_b[2] * ω_b[3]) / I_b[1]
@@ -653,7 +653,7 @@ function init_unknowns_vec!(
     init_kite_pos;
     non_observed=true
 )
-    non_observed && (length(vec) != length(s.integrator.u)) && 
+    !s.set.quasi_static && non_observed && (length(vec) != length(s.integrator.u)) && 
         throw(ArgumentError("Unknowns of length $(length(s.integrator.u)) but vector provided of length $(length(vec))"))
         
     @unpack points, groups, segments, pulleys, winches = system
@@ -724,7 +724,7 @@ function get_unknowns(s::RamAirKite)
     vec = Num[]
     vec = get_stiff_unknowns(s, vec)
     vec = get_nonstiff_unknowns(s, vec)
-    (length(vec) != length(s.integrator.u)) &&
+    !s.set.quasi_static && (length(vec) != length(s.integrator.u)) &&
         throw(ArgumentError("Integrator unknowns of length $(length(s.integrator.u)) should equal vec of length $(length(vec))"))
     return vec
 end
@@ -732,26 +732,20 @@ end
 function get_stiff_unknowns(s, vec=Num[])
     @unpack points, groups, segments, pulleys, winches = s.point_system
     for point in points
-        if point.type == DYNAMIC
-            for i in 1:3
-                push!(vec, s.sys.pos[i, point.idx])
-            end
-            for i in 1:3 # TODO: add speed to init
-                push!(vec, s.sys.vel[i, point.idx])
-            end
+        for i in 1:3
+            point.type == DYNAMIC && push!(vec, s.sys.pos[i, point.idx])
+        end
+        for i in 1:3 # TODO: add speed to init
+            point.type == DYNAMIC && push!(vec, s.sys.vel[i, point.idx])
         end
     end
     for group in groups
-        if group.type == DYNAMIC
-            push!(vec, s.sys.free_twist_angle[group.idx])
-            push!(vec, s.sys.twist_ω[group.idx])
-        end
+        group.type == DYNAMIC && push!(vec, s.sys.free_twist_angle[group.idx])
+        group.type == DYNAMIC && push!(vec, s.sys.twist_ω[group.idx])
     end
     for pulley in pulleys
-        if pulley.type == DYNAMIC
-            push!(vec, s.sys.pulley_l0[pulley.idx])
-            push!(vec, s.sys.pulley_vel[pulley.idx])
-        end
+        pulley.type == DYNAMIC && push!(vec, s.sys.pulley_l0[pulley.idx])
+        pulley.type == DYNAMIC && push!(vec, s.sys.pulley_vel[pulley.idx])
     end
     return vec
 end
