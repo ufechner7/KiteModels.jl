@@ -33,35 +33,18 @@ Scientific background: http://arxiv.org/abs/1406.6218 =#
 
 # Array of connections of bridlepoints.
 # First point, second point, unstressed length.
-const SPRINGS_INPUT = [0.    1.  150.
-                       1.    2.   -1. # s1, p7, p8
-                       4.    2.   -1. # s2, p10, p8                        
-                       4.    5.   -1. # s3, p10, p11
-                       3.    4.   -1. # s4, p9, p10
-                       5.    1.   -1. # s5, p11, p7
-                       4.    1.   -1. # s6, p10, p7
-                       3.    5.   -1. # s7, p9, p11
-                       5.    2.   -1. # s8, p11, p8
-                       2.    3.   -1.] # s9, p8, p9
+const SPRINGS_INPUT_5P = [0.    1.  150.
+                          1.    2.   -1. # s1, p7, p8
+                          4.    2.   -1. # s2, p10, p8                        
+                          4.    5.   -1. # s3, p10, p11
+                          3.    4.   -1. # s4, p9, p10
+                          5.    1.   -1. # s5, p11, p7
+                          4.    1.   -1. # s6, p10, p7
+                          3.    5.   -1. # s7, p9, p11
+                          5.    2.   -1. # s8, p11, p8
+                          2.    3.   -1.] # s9, p8, p9
 
 # KCU = p7, A = p8, B = p9, C = p10, D = p11
-
-# struct, defining the phyical parameters of one spring
-@with_kw struct Spring{I, S}
-    p1::I = 1         # number of the first point
-    p2::I = 2         # number of the second point
-    length::S = 1.0   # current unstressed spring length
-    c_spring::S = 1.0 # spring constant [N/m]
-    damping::S  = 0.1 # damping coefficent [Ns/m]
-end
-
-const SP = Spring{Int16, SimFloat}
-const KITE_PARTICLES = 4
-const KITE_SPRINGS = 9
-const DRAG_CORR = 0.93       # correction of the drag for the 4-point model
-function zero(::Type{SP})
-    SP(0,0,0,0,0)
-end
 
 """
     mutable struct KPS5{S, T, P, Q, SP} <: AbstractKiteModel

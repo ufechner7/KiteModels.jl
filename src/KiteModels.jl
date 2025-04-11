@@ -36,7 +36,7 @@ using ModelingToolkit: t_nounits as t, D_nounits as D
 using ADTypes: AutoFiniteDiff
 import ModelingToolkit.SciMLBase: successful_retcode
 
-export KPS3, KPS4, SymbolicAWEModel, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG     # constants and types
+export KPS3, KPS4, KPS5, RamAirKite, KVec3, SimFloat, Measurement, PointMassSystem, ProfileLaw, EXP, LOG, EXPLOG     # constants and types
 export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                            # helper functions
 export clear!, find_steady_state!, residual!                                                  # low level workers
 export init_sim!, init!, reinit!, next_step!, init_pos_vel                                    # high level workers
@@ -106,11 +106,13 @@ function __init__()
 end
 
 include("KPS4.jl") # include code, specific for the four point kite model
+include("KPS5.jl") # include code, specific for the five point kite model
 include("system_structure.jl")
-include("symbolic_awe_model.jl") # include code, specific for the ram air kite model
+include("ram_air_kite.jl") # include code, specific for the four point 3 line kite model
 include("mtk_model.jl")
 include("KPS3.jl") # include code, specific for the one point kite model
 include("init.jl") # functions to calculate the initial state vector, the initial masses and initial springs
+include("point_mass_system.jl")
 
 function menu2()
     Main.include("examples/menu2.jl")
