@@ -11,10 +11,13 @@ The script plots relationships between steering inputs and resulting angular vel
 providing insight into the kite's steering behavior and control characteristics.
 =#
 
+using Timers
+tic()
 using KiteModels, LinearAlgebra, VortexStepMethod, OrdinaryDiffEqCore
 using ModelingToolkit
 using ModelingToolkit: setu, getu
 using ControlPlots
+toc()
 
 set = se("system_ram.yaml")
 set.segments = 2
