@@ -60,18 +60,6 @@ kps4:
     smc:           0.0      # steering moment coefficient                 [-]
     cmq:           0.0      # pitch rate dependant moment coefficient     [-]
     cord_length:   2.0      # average aerodynamic cord length of the kite [m]
-
-kps4_3l:
-    radius: 2.0                    # the radius of the circle shape on which the kite lines, viewed 
-                                    #     from the front                                              [m]
-    bridle_center_distance: 4.0     # the distance from point the center bridle connection point of 
-                                    #     the middle line to the kite                                 [m]
-    middle_length:          1.5     # the cord length of the kite in the middle                       [m]
-    tip_length:             0.62     # the cord length of the kite at the tips                         [m]
-    min_steering_line_distance: 1.0 # the distance between the left and right steering bridle         [m]
-                                    #     line connections on the kite that are closest to each other [m]
-    width_3l:               4.1    # width of the kite                                               [m]
-    aero_surfaces:          3      # the number of aerodynamic surfaces to use per mass point        [-]
     
 bridle:
     d_line:    2.5            # bridle line diameter                                                 [mm]
