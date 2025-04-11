@@ -400,7 +400,7 @@ function init_sim!(s::RamAirKite, measure::Measurement; prn=true)
     return nothing
 end
 
-function init_sim!(::RamAirKite; prn=true)
+function init_sim!(s::RamAirKite; prn=true)
     throw(ArgumentError("Use the function init_sim!(s::RamAirKite, measure::Measurement) instead."))
 end
 
@@ -448,8 +448,9 @@ function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=false)
             s.prob = deserialize(prob_path)
             s.sys = s.prob.f.sys
             s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, save_everystep=false)
+            sym_vec = zeros(Num, length(s.integrator.u))
+            s.unknowns_vec = zeros(SimFloat, length(s.integrator.u))
             sym_vec = get_unknowns(s)
-            s.unknowns_vec = zeros(SimFloat, length(sym_vec))
             generate_getters!(s, sym_vec)
         end
         prn && @info "Loaded problem from $prob_path and initialized integrator in $t seconds"
