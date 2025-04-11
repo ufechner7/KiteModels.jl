@@ -31,21 +31,6 @@ Four point kite model, included from KiteModels.jl.
 
 Scientific background: http://arxiv.org/abs/1406.6218 =#
 
-# Array of connections of bridlepoints.
-# First point, second point, unstressed length.
-const SPRINGS_INPUT_3L = [1.      4.  -1. # s1: E, A
-                        1.      2.  -1. # s2, E, C
-                        1.      3.  -1. # s3, E, D
-                        2.      3.  -1. # s4, C, D
-                        2.      4.  -1. # s5, C, A
-                        3.      4.  -1. # s6, D, A
-                        ]
-# E = 1, C = 2, D = 3, A = 4
-# E = segments*3+1, C = segments*3+2, D = segments*3+3, A = segments*3+4
-
-# TODO: add line multiplier: multiple lines doing same thing
-const KITE_SPRINGS_3L = 6
-const KITE_PARTICLES_3L = 4
 const MeasureFloat = Float32
 
 @with_kw mutable struct Measurement
