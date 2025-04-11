@@ -56,7 +56,7 @@ using ADTypes: AutoFiniteDiff
 using UnPack
 import ModelingToolkit.SciMLBase: successful_retcode
 
-export KPS3, KPS4, RamAirKite, KVec3, SimFloat, Measurement, PointMassSystem, ProfileLaw, EXP, LOG, EXPLOG     # constants and types
+export KPS3, KPS4, KPS5, RamAirKite, KVec3, SimFloat, Measurement, PointMassSystem, ProfileLaw, EXP, LOG, EXPLOG     # constants and types
 export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                            # helper functions
 export clear!, find_steady_state!, residual!                                                  # low level workers
 export init_sim!, init!, reinit!, next_step!, init_pos_vel, init_pos, model!                                 # high level workers
@@ -119,6 +119,7 @@ function __init__()
 end
 
 include("KPS4.jl") # include code, specific for the four point kite model
+include("KPS5.jl") # include code, specific for the five point kite model
 include("ram_air_kite.jl") # include code, specific for the four point 3 line kite model
 include("mtk_model.jl")
 include("KPS3.jl") # include code, specific for the one point kite model
