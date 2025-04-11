@@ -20,10 +20,6 @@ function sym_normalize(vec)
 end
 @register_symbolic sym_normalize(vec)
 
-function mean(vec::AbstractVector)
-    return sum(vec) / length(vec)
-end
-
 function rotate_by_quaternion(q, v)
     p = [0, v...]
     return quaternion_multiply(q, quaternion_multiply(p, quaternion_conjugate(q)))[2:4]
