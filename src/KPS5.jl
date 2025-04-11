@@ -196,8 +196,8 @@ function clear!(s::KPS5)
 
     s.l_tether = s.set.l_tether
     s.segment_length = s.l_tether / s.set.segments
-    init_masses!(s)
-    init_springs!(s)
+    # init_masses!(s)
+    # init_springs!(s)
     for i in 1:s.set.segments + KiteModels.KITE_PARTICLES + 1 
         s.forces[i] .= zeros(3)
     end
