@@ -250,7 +250,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         
         inertia = 1/3 * (s.set.mass/length(groups)) * (norm(group.chord))^2 # plate inertia around leading edge
         @assert !(inertia ≈ 0.0)
-        @parameters twist_damp = s.set.quasi_static ? 200 : 50
+        @parameters twist_damp = s.set.quasi_static ? 200 : 100
         eqs = [
             eqs
             group_tether_moment[group.idx] ~ sum(tether_moment[group.idx, :])
@@ -505,7 +505,7 @@ function diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero
         total_tether_kite_force(t)[1:3]
         total_tether_kite_moment(t)[1:3]
     end
-    @parameters ω_damp = s.set.quasi_static ? 100 : 0
+    @parameters ω_damp = 150
 
     Ω = [0       -ω_b[1]  -ω_b[2]  -ω_b[3];
         ω_b[1]    0        ω_b[3]  -ω_b[2];
