@@ -8,15 +8,15 @@ end
 include("./plotting.jl")
 
 dt = 0.05
-total_time = 4.5
-vsm_interval = 5
+total_time = 4.5 # was: 4.5
+vsm_interval = 4
 steps = Int(round(total_time / dt))
 
 set = se("system_ram.yaml")
-set.segments = 2
+set.segments = 3
 set_values = [-50, -1.1, -1.1]
 
-if !@isdefined s
+if ! isfile("data/prob.bin") || ! @isdefined s
     wing = RamAirWing(set)
     aero = BodyAerodynamics([wing])
     vsm_solver = Solver(aero; solver_type=NONLIN, atol=1e-8, rtol=1e-8)
