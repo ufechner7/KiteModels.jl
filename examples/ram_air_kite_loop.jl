@@ -115,13 +115,4 @@ display(p)
 println("Times realtime: ", (total_time/2) / runtime)
 println("Times realtime, just integrator: ", (total_time/2) / integ_runtime)
 
-@show norm(logger.var_13_vec[steps÷2:end])
-
-# diffs = [norm(diff([u[i] for u in s.integrator.sol.u[1000:end]])) for i in eachindex(s.integrator.u)]
-# names = unknowns(s.prob.f.sys)
-# for (n, d) in zip(names, diffs)
-#     println(round(d; digits=2), "\t", n)
-# end
-
-
 nothing
