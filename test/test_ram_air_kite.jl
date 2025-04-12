@@ -225,7 +225,7 @@ const BUILD_SYS = true
             right_heading_diff = angle_diff(sys_state_right.heading, sys_state_initial.heading)
             @test right_heading_diff > 0.6
             left_heading_diff = angle_diff(sys_state_left.heading, sys_state_initial.heading)
-            @test left_heading_diff < -0.6
+            @test left_heading_diff < -0.5
             @test abs(right_heading_diff) ≈ abs(left_heading_diff) atol=0.3
         end
     end

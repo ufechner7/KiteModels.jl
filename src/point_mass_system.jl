@@ -22,6 +22,8 @@ function PointMassSystem(set::Settings, wing::RamAirWing)
     bridle_top_left = [wing.R_cad_body * (set.top_bridle_points[i] + wing.T_cad_body) for i in eachindex(set.top_bridle_points)] # cad to kite frame
     bridle_top_right = [bridle_top_left[i] .* [1, -1, 1] for i in eachindex(set.top_bridle_points)]
 
+    dynamics_type = set.quasi_static ? STATIC : DYNAMIC
+
     function create_bridle(bridle_top, gammas)
         i_pnt = length(points) # last point idx
         i_seg = length(segments) # last segment idx
@@ -47,18 +49,18 @@ function PointMassSystem(set::Settings, wing::RamAirWing)
 
         points = [
             points
-            Point(9+i_pnt, bridle_top[1], DYNAMIC)
-            Point(10+i_pnt, bridle_top[2], DYNAMIC)
-            Point(11+i_pnt, bridle_top[3], DYNAMIC)
-            Point(12+i_pnt, bridle_top[4], DYNAMIC)
+            Point(9+i_pnt, bridle_top[1], dynamics_type)
+            Point(10+i_pnt, bridle_top[2], dynamics_type)
+            Point(11+i_pnt, bridle_top[3], dynamics_type)
+            Point(12+i_pnt, bridle_top[4], dynamics_type)
 
-            Point(13+i_pnt, bridle_top[2] .+ [0, 0, -1], DYNAMIC)
+            Point(13+i_pnt, bridle_top[2] .+ [0, 0, -1], dynamics_type)
 
-            Point(14+i_pnt, bridle_top[1] .+ [0, 0, -2], DYNAMIC)
-            Point(15+i_pnt, bridle_top[3] .+ [0, 0, -2], DYNAMIC)
+            Point(14+i_pnt, bridle_top[1] .+ [0, 0, -2], dynamics_type)
+            Point(15+i_pnt, bridle_top[3] .+ [0, 0, -2], dynamics_type)
 
-            Point(16+i_pnt, bridle_top[1] .+ [0, 0, -3], DYNAMIC)
-            Point(17+i_pnt, bridle_top[3] .+ [0, 0, -3], DYNAMIC)
+            Point(16+i_pnt, bridle_top[1] .+ [0, 0, -3], dynamics_type)
+            Point(17+i_pnt, bridle_top[3] .+ [0, 0, -3], dynamics_type)
         ]
         l1 = norm(points[9+i_pnt].pos_b - points[1+i_pnt].pos_b)
         l2 = norm(points[9+i_pnt].pos_b - points[5+i_pnt].pos_b)
@@ -88,8 +90,8 @@ function PointMassSystem(set::Settings, wing::RamAirWing)
         ]
         pulleys = [
             pulleys
-            Pulley(1+i_pul, (13+i_seg, 14+i_seg), DYNAMIC)
-            Pulley(2+i_pul, (16+i_seg, 17+i_seg), DYNAMIC)
+            Pulley(1+i_pul, (13+i_seg, 14+i_seg), dynamics_type)
+            Pulley(2+i_pul, (16+i_seg, 17+i_seg), dynamics_type)
         ]
         push!(attach_points, points[end-1])
         push!(attach_points, points[end])
@@ -107,13 +109,13 @@ function PointMassSystem(set::Settings, wing::RamAirWing)
             i_pnt = length(points) # last point idx
             i_seg = length(segments) # last segment idx
             if i == 1
-                points = [points; Point(1+i_pnt, pos, DYNAMIC)]
+                points = [points; Point(1+i_pnt, pos, dynamics_type)]
                 segments = [segments; Segment(1+i_seg, (attach_point.idx, 1+i_pnt), type)]
             elseif i == set.segments
                 points = [points; Point(1+i_pnt, pos, WINCH)]
                 segments = [segments; Segment(1+i_seg, (i_pnt, 1+i_pnt), type)]
             else
-                points = [points; Point(1+i_pnt, pos, DYNAMIC)]
+                points = [points; Point(1+i_pnt, pos, dynamics_type)]
                 segments = [segments; Segment(1+i_seg, (i_pnt, 1+i_pnt), type)]
             end
             push!(segment_idxs, 1+i_seg)
