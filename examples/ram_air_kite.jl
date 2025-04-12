@@ -8,8 +8,8 @@ end
 include(joinpath(@__DIR__, "plotting.jl"))
 
 # Simulation parameters
-dt = 0.05
-total_time = 3.8  # Longer simulation to see oscillations
+dt = 0.01
+total_time = 10.0
 vsm_interval = 5
 steps = Int(round(total_time / dt))
 
@@ -19,9 +19,9 @@ steering_magnitude = 5.0  # Magnitude of steering input
 
 # Initialize model
 set = se("system_ram.yaml")
-set.segments = 6
+set.segments = 2
 set_values = [-50, 0.0, 0.0]  # Initial values
-set.quasi_static = false
+set.quasi_static = true
 
 wing = RamAirWing(set)
 aero = BodyAerodynamics([wing])
@@ -30,13 +30,14 @@ point_system = PointMassSystem(set, wing)
 s = RamAirKite(set, aero, vsm_solver, point_system)
 
 measure = Measurement()
-s.set.abs_tol = 1e-5
-s.set.rel_tol = 1e-3
+s.set.abs_tol = 1e-2
+s.set.rel_tol = 1e-2
 
 # Initialize at elevation
-measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
+measure.sphere_pos .= deg2rad.([50.0 50.0; 1.0 -1.0])
 KiteModels.init_sim!(s, measure)
 sys = s.sys
+s.integrator.ps[sys.ω_damp] = 1.0
 
 # Stabilize system
 s.integrator.ps[sys.steady] = true
