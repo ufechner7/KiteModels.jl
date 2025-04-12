@@ -59,7 +59,7 @@ try
         PLOT && plot(s, t; zoom=false, front=false)
         
         # Calculate steering inputs based on cosine wave
-        steering = steering_magnitude * cos(2π * steering_freq * t)
+        steering = steering_magnitude * cos(2π * steering_freq * t+0.1)
         set_values = -s.set.drum_radius .* s.integrator[sys.winch_force]
         if t > 1.0
             set_values .+= [0.0, steering, -steering]  # Opposite steering for left/right
