@@ -13,8 +13,8 @@ include(joinpath(@__DIR__, "plotting.jl"))
 
 # Simulation parameters
 dt = 0.05
-total_time = 3.8  # Longer simulation to see oscillations
-vsm_interval = 5
+total_time = 10  # Longer simulation to see oscillations
+vsm_interval = 2
 steps = Int(round(total_time / dt))
 
 # Steering parameters
@@ -114,16 +114,17 @@ end
 
 # Plot results
 p = plotx(logger.time_vec .- 10, 
-    [logger.var_01_vec, logger.var_02_vec, logger.var_03_vec],
+    [rad2deg.(logger.var_01_vec), rad2deg.(logger.var_02_vec), rad2deg.(logger.var_03_vec)],
     [logger.var_04_vec, logger.var_05_vec],
     [logger.var_06_vec, logger.var_07_vec, logger.var_08_vec],
     [rad2deg.(logger.var_09_vec), rad2deg.(logger.var_10_vec), rad2deg.(logger.var_11_vec), rad2deg.(logger.var_12_vec)],
     [logger.var_13_vec, logger.var_14_vec],
     [logger.var_15_vec],
     [rad2deg.(logger.heading_vec)];
-    ylabels=["kite", L"v_{ro}~[m/s]", "vsm", "twist [°]", "pulley", "AoA [°]", "heading [°]"],
+    ylabels=["turn rates [°/s]", L"v_{ro}~[m/s]", "vsm", "twist [°]", "pulley", "AoA [°]", "heading [°]"],
+    ysize=10,
     labels=[
-        ["ω_b[1]", "ω_b[2]", "ω_b[3]"],
+        [L"ω_x", L"ω_y", L"ω_z"],
         ["vel[1]", "vel[2]"],
         ["force[3]", "kite moment[2]", "group moment[1]"],
         ["twist_angle[1]", "twist_angle[2]", "twist_angle[3]", "twist_angle[4]"],
