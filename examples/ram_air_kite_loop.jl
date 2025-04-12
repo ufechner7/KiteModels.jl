@@ -8,13 +8,14 @@ end
 include("./plotting.jl")
 
 dt = 0.05
-total_time = 4.5 # was: 4.5
-vsm_interval = 4
+total_time = 1.8
+vsm_interval = 5
 steps = Int(round(total_time / dt))
 
 set = se("system_ram.yaml")
-set.segments = 3
+set.segments = 7
 set_values = [-50, -1.1, -1.1]
+set.quasi_static = true
 
 if ! isfile("data/prob.bin") || ! @isdefined s
     wing = RamAirWing(set)
@@ -28,16 +29,19 @@ end
 s.set.abs_tol = 1e-5
 s.set.rel_tol = 1e-3
 
+measure.sphere_pos .= deg2rad.([50.0 50.0; 1.0 -1.0])
 if !ispath(joinpath(get_data_path(), "prob.bin"))
     KiteModels.init_sim!(s, measure)
 end
-measure.sphere_pos .= deg2rad.([50.0 50.0; 1.0 -1.0])
-@time KiteModels.reinit!(s, measure)
+@time KiteModels.reinit!(s, measure; reload=true)
+sys = s.sys
+s.integrator.ps[sys.steady] = true
+next_step!(s; dt=10.0, vsm_interval=1)
+s.integrator.ps[sys.steady] = false
 
 logger = Logger(length(s.point_system.points), steps)
 
 sys_state = KiteModels.SysState(s)
-sys = s.sys
 l = s.set.l_tether + 10
 t = 0.
 runtime = 0.
@@ -47,8 +51,9 @@ try
         global t, runtime, integ_runtime
         PLOT && plot(s, t; zoom=false, front=false)
         global set_values = -s.set.drum_radius .* s.integrator[sys.winch_force]
-        if (t < 3.0); set_values -= [0, 0, 5]; end
+        if (t < 1.5); set_values += [0, 10, 5]; end
         steptime = @elapsed (t, integ_steptime) = next_step!(s, set_values; dt, vsm_interval)
+        t -= 10.0
         if (t > total_time/2); runtime += steptime; end
         if (t > total_time/2); integ_runtime += integ_steptime; end
         KiteModels.update_sys_state!(sys_state, s)
@@ -63,10 +68,17 @@ try
         sys_state.var_07 = s.integrator[sys.aero_moment_b[2]]
         sys_state.var_08 = s.integrator[sys.group_aero_moment[1]]
 
-        sys_state.var_09 = s.integrator[sys.twist_angle[1]]
-        sys_state.var_10 = s.integrator[sys.twist_angle[2]]
-        sys_state.var_11 = s.integrator[sys.twist_angle[3]]
-        sys_state.var_12 = s.integrator[sys.twist_angle[4]]
+        sys_state.var_09 = s.integrator[sys.twist_α[1]]
+        sys_state.var_10 = s.integrator[sys.twist_α[2]]
+        sys_state.var_11 = s.integrator[sys.twist_α[3]]
+        sys_state.var_12 = s.integrator[sys.twist_α[4]]
+
+        sys_state.var_13 = clamp(s.integrator[sys.pulley_acc[1]], -100, 100)
+        sys_state.var_14 = clamp(s.integrator[sys.pulley_acc[2]], -100, 100)
+
+        va_kite_b = s.integrator[sys.va_kite_b]
+        e_x = s.integrator[sys.e_x]
+        sys_state.var_15 = rad2deg(acos(dot(normalize(va_kite_b), e_x)))
 
         log!(logger, sys_state)
     end
@@ -83,14 +95,18 @@ p=plotx(logger.time_vec,
         [logger.var_04_vec, logger.var_05_vec],
         [logger.var_06_vec, logger.var_07_vec, logger.var_08_vec],
         [logger.var_09_vec, logger.var_10_vec, logger.var_11_vec, logger.var_12_vec],
+        [logger.var_13_vec, logger.var_14_vec],
+        [logger.var_15_vec],
         [logger.heading_vec]
         ;
-    ylabels=["kite", "tether", "vsm", "twist", "heading"], 
+    ylabels=["kite", "tether", "vsm", "twist", "pulley", "wind", "heading"], 
     labels=[
         ["ω_b[1]", "ω_b[2]", "ω_b[3]"],
         ["vel[1]", "vel[2]"],
         ["force[3]", "kite moment[2]", "group moment[1]"],
-        ["twist_angle[1]", "twist_angle[2]", "twist_angle[3]", "twist_angle[4]"],
+        ["twist_alpha[1]", "twist_alpha[2]", "twist_alpha[3]", "twist_alpha[4]"],
+        ["pulley acc[1]", "pulley acc[2]"],
+        ["alpha"],
         ["heading"]
         ],
     fig="Steering and heading MTK model")
