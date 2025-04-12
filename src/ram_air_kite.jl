@@ -379,24 +379,24 @@ problem already exists.
 - `Nothing`
 """
 function init_sim!(s::RamAirKite, measure::Measurement; prn=true)
-    init_Q_b_w, R_b_w = measure_to_q(measure)
-    init_kite_pos = init!(s.point_system, s.set, R_b_w)
+    prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set))
+    if !ispath(prob_path)
+        init_Q_b_w, R_b_w = measure_to_q(measure)
+        init_kite_pos = init!(s.point_system, s.set, R_b_w)
 
-    init_va = R_b_w' * [s.set.v_wind, 0., 0.]
-    
-    sys, defaults, guesses = create_sys!(s, s.point_system, measure; init_Q_b_w, init_kite_pos, init_va)
-    prn && @info "Simplifying the system"
-    prn && @time sys = structural_simplify(sys; additional_passes=[ModelingToolkit.IfLifting])
-    !prn && (sys = structural_simplify(sys; additional_passes=[ModelingToolkit.IfLifting]))
-    s.sys = sys
-    dt = SimFloat(1/s.set.sample_freq)
-    s.prob = ODEProblem(s.sys, defaults, (0.0, dt); guesses)
-    data_path = KiteUtils.get_data_path()
-    serialize(joinpath(data_path, "prob.bin"), s.prob)
-
-    s.integrator = nothing
+        init_va = R_b_w' * [s.set.v_wind, 0., 0.]
+        
+        sys, defaults, guesses = create_sys!(s, s.point_system, measure; init_Q_b_w, init_kite_pos, init_va)
+        prn && @info "Simplifying the system"
+        prn && @time sys = structural_simplify(sys; additional_passes=[ModelingToolkit.IfLifting])
+        !prn && (sys = structural_simplify(sys; additional_passes=[ModelingToolkit.IfLifting]))
+        s.sys = sys
+        dt = SimFloat(1/s.set.sample_freq)
+        s.prob = ODEProblem(s.sys, defaults, (0.0, dt); guesses)
+        serialize(prob_path, s.prob)
+        s.integrator = nothing
+    end
     reinit!(s, measure)
-
     return nothing
 end
 
@@ -439,8 +439,8 @@ function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=false)
     init_Q_b_w, R_b_w = measure_to_q(measure)
     init_kite_pos = init!(s.point_system, s.set, R_b_w)
     
-    if isnothing(s.integrator) || !successful_retcode(s.integrator.sol) || reload
-        prob_path = joinpath(KiteUtils.get_data_path(), "prob.bin")
+    if isnothing(s.prob) || !successful_retcode(s.integrator.sol) || reload
+        prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set))
         !ispath(prob_path) && throw(ArgumentError("$prob_path not found. Run init_sim!(s::RamAirKite) first."))
         t = @elapsed begin
             dt = SimFloat(1/s.set.sample_freq)
@@ -526,5 +526,13 @@ function next_step!(s::RamAirKite, set_values=nothing; measure::Union{Measuremen
     @assert successful_retcode(s.integrator.sol)
     s.iter += 1
     s.integrator.t, steptime
+end
+
+function get_prob_name(set::Settings)
+    if set.quasi_static
+        return "prob_static_" * string(set.segments) * "_seg.bin"
+    else
+        return "prob_dynamic_" * string(set.segments) * "_seg.bin"
+    end
 end
 

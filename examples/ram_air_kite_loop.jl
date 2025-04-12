@@ -16,23 +16,19 @@ set = se("system_ram.yaml")
 set.segments = 3
 set_values = [-50, -1.1, -1.1]
 
-if ! isfile("data/prob.bin") || ! @isdefined s
-    wing = RamAirWing(set)
-    aero = BodyAerodynamics([wing])
-    vsm_solver = Solver(aero; solver_type=NONLIN, atol=1e-8, rtol=1e-8)
-    point_system = PointMassSystem(set, wing)
-    s = RamAirKite(set, aero, vsm_solver, point_system)
+wing = RamAirWing(set)
+aero = BodyAerodynamics([wing])
+vsm_solver = Solver(aero; solver_type=NONLIN, atol=1e-8, rtol=1e-8)
+point_system = PointMassSystem(set, wing)
+s = RamAirKite(set, aero, vsm_solver, point_system)
 
-    measure = Measurement()
-end
+measure = Measurement()
+
 s.set.abs_tol = 1e-5
 s.set.rel_tol = 1e-3
 
-if !ispath(joinpath(get_data_path(), "prob.bin"))
-    KiteModels.init_sim!(s, measure)
-end
 measure.sphere_pos .= deg2rad.([50.0 50.0; 1.0 -1.0])
-@time KiteModels.reinit!(s, measure)
+KiteModels.init_sim!(s, measure)
 
 logger = Logger(length(s.point_system.points), steps)
 
