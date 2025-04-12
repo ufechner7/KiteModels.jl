@@ -113,14 +113,19 @@ catch e
 end
 
 # Plot results
-p = plotx(logger.time_vec .- 10, 
-    [rad2deg.(logger.var_01_vec), rad2deg.(logger.var_02_vec), rad2deg.(logger.var_03_vec)],
-    [logger.var_04_vec, logger.var_05_vec],
-    [logger.var_06_vec, logger.var_07_vec, logger.var_08_vec],
-    [rad2deg.(logger.var_09_vec), rad2deg.(logger.var_10_vec), rad2deg.(logger.var_11_vec), rad2deg.(logger.var_12_vec)],
-    [logger.var_13_vec, logger.var_14_vec],
-    [logger.var_15_vec],
-    [rad2deg.(logger.heading_vec)];
+c = collect
+save_log(logger, "tmp")
+lg =load_log("tmp")
+sl = lg.syslog
+
+p = plotx(sl.time .- 10, 
+    [rad2deg.(sl.var_01), rad2deg.(sl.var_02), rad2deg.(sl.var_03)],
+    [c(sl.var_04), c(sl.var_05)],
+    [c(sl.var_06), c(sl.var_07), c(sl.var_08)],
+    [rad2deg.(c(sl.var_09)), rad2deg.(c(sl.var_10)), rad2deg.(c(sl.var_11)), rad2deg.(c(sl.var_12))],
+    [c(sl.var_13), c(sl.var_14)],
+    [c(sl.var_15)],
+    [rad2deg.(c(sl.heading))];
     ylabels=["turn rates [°/s]", L"v_{ro}~[m/s]", "vsm", "twist [°]", "pulley", "AoA [°]", "heading [°]"],
     ysize=10,
     labels=[
