@@ -2,7 +2,11 @@ using KiteModels, LinearAlgebra
 
 PLOT = true
 if PLOT
-    using ControlPlots
+    using Pkg
+    if ! ("LaTeXStrings" ∈ keys(Pkg.project().dependencies))
+        using TestEnv; TestEnv.activate()
+    end
+    using ControlPlots, LaTeXStrings
 end
 
 include(joinpath(@__DIR__, "plotting.jl"))
@@ -109,15 +113,15 @@ catch e
 end
 
 # Plot results
-p = plotx(logger.time_vec, 
+p = plotx(logger.time_vec .- 10, 
     [logger.var_01_vec, logger.var_02_vec, logger.var_03_vec],
     [logger.var_04_vec, logger.var_05_vec],
     [logger.var_06_vec, logger.var_07_vec, logger.var_08_vec],
-    [logger.var_09_vec, logger.var_10_vec, logger.var_11_vec, logger.var_12_vec],
+    [rad2deg.(logger.var_09_vec), rad2deg.(logger.var_10_vec), rad2deg.(logger.var_11_vec), rad2deg.(logger.var_12_vec)],
     [logger.var_13_vec, logger.var_14_vec],
     [logger.var_15_vec],
-    [logger.heading_vec];
-    ylabels=["kite", "tether", "vsm", "twist", "pulley", "wind", "heading"],
+    [rad2deg.(logger.heading_vec)];
+    ylabels=["kite", L"v_{ro}~[m/s]", "vsm", "twist [°]", "pulley", "AoA [°]", "heading [°]"],
     labels=[
         ["ω_b[1]", "ω_b[2]", "ω_b[3]"],
         ["vel[1]", "vel[2]"],
