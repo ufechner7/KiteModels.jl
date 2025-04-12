@@ -37,7 +37,6 @@ s.set.rel_tol = 1e-2
 measure.sphere_pos .= deg2rad.([50.0 50.0; 1.0 -1.0])
 KiteModels.init_sim!(s, measure)
 sys = s.sys
-s.integrator.ps[sys.ω_damp] = 1.0
 
 # Stabilize system
 s.integrator.ps[sys.steady] = true
