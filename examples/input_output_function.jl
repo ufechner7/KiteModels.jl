@@ -35,9 +35,7 @@ s.set.rel_tol = 0.001
 dt = 1/s.set.sample_freq
 measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
 
-if !ispath(joinpath(get_data_path(), "prob.bin"))
-    KiteModels.init_sim!(s, measure)
-end
+KiteModels.init_sim!(s, measure)
 toc()
 
 @time KiteModels.reinit!(s, measure; reload=true)
