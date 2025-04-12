@@ -39,7 +39,7 @@ const BUILD_SYS = true
         if BUILD_SYS
             # Delete existing problem file to force init!
             @info "Data path: $(get_data_path())"
-            prob_path = joinpath(get_data_path(), "prob.bin")
+            prob_path = joinpath(get_data_path(), KiteModels.get_prob_name(s.set))
             if isfile(prob_path)
                 @info "Removing existing serialized problem from $prob_path to test full initialization"
                 rm(prob_path)
