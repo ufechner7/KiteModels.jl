@@ -433,7 +433,7 @@ and only updates the state variables to match the current `measure`.
 # Throws
 - `ArgumentError`: If no serialized problem exists (run `init_sim!` first)
 """
-function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=false)
+function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=true)
     isnothing(s.point_system) && (s.point_system = PointMassSystem(s, s.wing))
 
     init_Q_b_w, R_b_w = measure_to_q(measure)
@@ -447,7 +447,7 @@ function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=false)
     if isnothing(s.integrator) || !successful_retcode(s.integrator.sol) || reload
         t = @elapsed begin
             dt = SimFloat(1/s.set.sample_freq)
-            solver = FBDF()
+            solver = FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.9, max_iter=1000))
             s.sys = s.prob.f.sys
             s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, save_everystep=false)
             sym_vec = get_unknowns(s)
@@ -460,7 +460,7 @@ function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=false)
     init_unknowns_vec!(s, s.point_system, s.unknowns_vec, init_Q_b_w, init_kite_pos)
     s.set_unknowns(s.integrator, s.unknowns_vec)
     set_t!(s.integrator, 0.0)
-    # OrdinaryDiffEqCore.reinit!(s.integrator, s.integrator.u; reinit_dae=false)
+    OrdinaryDiffEqCore.reinit!(s.integrator, s.integrator.u; reinit_dae=true)
     linearize_vsm!(s)
     return nothing
 end

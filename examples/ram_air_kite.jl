@@ -93,8 +93,8 @@ try
         sys_state.var_11 = s.integrator[sys.twist_angle[3]]
         sys_state.var_12 = s.integrator[sys.twist_angle[4]]
 
-        sys_state.var_13 = clamp(s.integrator[sys.pulley_acc[1]], -100, 100)
-        sys_state.var_14 = clamp(s.integrator[sys.pulley_acc[2]], -100, 100)
+        sys_state.var_13 = s.integrator[sys.pulley_l0[1]]
+        sys_state.var_14 = s.integrator[sys.pulley_l0[2]]
         
         # Calculate apparent wind angle
         va_kite_b = s.integrator[sys.va_kite_b]
@@ -133,7 +133,7 @@ p = plotx(sl.time .- 10,
         ["vel[1]", "vel[2]"],
         ["force[3]", "kite moment[2]", "group moment[1]"],
         ["twist_angle[1]", "twist_angle[2]", "twist_angle[3]", "twist_angle[4]"],
-        ["pulley acc[1]", "pulley acc[2]"],
+        ["pulley_l0[1]", "pulley_l0[2]"],
         ["angle of attack"],
         ["heading"]
     ],

@@ -13,33 +13,43 @@ providing insight into the kite's steering behavior and control characteristics.
 
 using Timers
 tic()
-using KiteModels, LinearAlgebra, VortexStepMethod, OrdinaryDiffEqCore
+using KiteModels, LinearAlgebra, OrdinaryDiffEqCore
 using ModelingToolkit
 using ModelingToolkit: setu, getu
-using ControlPlots
 
-set = se("system_ram.yaml")
-set.segments = 2
-
-if !@isdefined s
-    wing = RamAirWing(set)
-    aero = BodyAerodynamics([wing])
-    vsm_solver = Solver(aero; solver_type=NONLIN, atol=1e-8, rtol=1e-8)
-    point_system = PointMassSystem(set, wing)
-    s = RamAirKite(set, aero, vsm_solver, point_system)
-    measure = Measurement()
+PLOT = true
+if PLOT
+    using ControlPlots
 end
 
-s.set.abs_tol = 0.001
-s.set.rel_tol = 0.001
-dt = 1/s.set.sample_freq
-measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
+include(joinpath(@__DIR__, "plotting.jl"))
 
+# Simulation parameters
+dt = 0.05
+
+# Initialize model
+set = se("system_ram.yaml")
+set.segments = 2
+set_values = [-50, 0.0, 0.0]  # Initial values
+set.quasi_static = true
+
+wing = RamAirWing(set)
+aero = BodyAerodynamics([wing])
+vsm_solver = Solver(aero; solver_type=NONLIN, atol=1e-8, rtol=1e-8)
+point_system = PointMassSystem(set, wing)
+s = RamAirKite(set, aero, vsm_solver, point_system)
+
+measure = Measurement()
+s.set.abs_tol = 1e-5
+s.set.rel_tol = 1e-3
+
+# Initialize at elevation
+measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
 KiteModels.init_sim!(s, measure)
 toc()
-
-@time KiteModels.reinit!(s, measure; reload=true)
 sys = s.sys
+
+# Stabilize system
 s.integrator.ps[sys.steady] = true
 next_step!(s; dt=10.0, vsm_interval=1)
 s.integrator.ps[sys.steady] = false
