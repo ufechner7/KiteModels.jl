@@ -2,39 +2,43 @@ using KiteModels, LinearAlgebra
 
 PLOT = true
 if PLOT
-    using ControlPlots
+    using Pkg
+    if ! ("LaTeXStrings" ∈ keys(Pkg.project().dependencies))
+        using TestEnv; TestEnv.activate()
+    end
+    using ControlPlots, LaTeXStrings
 end
 
 include(joinpath(@__DIR__, "plotting.jl"))
 
 # Simulation parameters
-dt = 0.01
-total_time = 10.0
-vsm_interval = 5
+dt = 0.05
+total_time = 10  # Longer simulation to see oscillations
+vsm_interval = 2
 steps = Int(round(total_time / dt))
 
 # Steering parameters
 steering_freq = 1/2  # Hz - full left-right cycle frequency
-steering_magnitude = 5.0  # Magnitude of steering input
+steering_magnitude = 5.0      # Magnitude of steering input [Nm]
 
 # Initialize model
 set = se("system_ram.yaml")
-set.segments = 2
-set_values = [-50, 0.0, 0.0]  # Initial values
-set.quasi_static = true
+set.segments = 3
+set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
+set.quasi_static = false
 
-wing = RamAirWing(set)
+wing = RamAirWing(set; prn=false)
 aero = BodyAerodynamics([wing])
 vsm_solver = Solver(aero; solver_type=NONLIN, atol=1e-8, rtol=1e-8)
 point_system = PointMassSystem(set, wing)
 s = RamAirKite(set, aero, vsm_solver, point_system)
 
 measure = Measurement()
-s.set.abs_tol = 1e-2
-s.set.rel_tol = 1e-2
+s.set.abs_tol = 1e-5
+s.set.rel_tol = 1e-3
 
 # Initialize at elevation
-measure.sphere_pos .= deg2rad.([50.0 50.0; 1.0 -1.0])
+measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
 KiteModels.init_sim!(s, measure)
 sys = s.sys
 
@@ -55,7 +59,7 @@ try
         PLOT && plot(s, t; zoom=false, front=false)
         
         # Calculate steering inputs based on cosine wave
-        steering = steering_magnitude * cos(2π * steering_freq * t)
+        steering = steering_magnitude * cos(2π * steering_freq * t+0.1)
         set_values = -s.set.drum_radius .* s.integrator[sys.winch_force]
         if t > 1.0
             set_values .+= [0.0, steering, -steering]  # Opposite steering for left/right
@@ -109,17 +113,23 @@ catch e
 end
 
 # Plot results
-p = plotx(logger.time_vec, 
-    [logger.var_01_vec, logger.var_02_vec, logger.var_03_vec],
-    [logger.var_04_vec, logger.var_05_vec],
-    [logger.var_06_vec, logger.var_07_vec, logger.var_08_vec],
-    [logger.var_09_vec, logger.var_10_vec, logger.var_11_vec, logger.var_12_vec],
-    [logger.var_13_vec, logger.var_14_vec],
-    [logger.var_15_vec],
-    [logger.heading_vec];
-    ylabels=["kite", "tether", "vsm", "twist", "pulley", "wind", "heading"],
+c = collect
+save_log(logger, "tmp")
+lg =load_log("tmp")
+sl = lg.syslog
+
+p = plotx(sl.time .- 10, 
+    [rad2deg.(sl.var_01), rad2deg.(sl.var_02), rad2deg.(sl.var_03)],
+    [c(sl.var_04), c(sl.var_05)],
+    [c(sl.var_06), c(sl.var_07), c(sl.var_08)],
+    [rad2deg.(c(sl.var_09)), rad2deg.(c(sl.var_10)), rad2deg.(c(sl.var_11)), rad2deg.(c(sl.var_12))],
+    [c(sl.var_13), c(sl.var_14)],
+    [c(sl.var_15)],
+    [rad2deg.(c(sl.heading))];
+    ylabels=["turn rates [°/s]", L"v_{ro}~[m/s]", "vsm", "twist [°]", "pulley", "AoA [°]", "heading [°]"],
+    ysize=10,
     labels=[
-        ["ω_b[1]", "ω_b[2]", "ω_b[3]"],
+        [L"ω_x", L"ω_y", L"ω_z"],
         ["vel[1]", "vel[2]"],
         ["force[3]", "kite moment[2]", "group moment[1]"],
         ["twist_angle[1]", "twist_angle[2]", "twist_angle[3]", "twist_angle[4]"],

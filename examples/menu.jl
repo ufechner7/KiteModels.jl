@@ -16,7 +16,6 @@ options = ["bench = include(\"bench.jl\")",
            "steering_test_4p = include(\"steering_test_4p.jl\")",
            "ram_air_kite = include(\"ram_air_kite.jl\")",
            "input_output_function = include(\"input_output_function.jl\")",
-           "delete_problem_cache = isfile(\"data/prob.bin\")&&rm(\"data/prob.bin\")",
            "calculate_rotational_inertia = include(\"calculate_rotational_inertia.jl\")",
            "quit"]
 

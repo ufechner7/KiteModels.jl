@@ -46,6 +46,7 @@ s.set.rel_tol = 1e-3
 # Initialize at elevation
 measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
 KiteModels.init_sim!(s, measure)
+toc()
 sys = s.sys
 
 # Stabilize system
