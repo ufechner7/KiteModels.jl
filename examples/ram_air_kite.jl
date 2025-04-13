@@ -96,10 +96,7 @@ try
         sys_state.var_13 = s.integrator[sys.pulley_l0[1]]
         sys_state.var_14 = s.integrator[sys.pulley_l0[2]]
         
-        # Calculate apparent wind angle
-        va_kite_b = s.integrator[sys.va_kite_b]
-        e_x = s.integrator[sys.e_x]
-        sys_state.var_15 = rad2deg(acos(dot(normalize(va_kite_b), e_x)))
+        sys_state.var_15 = rad2deg(calc_aoa(s))
         
         log!(logger, sys_state)
     end
