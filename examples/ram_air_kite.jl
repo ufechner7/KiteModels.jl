@@ -29,13 +29,13 @@ set.quasi_static = false
 
 wing = RamAirWing(set; prn=false)
 aero = BodyAerodynamics([wing])
-vsm_solver = Solver(aero; solver_type=NONLIN, atol=1e-8, rtol=1e-8)
+vsm_solver = Solver(aero; solver_type=NONLIN, atol=2e-8, rtol=2e-8)
 point_system = PointMassSystem(set, wing)
 s = RamAirKite(set, aero, vsm_solver, point_system)
 
 measure = Measurement()
 s.set.abs_tol = 1e-5
-s.set.rel_tol = 1e-3
+s.set.rel_tol = 1e-4
 
 # Initialize at elevation
 measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
