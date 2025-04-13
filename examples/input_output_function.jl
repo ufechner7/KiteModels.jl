@@ -29,7 +29,7 @@ dt = 0.05
 
 # Initialize model
 set = se("system_ram.yaml")
-set.segments = 2
+set.segments = 6
 set_values = [-50, 0.0, 0.0]  # Initial values
 set.quasi_static = true
 
