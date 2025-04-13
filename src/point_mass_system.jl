@@ -1,8 +1,8 @@
 
-function VortexStepMethod.RamAirWing(set::Settings)
+function VortexStepMethod.RamAirWing(set::Settings; prn=true)
     obj_path = joinpath(dirname(get_data_path()), set.model)
     dat_path = joinpath(dirname(get_data_path()), set.foil_file)
-    return RamAirWing(obj_path, dat_path; mass=set.mass, crease_frac=set.crease_frac, align_to_principal=true)
+    return RamAirWing(obj_path, dat_path; mass=set.mass, crease_frac=set.crease_frac, align_to_principal=true, prn)
 end
 
 function PointMassSystem(set::Settings, wing::RamAirWing)

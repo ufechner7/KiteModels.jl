@@ -27,7 +27,7 @@ set.segments = 6
 set_values = [-50, 0.0, 0.0]  # Initial values
 set.quasi_static = false
 
-wing = RamAirWing(set)
+wing = RamAirWing(set; prn=false)
 aero = BodyAerodynamics([wing])
 vsm_solver = Solver(aero; solver_type=NONLIN, atol=1e-8, rtol=1e-8)
 point_system = PointMassSystem(set, wing)
