@@ -447,7 +447,11 @@ function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=true)
     if isnothing(s.integrator) || !successful_retcode(s.integrator.sol) || reload
         t = @elapsed begin
             dt = SimFloat(1/s.set.sample_freq)
-            solver = FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.9, max_iter=1000))
+            if s.set.quasi_static
+                solver = FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.9, max_iter=1000))
+            else
+                solver = FBDF()
+            end
             s.sys = s.prob.f.sys
             s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, save_everystep=false)
             sym_vec = get_unknowns(s)
