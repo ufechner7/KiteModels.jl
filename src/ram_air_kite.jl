@@ -448,7 +448,7 @@ function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=true)
         t = @elapsed begin
             dt = SimFloat(1/s.set.sample_freq)
             if s.set.quasi_static
-                solver = FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.9, max_iter=1000))
+                solver = FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.4, max_iter=1000))
             else
                 solver = FBDF()
             end
