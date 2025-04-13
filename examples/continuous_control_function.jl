@@ -56,12 +56,10 @@ s.integrator.ps[sys.steady] = false
 
 # Function to step simulation with input u
 function step_with_input(x, u, _, p)
-    (s, stiff_x, set_x, set_sx, get_x, dt) = p
+    (s, set_x, get_dx) = p
     set_x(s.integrator, x)
-    set_sx(s.integrator, stiff_x)
-    OrdinaryDiffEqCore.reinit!(s.integrator, s.integrator.u; reinit_dae=false)
-    next_step!(s, u; dt=dt, vsm_interval=0)
-    return get_x(s.integrator)
+    OrdinaryDiffEqCore.reinit!(s.integrator, s.integrator.u; reinit_dae=true)
+    return get_dx(s.integrator)
 end
 
 # Get initial state
