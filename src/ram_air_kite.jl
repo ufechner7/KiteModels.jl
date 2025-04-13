@@ -541,3 +541,15 @@ function get_prob_name(set::Settings)
     end
 end
 
+"""
+Calculate and return the angle of attack in rad
+"""
+function calc_aoa(s::RamAirKite)
+    alpha_array = s.vsm_solver.sol.alpha_array
+    middle = length(alpha_array) ÷ 2
+    if iseven(length(alpha_array))
+        return 0.5alpha_array[middle] + 0.5alpha_array[middle+1]
+    else
+        return alpha_array[middle+1]
+    end
+end

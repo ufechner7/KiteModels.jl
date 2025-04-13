@@ -88,7 +88,7 @@ Sundials = "4.24"
 SymbolicIndexingInterface = "0"
 Timers = "0.1.5"
 UnPack = "1.0.2"
-VortexStepMethod = "1.2.2"
+VortexStepMethod = "1.2.3"
 WinchModels = "0.3.6"
 julia = "1.10, 1.11"
 
