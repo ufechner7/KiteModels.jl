@@ -392,7 +392,8 @@ function init_sim!(s::RamAirKite, measure::Measurement; prn=true)
         !prn && (sys = structural_simplify(sys; additional_passes=[ModelingToolkit.IfLifting]))
         s.sys = sys
         dt = SimFloat(1/s.set.sample_freq)
-        s.prob = ODEProblem(s.sys, defaults, (0.0, dt); guesses)
+        @info "Building odeproblem"
+        @time s.prob = ODEProblem(s.sys, defaults, (0.0, dt); guesses)
         serialize(prob_path, s.prob)
         s.integrator = nothing
     end
@@ -453,12 +454,12 @@ function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=true)
                 solver = FBDF()
             end
             s.sys = s.prob.f.sys
-            s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, save_everystep=false)
+            @info "Initializing integrator"
+            @time s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, save_everystep=false)
             sym_vec = get_unknowns(s)
             s.unknowns_vec = zeros(SimFloat, length(sym_vec))
             generate_getters!(s, sym_vec)
         end
-        prn && @info "Initialized integrator in $t seconds"
     end
 
     init_unknowns_vec!(s, s.point_system, s.unknowns_vec, init_Q_b_w, init_kite_pos)
