@@ -16,6 +16,7 @@ tic()
 using KiteModels, LinearAlgebra, OrdinaryDiffEqCore
 using ModelingToolkit
 using ModelingToolkit: setu, getu
+using ModelingToolkit: t_nounits as t, D_nounits as D
 
 PLOT = true
 if PLOT
@@ -56,21 +57,21 @@ s.integrator.ps[sys.steady] = false
 
 # Function to step simulation with input u
 function step_with_input(x, u, _, p)
-    (s, set_x, get_dx) = p
+    (s, set_x, get_dx, get_u) = p
     set_x(s.integrator, x)
+    set_u(s.integrator, u)
     OrdinaryDiffEqCore.reinit!(s.integrator, s.integrator.u; reinit_dae=true)
+    step!(s.integrator, 1e-2)
     return get_dx(s.integrator)
 end
 
 # Get initial state
-x_vec = KiteModels.get_nonstiff_unknowns(s)
-sx_vec = KiteModels.get_stiff_unknowns(s)
+x_vec = KiteModels.get_unknowns(s)
+dx_vec = KiteModels.get_unknowns(s; derivative=true)
 set_x = setu(s.integrator, x_vec)
-set_sx = setu(s.integrator, sx_vec)
-get_x = getu(s.integrator, x_vec)
-get_sx = getu(s.integrator, sx_vec)
-x0 = get_x(s.integrator)
-sx0 = get_sx(s.integrator)
+set_u = setu(s.integrator, collect(sys.set_values))
+get_dx = getu(s.integrator, dx_vec)
+get_u = getu(s.integrator, collect(sys.set_values))
 
 # Test steering inputs and record angular velocity response
 function test_response(s, input_range, input_idx; steps=1)
@@ -81,13 +82,13 @@ function test_response(s, input_range, input_idx; steps=1)
     for (i, input_val) in enumerate(input_range)
         u = [-50.0, 0.0, 0.0]
         u[input_idx] = input_val
-        x = copy(x0)
+        x = zeros(length(x_vec))
         for i in 1:steps
-            p = (s, sx0, set_x, set_sx, get_x, dt)
+            p = (s, set_x, get_dx, get_u)
             total_time += @elapsed x = step_with_input(x, u, nothing, p)
             iter += 1
         end
-        angular_vels[:, i] = x[11:13]
+        angular_vels[:, i] = x[[2,4,6]]
     end
     
     times_rt = dt*iter/total_time

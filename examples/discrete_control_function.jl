@@ -25,7 +25,7 @@ end
 include(joinpath(@__DIR__, "plotting.jl"))
 
 # Simulation parameters
-dt = 0.01
+dt = 0.05/10
 
 # Initialize model
 set = se("system_ram.yaml")
@@ -55,10 +55,12 @@ next_step!(s; dt=10.0, vsm_interval=1)
 s.integrator.ps[sys.steady] = false
 
 # Function to step simulation with input u
-function step_with_input(x, u, _, p)
+function step_with_input(x, u, p)
     (s, stiff_x, set_x, set_sx, get_x, dt) = p
     set_x(s.integrator, x)
     set_sx(s.integrator, stiff_x)
+    set_t!(s.integrator, 0.0)
+    set_proposed_dt!(s.integrator, dt)
     OrdinaryDiffEqCore.reinit!(s.integrator, s.integrator.u; reinit_dae=true)
     next_step!(s, u; dt=dt, vsm_interval=0)
     return get_x(s.integrator)
@@ -84,12 +86,15 @@ function test_response(s, input_range, input_idx; steps=1)
         u = [-50.0, 0.0, 0.0]
         u[input_idx] = input_val
         x = copy(x0)
+        initial_x = copy(x0)
+        dx = copy(x0)
         for i in 1:steps
             p = (s, sx0, set_x, set_sx, get_x, dt)
-            total_time += @elapsed x = step_with_input(x, u, nothing, p)
+            total_time += @elapsed x = step_with_input(initial_x, u, p)
+            dx .= initial_x .- x
             iter += 1
         end
-        angular_vels[:, i] = x[11:13]
+        angular_vels[:, i] = dx[end-8:end-6]
     end
     
     times_rt = dt*iter/total_time

@@ -23,9 +23,9 @@ steering_magnitude = 5.0      # Magnitude of steering input [Nm]
 
 # Initialize model
 set = se("system_ram.yaml")
-set.segments = 3
+set.segments = 6
 set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
-set.quasi_static = false
+set.quasi_static = true
 
 wing = RamAirWing(set; prn=false)
 aero = BodyAerodynamics([wing])
@@ -39,7 +39,7 @@ s.set.rel_tol = 1e-3
 
 # Initialize at elevation
 measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
-KiteModels.init_sim!(s, measure)
+@time KiteModels.init_sim!(s, measure)
 sys = s.sys
 
 # Stabilize system
