@@ -379,8 +379,7 @@ problem already exists.
 - `Nothing`
 """
 function init_sim!(s::RamAirKite, measure::Measurement; prn=true)
-    prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set))
-    if !ispath(prob_path)
+    function init(s, measure)
         init_Q_b_w, R_b_w = measure_to_q(measure)
         init_kite_pos = init!(s.point_system, s.set, R_b_w)
 
@@ -396,7 +395,17 @@ function init_sim!(s::RamAirKite, measure::Measurement; prn=true)
         serialize(prob_path, s.prob)
         s.integrator = nothing
     end
-    reinit!(s, measure)
+    prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set))
+    if !ispath(prob_path)
+        init(s, measure)
+    end
+    try
+        reinit!(s, measure)
+    catch e
+        rm(prob_path)
+        @info "Rebuilding the system. This can take some minutes..."
+        init(s, measure)
+    end
     return nothing
 end
 
@@ -442,7 +451,12 @@ function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=true)
     if isnothing(s.prob)
         prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set))
         !ispath(prob_path) && throw(ArgumentError("$prob_path not found. Run init_sim!(s::RamAirKite) first."))
-        s.prob = deserialize(prob_path)
+        try
+            s.prob = deserialize(prob_path)
+        catch e
+            @warn "Failure to deserialize $prob_path !"
+            throw(e)
+        end
     end
     if isnothing(s.integrator) || !successful_retcode(s.integrator.sol) || reload
         t = @elapsed begin
