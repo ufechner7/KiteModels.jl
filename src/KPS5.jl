@@ -30,22 +30,6 @@ are acting on three of the four kite point masses.
 Four point kite model, included from KiteModels.jl.
 
 Scientific background: http://arxiv.org/abs/1406.6218 =#
-
-# Array of connections of bridlepoints.
-# First point, second point, unstressed length.
-const SPRINGS_INPUT_5P = [0.    1.  150.
-                          1.    2.   -1. # s1, p7, p8
-                          4.    2.   -1. # s2, p10, p8                        
-                          4.    5.   -1. # s3, p10, p11
-                          3.    4.   -1. # s4, p9, p10
-                          5.    1.   -1. # s5, p11, p7
-                          4.    1.   -1. # s6, p10, p7
-                          3.    5.   -1. # s7, p9, p11
-                          5.    2.   -1. # s8, p11, p8
-                          2.    3.   -1.] # s9, p8, p9
-
-# KCU = p7, A = p8, B = p9, C = p10, D = p11
-
 """
     mutable struct KPS5{S, T, P, Q, SP} <: AbstractKiteModel
 
@@ -72,10 +56,6 @@ $(TYPEDFIELDS)
     wm::AbstractWinchModel
     "Iterations, number of calls to the function residual!"
     iter:: Int64 = 0
-    "Function for calculation the lift coefficent, using a spline based on the provided value pairs."
-    calc_cl::Spline1D
-    "Function for calculation the drag coefficent, using a spline based on the provided value pairs."
-    calc_cd::Spline1D
     "wind vector at the height of the kite" 
     v_wind::T =           zeros(S, 3)
     "wind vector at reference height" 
@@ -91,9 +71,9 @@ $(TYPEDFIELDS)
     "drag force of kite and bridle; output of calc_aero_forces!"
     drag_force::T =       zeros(S, 3)
     "side_force acting on the kite"
-    side_force::T =       zeros(S, 3)
+    side_force::T =       zeros(S, 3)   # not yet
     "max_steering angle in radian"
-    ks::S =               0.0
+    ks::S =               0.0           # not yet
     "lift force of the kite; output of calc_aero_forces!"
     lift_force::T =       zeros(S, 3)    
     "spring force of the current tether segment, output of calc_particle_forces!"
@@ -117,23 +97,23 @@ $(TYPEDFIELDS)
     "drag coefficient of the kite, depending on the angle of attack"
     param_cd::S =         1.0
     "azimuth angle in radian; initial value is zero"
-    psi::S =              zero(S)
+    # psi::S =              zero(S)
     "depower angle [deg]"
-    alpha_depower::S =     0.0
+    alpha_depower::S =     0.0 # not yet
     "pitch angle [rad]"
     pitch::S =            0.0
     "pitch rate [rad/s]"
-    pitch_rate::S =       0.0
+   # pitch_rate::S =       0.0
     "aoa at particle B"
     alpha_2::S =           0.0
-    "aoa at particle B, corrected formula"
-    alpha_2b::S =          0.0
-    "aoa at particle C"
-    alpha_3::S =           0.0
-    alpha_3b::S =          0.0
-    "aoa at particle D"
-    alpha_4::S =           0.0
-    alpha_4b::S =          0.0
+    #"aoa at particle B, corrected formula"
+    # alpha_2b::S =          0.0
+   # "aoa at particle C"
+   # alpha_3::S =           0.0
+   # alpha_3b::S =          0.0
+   # "aoa at particle D"
+   # alpha_4::S =           0.0
+   # alpha_4b::S =          0.0
     "relative start time of the current time interval"
     t_0::S =               0.0
     "reel out speed of the winch"
@@ -144,14 +124,14 @@ $(TYPEDFIELDS)
     l_tether::S =          0.0
     "air density at the height of the kite"
     rho::S =               0.0
-    "actual relative depower setting,  must be between    0 .. 1.0"
-    depower::S =           0.0
+    #"actual relative depower setting,  must be between    0 .. 1.0"
+    # depower::S =           0.0     #not yet
     "actual relative steering setting, must be between -1.0 .. 1.0"
-    steering::S =          0.0
+    #steering::S =          0.0
     "steering after the kcu, before applying offset and depower sensitivity, -1.0 .. 1.0"
-    kcu_steering::S =      0.0
+   # kcu_steering::S =      0.0
     "multiplier for the stiffniss of tether and bridle"
-    stiffness_factor::S =  1.0
+    #stiffness_factor::S =  1.0
     "initial masses of the point masses"
     initial_masses::MVector{P, S} = ones(P)
     "current masses, depending on the total tether length"
@@ -177,44 +157,6 @@ $(TYPEDFIELDS)
     "z vector of kite reference frame"
     z::T =                 zeros(S, 3)
 end
-
-"""
-    clear!(s::KPS5)
-
-Initialize the kite power model.
-"""
-function clear!(s::KPS5)
-    s.t_0 = 0.0                              # relative start time of the current time interval
-    s.v_reel_out = s.set.v_reel_out
-    s.last_v_reel_out = s.set.v_reel_out
-    s.sync_speed = s.set.v_reel_out
-    s.v_wind_gnd    .= [s.set.v_wind, 0, 0]    # wind vector at reference height
-    s.v_wind_tether .= [s.set.v_wind, 0, 0]
-    s.v_apparent    .= [s.set.v_wind, 0, 0]
-    height = sin(deg2rad(s.set.elevation)) * (s.set.l_tether)
-    s.v_wind .= s.v_wind_gnd * calc_wind_factor(s.am, height)
-
-    s.l_tether = s.set.l_tether
-    s.segment_length = s.l_tether / s.set.segments
-    # init_masses!(s)
-    # init_springs!(s)
-    for i in 1:s.set.segments + KiteModels.KITE_PARTICLES + 1 
-        s.forces[i] .= zeros(3)
-    end
-    s.drag_force .= [0.0, 0, 0]
-    s.lift_force .= [0.0, 0, 0]
-    s.side_force .= [0.0, 0, 0]
-    s.rho = s.set.rho_0
-    s.bridle_factor = s.set.l_bridle / bridle_length(s.set)
-    s.ks = deg2rad(s.set.max_steering) 
-    s.kcu.depower = s.set.depower/100.0
-    s.kcu.set_depower = s.kcu.depower
-    roll, pitch, yaw = orient_euler(s)
-    s.pitch = pitch
-    s.pitch_rate = 0.0
-    KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
-end
-
 function KPS5(kcu::KCU)
     if kcu.set.winch_model == "AsyncMachine"
         wm = AsyncMachine(kcu.set)
@@ -223,88 +165,306 @@ function KPS5(kcu::KCU)
     end
     # wm.last_set_speed = kcu.set.v_reel_out
     s = KPS5{SimFloat, KVec3, kcu.set.segments+KITE_PARTICLES+1, kcu.set.segments+KITE_SPRINGS, SP}(set=kcu.set, 
-             kcu=kcu, wm=wm, calc_cl = Spline1D(kcu.set.alpha_cl, kcu.set.cl_list), 
-             calc_cd=Spline1D(kcu.set.alpha_cd, kcu.set.cd_list) )    
-    clear!(s)
+             kcu=kcu, wm=wm)    
     return s
 end
-
-""" 
-    calc_particle_forces!(s::KPS5, pos1, pos2, vel1, vel2, spring, segments, d_tether, rho, i)
-
-Calculate the drag force of the tether segment, defined by the parameters pos1, pos2, vel1 and vel2
-and distribute it equally on the two particles, that are attached to the segment.
-The result is stored in the array s.forces. 
-"""
-@inline function calc_particle_forces!(s::KPS5, pos1, pos2, vel1, vel2, spring, segments, d_tether, rho, i)
-    l_0 = spring.length # Unstressed length
-    k = spring.c_spring * s.stiffness_factor  # Spring constant
-    c = spring.damping                        # Damping coefficient    
-    segment = pos1 - pos2
-    rel_vel = vel1 - vel2
-    av_vel = 0.5 * (vel1 + vel2)
-    norm1 = norm(segment)
-    unit_vector = segment / norm1
-
-    k1 = s.set.rel_compr_stiffness * k # compression stiffness kite springs
-    k2 = 0.1 * k                       # compression stiffness tether springs
-    c1 = s.set.rel_damping * c         # damping kite springs
-    spring_vel   = unit_vector ⋅ rel_vel
-    if (norm1 - l_0) > 0.0
-        if i > segments  # kite springs
-             s.spring_force .= (k *  (norm1 - l_0) + (c1 * spring_vel)) * unit_vector 
-        else
-             s.spring_force .= (k *  (norm1 - l_0) + (c * spring_vel)) * unit_vector
-        end
-    elseif i > segments # kite spring
-        s.spring_force .= (k1 *  (norm1 - l_0) + (c * spring_vel)) * unit_vector
-    else
-        s.spring_force .= (k2 *  (norm1 - l_0) + (c * spring_vel)) * unit_vector
-    end
-
-    s.v_apparent .= s.v_wind_tether - av_vel
-    v_app_kcu = s.v_wind_tether - vel2
-    if s.set.version == 1
-        area = norm1 * d_tether
-    else
-        if i > segments
-            area = norm1 * s.set.d_line * 0.001 * s.bridle_factor # 6.0 = A_real/A_simulated
-        else
-            area = norm1 * d_tether
-        end
-    end
-
-    v_app_perp = s.v_apparent - s.v_apparent ⋅ unit_vector * unit_vector
-    half_drag_force = (-0.25 * rho * s.set.cd_tether * norm(v_app_perp) * area) * v_app_perp 
-    if i == segments
-        v_app_perp_kcu = v_app_kcu - v_app_kcu ⋅ unit_vector * unit_vector
-        kcu_area = π * (s.set.kcu_diameter/2)^2
-        kcu_drag_force = (-0.25 * rho * s.set.cd_kcu * norm(v_app_perp_kcu) * kcu_area) * v_app_perp_kcu
-        @inbounds s.forces[spring.p2] .+= kcu_drag_force
-    end
-
-    @inbounds s.forces[spring.p1] .+= half_drag_force + s.spring_force
-    @inbounds s.forces[spring.p2] .+= half_drag_force - s.spring_force
-    if i == 1 s.last_force .= s.forces[spring.p1] end
-    nothing
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------
+# deriving a constants for points, total segments, and connections
+# ---------
+function points(s)
+    return 5 + s.set.segments 
+end
+function total_segments(s)
+    return 9 + s.set.segments
+end
+function getconnections(s)
+    conn = [(1,2), (2,3), (3,1), (1,4), (2,4), (3,4), (1,5), (2,5), (3,5)]      # connections between KITE points 
+    conn = vcat(conn, [(6+i, 6+i+1) for i in 0:(s.set.segments-2)]...)          # connection between tether points
+    conn = vcat(conn, [(6+s.set.segments-1, 1)])                                # connection final tether point to bridle point
+    return conn  
+end   
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Interpolating polars using Dierckx
+# ------------------------------------
+alpha_cl = [-180.0, -160.0,  -90.0,  -20.0,  -10.0,  -5.0,  0.0, 20.0,  40.0,  90.0, 160.0, 180.0]
+cl_list  = [   0.0,    0.5,    0.0,   0.08,  0.125,  0.15,  0.2,  1.0,   1.0,   0.0,  -0.5,   0.0]
+alpha_cd = [-180.0, -170.0, -140.0,  -90.0,  -20.0,   0.0, 20.0, 90.0, 140.0, 170.0, 180.0]
+cd_list  = [   0.5,    0.5,    0.5,    1.0,    0.2,   0.1,  0.2,  1.0,   0.5,   0.5,   0.5] 
+function cl_interp(alpha)
+    cl_spline = Spline1D(alpha_cl, cl_list)
+    return cl_spline(alpha)
+end
+function cd_interp(alpha)
+    cd_spline = Spline1D(alpha_cd, cd_list)
+    return cd_spline(alpha)
+end
+@register_symbolic cl_interp(alpha)
+@register_symbolic cd_interp(alpha)
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Initialize the simulation
+# -----------------------------------------
+function init_sim!(s::KPS5)
+    pos, vel = calc_initial_state(s)
+    simple_sys,  pos, vel, e_x, e_y, e_z, v_app_point, alpha1p  = model(s, pos, vel)
+    s.sys = simple_sys
+    tspan = (0.0, s.set.sim_time)
+    s.prob = ODEProblem(simple_sys, nothing, tspan)
+    s.integrator = OrdinaryDiffEqCore.init(s.prob, Rodas5(autodiff=false); s.set.dt, abstol=s.set.tol, save_on=false)
 end
 
-"""
-    calc_aero_forces!(s::KPS5, pos, vel, rho, alpha_depower, rel_steering)
+# ------------------------------
+# Calculate Initial State
+# ------------------------------
+function calc_initial_state(s::KPS5)  
+    p1location = [s.set.l_tether*cos(s.set.elevation) 0 s.set.l_tether*sin(s.set.elevation)]
+    kitepos0rot = get_kite_points(s)
+    POS0 = kitepos0rot .+ p1location'
+    POS0 = hcat(POS0, zeros(3, 1))
+    if s.set.segments > 1
+        extra_nodes = [POS0[:,6] + (POS0[:,1] - POS0[:,6]) * i / s.set.segments for i in 1:(s.set.segments-1)]
+        POS0 = hcat(POS0, extra_nodes...)
+    end     
+    VEL0 = zeros(3, points(s))
+    return POS0, VEL0
+end
+# -----------------------------------------------------
+# initializing kite points
+# -----------------------------------------------------
+function get_kite_points(s::KPS5)
+    # Original kite points in local reference frame
+    kitepos0 =                         # KITE points  
+    # P1 Bridle        P2                                    P3                                  P4                              P5
+    [0.000         s.set.chord_length/2               -s.set.chord_length/2                       0                              0;
+    0.000               0                                    0                                -s.set.width/2           s.set.width/2;
+    0.000     s.set.height+s.set.h_bridle    s.set.height+s.set.h_bridle  s.set.h_bridle         s.set.h_bridle]
 
-Calculates the aerodynamic forces acting on the kite particles.
+    beta = s.set.elevation
+    Y_r = [sin(beta) 0 cos(beta);
+                 0    1       0;
+          -cos(beta) 0 sin(beta)]    
+    # Apply rotation to all points
+    kitepos0rot =  Y_r * kitepos0 
+    
+    return kitepos0rot
+end
+# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Define a function to create reference frame update equations
+# ---------------------------------------------------------------
+function create_reference_frame_equations(pos, e_x, e_y, e_z)
+    # Calculate vectors for the reference frame
+    X = pos[:, 2] - pos[:, 3]  # Vector from P3 to P2
+    Y = pos[:, 5] - pos[:, 4]  # Vector from P4 to P5
+    Z = cross(X, Y)            # Cross product for Z axis
+    # Normalize these vectors to get unit vectors
+    norm_X = sqrt(sum(X .^ 2))
+    norm_Y = sqrt(sum(Y .^ 2))
+    norm_Z = sqrt(sum(Z .^ 2))
+    # Create equations to update the reference frame
+    ref_frame_eqs = [
+        e_x[1] ~ X[1] / norm_X,
+        e_x[2] ~ X[2] / norm_X,
+        e_x[3] ~ X[3] / norm_X,
+        e_y[1] ~ Y[1] / norm_Y,
+        e_y[2] ~ Y[2] / norm_Y,
+        e_y[3] ~ Y[3] / norm_Y,
+        e_z[1] ~ Z[1] / norm_Z,
+        e_z[2] ~ Z[2] / norm_Z,
+        e_z[3] ~ Z[3] / norm_Z
+    ]  
+    return ref_frame_eqs
+end
+# --------------------------------------------------------------------------
+# computing angle of attack
+# --------------------------------------------------------------------------
+function compute_alpha1p(v_a, e_z, e_x)
+    # Calculate the angle Alpha1p
+    v_a_z = v_a ⋅ e_z  # Use the symbolic dot product
+    v_a_x = v_a ⋅ e_x  # Use the symbolic dot product
+    
+    # Use atan for the symbolic computation
+    alpha1p =rad2deg.(atan(v_a_z, v_a_x))
+    return alpha1p
+end
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Calculate Rest Lengths
+# ---------------------------
+function calc_rest_lengths(s::KPS5)
+    conn = getconnections(s)
+    POS0, VEL0  = calc_initial_state(s)  
+    lengths = [norm(POS0[:,conn[i][2]] - POS0[:,conn[i][1]]) for i in 1:9]
+    l10 = norm(POS0[:,1] - POS0[:,6])
+    lengths = vcat(lengths, [(l10 + s.set.v_reel_out*t)/s.set.segments for _ in 1:s.set.segments]...)
+    return lengths, l10
+end
+# ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#Define the Model
+# -----------------------------------------------
+function model(s::KPS5, pos, vel)
+    POS0, VEL0 = pos, vel
+    rest_lengths, l_tether = calc_rest_lengths(s)
+    @parameters K1=s.set.springconstant_tether K2=s.set.springconstant_bridle K3=s.set.springconstant_kite C1=s.set.damping_tether C2=s.set.rel_damping_bridle*s.set.damping_tether C3=s.set.rel_damping_kite*s.set.damping_tether
+    @parameters m_kite=s.set.mass kcu_mass=s.set.kcu_mass rho_tether=s.set.rho_tether 
+    @parameters rho=s.set.rho cd_tether=s.set.cd_tether d_tether=s.set.d_tether S=s.set.Area
+    @parameters kcu_cd=s.set.kcu_cd kcu_diameter=s.set.kcu_diameter
+    @variables pos(t)[1:3, 1:points(s)] = POS0
+    @variables vel(t)[1:3, 1:points(s)] = VEL0
+    @variables acc(t)[1:3, 1:points(s)]
+    @variables v_app_point(t)[1:3, 1:points(s)]
+    @variables segment(t)[1:3, 1:total_segments(s)]
+    @variables unit_vector(t)[1:3, 1:total_segments(s)]
+    @variables norm1(t)[1:total_segments(s)]
+    @variables rel_vel(t)[1:3, 1:total_segments(s)]
+    @variables spring_vel(t)[1:total_segments(s)]
+    @variables k_spring(t)[1:total_segments(s)]
+    @variables spring_force(t)[1:3, 1:total_segments(s)]
+    @variables v_apparent(t)[1:3, 1:total_segments(s)]
+    @variables v_app_perp(t)[1:3, 1:total_segments(s)]
+    @variables norm_v_app(t)[1:total_segments(s)]
+    @variables half_drag_force(t)[1:3, 1:total_segments(s)]
+    @variables drag_force(t)[1:3, 1:total_segments(s)]
+    @variables total_force(t)[1:3, 1:points(s)]
+    # local kite reference frame
+    @variables e_x(t)[1:3]
+    @variables e_y(t)[1:3]
+    @variables e_z(t)[1:3] 
+    @variables alpha1p(t)[1:1]  
 
-Parameters:
-- pos:              vector of the particle positions
-- vel:              vector of the particle velocities
-- rho:              air density [kg/m^3]
-- rel_depower:      value between  0.0 and  1.0
-- alpha_depower:    depower angle [degrees]
-- rel_steering:     value between -1.0 and +1.0
+    eqs1 = vcat(D.(pos) .~ vel,
+                D.(vel) .~ acc)
+    eqs2 = vcat(eqs1...)
+    eqs2 = vcat(eqs2, acc[:,6] .~ [0.0, 0.0, 0.0])      # origin is six, make 6 not being hardcoded
+    # -----------------------------
+    # defining the connections and their respective rest lengths, unit spring constants, damping and masses
+    # -----------------------------
+                            # connections   adding segment connections, from origin to bridle 
+    conn = getconnections(s)
+     # final connection last tether point to bridle point
+                            # unit spring constants (K1 tether, K2 bridle, K3 kite)
+    k_segments = [K2, K3, K2, K2, K3, K3, K2, K3, K3]
+    k_segments = vcat(k_segments, [K1 for _ in 1:s.set.segments]...)
+                            # unit damping constants (C1 tether, C2 bridle, C3 kite)
+    c_segments = [C2, C3, C2, C2, C3, C3, C2, C3, C3]
+    c_segments = vcat(c_segments, [C1 for _ in 1:s.set.segments]...)
+                            # masses
+    mass_bridlelines = ((s.set.d_line/2000)^2)*pi*rho_tether*s.set.l_bridle #total mass entire bridle 
+    mass_halfbridleline = mass_bridlelines/8 # half the connection of bridle line to kite (to assign to each kitepoint) so the other 4 halves get assigned to bridlepoint 
+    mass_tether = ((d_tether/2000)^2)*pi*rho_tether*l_tether
+    mass_tetherpoints = mass_tether/(s.set.segments+1)
+    mass_bridlepoint = 4*mass_halfbridleline + kcu_mass + mass_tetherpoints # 4 bridle connections, kcu and tether
+    m_kitepoints = (m_kite/4) + mass_halfbridleline 
+    PointMasses = [mass_bridlepoint, m_kitepoints, m_kitepoints, m_kitepoints, m_kitepoints]
+    PointMasses = vcat(PointMasses, [mass_tetherpoints for _ in 1:s.set.segments]...)
+    # -----------------------------
+    # Equations for Each Segment (Spring Forces, Drag, etc.)
+    # -----------------------------
+    for i in 1:total_segments(s)
+        eqs = [
+            segment[:, i]      ~ pos[:, conn[i][2]] - pos[:, conn[i][1]],
+            norm1[i]           ~ norm(segment[:, i]),
+            unit_vector[:, i]  ~ -segment[:, i] / norm1[i],
+            rel_vel[:, i]      ~ vel[:, conn[i][2]] - vel[:, conn[i][1]],
+            spring_vel[i]      ~ -unit_vector[:, i] ⋅ rel_vel[:, i],
+            k_spring[i]        ~ (k_segments[i]/rest_lengths[i]) * (0.1 + 0.9*(norm1[i] > rest_lengths[i])),
+            spring_force[:, i] ~ (k_spring[i]*(norm1[i] - rest_lengths[i]) + c_segments[i] * spring_vel[i]) * unit_vector[:, i],
+            v_apparent[:, i]   ~ s.set.v_wind_tether .- (vel[:, conn[i][1]] + vel[:, conn[i][2]]) / 2,
+            v_app_perp[:, i]   ~ v_apparent[:, i] - (v_apparent[:, i] ⋅ unit_vector[:, i]) .* unit_vector[:, i],
+            norm_v_app[i]      ~ norm(v_app_perp[:, i])
+        ]
+        if i > 9 # tether segments
+            push!(eqs, half_drag_force[:, i] ~ 0.25 * rho * cd_tether * norm_v_app[i] * (rest_lengths[i]*d_tether/1000) * v_app_perp[:, i])
+        elseif i in [1, 3, 4, 7] # bridle lines, try to find Cd_bridlelines later
+            push!(eqs, half_drag_force[:, i] ~ 0.25 * rho * cd_tether * norm_v_app[i] * (rest_lengths[i]*(s.set.d_line/1000)) * v_app_perp[:, i])
+        else    # kite
+            push!(eqs, half_drag_force[:, i] ~ zeros(3))
+        end
+        eqs2 = vcat(eqs2, reduce(vcat, eqs))
+    end
+    # -----------------------------
+    # Reference Frame and Aerodynamic Coefficients
+    # -----------------------------
+    ref_frame_eqs = create_reference_frame_equations(pos, e_x, e_y, e_z)
+    eqs2 = vcat(eqs2, ref_frame_eqs)
+    # only 1 AOA
+    v_a_kite = s.set.v_wind_tether - (vel[:, 2] + vel[:, 3])/2     # computing AOA only for center chord   # Appas.set.t wind velocity
+    alpha1p = compute_alpha1p(v_a_kite, e_z, e_x)   # Calculate Alpha1p at this time step
+    eqs2 = vcat(eqs2, alpha1p[1] ~ alpha1p)  # Add the equation for Alpha1p for each of 4 kite points (first bering bridle so i-1)   
+    # getting Cl and Cd
+    Cl = cl_interp(s, alpha1p)            
+    Cd = cd_interp(alpha1p)
 
-Updates the vector s.forces of the first parameter.
-"""
-function calc_aero_forces!(s::KPS5, pos, vel, rho, alpha_depower, rel_steering)
+    # -----------------------------
+    # Force Balance at Each Point
+    # -----------------------------
+    for i in 1:points(s)  
+        eqs = []  
+        force = sum([spring_force[:, j] for j in 1:total_segments(s) if conn[j][2] == i]; init=zeros(3)) -
+                sum([spring_force[:, j] for j in 1:total_segments(s) if conn[j][1] == i]; init=zeros(3)) +
+                sum([half_drag_force[:, j] for j in 1:total_segments(s) if conn[j][1] == i]; init=zeros(3)) +
+                sum([half_drag_force[:, j] for j in 1:total_segments(s) if conn[j][2] == i]; init=zeros(3))
+        v_app_point[:, i] ~ s.set.v_wind_tether - vel[:, i]
+        if i == 1                  # KCU drag at bridle point
+            area_kcu = pi * ((kcu_diameter / 2) ^ 2)
+            Dx_kcu = 0.5*rho*kcu_cd *area_kcu*(v_app_point[1, i]*v_app_point[1, i])
+            Dy_kcu = 0.5*rho*kcu_cd *area_kcu*(v_app_point[2, i]*v_app_point[2, i])
+            Dz_kcu = 0.5*rho*kcu_cd *area_kcu*(v_app_point[3, i]*v_app_point[3, i])
+            D = [Dx_kcu, Dy_kcu, Dz_kcu]
+            push!(eqs, total_force[:, i] ~ force + D)
+        elseif i in 2:5           # the kite points that get Aero Forces
+
+            v_app_mag_squared = v_app_point[1, i]^2 + v_app_point[2, i]^2 + v_app_point[3, i]^2
+            # Lift calculation
+            L_perpoint = (1/4) * 0.5 * rho * Cl * S * (v_app_mag_squared)
+            # Cross product and normalization
+            cross_vapp_X_e_y = cross(v_app_point[:, i], e_y)
+            normcross_vapp_X_e_y = norm(cross_vapp_X_e_y)
+            L_direction = cross_vapp_X_e_y / normcross_vapp_X_e_y
+            # Final lift force vector
+            L = L_perpoint * L_direction
+
+            # Drag calculation
+            D_perpoint = (1/4) * 0.5 * rho * Cd * S * v_app_mag_squared
+            # Create drag direction components
+            D_direction = [v_app_point[1, i] / norm(v_app_point[:, i]), v_app_point[2, i] / norm(v_app_point[:, i]), v_app_point[3, i] / norm(v_app_point[:, i])]
+            # Final drag force vector components
+            D = D_perpoint * D_direction
+            
+            # Total aerodynamic force
+            Fa = [L[1]+ D[1], L[2]+ D[2], L[3]+ D[3]]
+            push!(eqs, total_force[1, i] ~ force[1] + Fa[1])
+            push!(eqs, total_force[2, i] ~ force[2] + Fa[2])
+            push!(eqs, total_force[3, i] ~ force[3] + Fa[3])
+        elseif i != 6                      
+            push!(eqs, total_force[:, i] ~ force)
+        end
+        push!(eqs, acc[:, i] ~ s.set.g_earth + total_force[:, i] / PointMasses[i])
+        eqs2 = vcat(eqs2, reduce(vcat, eqs))
+        eqs2 = vcat(eqs2, v_app_point[:, i] ~ s.set.v_wind_tether - vel[:, i])
+    end
+    @named sys = ODESystem(reduce(vcat, Symbolics.scalarize.(eqs2)), t)
+    simple_sys = structural_simplify(sys) 
+    simple_sys, pos, vel, e_x, e_y, e_z, v_app_point, alpha1p 
+end
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# next step function
+# -----------------------------
+function next_step!(s::KPS5; dt=(1/s.set.sample_freq))
+    s.t_0 = s.integrator.t
+    steptime = @elapsed OrdinaryDiffEqCore.step!(s.integrator, dt, true)
+    s.iter += 1
+    s.integrator.t, steptime
+end
+
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Generate Getters
+# -----------------------------
+function generate_getters!(s::KPS5)
+    sys = s.sys
+    c = collect
+    get_state = ModelingToolkit.getu(sys, 
+        [c(sys.pos)]
+    )
+    s.get_state = (integ) -> get_state(integ)
+    return nothing
 end
 
 
@@ -407,55 +567,3 @@ function spring_forces(s::KPS5; prn=true)
     forces
 end
 
-"""
-    find_steady_state!(s::KPS5; prn=false, delta = 0.01, stiffness_factor=0.035, upwind_dir=-pi/2))
-
-Find an initial equilibrium, based on the initial parameters
-`l_tether`, elevation and `v_reel_out`.
-"""
-function find_steady_state!(s::KPS5; prn=false, delta = 0.01, stiffness_factor=0.035, upwind_dir=-pi/2)
-    set_v_wind_ground!(s, calc_height(s), s.set.v_wind; upwind_dir=-pi/2)
-    s.stiffness_factor = stiffness_factor
-    res = zeros(MVector{6*(s.set.segments+KITE_PARTICLES)+2, SimFloat})
-    iter = 0
-
-    # helper function for the steady state finder
-    function test_initial_condition!(F, x::Vector)
-        x1 = copy(x)
-        y0, yd0 = init(s, x1; delta)
-        try
-            residual!(res, yd0, y0, s, 0.0)
-        catch e
-            println("Warning in test_initial_condition!")
-        end
-        for i in 1:s.set.segments+KITE_PARTICLES-1
-            if i != s.set.segments+KITE_PARTICLES-1
-                j = i
-            else
-                j = i + 1
-            end
-            # copy the x-component of the residual res2 (acceleration)
-            F[i]                               = res[1 + 3*(j-1) + 3*(s.set.segments+KITE_PARTICLES)]
-            # copy the z-component of the residual res2
-            F[i+s.set.segments+KITE_PARTICLES] = res[3 + 3*(j-1) + 3*(s.set.segments+KITE_PARTICLES)]
-        end
-        # copy the acceleration of point KCU in x direction
-        i = s.set.segments+1
-        F[end-1]                               = res[1 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)] 
-        # copy the acceleration of point C in y direction
-        i = s.set.segments+3 
-        x = res[1 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)]
-        y = res[2 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)]
-        F[end]                                 = res[2 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)] 
-        iter += 1
-        return nothing 
-    end
-    if prn println("\nStarted function test_nlsolve...") end
-    X00 = zeros(SimFloat, 2*(s.set.segments+KITE_PARTICLES-1)+2)
-    results = nlsolve(test_initial_condition!, X00, autoscale=true, xtol=4e-7, ftol=4e-7, iterations=s.set.max_iter)
-    if prn println("\nresult: $results") end
-    y0, yd0 = init(s, results.zero; upwind_dir)
-    set_v_wind_ground!(s, calc_height(s), s.set.v_wind; upwind_dir)
-    residual!(res, yd0, y0, s, 0.0)
-    y0, yd0
-end
