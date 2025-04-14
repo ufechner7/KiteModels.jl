@@ -391,7 +391,12 @@ function init_sim!(s::RamAirKite, measure::Measurement; prn=true)
         !prn && (sys = structural_simplify(sys; additional_passes=[ModelingToolkit.IfLifting]))
         s.sys = sys
         dt = SimFloat(1/s.set.sample_freq)
-        s.prob = ODEProblem(s.sys, defaults, (0.0, dt); guesses)
+        if prn
+            @info "Creating ODEProblem"
+            @time s.prob = ODEProblem(s.sys, defaults, (0.0, dt); guesses)
+        else
+            s.prob = ODEProblem(s.sys, defaults, (0.0, dt); guesses)
+        end
         serialize(prob_path, s.prob)
         s.integrator = nothing
     end
