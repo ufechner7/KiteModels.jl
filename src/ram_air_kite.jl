@@ -378,7 +378,7 @@ problem already exists.
 # Returns
 - `Nothing`
 """
-function init_sim!(s::RamAirKite, measure::Measurement; prn=true, precompile=false, lin_sys=false)
+function init_sim!(s::RamAirKite, measure::Measurement; prn=true, precompile=false, lin_sys=false, remake=false)
     function init(s, measure)
         init_Q_b_w, R_b_w = measure_to_q(measure)
         init_kite_pos = init!(s.point_system, s.set, R_b_w)
@@ -400,7 +400,7 @@ function init_sim!(s::RamAirKite, measure::Measurement; prn=true, precompile=fal
         s.integrator = nothing
     end
     prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set; precompile))
-    if !ispath(prob_path)
+    if !ispath(prob_path) || remake
         init(s, measure)
     end
     try

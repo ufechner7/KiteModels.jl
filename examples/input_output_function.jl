@@ -30,12 +30,13 @@ dt = 0.05
 # Initialize model
 set = se("system_ram.yaml")
 set.segments = 2
-set_values = [-50, 0.0, 0.0]  # Initial values
+set_values = [-50, -1.0, -1.0]  # Set values of the torques of the three winches. [Nm]
 set.quasi_static = true
+set.bridle_fracs = [0.088, 0.58, 0.93]
 
-wing = RamAirWing(set)
+wing = RamAirWing(set; prn=false, n_groups=2)
 aero = BodyAerodynamics([wing])
-vsm_solver = Solver(aero; solver_type=NONLIN, atol=1e-8, rtol=1e-8)
+vsm_solver = Solver(aero; solver_type=NONLIN, atol=2e-8, rtol=2e-8)
 point_system = generate_simple_ram_point_system(set, wing)
 s = RamAirKite(set, aero, vsm_solver, point_system)
 
@@ -45,7 +46,7 @@ s.set.rel_tol = 1e-3
 
 # Initialize at elevation
 measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
-KiteModels.init_sim!(s, measure)
+KiteModels.init_sim!(s, measure; remake=true, lin_sys=true)
 toc()
 sys = s.sys
 

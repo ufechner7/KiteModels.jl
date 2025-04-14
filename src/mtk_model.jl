@@ -834,7 +834,7 @@ function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measuremen
 
     if lin_sys
         @info "Linearizing system"
-        @time matrices, lin_sys = ModelingToolkit.linearize(sys, [set_values], [ω_b]; op=defaults)
+        @time matrices, lin_sys = ModelingToolkit.linearize(sys, [set_values], [ω_b]; op=defaults, guesses=guesses)
         @show typeof(lin_sys)
         display(matrices)
     end
