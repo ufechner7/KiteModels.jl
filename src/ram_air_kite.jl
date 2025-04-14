@@ -378,7 +378,7 @@ problem already exists.
 # Returns
 - `Nothing`
 """
-function init_sim!(s::RamAirKite, measure::Measurement; prn=true)
+function init_sim!(s::RamAirKite, measure::Measurement; prn=true, precompile=false)
     function init(s, measure)
         init_Q_b_w, R_b_w = measure_to_q(measure)
         init_kite_pos = init!(s.point_system, s.set, R_b_w)
@@ -400,7 +400,7 @@ function init_sim!(s::RamAirKite, measure::Measurement; prn=true)
         serialize(prob_path, s.prob)
         s.integrator = nothing
     end
-    prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set))
+    prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set; precompile))
     if !ispath(prob_path)
         init(s, measure)
     end
@@ -553,11 +553,15 @@ function next_step!(s::RamAirKite, set_values=nothing; measure::Union{Measuremen
     s.integrator.t, steptime
 end
 
-function get_prob_name(set::Settings)
+function get_prob_name(set::Settings; precompile=false)
+    suffix = ""
+    if precompile
+        suffix = ".default"
+    end
     if set.quasi_static
-        return "prob_static_" * string(set.segments) * "_seg.bin"
+        return "prob_static_" * string(set.segments) * "_seg.bin" * suffix
     else
-        return "prob_dynamic_" * string(set.segments) * "_seg.bin"
+        return "prob_dynamic_" * string(set.segments) * "_seg.bin" * suffix
     end
 end
 
