@@ -1,6 +1,6 @@
 using KiteModels, LinearAlgebra
 
-PLOT = true
+PLOT = false
 if PLOT
     using Pkg
     if ! ("LaTeXStrings" ∈ keys(Pkg.project().dependencies))
@@ -25,7 +25,7 @@ steering_magnitude = 5.0      # Magnitude of steering input [Nm]
 set = se("system_ram.yaml")
 set.segments = 3
 set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
-set.quasi_static = true
+set.quasi_static = false
 
 wing = RamAirWing(set; prn=false)
 aero = BodyAerodynamics([wing])
@@ -139,3 +139,27 @@ p = plotx(sl.time .- 10,
 display(p)
 
 @info "Performance:" times_realtime=(total_time/2)/runtime integrator_times_realtime=(total_time/2)/integ_runtime
+
+
+"""
+v.9.72.0
+julia> include("examples/ram_air_kite.jl")
+[ Info: Creating ODESystem
+  9.258802 seconds (8.00 M allocations: 208.736 MiB, 0.36% gc time, 20.50% compilation time: 16% of which was recompilation)
+[ Info: Simplifying the system
+399.254196 seconds (314.94 M allocations: 10.441 GiB, 0.31% gc time, 4.96% compilation time: 29% of which was recompilation)
+[ Info: Building odeproblem
+705.548065 seconds (994.33 M allocations: 32.402 GiB, 0.57% gc time, 5.64% compilation time: 13% of which was recompilation)
+[ Info: Initializing integrator
+163.463467 seconds (503.03 M allocations: 24.022 GiB, 2.24% gc time, 99.97% compilation time)
+
+v.9.71.0
+[ Info: Creating ODESystem
+  8.619873 seconds (7.52 M allocations: 192.329 MiB, 0.36% gc time, 21.33% compilation time: 14% of which was recompilation)
+[ Info: Simplifying the system
+410.773909 seconds (310.02 M allocations: 10.288 GiB, 0.28% gc time, 4.57% compilation time: 29% of which was recompilation)
+[ Info: Building odeproblem
+588.066640 seconds (735.39 M allocations: 24.119 GiB, 0.51% gc time, 6.78% compilation time: 13% of which was recompilation)
+[ Info: Initializing integrator
+163.353250 seconds (411.71 M allocations: 20.197 GiB, 2.04% gc time, 99.92% compilation time)
+"""
