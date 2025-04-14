@@ -386,10 +386,11 @@ function init_sim!(s::RamAirKite, measure::Measurement; prn=true)
 
         init_va = R_b_w' * [s.set.v_wind, 0., 0.]
         
-        sys, defaults, guesses = create_sys!(s, s.point_system, measure; init_Q_b_w, init_kite_pos, init_va)
+        init_set_values = measure.set_values
+        s.sys, defaults, guesses = create_sys!(s, s.point_system, measure; init_Q_b_w, init_kite_pos, init_va, init_set_values)
+        @assert false
         prn && @info "Simplifying the system"
-        prn && @time sys = structural_simplify(sys; additional_passes=[ModelingToolkit.IfLifting])
-        !prn && (sys = structural_simplify(sys; additional_passes=[ModelingToolkit.IfLifting]))
+        @time sys = structural_simplify(sys, (sys.set_values,))
         s.sys = sys
         dt = SimFloat(1/s.set.sample_freq)
         s.prob = ODEProblem(s.sys, defaults, (0.0, dt); guesses)

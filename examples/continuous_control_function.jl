@@ -30,7 +30,7 @@ dt = 0.05
 
 # Initialize model
 set = se("system_ram.yaml")
-set.segments = 2
+set.segments = 3
 set_values = [-50, 0.0, 0.0]  # Initial values
 set.quasi_static = true
 
@@ -60,8 +60,10 @@ function step_with_input(x, u, _, p)
     (s, set_x, get_dx, get_u) = p
     set_x(s.integrator, x)
     set_u(s.integrator, u)
+    @show s.integrator[sys.tether_acc]
     OrdinaryDiffEqCore.reinit!(s.integrator, s.integrator.u; reinit_dae=true)
-    step!(s.integrator, 1e-2)
+    @show s.integrator[sys.tether_acc]
+    # step!(s.integrator, 1e-2)
     return get_dx(s.integrator)
 end
 
@@ -69,7 +71,7 @@ end
 x_vec = KiteModels.get_unknowns(s)
 dx_vec = KiteModels.get_unknowns(s; derivative=true)
 set_x = setu(s.integrator, x_vec)
-set_u = setu(s.integrator, collect(sys.set_values))
+set_u = setu(s.integrator, Initial.(collect(sys.tether_vel)))
 get_dx = getu(s.integrator, dx_vec)
 get_u = getu(s.integrator, collect(sys.set_values))
 
@@ -88,7 +90,7 @@ function test_response(s, input_range, input_idx; steps=1)
             total_time += @elapsed x = step_with_input(x, u, nothing, p)
             iter += 1
         end
-        angular_vels[:, i] = x[[2,4,6]]
+        angular_vels[:, i] = s.integrator[sys.tether_acc]
     end
     
     times_rt = dt*iter/total_time

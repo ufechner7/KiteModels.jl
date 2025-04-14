@@ -7,8 +7,8 @@ end
 function calc_moment_acc(winch::TorqueControlledMachine, tether_vel, norm_, set_torque)
     calc_acceleration(winch, tether_vel, norm_; set_speed=nothing, set_torque, use_brake=false)
 end
-@register_symbolic calc_speed_acc(winch::AsyncMachine, tether_vel, norm_, set_speed)
-@register_symbolic calc_moment_acc(winch::TorqueControlledMachine, tether_vel, norm_, set_torque)
+# @register_symbolic calc_speed_acc(winch::AsyncMachine, tether_vel, norm_, set_speed)
+# @register_symbolic calc_moment_acc(winch::TorqueControlledMachine, tether_vel, norm_, set_torque)
 
 function sym_interp(interp::Function, aoa, trailing_edge_angle)
     return interp(rad2deg(aoa), rad2deg(trailing_edge_angle-aoa)) # TODO: register callable struct https://docs.sciml.ai/Symbolics/dev/manual/functions/#Symbolics.@register_array_symbolic
@@ -82,7 +82,7 @@ function rotation_matrix_to_quaternion(R)
 end
 
 function force_eqs!(s, system, eqs, defaults, guesses; 
-        R_b_w, kite_pos, kite_vel, wind_vec_gnd, group_aero_moment, twist_angle, steady)
+        R_b_w, kite_pos, kite_vel, wind_vec_gnd, group_aero_moment, twist_angle, steady, init_set_values, set_values)
 
     @parameters acc_multiplier = 1
 
@@ -455,7 +455,6 @@ function force_eqs!(s, system, eqs, defaults, guesses;
     end
 
     # ==================== WINCHES ==================== #
-    @parameters set_values(t)[eachindex(winches)] = zeros(length(winches))
     @variables begin
         tether_vel(t)[eachindex(winches)]
         tether_acc(t)[eachindex(winches)]
@@ -479,6 +478,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             )
             winch_force[winch.idx] ~ F
         ]
+        @show eqs[end-1]
         defaults = [
             defaults
             tether_length[winch.idx] => winch.tether_length
@@ -645,7 +645,7 @@ function linear_vsm_eqs!(s, eqs; aero_force_b, aero_moment_b, group_aero_moment,
     return eqs
 end
 
-function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measurement; init_Q_b_w, init_kite_pos, init_va)
+function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measurement; init_Q_b_w, init_kite_pos, init_va, init_set_values)
     eqs = []
     defaults = Pair{Num, Real}[]
     guesses = Pair{Num, Real}[]
@@ -660,6 +660,8 @@ function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measuremen
         # measured_tether_acc[1:3]    = measure.tether_acc
     end
     @variables begin
+        set_values(t)[1:3] = [-50.0, -1.0, -1.0]
+
         # potential differential variables
         kite_pos(t)[1:3] # xyz pos of kite in world frame
         kite_vel(t)[1:3]
@@ -680,7 +682,7 @@ function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measuremen
 
     eqs, defaults, guesses, tether_kite_force, tether_kite_moment = 
         force_eqs!(s, system, eqs, defaults, guesses; 
-            R_b_w, kite_pos, kite_vel, wind_vec_gnd, group_aero_moment, twist_angle, steady)
+            R_b_w, kite_pos, kite_vel, wind_vec_gnd, group_aero_moment, twist_angle, steady, init_set_values, set_values)
     eqs = linear_vsm_eqs!(s, eqs; aero_force_b, aero_moment_b, group_aero_moment, init_va, twist_angle, va_kite_b, ω_b)
     eqs, defaults = diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero_force_b, aero_moment_b, 
         ω_b, R_b_w, kite_pos, kite_vel, kite_acc, init_Q_b_w, init_kite_pos, steady)
@@ -710,6 +712,8 @@ function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measuremen
     @info "Creating ODESystem"
     # @named sys = ODESystem(eqs, t; discrete_events)
     @time @named sys = ODESystem(eqs, t)
+    @time matrices, simplified_sys = ModelingToolkit.linearize(sys, [set_values], [ω_b]; op = defaults)
+    @show matrices
     return sys, defaults, guesses
 end
 
