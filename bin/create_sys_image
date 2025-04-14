@@ -34,10 +34,6 @@ if ! command -v julia &> /dev/null; then
     juliaup default 1.11
 fi
 
-# TODO: check if the julia version is 1.10 or 1.11
-
-julia --startup-file=no --pkgimages=no --project -e "using Pkg; Pkg.resolve()"
-
 PYTHON_PATH=$(which python3)
 if [ -x "$PYTHON_PATH" ]; then
     echo "Python is found at $PYTHON_PATH"
