@@ -405,6 +405,7 @@ function init_sim!(s::RamAirKite, measure::Measurement; prn=true)
         rm(prob_path)
         @info "Rebuilding the system. This can take some minutes..."
         init(s, measure)
+        reinit!(s, measure)
     end
     return nothing
 end
