@@ -29,13 +29,13 @@ set.quasi_static = true
 
 wing = RamAirWing(set; prn=false)
 aero = BodyAerodynamics([wing])
-vsm_solver = Solver(aero; solver_type=NONLIN, atol=1e-8, rtol=1e-8)
+vsm_solver = Solver(aero; solver_type=NONLIN, atol=2e-8, rtol=2e-8)
 point_system = PointMassSystem(set, wing)
 s = RamAirKite(set, aero, vsm_solver, point_system)
 
 measure = Measurement()
 s.set.abs_tol = 1e-5
-s.set.rel_tol = 1e-3
+s.set.rel_tol = 1e-4
 
 # Initialize at elevation
 measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
@@ -96,10 +96,7 @@ try
         sys_state.var_13 = s.integrator[sys.pulley_l0[1]]
         sys_state.var_14 = s.integrator[sys.pulley_l0[2]]
         
-        # Calculate apparent wind angle
-        va_kite_b = s.integrator[sys.va_kite_b]
-        e_x = s.integrator[sys.e_x]
-        sys_state.var_15 = rad2deg(acos(dot(normalize(va_kite_b), e_x)))
+        sys_state.var_15 = rad2deg(calc_aoa(s))
         
         log!(logger, sys_state)
     end

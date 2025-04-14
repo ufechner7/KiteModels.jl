@@ -448,7 +448,7 @@ function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=true)
         t = @elapsed begin
             dt = SimFloat(1/s.set.sample_freq)
             if s.set.quasi_static
-                solver = FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.9, max_iter=1000))
+                solver = FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.4, max_iter=1000))
             else
                 solver = FBDF()
             end
@@ -688,3 +688,15 @@ function get_nonstiff_unknowns(s, vec=Num[]; derivative=false)
     return vec
 end
 
+"""
+Calculate and return the angle of attack in rad
+"""
+function calc_aoa(s::RamAirKite)
+    alpha_array = s.vsm_solver.sol.alpha_array
+    middle = length(alpha_array) ÷ 2
+    if iseven(length(alpha_array))
+        return 0.5alpha_array[middle] + 0.5alpha_array[middle+1]
+    else
+        return alpha_array[middle+1]
+    end
+end
