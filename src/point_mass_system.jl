@@ -145,6 +145,7 @@ end
 
 
 function generate_simple_ram_point_system(set::Settings, wing::RamAirWing)
+    (length(set.bridle_fracs) != 3) && throw(ArgumentError("Only 3 bridle fracs should be provided for the simple model."))
 
     points = Point[]
     groups = KitePointGroup[]

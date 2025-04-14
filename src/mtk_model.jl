@@ -760,7 +760,7 @@ function get_nonstiff_unknowns(s, vec=Num[])
     return vec
 end
 
-function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measurement; init_Q_b_w, init_kite_pos, init_va)
+function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measurement; init_Q_b_w, init_kite_pos, init_va, lin_sys)
     eqs = []
     defaults = Pair{Num, Real}[]
     guesses = Pair{Num, Real}[]
@@ -832,9 +832,11 @@ function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measuremen
         [set_values[i] => [-50.0, -1.0, -1.0][i] for i in 1:3]
     ]
 
-    @info "Linearizing system"
-    @time matrices, linsys = ModelingToolkit.linearize(sys, [set_values], [ω_b]; op=defaults)
-    display(matrices)
+    if lin_sys
+        @info "Linearizing system"
+        @time matrices, lin_sys = ModelingToolkit.linearize(sys, [set_values], [ω_b]; op=defaults)
+        @show typeof(lin_sys)
+        display(matrices)
+    end
     return sys, defaults, guesses, set_values
 end
-

@@ -40,7 +40,7 @@ s.set.rel_tol = 1e-4
 
 # Initialize at elevation
 measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
-KiteModels.init_sim!(s, measure; remake=true)
+KiteModels.init_sim!(s, measure)
 # plot(s, 0.0; zoom=true, front=false)
 sys = s.sys
 

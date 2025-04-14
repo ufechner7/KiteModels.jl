@@ -36,31 +36,19 @@ end
 
         if isfile(joinpath(path, "..", "data", "prob_dynamic_3_seg.bin.default"))
             local set
-            # Simulation parameters
-            dt = 0.05
-            total_time = 10  # Longer simulation to see oscillations
-            vsm_interval = 2
-            steps = Int(round(total_time / dt))
-
-            # Steering parameters
-            steering_freq = 1/2  # Hz - full left-right cycle frequency
-            steering_magnitude = 5.0      # Magnitude of steering input [Nm]
-
             # Initialize model
             set = se("system_ram.yaml")
-            set.segments = 3
+            set.segments = 2
+            set.bridle_fracs = [0.088, 0.58, 0.93]
             set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
             set.quasi_static = false
 
-            wing = RamAirWing(set; prn=false)
+            wing = RamAirWing(set; prn=false, n_groups=2)
             aero = BodyAerodynamics([wing])
             vsm_solver = Solver(aero; solver_type=NONLIN, atol=2e-8, rtol=2e-8)
-            point_system = generate_ram_point_system(set, wing)
+            point_system = generate_simple_ram_point_system(set, wing)
             s = RamAirKite(set, aero, vsm_solver, point_system)
-
             measure = Measurement()
-            s.set.abs_tol = 1e-5
-            s.set.rel_tol = 1e-4
 
             # Initialize at elevation
             measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])

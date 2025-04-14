@@ -378,14 +378,14 @@ problem already exists.
 # Returns
 - `Nothing`
 """
-function init_sim!(s::RamAirKite, measure::Measurement; prn=true, precompile=false)
+function init_sim!(s::RamAirKite, measure::Measurement; prn=true, precompile=false, lin_sys=false)
     function init(s, measure)
         init_Q_b_w, R_b_w = measure_to_q(measure)
         init_kite_pos = init!(s.point_system, s.set, R_b_w)
 
         init_va = R_b_w' * [s.set.v_wind, 0., 0.]
         
-        sys, defaults, guesses, inputs = create_sys!(s, s.point_system, measure; init_Q_b_w, init_kite_pos, init_va)
+        sys, defaults, guesses, inputs = create_sys!(s, s.point_system, measure; init_Q_b_w, init_kite_pos, init_va, lin_sys)
         prn && @info "Simplifying the system"
         @time sys, _ = structural_simplify(sys, (inputs, []); additional_passes=[ModelingToolkit.IfLifting])
         s.sys = sys
