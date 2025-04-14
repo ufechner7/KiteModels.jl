@@ -201,8 +201,8 @@ function generate_simple_ram_point_system(set::Settings, wing::RamAirWing)
             pulleys
             Pulley(1+i_pul, (4+i_seg, 5+i_seg), dynamics_type)
         ]
-        push!(attach_points, points[end-1])
-        push!(attach_points, points[end])
+        push!(attach_points, points[4+i_pnt])
+        push!(attach_points, points[6+i_pnt])
         return nothing
     end
 
