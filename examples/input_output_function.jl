@@ -50,73 +50,73 @@ KiteModels.init_sim!(s, measure; remake=true, lin_sys=true)
 toc()
 sys = s.sys
 
-# Stabilize system
-s.integrator.ps[sys.steady] = true
-next_step!(s; dt=10.0, vsm_interval=1)
-s.integrator.ps[sys.steady] = false
+# # Stabilize system
+# s.integrator.ps[sys.steady] = true
+# next_step!(s; dt=10.0, vsm_interval=1)
+# s.integrator.ps[sys.steady] = false
 
-# Function to step simulation with input u
-function step_with_input(x, u, _, p)
-    (s, stiff_x, set_x, set_sx, get_x, dt) = p
-    set_x(s.integrator, x)
-    set_sx(s.integrator, stiff_x)
-    OrdinaryDiffEqCore.reinit!(s.integrator, s.integrator.u; reinit_dae=false)
-    next_step!(s, u; dt=dt, vsm_interval=0)
-    return get_x(s.integrator)
-end
+# # Function to step simulation with input u
+# function step_with_input(x, u, _, p)
+#     (s, stiff_x, set_x, set_sx, get_x, dt) = p
+#     set_x(s.integrator, x)
+#     set_sx(s.integrator, stiff_x)
+#     OrdinaryDiffEqCore.reinit!(s.integrator, s.integrator.u; reinit_dae=false)
+#     next_step!(s, u; dt=dt, vsm_interval=0)
+#     return get_x(s.integrator)
+# end
 
-# Get initial state
-x_vec = KiteModels.get_nonstiff_unknowns(s)
-sx_vec = KiteModels.get_stiff_unknowns(s)
-set_x = setu(s.integrator, x_vec)
-set_sx = setu(s.integrator, sx_vec)
-get_x = getu(s.integrator, x_vec)
-get_sx = getu(s.integrator, sx_vec)
-x0 = get_x(s.integrator)
-sx0 = get_sx(s.integrator)
+# # Get initial state
+# x_vec = KiteModels.get_nonstiff_unknowns(s)
+# sx_vec = KiteModels.get_stiff_unknowns(s)
+# set_x = setu(s.integrator, x_vec)
+# set_sx = setu(s.integrator, sx_vec)
+# get_x = getu(s.integrator, x_vec)
+# get_sx = getu(s.integrator, sx_vec)
+# x0 = get_x(s.integrator)
+# sx0 = get_sx(s.integrator)
 
-# Test steering inputs and record angular velocity response
-function test_response(s, input_range, input_idx; steps=1)
-    angular_vels = zeros(3, length(input_range))
-    total_time = 0.0
-    iter = 0
+# # Test steering inputs and record angular velocity response
+# function test_response(s, input_range, input_idx; steps=1)
+#     angular_vels = zeros(3, length(input_range))
+#     total_time = 0.0
+#     iter = 0
 
-    for (i, input_val) in enumerate(input_range)
-        u = [-50.0, 0.0, 0.0]
-        u[input_idx] = input_val
-        x = copy(x0)
-        for i in 1:steps
-            p = (s, sx0, set_x, set_sx, get_x, dt)
-            total_time += @elapsed x = step_with_input(x, u, nothing, p)
-            iter += 1
-        end
-        angular_vels[:, i] = x[11:13]
-    end
+#     for (i, input_val) in enumerate(input_range)
+#         u = [-50.0, 0.0, 0.0]
+#         u[input_idx] = input_val
+#         x = copy(x0)
+#         for i in 1:steps
+#             p = (s, sx0, set_x, set_sx, get_x, dt)
+#             total_time += @elapsed x = step_with_input(x, u, nothing, p)
+#             iter += 1
+#         end
+#         angular_vels[:, i] = x[11:13]
+#     end
     
-    times_rt = dt*iter/total_time
-    @info "Number of steps: $iter, Times realtime: $times_rt"
-    return input_range, angular_vels, times_rt
-end
+#     times_rt = dt*iter/total_time
+#     @info "Number of steps: $iter, Times realtime: $times_rt"
+#     return input_range, angular_vels, times_rt
+# end
 
-# Test left and right steering inputs
-left_range = range(-1.0, 1.0, length=20)
-time_vec_left, angular_vels_left, _ = test_response(s, left_range, 2)
+# # Test left and right steering inputs
+# left_range = range(-1.0, 1.0, length=20)
+# time_vec_left, angular_vels_left, _ = test_response(s, left_range, 2)
 
-right_range = range(-1.0, 1.0, length=20)
-time_vec_right, angular_vels_right, _ = test_response(s, right_range, 3)
+# right_range = range(-1.0, 1.0, length=20)
+# time_vec_right, angular_vels_right, _ = test_response(s, right_range, 3)
 
-# Compare steering inputs effect on angular velocity
-left_vs_right = plotx(time_vec_left, 
-    [angular_vels_left[1,:], angular_vels_right[1,:]],
-    [angular_vels_left[2,:], angular_vels_right[2,:]],
-    [angular_vels_left[3,:], angular_vels_right[3,:]];
-    ylabels=["ω_b[1]", "ω_b[2]", "ω_b[3]"], 
-    labels=[
-        ["Left Steering", "Right Steering"],
-        ["Left Steering", "Right Steering"],
-        ["Left Steering", "Right Steering"],
-    ],
-    fig="Steering Input vs Angular Velocity",
-    xlabel="Steering Input Value")
+# # Compare steering inputs effect on angular velocity
+# left_vs_right = plotx(time_vec_left, 
+#     [angular_vels_left[1,:], angular_vels_right[1,:]],
+#     [angular_vels_left[2,:], angular_vels_right[2,:]],
+#     [angular_vels_left[3,:], angular_vels_right[3,:]];
+#     ylabels=["ω_b[1]", "ω_b[2]", "ω_b[3]"], 
+#     labels=[
+#         ["Left Steering", "Right Steering"],
+#         ["Left Steering", "Right Steering"],
+#         ["Left Steering", "Right Steering"],
+#     ],
+#     fig="Steering Input vs Angular Velocity",
+#     xlabel="Steering Input Value")
 
-display(left_vs_right)
+# display(left_vs_right)

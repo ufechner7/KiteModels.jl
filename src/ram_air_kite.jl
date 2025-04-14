@@ -231,6 +231,8 @@ $(TYPEDFIELDS)
     e_z::V =                 zeros(S, 3)
     "Simplified system of the mtk model"
     sys::Union{ModelingToolkit.ODESystem, Nothing} = nothing
+    "Linearization problem of the mtk model"
+    lin_prob::Union{ModelingToolkit.LinearizationProblem, Nothing} = nothing
     "Velocity of the kite"
     vel_kite::V =           zeros(S, 3)
     "Inertia around kite x y and z axis of the body frame"

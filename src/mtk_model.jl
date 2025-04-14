@@ -833,10 +833,9 @@ function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measuremen
     ]
 
     if lin_sys
-        @info "Linearizing system"
-        @time matrices, lin_sys = ModelingToolkit.linearize(sys, [set_values], [ω_b]; op=defaults, guesses=guesses)
-        @show typeof(lin_sys)
-        display(matrices)
+        @info "Creating linearization system"
+        @time lin_fun, _ = ModelingToolkit.linearization_function(sys, [set_values], [ω_b]; op=defaults, guesses)
+        @time s.lin_prob = LinearizationProblem(lin_fun, 0.0)
     end
     return sys, defaults, guesses, set_values
 end
