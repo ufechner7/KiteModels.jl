@@ -184,14 +184,14 @@ function generate_simple_ram_point_system(set::Settings, wing::RamAirWing)
         points = [
             points
             Point(4+i_pnt, bridle_top[1] .+ [0, 0, -3], dynamics_type)
-            Point(5+i_pnt, bridle_top[3] .+ [0, 0, -2], dynamics_type)
+            Point(5+i_pnt, bridle_top[2] .+ [0, 0, -2], dynamics_type)
             Point(6+i_pnt, bridle_top[3] .+ [0, 0, -3], dynamics_type)
         ]
         l1 = norm(points[1+i_pnt].pos_b - points[4+i_pnt].pos_b)
         segments = [
             segments
             Segment(1+i_seg, (1+i_pnt, 4+i_pnt), BRIDLE, l1)
-            Segment(2+i_seg, (2+i_pnt, 5+i_pnt), BRIDLE, l1)
+            Segment(2+i_seg, (2+i_pnt, 5+i_pnt), BRIDLE, l1-1)
             Segment(3+i_seg, (3+i_pnt, 6+i_pnt), BRIDLE, l1)
 
             Segment(4+i_seg, (4+i_pnt, 5+i_pnt), BRIDLE, 1)

@@ -12,14 +12,14 @@ end
 include(joinpath(@__DIR__, "plotting.jl"))
 
 # Simulation parameters
-dt = 0.05
-total_time = 10  # Longer simulation to see oscillations
+dt = 0.01
+total_time = 5  # Longer simulation to see oscillations
 vsm_interval = 2
 steps = Int(round(total_time / dt))
 
 # Steering parameters
 steering_freq = 1/2  # Hz - full left-right cycle frequency
-steering_magnitude = 5.0      # Magnitude of steering input [Nm]
+steering_magnitude = 2.0      # Magnitude of steering input [Nm]
 
 # Initialize model
 set = se("system_ram.yaml")
@@ -27,7 +27,6 @@ set.segments = 2
 set_values = [-50, -1.0, -1.0]  # Set values of the torques of the three winches. [Nm]
 set.quasi_static = false
 set.bridle_fracs = [0.088, 0.58, 0.93]
-@show set.bridle_fracs
 
 wing = RamAirWing(set; prn=false, n_groups=2)
 aero = BodyAerodynamics([wing])
@@ -41,7 +40,7 @@ s.set.rel_tol = 1e-4
 
 # Initialize at elevation
 measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
-KiteModels.init_sim!(s, measure; remake=false)
+KiteModels.init_sim!(s, measure; remake=true)
 # plot(s, 0.0; zoom=true, front=false)
 sys = s.sys
 
@@ -62,7 +61,7 @@ try
         PLOT && plot(s, t; zoom=false, front=false)
         
         # Calculate steering inputs based on cosine wave
-        steering = steering_magnitude * cos(2π * steering_freq * t+0.1)
+        steering = steering_magnitude * cos(2π * steering_freq * t+0.05)
         set_values = -s.set.drum_radius .* s.integrator[sys.winch_force]
         if t > 1.0
             set_values .+= [0.0, steering, -steering]  # Opposite steering for left/right
