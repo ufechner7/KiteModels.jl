@@ -121,7 +121,12 @@ else
         echo "Using Manifest-v1.11.toml.default ..."
     fi
 fi
-julia --startup-file=no --pkgimages=no --project -e "include(\"./test/create_sys_image.jl\");"
+if [[ $update == true ]]; then
+    julia --startup-file=no --pkgimages=no --project -e "include(\"./test/create_sys_image.jl\");"
+else
+    julia --startup-file=no --pkgimages=no --project -e "using TestEnv; TestEnv.activate(); include(\"./test/create_sys_image.jl\");"
+fi
+
 if [[ $branch != "" ]]; then
     SOFILE="bin/kps-image-${julia_major}-${branch}.so"
 else

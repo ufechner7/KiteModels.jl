@@ -378,9 +378,8 @@ problem already exists.
 # Returns
 - `Nothing`
 """
-function init_sim!(s::RamAirKite, measure::Measurement; prn=true)
-    prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set))
-    if !ispath(prob_path)
+function init_sim!(s::RamAirKite, measure::Measurement; prn=true, precompile=false)
+    function init(s, measure)
         init_Q_b_w, R_b_w = measure_to_q(measure)
         init_kite_pos = init!(s.point_system, s.set, R_b_w)
 
@@ -392,11 +391,27 @@ function init_sim!(s::RamAirKite, measure::Measurement; prn=true)
         !prn && (sys = structural_simplify(sys; additional_passes=[ModelingToolkit.IfLifting]))
         s.sys = sys
         dt = SimFloat(1/s.set.sample_freq)
-        s.prob = ODEProblem(s.sys, defaults, (0.0, dt); guesses)
+        if prn
+            @info "Creating ODEProblem"
+            @time s.prob = ODEProblem(s.sys, defaults, (0.0, dt); guesses)
+        else
+            s.prob = ODEProblem(s.sys, defaults, (0.0, dt); guesses)
+        end
         serialize(prob_path, s.prob)
         s.integrator = nothing
     end
-    reinit!(s, measure)
+    prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set; precompile))
+    if !ispath(prob_path)
+        init(s, measure)
+    end
+    try
+        reinit!(s, measure)
+    catch e
+        rm(prob_path)
+        @info "Rebuilding the system. This can take some minutes..."
+        init(s, measure)
+        reinit!(s, measure)
+    end
     return nothing
 end
 
@@ -442,7 +457,12 @@ function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=true)
     if isnothing(s.prob)
         prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set))
         !ispath(prob_path) && throw(ArgumentError("$prob_path not found. Run init_sim!(s::RamAirKite) first."))
-        s.prob = deserialize(prob_path)
+        try
+            s.prob = deserialize(prob_path)
+        catch e
+            @warn "Failure to deserialize $prob_path !"
+            throw(e)
+        end
     end
     if isnothing(s.integrator) || !successful_retcode(s.integrator.sol) || reload
         t = @elapsed begin
@@ -533,11 +553,15 @@ function next_step!(s::RamAirKite, set_values=nothing; measure::Union{Measuremen
     s.integrator.t, steptime
 end
 
-function get_prob_name(set::Settings)
+function get_prob_name(set::Settings; precompile=false)
+    suffix = ""
+    if precompile
+        suffix = ".default"
+    end
     if set.quasi_static
-        return "prob_static_" * string(set.segments) * "_seg.bin"
+        return "prob_static_" * string(set.segments) * "_seg.bin" * suffix
     else
-        return "prob_dynamic_" * string(set.segments) * "_seg.bin"
+        return "prob_dynamic_" * string(set.segments) * "_seg.bin" * suffix
     end
 end
 
