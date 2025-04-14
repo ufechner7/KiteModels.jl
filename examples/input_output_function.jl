@@ -36,7 +36,7 @@ set.quasi_static = true
 wing = RamAirWing(set)
 aero = BodyAerodynamics([wing])
 vsm_solver = Solver(aero; solver_type=NONLIN, atol=1e-8, rtol=1e-8)
-point_system = PointMassSystem(set, wing)
+point_system = generate_ram_point_system(set, wing)
 s = RamAirKite(set, aero, vsm_solver, point_system)
 
 measure = Measurement()

@@ -448,7 +448,7 @@ and only updates the state variables to match the current `measure`.
 - `ArgumentError`: If no serialized problem exists (run `init_sim!` first)
 """
 function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=true)
-    isnothing(s.point_system) && (s.point_system = PointMassSystem(s, s.wing))
+    isnothing(s.point_system) && throw(ArgumentError("PointMassSystem not defined"))
 
     init_Q_b_w, R_b_w = measure_to_q(measure)
     init_kite_pos = init!(s.point_system, s.set, R_b_w)
