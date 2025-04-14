@@ -72,7 +72,7 @@ kcu:
     kcu_model: "KCU1"            # name of the kite control unit model, KCU1 or KCU2
     kcu_mass: 8.4                # mass of the kite control unit                       [kg]
     kcu_diameter: 0.4            # diameter of the KCU for drag calculation            [m]
-    cd_kcu: 0.0                  # drag coefficient of the KCU                         [-]  
+    cd_kcu: 0.47  #nonzero, changed form 0.0 tp 0.47                  # drag coefficient of the KCU                         [-]  
     power2steer_dist: 1.3        #                                                     [m]
     depower_drum_diameter: 0.069 #                                                     [m]
     tape_thickness: 0.0006       #                                                     [m]
@@ -105,7 +105,8 @@ winch:
     i_speed:  2500.0       # integral gain of the winch speed controller     [-]
 
 environment:
-    v_wind: 9.51             # wind speed at reference height          [m/s]
+    v_wind: 9.51
+    # [9.51, 0.0, 0.0]  #changed to vec           # wind speed at reference height          [m/s]
     upwind_dir: -90.0        # upwind direction                        [deg]
     temp_ref: 15.0           # temperature at reference height         [°C]
     height_gnd: 0.0          # height of groundstation above see level [m]
@@ -124,4 +125,16 @@ environment:
     v_ref: 42.9              # five times the average wind speed in m/s at hub height over the full year    [m/s]
                              # Cabauw: 8.5863 m/s * 5.0 = 42.9 m/s
     height_step: 2.0         # use a grid with 2m resolution in z direction                                 [m]
-    grid_step:   2.0         # grid resolution in x and y direction                                         [m]               
+    grid_step:   2.0         # grid resolution in x and y direction                                         [m] 
+
+
+
+
+    # needed:
+    # dt = 1/sample_freq # time step of the simulation [s]
+    # conn: [(1,2), (2,3), (3,1), (1,4), (2,4), (3,4), (1,5), (2,5), (3,5)]    
+    # springcomstamt_bridle
+    # springcomstamt_tether
+    # rel_damping_kite:
+    # total_segments: 9 + segments             # total segments [-]
+    # points: 5 + segments 
