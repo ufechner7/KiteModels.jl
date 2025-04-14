@@ -1,5 +1,6 @@
 using Timers
 tic()
+@info "Loading packages "
 
 using KiteModels, LinearAlgebra
 
@@ -11,6 +12,8 @@ if PLOT
     end
     using ControlPlots, LaTeXStrings
 end
+toc()
+
 
 include(joinpath(@__DIR__, "plotting.jl"))
 
@@ -30,11 +33,13 @@ set.segments = 3
 set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
 set.quasi_static = false
 
+@info "Creating wing, aero, vsm_solver, point_system and s:"
 wing = RamAirWing(set; prn=false)
 aero = BodyAerodynamics([wing])
 vsm_solver = Solver(aero; solver_type=NONLIN, atol=2e-8, rtol=2e-8)
 point_system = PointMassSystem(set, wing)
 s = RamAirKite(set, aero, vsm_solver, point_system)
+toc()
 
 measure = Measurement()
 s.set.abs_tol = 1e-5
