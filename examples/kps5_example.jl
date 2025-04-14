@@ -6,8 +6,10 @@ if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
 end
 # using ModelingToolkit: Symbolics, @register_symbolic
 # using ModelingToolkit, ControlPlots, Parameters
-s = KPS5(kcu=kcu)
-# kps4::KPS4 = KPS4(kcu)
+set = deepcopy(load_settings("system_kps5.yaml"))
+kcu::KCU = KCU(set)
+s = KPS5(kcu)
+
 # dt = 1/set.sample_freq
 # time_range = 0:dt:set.sim_time-dt
 # steps = length(time_range)

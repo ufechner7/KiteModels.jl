@@ -45,7 +45,7 @@ use the input and output functions instead.
 
 $(TYPEDFIELDS)
 """
-@with_kw mutable struct KPS5{S, T, P, Q, SP} <: AbstractKiteModel
+@with_kw mutable struct KPS5{S, T} <: AbstractKiteModel
     "Reference to the settings struct"
     set::Settings
     "Reference to the KCU model (Kite Control Unit as implemented in the package KitePodModels"
@@ -56,100 +56,6 @@ $(TYPEDFIELDS)
     wm::AbstractWinchModel
     "Iterations, number of calls to the function residual!"
     iter:: Int64 = 0
-    "wind vector at the height of the kite" 
-    v_wind::T =           zeros(S, 3)
-    "wind vector at reference height" 
-    v_wind_gnd::T =       zeros(S, 3)
-    "wind vector used for the calculation of the tether drag"
-    v_wind_tether::T =    zeros(S, 3)
-    "apparent wind vector at the kite"
-    v_apparent::T =       zeros(S, 3)
-    "bridle_factor = set.l_bridle/bridle_length(set)"
-    bridle_factor::S = 1.0
-    "side lift coefficient, the difference of the left and right lift coefficients"
-    side_cl::S = 0.0
-    "drag force of kite and bridle; output of calc_aero_forces!"
-    drag_force::T =       zeros(S, 3)
-    "side_force acting on the kite"
-    side_force::T =       zeros(S, 3)   # not yet
-    "max_steering angle in radian"
-    ks::S =               0.0           # not yet
-    "lift force of the kite; output of calc_aero_forces!"
-    lift_force::T =       zeros(S, 3)    
-    "spring force of the current tether segment, output of calc_particle_forces!"
-    spring_force::T =     zeros(S, 3)
-    "last winch force"
-    last_force::T =       zeros(S, 3)
-    "a copy of the residual one (pos,vel) for debugging and unit tests"    
-    res1::SVector{P, KVec3} = zeros(SVector{P, KVec3})
-    "a copy of the residual two (vel,acc) for debugging and unit tests"
-    res2::SVector{P, KVec3} = zeros(SVector{P, KVec3})
-    "a copy of the actual positions as output for the user"
-    pos::SVector{P, KVec3} = zeros(SVector{P, KVec3})
-    "a copy of the actual velocities as output for the user"
-    vel::SVector{P, KVec3} = zeros(SVector{P, KVec3})
-    "velocity vector of the kite"
-    vel_kite::T =          zeros(S, 3)
-    "unstressed segment length [m]"
-    segment_length::S =           0.0
-    "lift coefficient of the kite, depending on the angle of attack"
-    param_cl::S =         0.2
-    "drag coefficient of the kite, depending on the angle of attack"
-    param_cd::S =         1.0
-    "azimuth angle in radian; initial value is zero"
-    # psi::S =              zero(S)
-    "depower angle [deg]"
-    alpha_depower::S =     0.0 # not yet
-    "pitch angle [rad]"
-    pitch::S =            0.0
-    "pitch rate [rad/s]"
-   # pitch_rate::S =       0.0
-    "aoa at particle B"
-    alpha_2::S =           0.0
-    #"aoa at particle B, corrected formula"
-    # alpha_2b::S =          0.0
-   # "aoa at particle C"
-   # alpha_3::S =           0.0
-   # alpha_3b::S =          0.0
-   # "aoa at particle D"
-   # alpha_4::S =           0.0
-   # alpha_4b::S =          0.0
-    "relative start time of the current time interval"
-    t_0::S =               0.0
-    "reel out speed of the winch"
-    v_reel_out::S =        0.0
-    "reel out speed at the last time step"
-    last_v_reel_out::S =   0.0
-    "unstretched tether length"
-    l_tether::S =          0.0
-    "air density at the height of the kite"
-    rho::S =               0.0
-    #"actual relative depower setting,  must be between    0 .. 1.0"
-    # depower::S =           0.0     #not yet
-    "actual relative steering setting, must be between -1.0 .. 1.0"
-    #steering::S =          0.0
-    "steering after the kcu, before applying offset and depower sensitivity, -1.0 .. 1.0"
-   # kcu_steering::S =      0.0
-    "multiplier for the stiffniss of tether and bridle"
-    #stiffness_factor::S =  1.0
-    "initial masses of the point masses"
-    initial_masses::MVector{P, S} = ones(P)
-    "current masses, depending on the total tether length"
-    masses::MVector{P, S}         = zeros(P)
-    "vector of the springs, defined as struct"
-    springs::MVector{Q, SP}       = zeros(SP, Q)
-    "vector of the forces, acting on the particles"
-    forces::SVector{P, KVec3} = zeros(SVector{P, KVec3})
-    "synchronous speed of the motor/ generator"
-    sync_speed::Union{S, Nothing} =        0.0
-    "set_torque of the motor/generator"
-    set_torque::Union{S, Nothing} = nothing
-    "set value of the force at the winch, for logging only"
-    set_force::Union{S, Nothing} = nothing
-    "set value of the bearing angle in radians, for logging only"
-    bearing::Union{S, Nothing} = nothing
-    "coordinates of the attractor point [azimuth, elevation] in radian, for logging only"
-    attractor::Union{SVector{2, S}, Nothing} = nothing
     "x vector of kite reference frame"
     x::T =                 zeros(S, 3)
     "y vector of kite reference frame"
@@ -164,7 +70,7 @@ function KPS5(kcu::KCU)
         wm = TorqueControlledMachine(kcu.set)
     end
     # wm.last_set_speed = kcu.set.v_reel_out
-    s = KPS5{SimFloat, KVec3, kcu.set.segments+KITE_PARTICLES+1, kcu.set.segments+KITE_SPRINGS, SP}(set=kcu.set, 
+    s = KPS5{SimFloat, KVec3}(set=kcu.set, 
              kcu=kcu, wm=wm)    
     return s
 end
