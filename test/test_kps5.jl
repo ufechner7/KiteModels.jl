@@ -83,6 +83,8 @@ set_defaults()
 @testset "calc_rho              " begin
     @test isapprox(calc_rho(kps5.am, 0.0), 1.225, atol=1e-5) 
     @test isapprox(calc_rho(kps5.am, 100.0), 1.210756, atol=1e-5) 
+    kps5_= KPS5(kcu)
+    @test kps5_ isa KPS5
 end
 
 end
