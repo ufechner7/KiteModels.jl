@@ -378,9 +378,9 @@ problem already exists.
 # Returns
 - `Nothing`
 """
-function init_sim!(s::RamAirKite, measure::Measurement; prn=true)
+function init_sim!(s::RamAirKite, measure::Measurement; prn=true, remake=false)
     prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set))
-    if !ispath(prob_path)
+    if !ispath(prob_path) || remake
         init_Q_b_w, R_b_w = measure_to_q(measure)
         init_kite_pos = init!(s.point_system, s.set, R_b_w)
 
@@ -504,9 +504,9 @@ function linearize_vsm!(s::RamAirKite)
         s.vsm_solver, 
         s.aero, 
         y;
-        theta_idxs=1:4,
-        va_idxs=5:7,
-        omega_idxs=8:10,
+        va_idxs=1:3, 
+        omega_idxs=4:6,
+        theta_idxs=7:6+length(s.point_system.groups),
         moment_frac=s.bridle_fracs[s.point_system.groups[1].fixed_index])
     s.set_vsm(s.integrator, [x, y, jac])
     nothing

@@ -66,6 +66,7 @@ export calc_azimuth_north, calc_azimuth_east
 export winch_force, lift_drag, cl_cd, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
 export calculate_rotational_inertia!
 export kite_ref_frame, orient_euler, spring_forces, upwind_dir, copy_model_settings, menu2
+export generate_ram_point_system, generate_simple_ram_point_system
 import LinearAlgebra: norm
 
 set_zero_subnormals(true)       # required to avoid drastic slow down on Intel CPUs when numbers become very small
