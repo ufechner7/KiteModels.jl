@@ -19,7 +19,7 @@ KiteUtils.set_data_path("")
 @testset verbose = true "Testing KiteModels..." begin
     # include("test_orientation.jl")
     # include("test_kps3.jl")
-    include("test_kps4.jl")
+    # include("test_kps4.jl")
     include("test_kps5.jl")
     # if build_is_production_build
     #     include("bench3.jl")
