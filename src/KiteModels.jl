@@ -776,24 +776,6 @@ function copy_bin()
     chmod(joinpath(PATH, "update_packages.jl"), 0o664)
 end
 
-@setup_workload begin
-    # Putting some things in `@setup_workload` instead of `@compile_workload` can reduce the size of the
-    # precompile file and potentially make loading faster.
-    # list = [OtherType("hello"), OtherType("world!")]
-    path = dirname(pathof(@__MODULE__))
-    set_data_path(joinpath(path, "..", "data"))
+include("precompile.jl")
 
-    set = se("system.yaml")
-    set.kcu_diameter = 0
-    kps4_::KPS4 = KPS4(KCU(set))
-    kps3_::KPS3 = KPS3(KCU(se("system.yaml")))
-    @assert ! isnothing(kps4_.wm)
-    @compile_workload begin
-        # all calls in this block will be precompiled, regardless of whether
-        # they belong to your package or not (on Julia 1.8 and higher)
-        integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
-        integrator = KiteModels.init_sim!(kps4_; delta=0.03, stiffness_factor=0.05, prn=false) 
-        nothing
-    end
-end
 end
