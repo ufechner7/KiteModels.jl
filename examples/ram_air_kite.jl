@@ -1,3 +1,6 @@
+using Timers
+tic()
+
 using KiteModels, LinearAlgebra
 
 PLOT = true
@@ -41,6 +44,9 @@ s.set.rel_tol = 1e-4
 measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
 KiteModels.init_sim!(s, measure)
 sys = s.sys
+
+@info "System initialized at:"
+toc()
 
 # Stabilize system
 s.integrator.ps[sys.steady] = true
@@ -108,6 +114,8 @@ catch e
         rethrow(e)
     end
 end
+@info "Total time without plotting:"
+toc()
 
 # Plot results
 c = collect
