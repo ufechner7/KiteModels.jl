@@ -24,7 +24,6 @@ steering_magnitude = 1.0      # Magnitude of steering input [Nm]
 # Initialize model
 set = se("system_ram.yaml")
 set.segments = 2
-set_values = [-55, -4.0, -4.0]  # Set values of the torques of the three winches. [Nm]
 set.quasi_static = true
 set.bridle_fracs = [0.0, 0.93]
 
@@ -35,6 +34,8 @@ point_system = create_simple_ram_point_system(set, wing)
 s = RamAirKite(set, aero, vsm_solver, point_system)
 
 measure = Measurement()
+measure.set_values .= [-55, -4.0, -4.0]  # Set values of the torques of the three winches. [Nm]
+set_values = measure.set_values
 s.set.abs_tol = 1e-5
 s.set.rel_tol = 1e-4
 
@@ -60,11 +61,9 @@ try
         PLOT && plot(s, t; zoom=false, front=false)
         
         # Calculate steering inputs based on cosine wave
-        steering = steering_magnitude * cos(2π * steering_freq * t+0.1)
+        steering = steering_magnitude * cos(2π * steering_freq * t)
         set_values = -s.set.drum_radius .* s.integrator[sys.winch_force]
-        if t > 1.0
-            set_values .+= [0.0, steering, -steering]  # Opposite steering for left/right
-        end
+        set_values .+= [0.0, steering, -steering]  # Opposite steering for left/right
         
         # Step simulation
         steptime = @elapsed (t_new, integ_steptime) = next_step!(s, set_values; dt, vsm_interval)
@@ -118,7 +117,7 @@ p = plotx(sl.time .- 10,
     [rad2deg.(c(sl.var_09)), rad2deg.(c(sl.var_10))],
     [c(sl.var_11)],
     [rad2deg.(c(sl.heading))];
-    ylabels=["turn rates [°/s]", L"v_{ro}~[m/s]", "vsm", "twist [°]", "pulley", "AoA [°]", "heading [°]"],
+    ylabels=["turn rates [°/s]", L"v_{ro}~[m/s]", "vsm", "twist [°]", "AoA [°]", "heading [°]"],
     ysize=10,
     labels=[
         [L"ω_x", L"ω_y", L"ω_z"],

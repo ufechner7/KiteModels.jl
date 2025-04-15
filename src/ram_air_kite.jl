@@ -389,7 +389,7 @@ function init_sim!(s::RamAirKite, measure::Measurement; prn=true, precompile=fal
         
         sys, defaults, guesses, inputs = create_sys!(s, s.point_system, measure; init_Q_b_w, init_kite_pos, init_va, lin_sys)
         prn && @info "Simplifying the system"
-        @time sys, _ = structural_simplify(sys, (inputs, []); additional_passes=[ModelingToolkit.IfLifting])
+        @time sys = structural_simplify(sys; additional_passes=[ModelingToolkit.IfLifting])
         s.sys = sys
         dt = SimFloat(1/s.set.sample_freq)
         if prn
@@ -471,7 +471,7 @@ function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=true, pre
             if s.set.quasi_static
                 solver = FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.4, max_iter=1000))
             else
-                solver = FBDF()
+                solver = FBDF()init_sim!
             end
             s.sys = s.prob.f.sys
             s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, save_everystep=false)
@@ -484,7 +484,6 @@ function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=true, pre
 
     init_unknowns_vec!(s, s.point_system, s.unknowns_vec, init_Q_b_w, init_kite_pos)
     s.set_unknowns(s.integrator, s.unknowns_vec)
-    set_t!(s.integrator, 0.0)
     OrdinaryDiffEqCore.reinit!(s.integrator, s.integrator.u; reinit_dae=true)
     linearize_vsm!(s)
     return nothing

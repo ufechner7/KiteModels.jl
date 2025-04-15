@@ -8,33 +8,8 @@ function calc_moment_acc(winch::TorqueControlledMachine, tether_vel, norm_, set_
     calc_acceleration(winch, tether_vel, norm_; set_speed=nothing, set_torque, use_brake=false)
 end
 
-function sym_interp(interp::Function, aoa, trailing_edge_angle)
-    return interp(rad2deg(aoa), rad2deg(trailing_edge_angle-aoa)) # TODO: register callable struct https://docs.sciml.ai/Symbolics/dev/manual/functions/#Symbolics.@register_array_symbolic
-end
-@register_symbolic sym_interp(interp::Function, aoa, trailing_edge_angle)
-
 function sym_normalize(vec)
     return vec / norm(vec)
-end
-@register_symbolic sym_normalize(vec)
-
-function rotate_by_quaternion(q, v)
-    p = [0, v...]
-    return quaternion_multiply(q, quaternion_multiply(p, quaternion_conjugate(q)))[2:4]
-end
-
-function quaternion_conjugate(q)
-    return [q[1], -q[2], -q[3], -q[4]]
-end
-
-function quaternion_multiply(q1, q2)
-    w1, x1, y1, z1 = q1
-    w2, x2, y2, z2 = q2
-    w = w1*w2 - x1*x2 - y1*y2 - z1*z2
-    x = w1*x2 + x1*w2 + y1*z2 - z1*y2
-    y = w1*y2 - x1*z2 + y1*w2 + z1*x2
-    z = w1*z2 + x1*y2 - y1*x2 + z1*w2
-    return [w, x, y, z]
 end
 
 function quaternion_to_rotation_matrix(q)
@@ -478,8 +453,14 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         ]
         defaults = [
             defaults
-            tether_length[winch.idx] => winch.tether_length
+            # tether_length[winch.idx] => winch.tether_length
             tether_vel[winch.idx] => 0
+            tether_acc[winch.idx] => 0
+            # set_values[winch.idx] => init_set_values[winch.idx]
+        ]
+        guesses = [
+            guesses
+            tether_length[winch.idx] => winch.tether_length
         ]
     end
     return eqs, defaults, guesses, tether_kite_force, tether_kite_moment
@@ -647,17 +628,10 @@ function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measuremen
     defaults = Pair{Num, Real}[]
     guesses = Pair{Num, Real}[]
 
-    @parameters begin
-        steady = false
-        # measured_sphere_pos[1:2, 1:2] = measure.sphere_pos
-        # measured_sphere_vel[1:2, 1:2] = measure.sphere_vel
-        # measured_sphere_acc[1:2, 1:2] = measure.sphere_acc
-        # measured_tether_length[1:3] = measure.tether_length
-        # measured_tether_vel[1:3]    = measure.tether_vel
-        # measured_tether_acc[1:3]    = measure.tether_acc
-    end
+    init_set_values = measure.set_values
+    @parameters steady = false
+    @parameters set_values[eachindex(system.winches)] = init_set_values
     @variables begin
-        set_values(t)[eachindex(system.winches)]
         # potential differential variables
         kite_pos(t)[1:3] # xyz pos of kite in world frame
         kite_vel(t)[1:3]
