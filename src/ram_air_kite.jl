@@ -405,14 +405,14 @@ function init_sim!(s::RamAirKite, measure::Measurement; prn=true, precompile=fal
     if !ispath(prob_path) || remake
         init(s, measure)
     end
-    # try
+    try
         reinit!(s, measure; precompile)
-    # catch e
-    #     rm(prob_path)
-    #     @info "Rebuilding the system. This can take some minutes..."
-    #     init(s, measure)
-    #     reinit!(s, measure; precompile)
-    # end
+    catch e
+        rm(prob_path)
+        @info "Rebuilding the system. This can take some minutes..."
+        init(s, measure)
+        reinit!(s, measure; precompile)
+    end
     return nothing
 end
 

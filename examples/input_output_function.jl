@@ -61,7 +61,7 @@ function step_with_input_integ(x, u, _, p)
     (s, set_x, set_u, get_x, dt) = p
     set_x(s.integrator, x)
     set_u(s.integrator, u)
-    OrdinaryDiffEqCore.reinit!(s.integrator, s.integrator.u; reinit_dae=false)
+    OrdinaryDiffEqCore.reinit!(s.integrator, s.integrator.u; reinit_dae=true)
     OrdinaryDiffEqCore.step!(s.integrator, dt)
     return get_x(s.integrator)
 end
@@ -103,7 +103,7 @@ function test_response(s, input_range, input_idx, step_fn; steps=1)
     end
     
     times_rt = dt*iter/total_time
-    @info "Number of steps: $iter, Times realtime: $times_rt"
+    @info "Number of steps: $iter, Times realtime: $times_rt, Total time: $total_time"
     return input_range, angular_vels, times_rt
 end
 
@@ -113,7 +113,7 @@ function plot(step_fn)
     time_vec_left, angular_vels_left, _ = test_response(s, left_range, 2, step_fn)
 
     right_range = range(-1.0, 1.0, length=20)
-    time_vec_right, angular_vels_right, _ = test_response(s, right_range, 3, step_fn)
+    @time time_vec_right, angular_vels_right, _ = test_response(s, right_range, 3, step_fn)
 
     # Compare steering inputs effect on angular velocity
     left_vs_right = plotx(time_vec_left, 
@@ -128,6 +128,8 @@ function plot(step_fn)
         ],
         fig="Steering Input vs Angular Velocity",
         xlabel="Steering Input Value")
+
+    @show angular_vels_left[3,1] - angular_vels_right[3,1]
 
     return left_vs_right
 end
