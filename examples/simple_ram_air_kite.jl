@@ -19,14 +19,14 @@ steps = Int(round(total_time / dt))
 
 # Steering parameters
 steering_freq = 1/2  # Hz - full left-right cycle frequency
-steering_magnitude = 2.0      # Magnitude of steering input [Nm]
+steering_magnitude = 0.0      # Magnitude of steering input [Nm]
 
 # Initialize model
 set = se("system_ram.yaml")
 set.segments = 2
-set_values = [-50, -1.0, -1.0]  # Set values of the torques of the three winches. [Nm]
+set_values = [-55, -4.0, -4.0]  # Set values of the torques of the three winches. [Nm]
 set.quasi_static = true
-set.bridle_fracs = [0.088, 0.58, 0.93]
+set.bridle_fracs = [0.0, 0.93]
 
 wing = RamAirWing(set; prn=false, n_groups=2)
 aero = BodyAerodynamics([wing])
@@ -40,7 +40,7 @@ s.set.rel_tol = 1e-4
 
 # Initialize at elevation
 measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
-KiteModels.init_sim!(s, measure)
+KiteModels.init_sim!(s, measure; remake=false)
 # plot(s, 0.0; zoom=true, front=false)
 sys = s.sys
 
@@ -62,7 +62,7 @@ try
         
         # Calculate steering inputs based on cosine wave
         steering = steering_magnitude * cos(2π * steering_freq * t+0.05)
-        set_values = -s.set.drum_radius .* s.integrator[sys.winch_force]
+        # set_values = -s.set.drum_radius .* s.integrator[sys.winch_force]
         if t > 1.0
             set_values .+= [0.0, steering, -steering]  # Opposite steering for left/right
         end
@@ -76,7 +76,7 @@ try
             runtime += steptime
             integ_runtime += integ_steptime
         end
-        
+
         # Log state variables
         KiteModels.update_sys_state!(sys_state, s)
         sys_state.var_01 = s.integrator[sys.ω_b[1]]
@@ -92,11 +92,8 @@ try
 
         sys_state.var_09 = s.integrator[sys.twist_angle[1]]
         sys_state.var_10 = s.integrator[sys.twist_angle[2]]
-
-        sys_state.var_11 = s.integrator[sys.pulley_l0[1]]
-        sys_state.var_12 = s.integrator[sys.pulley_l0[2]]
         
-        sys_state.var_13 = rad2deg(calc_aoa(s))
+        sys_state.var_11 = rad2deg(calc_aoa(s))
         
         log!(logger, sys_state)
     end
@@ -120,8 +117,7 @@ p = plotx(sl.time .- 10,
     [c(sl.var_04), c(sl.var_05)],
     [c(sl.var_06), c(sl.var_07), c(sl.var_08)],
     [rad2deg.(c(sl.var_09)), rad2deg.(c(sl.var_10))],
-    [c(sl.var_11), c(sl.var_12)],
-    [c(sl.var_13)],
+    [c(sl.var_11)],
     [rad2deg.(c(sl.heading))];
     ylabels=["turn rates [°/s]", L"v_{ro}~[m/s]", "vsm", "twist [°]", "pulley", "AoA [°]", "heading [°]"],
     ysize=10,
@@ -130,7 +126,6 @@ p = plotx(sl.time .- 10,
         ["vel[1]", "vel[2]"],
         ["force[3]", "kite moment[2]", "group moment[1]"],
         ["twist_angle[1]", "twist_angle[2]"],
-        ["pulley_l0[1]", "pulley_l0[2]"],
         ["angle of attack"],
         ["heading"]
     ],
