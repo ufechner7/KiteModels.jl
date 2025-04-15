@@ -120,6 +120,7 @@ fi
 if [[ $update == true ]]; then
     julia --startup-file=no --pkgimages=no --project -e "include(\"./test/create_sys_image.jl\");"
 else
+    julia --startup-file=no --pkgimages=no --project -e "using Pkg; Pkg.instantiate();"
     julia --startup-file=no --pkgimages=no --project -e "using TestEnv; TestEnv.activate(); include(\"./test/create_sys_image.jl\");"
 fi
 
