@@ -26,6 +26,7 @@ set = se("system_ram.yaml")
 set.segments = 2
 set.quasi_static = true
 set.bridle_fracs = [0.0, 0.93]
+set.physical_model = "simple_ram"
 
 wing = RamAirWing(set; prn=false, n_groups=2)
 aero = BodyAerodynamics([wing])
