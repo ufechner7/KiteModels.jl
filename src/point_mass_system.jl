@@ -160,7 +160,6 @@ function create_kite_point(idx, set, wing)
 
     frac_idx = (idx-1)%wing.n_groups+1
     pos = le_pos .+ chord .* set.bridle_fracs[frac_idx]
-    @show pos set.bridle_fracs[frac_idx] chord
     return Point(idx, pos, KITE)
 end
 
