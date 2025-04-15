@@ -81,6 +81,9 @@ jobs:
       with:
         arch: ${{ matrix.julia_arch }}
         version: ${{ matrix.julia_version }}
+    - name: Build PyCall
+      run: julia --project=docs/ -e 'ENV["PYTHON"]=""; using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate(); Pkg.build("PyCall")'
+      shell: bash    
     - uses: julia-actions/cache@v2
     - uses: julia-actions/julia-runtest@v1
       env:
