@@ -30,9 +30,9 @@ dt = 0.05
 # Initialize model
 set = se("system_ram.yaml")
 set.segments = 2
-set_values = [-50, -1.0, -1.0]  # Set values of the torques of the three winches. [Nm]
+set_values = [-55, -4.0, -4.0]  # Set values of the torques of the three winches. [Nm]
 set.quasi_static = true
-set.bridle_fracs = [0.088, 0.58, 0.93]
+set.bridle_fracs = [0.0, 0.93]
 
 wing = RamAirWing(set; prn=false, n_groups=2)
 aero = BodyAerodynamics([wing])
@@ -49,6 +49,7 @@ measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
 KiteModels.init_sim!(s, measure; remake=true, lin_sys=true)
 toc()
 sys = s.sys
+iprob = s.prob.f.initialization_data.initializeprob
 
 # # Stabilize system
 # s.integrator.ps[sys.steady] = true
