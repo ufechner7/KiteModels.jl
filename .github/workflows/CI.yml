@@ -33,7 +33,7 @@ jobs:
             version: 1
             build_is_production_build: true
           - os: macOS-latest
-            arch: x64
+            arch: aarch64
             version: 1
             build_is_production_build: true
     steps:
