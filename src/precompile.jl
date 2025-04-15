@@ -9,6 +9,27 @@ function decompress_binary(infile, outfile; chunksize=4096)
     end
 end
 
+function filecmp(path1::AbstractString, path2::AbstractString)
+    stat1, stat2 = stat(path1), stat(path2)
+    if !(isfile(stat1) && isfile(stat2)) || filesize(stat1) != filesize(stat2)
+        return false
+    end
+    open(path1, "r") do file1
+        open(path2, "r") do file2
+            buf1 = Vector{UInt8}(undef, 32768)
+            buf2 = similar(buf1)
+            while !eof(file1) && !eof(file2)
+                n1 = readbytes!(file1, buf1)
+                n2 = readbytes!(file2, buf2)
+                if n1 != n2 || buf1[1:n1] != buf2[1:n2]
+                    return false
+                end
+            end
+            return eof(file1) && eof(file2)
+        end
+    end
+end
+
 @setup_workload begin
     # Putting some things in `@setup_workload` instead of `@compile_workload` can reduce the size of the
     # precompile file and potentially make loading faster.
@@ -33,8 +54,14 @@ end
         # they belong to your package or not (on Julia 1.8 and higher)
         integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
         integrator = KiteModels.init_sim!(kps4_; delta=0.03, stiffness_factor=0.05, prn=false)
-
-        if isfile(joinpath(path, "..", "data", "prob_dynamic_3_seg.bin.default"))
+        if VERSION.minor == 11
+            m1 = "Manifest-v1.11.toml"
+            m2 = "Manifest-v1.11.toml.default"
+        else
+            m1 = "Manifest-v1.10.toml"
+            m2 = "Manifest-v1.10.toml.default"
+        end
+        if isfile(output_file) && filecmp(m1, m2)
             local set
             # Simulation parameters
             dt = 0.05
