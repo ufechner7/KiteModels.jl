@@ -405,12 +405,12 @@ function init_sim!(s::RamAirKite, measure::Measurement; prn=true, precompile=fal
         init(s, measure)
     end
     try
-        reinit!(s, measure)
+        reinit!(s, measure; precompile)
     catch e
         rm(prob_path)
         @info "Rebuilding the system. This can take some minutes..."
         init(s, measure)
-        reinit!(s, measure)
+        reinit!(s, measure; precompile)
     end
     return nothing
 end
@@ -420,7 +420,7 @@ function init_sim!(::RamAirKite; prn=true)
 end
 
 """
-    reinit!(s::RamAirKite; prn=true) -> Nothing
+    reinit!(s::RamAirKite; prn=true, precompile=false) -> Nothing
 
 Reinitialize an existing kite power system model with new state values.
 
@@ -448,14 +448,14 @@ and only updates the state variables to match the current `measure`.
 # Throws
 - `ArgumentError`: If no serialized problem exists (run `init_sim!` first)
 """
-function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=true)
+function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=true, precompile=false)
     isnothing(s.point_system) && (s.point_system = PointMassSystem(s, s.wing))
 
     init_Q_b_w, R_b_w = measure_to_q(measure)
     init_kite_pos = init!(s.point_system, s.set, R_b_w)
     
     if isnothing(s.prob)
-        prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set))
+        prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set; precompile))
         !ispath(prob_path) && throw(ArgumentError("$prob_path not found. Run init_sim!(s::RamAirKite) first."))
         try
             s.prob = deserialize(prob_path)
