@@ -471,7 +471,7 @@ function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=true, pre
             if s.set.quasi_static
                 solver = FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.4, max_iter=1000))
             else
-                solver = FBDF()init_sim!
+                solver = FBDF()
             end
             s.sys = s.prob.f.sys
             s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, save_everystep=false)
