@@ -231,6 +231,8 @@ $(TYPEDFIELDS)
     e_z::V =                 zeros(S, 3)
     "Simplified system of the mtk model"
     sys::Union{ModelingToolkit.ODESystem, Nothing} = nothing
+    "Linearization problem of the mtk model"
+    lin_prob::Union{ModelingToolkit.LinearizationProblem, Nothing} = nothing
     "Velocity of the kite"
     vel_kite::V =           zeros(S, 3)
     "Inertia around kite x y and z axis of the body frame"
@@ -378,17 +380,16 @@ problem already exists.
 # Returns
 - `Nothing`
 """
-function init_sim!(s::RamAirKite, measure::Measurement; prn=true, precompile=false)
+function init_sim!(s::RamAirKite, measure::Measurement; prn=true, precompile=false, lin_sys=false, remake=false)
     function init(s, measure)
         init_Q_b_w, R_b_w = measure_to_q(measure)
         init_kite_pos = init!(s.point_system, s.set, R_b_w)
 
         init_va = R_b_w' * [s.set.v_wind, 0., 0.]
         
-        sys, defaults, guesses = create_sys!(s, s.point_system, measure; init_Q_b_w, init_kite_pos, init_va)
+        sys, defaults, guesses, inputs = create_sys!(s, s.point_system, measure; init_Q_b_w, init_kite_pos, init_va, lin_sys)
         prn && @info "Simplifying the system"
-        prn && @time sys = structural_simplify(sys; additional_passes=[ModelingToolkit.IfLifting])
-        !prn && (sys = structural_simplify(sys; additional_passes=[ModelingToolkit.IfLifting]))
+        @time sys, _ = structural_simplify(sys, (inputs, []); additional_passes=[ModelingToolkit.IfLifting])
         s.sys = sys
         dt = SimFloat(1/s.set.sample_freq)
         if prn
@@ -401,7 +402,7 @@ function init_sim!(s::RamAirKite, measure::Measurement; prn=true, precompile=fal
         s.integrator = nothing
     end
     prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set; precompile))
-    if !ispath(prob_path)
+    if !ispath(prob_path) || remake
         init(s, measure)
     end
     try
@@ -448,8 +449,8 @@ and only updates the state variables to match the current `measure`.
 # Throws
 - `ArgumentError`: If no serialized problem exists (run `init_sim!` first)
 """
-function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=true, precompile=false)
-    isnothing(s.point_system) && (s.point_system = PointMassSystem(s, s.wing))
+function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=true)
+    isnothing(s.point_system) && throw(ArgumentError("PointMassSystem not defined"))
 
     init_Q_b_w, R_b_w = measure_to_q(measure)
     init_kite_pos = init!(s.point_system, s.set, R_b_w)
@@ -524,9 +525,9 @@ function linearize_vsm!(s::RamAirKite)
         s.vsm_solver, 
         s.aero, 
         y;
-        theta_idxs=1:4,
-        va_idxs=5:7,
-        omega_idxs=8:10,
+        va_idxs=1:3, 
+        omega_idxs=4:6,
+        theta_idxs=7:6+length(s.point_system.groups),
         moment_frac=s.bridle_fracs[s.point_system.groups[1].fixed_index])
     s.set_vsm(s.integrator, [x, y, jac])
     nothing
