@@ -22,7 +22,7 @@ const BUILD_SYS = true
                 mass=set.mass, crease_frac=0.82, align_to_principal=true)
     aero = BodyAerodynamics([wing])
     vsm_solver = Solver(aero; solver_type=NONLIN, atol=1e-8, rtol=1e-8)
-    point_system = generate_ram_point_system(set, wing)
+    point_system = create_ram_point_system(set, wing)
     measure = Measurement()
 
     # Utility functions for setup

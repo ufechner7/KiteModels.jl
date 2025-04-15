@@ -5,7 +5,7 @@ function VortexStepMethod.RamAirWing(set::Settings; prn=true, kwargs...)
     return RamAirWing(obj_path, dat_path; mass=set.mass, crease_frac=set.crease_frac, align_to_principal=true, prn, kwargs...)
 end
 
-function generate_ram_point_system(set::Settings, wing::RamAirWing)
+function create_ram_point_system(set::Settings, wing::RamAirWing)
     # TODO: move as much of the code as possible from create_point_mass_system to other places, to make model creation easier.
     # 1. move bridle gamma calculation
     # 2. ...
@@ -143,8 +143,53 @@ function generate_ram_point_system(set::Settings, wing::RamAirWing)
     return PointMassSystem(points, groups, segments, pulleys, tethers, winches)
 end
 
+function create_kite_point_group(idx, points, fixed_index, wing, dynamics_type)
+    gamma = (-1 + 1/wing.n_groups + 2(idx-1)/wing.n_groups) * wing.gamma_tip
+    le_pos = [wing.le_interp[i](gamma) for i in 1:3]
+    chord = [wing.te_interp[i](gamma) for i in 1:3] .- le_pos
+    y_airf = normalize([wing.le_interp[i](gamma-0.01) for i in 1:3] - le_pos)
+    return KitePointGroup(idx, points, fixed_index, chord, y_airf, dynamics_type)
+end
 
-function generate_simple_ram_point_system(set::Settings, wing::RamAirWing)
+function create_kite_point(idx, group_idx, set, wing)
+    gamma = (-1 + 1/wing.n_groups + 2(group_idx-1)/wing.n_groups) * wing.gamma_tip
+    le_pos = [wing.le_interp[i](gamma) for i in 1:3]
+    chord = [wing.te_interp[i](gamma) for i in 1:3] .- le_pos
+    pos = le_pos .+ chord .* set.bridle_fracs[group_idx]
+    return Point(idx, pos, KITE)
+end
+
+function create_tether(set, points, segments, tethers, attach_point, type, dynamics_type)
+    @show points segments tethers
+    l0 = set.l_tether / set.segments
+    segment_idxs = Int16[]
+    for i in 1:set.segments
+        frac = i / set.segments
+        pos = [(1-frac) * attach_point.pos_b[1], 
+                (1-frac) * attach_point.pos_b[2],
+                attach_point.pos_b[3] - i*l0]
+        i_pnt = length(points) # last point idx
+        i_seg = length(segments) # last segment idx
+        if i == 1
+            points = [points; Point(1+i_pnt, pos, dynamics_type)]
+            segments = [segments; Segment(1+i_seg, (attach_point.idx, 1+i_pnt), type)]
+        elseif i == set.segments
+            points = [points; Point(1+i_pnt, pos, WINCH)]
+            segments = [segments; Segment(1+i_seg, (i_pnt, 1+i_pnt), type)]
+        else
+            points = [points; Point(1+i_pnt, pos, dynamics_type)]
+            segments = [segments; Segment(1+i_seg, (i_pnt, 1+i_pnt), type)]
+        end
+        push!(segment_idxs, 1+i_seg)
+        i_pnt = length(points)
+    end
+    i_tether = length(tethers)
+    winch_point_idx = points[end].idx
+    tethers = [tethers; Tether(1+i_tether, segment_idxs, winch_point_idx)]
+    return points, segments, tethers, tethers[end].idx
+end
+
+function create_simple_ram_point_system(set::Settings, wing::RamAirWing)
     (length(set.bridle_fracs) != 3) && throw(ArgumentError("Only 3 bridle fracs should be provided for the simple model."))
 
     points = Point[]
@@ -154,96 +199,26 @@ function generate_simple_ram_point_system(set::Settings, wing::RamAirWing)
     tethers = Tether[]
     winches = Winch[]
 
-    attach_points = Point[]
-    
-    bridle_top_left = [wing.R_cad_body * (set.top_bridle_points[i] + wing.T_cad_body) for i in eachindex(set.top_bridle_points)] # cad to kite frame
-    bridle_top_right = [bridle_top_left[i] .* [1, -1, 1] for i in eachindex(set.top_bridle_points)]
-
     dynamics_type = set.quasi_static ? STATIC : DYNAMIC
 
-    function create_bridle(bridle_top, gamma)
-        i_pnt = length(points) # last point idx
-        i_seg = length(segments) # last segment idx
-        i_pul = length(pulleys) # last pulley idx
+    points = [
+        points
+        create_kite_point(1, 1, set, wing)
+        create_kite_point(2, 1, set, wing)
+        create_kite_point(3, 2, set, wing)
+        create_kite_point(4, 2, set, wing)
+    ]
 
-        i = 1
-        le_pos = [wing.le_interp[i](gamma) for i in 1:3]
-        chord = [wing.te_interp[i](gamma) for i in 1:3] .- le_pos
-        y_airf = normalize([wing.le_interp[i](gamma-0.01) for i in 1:3] - le_pos)
+    groups = [
+        groups
+        create_kite_point_group(1, [1,2], 1, wing, DYNAMIC)
+        create_kite_point_group(2, [3,4], 1, wing, DYNAMIC)
+    ]
 
-        point_idxs = Int16[]
-        for frac in set.bridle_fracs # 3 fracs
-            pos = le_pos .+ chord .* frac
-            points = [points; Point(i+i_pnt, pos, KITE)]
-            push!(point_idxs, points[end].idx)
-            i += 1
-        end
-        
-        i_grp = 1 + length(groups)
-        groups = [groups; KitePointGroup(i_grp, point_idxs, 1, chord, y_airf, DYNAMIC)]
-
-        points = [
-            points
-            Point(4+i_pnt, bridle_top[1] .+ [0, 0, -3], dynamics_type)
-            Point(5+i_pnt, bridle_top[2] .+ [0, 0, -2], dynamics_type)
-            Point(6+i_pnt, bridle_top[3] .+ [0, 0, -3], dynamics_type)
-        ]
-        l1 = norm(points[1+i_pnt].pos_b - points[4+i_pnt].pos_b)
-        segments = [
-            segments
-            Segment(1+i_seg, (1+i_pnt, 4+i_pnt), BRIDLE, l1)
-            Segment(2+i_seg, (2+i_pnt, 5+i_pnt), BRIDLE, l1-1)
-            Segment(3+i_seg, (3+i_pnt, 6+i_pnt), BRIDLE, l1)
-
-            Segment(4+i_seg, (4+i_pnt, 5+i_pnt), BRIDLE, 1)
-            Segment(5+i_seg, (5+i_pnt, 6+i_pnt), BRIDLE, 1)
-        ]
-        pulleys = [
-            pulleys
-            Pulley(1+i_pul, (4+i_seg, 5+i_seg), dynamics_type)
-        ]
-        push!(attach_points, points[4+i_pnt])
-        push!(attach_points, points[6+i_pnt])
-        return nothing
-    end
-
-    function create_tether(attach_point, type)
-        l0 = set.l_tether / set.segments
-        segment_idxs = Int16[]
-        for i in 1:set.segments
-            frac = i / set.segments
-            pos = [(1-frac) * attach_point.pos_b[1], 
-                    (1-frac) * attach_point.pos_b[2],
-                    attach_point.pos_b[3] - i*l0]
-            i_pnt = length(points) # last point idx
-            i_seg = length(segments) # last segment idx
-            if i == 1
-                points = [points; Point(1+i_pnt, pos, dynamics_type)]
-                segments = [segments; Segment(1+i_seg, (attach_point.idx, 1+i_pnt), type)]
-            elseif i == set.segments
-                points = [points; Point(1+i_pnt, pos, WINCH)]
-                segments = [segments; Segment(1+i_seg, (i_pnt, 1+i_pnt), type)]
-            else
-                points = [points; Point(1+i_pnt, pos, dynamics_type)]
-                segments = [segments; Segment(1+i_seg, (i_pnt, 1+i_pnt), type)]
-            end
-            push!(segment_idxs, 1+i_seg)
-            i_pnt = length(points)
-        end
-        i_tether = length(tethers)
-        winch_point_idx = points[end].idx
-        tethers = [tethers; Tether(1+i_tether, segment_idxs, winch_point_idx)]
-        return tethers[end].idx
-    end
-
-    gammas = [-1/2, 1/2] * wing.gamma_tip
-    create_bridle(bridle_top_left, gammas[1])
-    create_bridle(bridle_top_right, gammas[2])
-
-    left_power_idx = create_tether(attach_points[1], POWER)
-    right_power_idx = create_tether(attach_points[3], POWER)
-    left_steering_idx = create_tether(attach_points[2], STEERING)
-    right_steering_idx = create_tether(attach_points[4], STEERING)
+    points, segments, tethers, left_power_idx = create_tether(set, points, segments, tethers, points[1], POWER, dynamics_type)
+    points, segments, tethers, right_power_idx = create_tether(set, points, segments, tethers, points[3], POWER, dynamics_type)
+    points, segments, tethers, left_steering_idx = create_tether(set, points, segments, tethers, points[2], STEERING, dynamics_type)
+    points, segments, tethers, right_steering_idx = create_tether(set, points, segments, tethers, points[4], STEERING, dynamics_type)
 
     winches = [winches; Winch(1, TorqueControlledMachine(set), [left_power_idx, right_power_idx])]
     winches = [winches; Winch(2, TorqueControlledMachine(set), [left_steering_idx])]

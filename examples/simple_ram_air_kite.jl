@@ -25,13 +25,13 @@ steering_magnitude = 2.0      # Magnitude of steering input [Nm]
 set = se("system_ram.yaml")
 set.segments = 2
 set_values = [-50, -1.0, -1.0]  # Set values of the torques of the three winches. [Nm]
-set.quasi_static = false
+set.quasi_static = true
 set.bridle_fracs = [0.088, 0.58, 0.93]
 
 wing = RamAirWing(set; prn=false, n_groups=2)
 aero = BodyAerodynamics([wing])
 vsm_solver = Solver(aero; solver_type=NONLIN, atol=2e-8, rtol=2e-8)
-point_system = generate_simple_ram_point_system(set, wing)
+point_system = create_simple_ram_point_system(set, wing)
 s = RamAirKite(set, aero, vsm_solver, point_system)
 
 measure = Measurement()
