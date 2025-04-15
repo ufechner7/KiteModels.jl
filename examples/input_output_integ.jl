@@ -13,9 +13,9 @@ providing insight into the kite's steering behavior and control characteristics.
 
 using Timers
 tic()
-using KiteModels, LinearAlgebra, OrdinaryDiffEqCore, OrdinaryDiffEqNonlinearSolve, OrdinaryDiffEqBDF
+using KiteModels, LinearAlgebra, OrdinaryDiffEqCore
 using ModelingToolkit
-using ModelingToolkit: setu, getu, setp
+using ModelingToolkit: setu, getu
 
 PLOT = true
 if PLOT
@@ -49,31 +49,31 @@ s.set.rel_tol = 1e-5
 measure.sphere_pos .= deg2rad.([83.0 83.0; 1.0 -1.0])
 KiteModels.init_sim!(s, measure; remake=false)
 sys = s.sys
-prob = s.prob
-solver = FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.4, max_iter=1000))
-@time solve(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, save_everystep=false)
-@time solve(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, save_everystep=false)
+
+# Stabilize system
+s.integrator.ps[sys.steady] = true
+next_step!(s; dt=10.0, vsm_interval=1)
+s.integrator.ps[sys.steady] = false
 
 # Function to step simulation with input u
 function step_with_input(x, u, _, p)
-    (s, stiff_x, set_x, set_sx, set_u, get_x, dt) = p
-    set_x(s.prob, x)
-    set_sx(s.prob, stiff_x)
-    set_u(s.prob, u)
-    sol = solve(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, save_everystep=false, save_start=false)
-    return get_x(sol)[1]
+    (s, stiff_x, set_x, set_sx, get_x, dt) = p
+    set_x(s.integrator, x)
+    set_sx(s.integrator, stiff_x)
+    OrdinaryDiffEqCore.reinit!(s.integrator, s.integrator.u; reinit_dae=false)
+    next_step!(s, u; dt=dt, vsm_interval=0)
+    return get_x(s.integrator)
 end
 
 # Get initial state
 x_vec = KiteModels.get_nonstiff_unknowns(s)
 sx_vec = KiteModels.get_stiff_unknowns(s)
-set_x = setu(s.prob, Initial.(x_vec))
-set_sx = setu(s.prob, sx_vec)
-set_u = setu(s.prob, collect(sys.set_values))
-get_x = getu(s.prob, x_vec)
-get_sx = getu(s.prob, sx_vec)
-x0 = get_x(s.prob)
-sx0 = get_sx(s.prob)
+set_x = setu(s.integrator, x_vec)
+set_sx = setu(s.integrator, sx_vec)
+get_x = getu(s.integrator, x_vec)
+get_sx = getu(s.integrator, sx_vec)
+x0 = get_x(s.integrator)
+sx0 = get_sx(s.integrator)
 
 # Test steering inputs and record angular velocity response
 function test_response(s, input_range, input_idx; steps=1)
@@ -86,7 +86,7 @@ function test_response(s, input_range, input_idx; steps=1)
         u[input_idx] += input_val
         x = copy(x0)
         for i in 1:steps
-            p = (s, sx0, set_x, set_sx, set_u, get_x, dt)
+            p = (s, sx0, set_x, set_sx, get_x, dt)
             total_time += @elapsed x = step_with_input(x, u, nothing, p)
             iter += 1
         end
@@ -120,4 +120,4 @@ left_vs_right = plotx(time_vec_left,
     xlabel="Steering Input Value")
 
 display(left_vs_right)
-
+@show angular_vels_left[3,1] - angular_vels_right[3,1]

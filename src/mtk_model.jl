@@ -453,15 +453,14 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         ]
         defaults = [
             defaults
-            # tether_length[winch.idx] => winch.tether_length
-            tether_vel[winch.idx] => 0
-            tether_acc[winch.idx] => 0
-            # set_values[winch.idx] => init_set_values[winch.idx]
-        ]
-        guesses = [
-            guesses
             tether_length[winch.idx] => winch.tether_length
+            tether_vel[winch.idx] => 0
+            # tether_acc[winch.idx] => 0
         ]
+        # guesses = [
+        #     guesses
+        #     tether_length[winch.idx] => winch.tether_length
+        # ]
     end
     return eqs, defaults, guesses, tether_kite_force, tether_kite_moment
 end
