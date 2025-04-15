@@ -1,21 +1,30 @@
 using KiteModels
 using Timers
 using Pkg 
+using DAEProblemLibrary
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
     using TestEnv; TestEnv.activate()
 end
+import OrdinaryDiffEqCore.init
+import OrdinaryDiffEqCore.step!
+using Dierckx, Interpolations, Serialization, StaticArrays, LinearAlgebra, Statistics, Parameters, NLsolve,
+      DocStringExtensions, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK, NonlinearSolve, FiniteDiff, DifferentiationInterface
 # using ModelingToolkit: Symbolics, @register_symbolic
 # using ModelingToolkit, ControlPlots, Parameters
 set = deepcopy(load_settings("system_kps5.yaml"))
 kcu::KCU = KCU(set)
 s = KPS5(kcu)
 
-# dt = 1/set.sample_freq
-# time_range = 0:dt:set.sim_time-dt
-# steps = length(time_range)
-# logger = Logger(KPS5.points(s), steps)
-# init_sim!(s)
-# generate_getters!(s)
+dt = 1/s.set.sample_freq
+time_range = 0:dt:set.sim_time-dt
+steps = length(time_range)
+println("points: ", KiteModels.points(s))
+logger = Logger(KiteModels.points(s), steps)
+solver  = DImplicitEuler(autodiff=false)#@AutoFiniteDiff())
+KiteModels.get_kite_points(s)
+KiteModels.calc_initial_state(s)
+KiteModels.init_sim!(s) #(integrate gen getter in initsim)
+# KiteModels.generate_getters!(s)
 # # simulate(s, logger)
 # save_log(logger, "tmp")
 # lg = load_log("tmp")
