@@ -3,7 +3,7 @@ system:
                                    #   use / as path delimiter, even on Windows 
     log_level:      2              # 0: no logging 
     time_lapse:   1.0              # relative replay speed
-    sim_time:   100.0              # simulation time             [sim only]
+    sim_time:   10.0              # simulation time             [sim only]
     segments:       6              # number of tether segments
     sample_freq:   20              # sample frequency in Hz
     zoom:        0.03              # zoom factor for the system view
@@ -44,7 +44,7 @@ kite:
     mass:  6.2             # kite mass incl. sensor unit [kg]
     area: 10.18            # projected kite area         [m²]
     rel_side_area: 30.6    # relative side area           [%]
-    height: 2.23           # height of the kite           [m]
+    height_k: 2.23           # height of the kite           [m]
     alpha_cl:  [-180.0, -160.0, -90.0, -20.0, -10.0,  -5.0,  0.0, 20.0, 40.0, 90.0, 160.0, 180.0]
     cl_list:   [   0.0,    0.5,   0.0,  0.08, 0.125,  0.15,  0.2,  1.0,  1.0,  0.0,  -0.5,   0.0]
     alpha_cd:  [-180.0, -170.0, -140.0, -90.0, -20.0, 0.0, 20.0, 90.0, 140.0, 170.0, 180.0]
@@ -130,11 +130,7 @@ environment:
 
 
 
-    # needed:
-    # dt = 1/sample_freq # time step of the simulation [s]
-    # conn: [(1,2), (2,3), (3,1), (1,4), (2,4), (3,4), (1,5), (2,5), (3,5)]    
+    # needed:   
     # springcomstamt_bridle
     # springcomstamt_tether
     # rel_damping_kite:
-    # total_segments: 9 + segments             # total segments [-]
-    # points: 5 + segments 
