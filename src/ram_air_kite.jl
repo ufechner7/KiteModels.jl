@@ -404,9 +404,8 @@ function init_sim!(s::RamAirKite, measure::Measurement; prn=true, precompile=fal
     if !ispath(prob_path)
         init(s, measure)
     end
-    try
-        reinit!(s, measure; precompile)
-    catch e
+    success = reinit!(s, measure; precompile)
+    if !success
         rm(prob_path)
         @info "Rebuilding the system. This can take some minutes..."
         init(s, measure)
@@ -461,7 +460,7 @@ function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=true, pre
             s.prob = deserialize(prob_path)
         catch e
             @warn "Failure to deserialize $prob_path !"
-            throw(e)
+            false
         end
     end
     if isnothing(s.integrator) || !successful_retcode(s.integrator.sol) || reload
@@ -486,7 +485,7 @@ function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=true, pre
     set_t!(s.integrator, 0.0)
     OrdinaryDiffEqCore.reinit!(s.integrator, s.integrator.u; reinit_dae=true)
     linearize_vsm!(s)
-    return nothing
+    return true
 end
 
 function generate_getters!(s, sym_vec)
