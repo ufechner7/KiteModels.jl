@@ -2,11 +2,14 @@ using KiteModels
 using Timers
 using Pkg 
 using DAEProblemLibrary
-if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
-    using TestEnv; TestEnv.activate()
-end
+# if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
+#     using TestEnv; TestEnv.activate()
+# end
+using ControlPlots
 import OrdinaryDiffEqCore.init
 import OrdinaryDiffEqCore.step!
+import OrdinaryDiffEqCore.solve
+import OrdinaryDiffEqCore
 using Dierckx, Interpolations, Serialization, StaticArrays, LinearAlgebra, Statistics, Parameters, NLsolve,
       DocStringExtensions, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK, NonlinearSolve, FiniteDiff, DifferentiationInterface
 # using ModelingToolkit: Symbolics, @register_symbolic
@@ -18,18 +21,55 @@ s = KPS5(kcu)
 dt = 1/s.set.sample_freq
 time_range = 0:dt:set.sim_time-dt
 steps = length(time_range)
-println("points: ", KiteModels.points(s))
 logger = Logger(KiteModels.points(s), steps)
-solver  = DImplicitEuler(autodiff=false)#@AutoFiniteDiff())
+#solver  = DImplicitEuler(autodiff=false)#@AutoFiniteDiff())
 KiteModels.get_kite_points(s)
 KiteModels.calc_initial_state(s)
 KiteModels.init_sim!(s) #(integrate gen getter in initsim)
-# KiteModels.generate_getters!(s)
-# # simulate(s, logger)
-# save_log(logger, "tmp")
-# lg = load_log("tmp")
-# play(s, lg)
-# dt = 1/set.sample_freq
+KiteModels.generate_getters!(s)
+KiteModels.simulate(s, logger)
+save_log(logger, "tmp")
+lg = load_log("tmp")
+function play(s, lg)
+    dt = 1/s.set.sample_freq
+    conn = KiteModels.getconnections(s)
+    sl = lg.syslog
+    total_segmentsvector = Vector{Int64}[]
+    for conn_pair in conn
+        push!(total_segmentsvector, Int64[conn_pair[1], conn_pair[2]])
+    end
+    # Add tether segments
+    for i in 0:(s.set.segments-2)
+        push!(total_segmentsvector, [6+i, 6+i+1])
+    end
+    # Add final connection from last tether point to bridle point
+    push!(total_segmentsvector, [6+s.set.segments-1, 1])
+    for step in 1:length(0:dt:s.set.sim_time)-1 #-s.set.dt
+        # Get positions at this time step
+        x = sl.X[step]
+        y = sl.Y[step]
+        z = sl.Z[step] 
+        # Create points array for all points in the system
+        pointsvector = Vector{Float64}[]
+        for i in 1:KiteModels.points(s)                 #FIX THIS!
+            push!(pointsvector, Float64[x[i], y[i], z[i]])
+        end        
+        # Calculate appropriate limits for the plot
+        x_min, x_max = 0, 40
+        z_min, z_max = 0, 60
+        t = (dt) * (step-1)
+        # Plot the kite system at this time step
+        plot2d(pointsvector, total_segmentsvector, t;
+               zoom = false,
+               xlim = (x_min, x_max),
+               ylim = (z_min, z_max)
+        )
+        # Add a small delay to control animation speed
+        sleep(0.05)
+    end
+    nothing
+end
+play(s, lg)
 
 
 # @with_kw mutable struct Settings_not_there_yet @deftype Float64
@@ -84,49 +124,11 @@ KiteModels.init_sim!(s) #(integrate gen getter in initsim)
 #     return nothing
 # end
 
-# function play(s, lg)
-#     dt = 1/s.set.sample_freq
-#     conn = getconnections(s)
-#     sl = lg.syslog
-#     total_segmentsvector = Vector{Int64}[]
-#     for conn_pair in conn
-#         push!(total_segmentsvector, Int64[conn_pair[1], conn_pair[2]])
-#     end
-#     # Add tether segments
-#     for i in 0:(s.set.segments-2)
-#         push!(total_segmentsvector, [6+i, 6+i+1])
-#     end
-#     # Add final connection from last tether point to bridle point
-#     push!(total_segmentsvector, [6+s.set.segments-1, 1])
-#     for step in 1:length(0:dt:s.set.sim_time)-1 #-s.set.dt
-#         # Get positions at this time step
-#         x = sl.X[step]
-#         y = sl.Y[step]
-#         z = sl.Z[step] 
-#         # Create points array for all points in the system
-#         pointsvector = Vector{Float64}[]
-#         for i in 1:points(s)                 #FIX THIS!
-#             push!(pointsvector, Float64[x[i], y[i], z[i]])
-#         end        
-#         # Calculate appropriate limits for the plot
-#         x_min, x_max = 0, 40
-#         z_min, z_max = 0, 60
-#         t = dt * (step-1)
-#         # Plot the kite system at this time step
-#         plot2d(pointsvector, total_segmentsvector, t;
-#                zoom = false,
-#                xlim = (x_min, x_max),
-#                ylim = (z_min, z_max)
-#         )
-#         # Add a small delay to control animation speed
-#         sleep(0.05)
-#     end
-#     nothing
-# end
-# function plot_front_view3(lg)
-#     display(plotxy(lg.y, lg.z;
-#     xlabel="pos_y [m]",
-#     ylabel="height [m]",
-#     fig="front_view"))
-#     nothing
-# end
+
+function plot_front_view3(lg)
+    display(plotxy(lg.y, lg.z;
+    xlabel="pos_y [m]",
+    ylabel="height [m]",
+    fig="front_view"))
+    nothing
+end
