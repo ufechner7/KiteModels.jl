@@ -260,7 +260,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
     # ==================== SEGMENTS ==================== #
     @variables begin
         segment_vec(t)[1:3, eachindex(segments)]
-        unit_vector(t)[1:3, eachindex(segments)]
+        unit_vec(t)[1:3, eachindex(segments)]
         len(t)[eachindex(segments)]
         rel_vel(t)[1:3, eachindex(segments)]
         spring_vel(t)[eachindex(segments)]
@@ -357,9 +357,9 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             # spring force equations
             segment_vec[:, segment.idx]  ~ pos[:, p2] - pos[:, p1]
             len[segment.idx]             ~ norm(segment_vec[:, segment.idx])
-            unit_vector[:, segment.idx]  ~ segment_vec[:, segment.idx]/len[segment.idx]
+            unit_vec[:, segment.idx]  ~ segment_vec[:, segment.idx]/len[segment.idx]
             rel_vel[:, segment.idx]      ~ vel[:, p1] - vel[:, p2]
-            spring_vel[segment.idx]      ~ rel_vel[:, segment.idx] ⋅ unit_vector[:, segment.idx]
+            spring_vel[segment.idx]      ~ rel_vel[:, segment.idx] ⋅ unit_vec[:, segment.idx]
             stiffness[segment.idx]       ~ ifelse(len[segment.idx] > l0[segment.idx],
                                         stiffness_m / len[segment.idx],
                                         compression_frac * stiffness_m / len[segment.idx]
@@ -367,7 +367,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             damping[segment.idx]         ~ damping_m / len[segment.idx]
             spring_force[segment.idx] ~  (stiffness[segment.idx] * (len[segment.idx] - l0[segment.idx]) - 
                             damping[segment.idx] * spring_vel[segment.idx])
-            spring_force_vec[:, segment.idx]  ~ spring_force[segment.idx] * unit_vector[:, segment.idx]
+            spring_force_vec[:, segment.idx]  ~ spring_force[segment.idx] * unit_vec[:, segment.idx]
             
             # drag force equations
             height[segment.idx]          ~ max(0.0, 0.5(pos[:, p1][3] + pos[:, p2][3]))
@@ -377,7 +377,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             va[:, segment.idx]           ~ wind_vel[:, segment.idx] - segment_vel[:, segment.idx]
             area[segment.idx]            ~ len[segment.idx] * segment.diameter
             app_perp_vel[:, segment.idx] ~ va[:, segment.idx] - 
-                                        (va[:, segment.idx] ⋅ unit_vector[:, segment.idx]) * unit_vector[:, segment.idx]
+                                        (va[:, segment.idx] ⋅ unit_vec[:, segment.idx]) * unit_vec[:, segment.idx]
             drag_force[:, segment.idx]   ~ (0.5 * segment_rho[segment.idx] * s.set.cd_tether * norm(va[:, segment.idx]) * 
                                         area[segment.idx]) * app_perp_vel[:, segment.idx]
         ]
