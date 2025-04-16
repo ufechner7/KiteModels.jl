@@ -64,7 +64,7 @@ $(TYPEDFIELDS)
     "z vector of kite reference frame"
     z::T =                 zeros(S, 3)
     sys::Union{ModelingToolkit.ODESystem, Nothing} = nothing
-    #t_0::Float64 = 0.0
+    t_0::Float64 = 0.0
     #iter::Int64 = 0
     prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
     integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Nothing} = nothing
@@ -118,6 +118,7 @@ end
 # -----------------------------------------
 function init_sim!(s::KPS5)
     pos, vel = calc_initial_state(s)
+    dt = 1/s.set.sample_freq
     simple_sys,  pos, vel, e_x, e_y, e_z, v_app_point, alpha1p  = model(s, pos, vel)
     s.sys = simple_sys
     tspan = (0.0, s.set.sim_time)
@@ -125,14 +126,15 @@ function init_sim!(s::KPS5)
     #differential_vars = ones(Bool, length(y0))
     #prob = DAEProblem{true}(residual!, yd0, y0, tspan, s; differential_vars)
     #solver  = DFBDF(autodiff=AutoFiniteDiff(), max_order=Val{s.set.max_order}()) 
-    s.integrator = OrdinaryDiffEqCore.init(s.prob, Rodas5(autodiff=false); s.set.dt, abstol=s.set.tol, save_on=false)
+    #s.integrator = OrdinaryDiffEqCore.init(s.prob, Rodas5(autodiff=false); s.set.dt, abstol=s.set.tol, save_on=false)
     #s.integrator = OrdinaryDiffEqCore.init(prob, solver; abstol=abstol, reltol=s.set.rel_tol, save_everystep=false, initializealg=OrdinaryDiffEqCore.NoInit())
+    s.integrator = OrdinaryDiffEqCore.init(s.prob, FBDF(autodiff=false); dt, abstol=s.set.abs_tol, save_on=false)
 end
 # ------------------------------
 # Calculate Initial State
 # ------------------------------
 function calc_initial_state(s::KPS5)  
-    p1location = [s.set.l_tether*cos(s.set.elevation) 0 s.set.l_tether*sin(s.set.elevation)]
+    p1location = [s.set.l_tether*cos(deg2rad(s.set.elevation)) 0 s.set.l_tether*sin(deg2rad(s.set.elevation))]
     kitepos0rot = get_kite_points(s)
     POS0 = kitepos0rot .+ p1location'
     POS0 = hcat(POS0, zeros(3, 1))
@@ -154,7 +156,7 @@ function get_kite_points(s::KPS5)
     0.000               0                                    0                                -s.set.width/2           s.set.width/2;
     0.000     s.set.height_k+s.set.h_bridle    s.set.height_k+s.set.h_bridle  s.set.h_bridle         s.set.h_bridle]
 
-    beta = s.set.elevation
+    beta = deg2rad(s.set.elevation)
     Y_r = [sin(beta) 0 cos(beta);
                  0    1       0;
           -cos(beta) 0 sin(beta)]    
@@ -220,7 +222,7 @@ function model(s::KPS5, pos, vel)
     rest_lengths, l_tether = calc_rest_lengths(s)
     # @parameters K1=s.set.springconstant_tether K2=s.set.springconstant_bridle K3=s.set.springconstant_kite C1=s.set.damping_tether C2=s.set.rel_damping_bridle*s.set.damping_tether C3=s.set.rel_damping_kite*s.set.damping_tether
     # same as Uwe here, only rel c and k , wrt tether, can/should be improved, to be for kite/bridle separately
-    @parameters K1=s.set.c_spring K2=s.set.rel_compr_stiffness*s.set.c_spring K3=s.set.rel_compr_stiffness*s.set.c_spring  C1=s.set.damping C2=s.set.damping*s.set.rel_damping C3=s.set.damping*s.set.rel_damping
+    @parameters K1=s.set.c_spring K2=s.set.c_spring K3=s.set.c_spring  C1=s.set.damping C2=s.set.damping*s.set.rel_damping C3=s.set.damping*s.set.rel_damping
     @parameters m_kite=s.set.mass kcu_mass=s.set.kcu_mass rho_tether=s.set.rho_tether 
     @parameters rho=s.set.rho_tether g_earth=-9.81 cd_tether=s.set.cd_tether d_tether=s.set.d_tether S=s.set.area
     @parameters kcu_cd=s.set.cd_kcu kcu_diameter=s.set.kcu_diameter
@@ -370,6 +372,31 @@ function next_step!(s::KPS5; dt=(1/s.set.sample_freq))
     steptime = @elapsed OrdinaryDiffEqCore.step!(s.integrator, dt, true)
     s.iter += 1
     s.integrator.t, steptime
+end
+function simulate(s, logger)
+    dt = 1/s.set.sample_freq
+    tol = s.set.abs_tol
+    tspan = (0.0, dt)
+    time_range = 0:dt:s.set.sim_time-dt
+    steps = length(time_range)
+    iter = 0
+    for i in 1:steps
+        next_step!(s; dt=dt)
+        u = s.get_state(s.integrator)
+        x = u[1][1, :]
+        y = u[1][2, :]
+        z = u[1][3, :]
+        iter += s.iter
+        sys_state = SysState{points(s)}()
+        sys_state.X .= x
+        sys_state.Y .= y
+        sys_state.Z .= z
+        println("iter: $iter", " steps: $steps")
+        log!(logger, sys_state)
+        println(x[end], ", ", sys_state.X[end])
+    end
+    println("iter: $iter", " steps: $steps")
+    return nothing
 end
 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
