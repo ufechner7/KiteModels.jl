@@ -119,7 +119,7 @@ end
 function init_sim!(s::KPS5)
     pos, vel = calc_initial_state(s)
     dt = 1/s.set.sample_freq
-    simple_sys,  pos, vel, e_x, e_y, e_z, v_app_point, alpha1p  = model(s, pos, vel)
+    simple_sys,  pos, vel, e_x, e_y, e_z, v_app_point, alpha1p, height, wind_vector  = model(s, pos, vel)
     s.sys = simple_sys
     tspan = (0.0, s.set.sim_time)
     s.prob = ODEProblem(simple_sys, nothing, tspan)
@@ -129,6 +129,7 @@ function init_sim!(s::KPS5)
     #s.integrator = OrdinaryDiffEqCore.init(s.prob, Rodas5(autodiff=false); s.set.dt, abstol=s.set.tol, save_on=false)
     #s.integrator = OrdinaryDiffEqCore.init(prob, solver; abstol=abstol, reltol=s.set.rel_tol, save_everystep=false, initializealg=OrdinaryDiffEqCore.NoInit())
     s.integrator = OrdinaryDiffEqCore.init(s.prob, FBDF(autodiff=false); dt, abstol=s.set.abs_tol, reltol = s.set.rel_tol, save_on=false)
+    generate_getters!(s)
 end
 # ------------------------------
 # Calculate Initial State
@@ -214,8 +215,8 @@ function calc_rest_lengths(s::KPS5)
     lengths = vcat(lengths, [(l10 + s.set.v_reel_out*t)/s.set.segments for _ in 1:s.set.segments]...)
     return lengths, l10
 end
-function get_wind_vector(s::KPS5)
-    v_wind_magnitude = s.set.v_wind
+function get_wind_vector(s::KPS5, v_wind_height)
+    v_wind_magnitude = v_wind_height # add function
     wind_angle = deg2rad(s.set.upwind_dir)           # angle measuring form North (pos x), CW(+)
     wind_vector = v_wind_magnitude*[-cos(wind_angle),-sin(wind_angle), 0.0]
     return wind_vector
@@ -231,7 +232,7 @@ function model(s::KPS5, pos, vel)
     @parameters K1=s.set.c_spring K2=s.set.c_spring K3=s.set.c_spring  C1=s.set.damping C2=s.set.damping*s.set.rel_damping C3=s.set.damping*s.set.rel_damping
     @parameters m_kite=s.set.mass kcu_mass=s.set.kcu_mass rho_tether=s.set.rho_tether rel_compr_k=s.set.rel_compr_stiffness 
     @parameters rho=s.set.rho_0 g_earth=-9.81 cd_tether=s.set.cd_tether d_tether=s.set.d_tether S=s.set.area
-    @parameters kcu_cd=s.set.cd_kcu kcu_diameter=s.set.kcu_diameter
+    @parameters kcu_cd=s.set.cd_kcu kcu_diameter=s.set.kcu_diameter v_wind_ground=s.set.v_wind
     @variables pos(t)[1:3, 1:points(s)] = POS0
     @variables vel(t)[1:3, 1:points(s)] = VEL0
     @variables acc(t)[1:3, 1:points(s)]
@@ -239,6 +240,9 @@ function model(s::KPS5, pos, vel)
     @variables segment(t)[1:3, 1:total_segments(s)]
     @variables unit_vector(t)[1:3, 1:total_segments(s)]
     @variables norm1(t)[1:total_segments(s)]
+    @variables height(t)[1:total_segments(s)]
+    @variables v_wind_height(t)[1:total_segments(s)]
+    @variables wind_vector(t)[1:3, 1:total_segments(s)]
     @variables rel_vel(t)[1:3, 1:total_segments(s)]
     @variables spring_vel(t)[1:total_segments(s)]
     @variables k_spring(t)[1:total_segments(s)]
@@ -280,8 +284,8 @@ function model(s::KPS5, pos, vel)
     m_kitepoints = (m_kite/4) + mass_halfbridleline 
     PointMasses = [mass_bridlepoint, m_kitepoints, m_kitepoints, m_kitepoints, m_kitepoints]
     PointMasses = vcat(PointMasses, [mass_tetherpoints for _ in 1:s.set.segments]...)
-    # getting wind vector
-    wind_vector = get_wind_vector(s)
+    # # getting wind vector
+    # wind_vector = get_wind_vector(s)
     # -----------------------------
     # Equations for Each Segment (Spring Forces, Drag, etc.)
     # -----------------------------
@@ -289,12 +293,15 @@ function model(s::KPS5, pos, vel)
         eqs = [
             segment[:, i]      ~ pos[:, conn[i][2]] - pos[:, conn[i][1]],
             norm1[i]           ~ norm(segment[:, i]),
+            height[i]          ~ max((pos[3, conn[i][2]] + pos[3, conn[i][1]])/2, 6.0),  # 6m is the minimum height
+            v_wind_height[i]   ~ calc_wind_factor(s.am, height[i])*v_wind_ground, 
+            wind_vector[:, i]  ~ get_wind_vector(s, v_wind_height[i]),
             unit_vector[:, i]  ~ -segment[:, i] / norm1[i],
             rel_vel[:, i]      ~ vel[:, conn[i][2]] - vel[:, conn[i][1]],
             spring_vel[i]      ~ -unit_vector[:, i] ⋅ rel_vel[:, i],
             k_spring[i]        ~ (k_segments[i]/rest_lengths[i]) * (rel_compr_k + (1-rel_compr_k)*(norm1[i] > rest_lengths[i])),
             spring_force[:, i] ~ (k_spring[i]*(norm1[i] - rest_lengths[i]) + c_segments[i] * spring_vel[i]) * unit_vector[:, i],
-            v_apparent[:, i]   ~ wind_vector - (vel[:, conn[i][1]] + vel[:, conn[i][2]]) / 2,  # change wind for winddirection! integrate
+            v_apparent[:, i]   ~ wind_vector[:, i] - (vel[:, conn[i][1]] + vel[:, conn[i][2]]) / 2,  # change wind for winddirection! integrate
             v_app_perp[:, i]   ~ v_apparent[:, i] - (v_apparent[:, i] ⋅ unit_vector[:, i]) .* unit_vector[:, i],
             norm_v_app[i]      ~ norm(v_app_perp[:, i])
         ]
@@ -313,7 +320,7 @@ function model(s::KPS5, pos, vel)
     ref_frame_eqs = create_reference_frame_equations(pos, e_x, e_y, e_z)
     eqs2 = vcat(eqs2, ref_frame_eqs)
     # only 1 AOA
-    v_a_kite = wind_vector - (vel[:, 2] + vel[:, 3])/2     # computing AOA only for center chord   # Appas.set.t wind velocity
+    v_a_kite = wind_vector[:, 2] - (vel[:, 2] + vel[:, 3])/2     # computing AOA only for center chord   # Appas.set.t wind velocity
     alpha1p = compute_alpha1p(v_a_kite, e_z, e_x)   # Calculate Alpha1p at this time step
     eqs2 = vcat(eqs2, alpha1p[1] ~ alpha1p)  # Add the equation for Alpha1p for each of 4 kite points (first bering bridle so i-1)   
     # getting Cl and Cd
@@ -329,7 +336,7 @@ function model(s::KPS5, pos, vel)
                 sum([spring_force[:, j] for j in 1:total_segments(s) if conn[j][1] == i]; init=zeros(3)) +
                 sum([half_drag_force[:, j] for j in 1:total_segments(s) if conn[j][1] == i]; init=zeros(3)) +
                 sum([half_drag_force[:, j] for j in 1:total_segments(s) if conn[j][2] == i]; init=zeros(3))
-        v_app_point[:, i] ~ wind_vector - vel[:, i]
+        v_app_point[:, i] ~ wind_vector[:, i] - vel[:, i]
         if i == 1                  # KCU drag at bridle point
             area_kcu = pi * ((kcu_diameter / 2) ^ 2)
             Dx_kcu = 0.5*rho*kcu_cd *area_kcu*(v_app_point[1, i]*v_app_point[1, i])
@@ -366,11 +373,11 @@ function model(s::KPS5, pos, vel)
         end
         push!(eqs, acc[:, i] ~ [0.0, 0.0, g_earth] + total_force[:, i] / PointMasses[i])
         eqs2 = vcat(eqs2, reduce(vcat, eqs))
-        eqs2 = vcat(eqs2, v_app_point[:, i] ~ wind_vector - vel[:, i])
+        eqs2 = vcat(eqs2, v_app_point[:, i] ~ wind_vector[:, i] - vel[:, i])
     end
     @named sys = ODESystem(reduce(vcat, Symbolics.scalarize.(eqs2)), t)
     simple_sys = structural_simplify(sys) 
-    simple_sys, pos, vel, e_x, e_y, e_z, v_app_point, alpha1p 
+    simple_sys, pos, vel, e_x, e_y, e_z, v_app_point, alpha1p, height, wind_vector
 end
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # next step function
@@ -379,6 +386,14 @@ function next_step!(s::KPS5; dt=(1/s.set.sample_freq))
     s.t_0 = s.integrator.t
     steptime = @elapsed OrdinaryDiffEqCore.step!(s.integrator, dt, true)
     s.iter += 1
+    # Get the current state including wind vector
+    state = s.get_state(s.integrator)
+    if length(state) >= 2  # Make sure wind_vector is included in state
+        height = state[2]  # The height from the state
+        wind_vec = state[3]  # The wind vector from the state
+        #println("Height at each segment : $(height[:, :])")
+        #println("Time: $(s.integrator.t), Wind Vector at each segment: $(wind_vec[:, :])")
+    end
     s.integrator.t, steptime
 end
 function simulate(s, logger)
@@ -414,7 +429,7 @@ function generate_getters!(s::KPS5)
     sys = s.sys
     c = collect
     get_state = ModelingToolkit.getu(sys, 
-        [c(sys.pos)]
+        [c(sys.pos), c(sys.height) , c(sys.wind_vector)]
     )
     s.get_state = (integ) -> get_state(integ)
     return nothing
