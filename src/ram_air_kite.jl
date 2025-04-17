@@ -306,7 +306,7 @@ function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=true, pre
     init_Q_b_w, R_b_w = measure_to_q(measure)
     init_kite_pos = init!(s.point_system, s.set, R_b_w)
     
-    if isnothing(s.prob)
+    if isnothing(s.prob) || reload
         prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set; precompile))
         !ispath(prob_path) && throw(ArgumentError("$prob_path not found. Run init_sim!(s::RamAirKite) first."))
         try
@@ -354,7 +354,7 @@ function generate_getters!(s, sym_vec)
     set_unknowns = setu(sys, sym_vec)
 
     get_state = getu(sys, 
-        [c(sys.pos), c(sys.acc), c(sys.Q_b_w), sys.elevation, sys.azimuth, sys.course, sys.heading_y, 
+        [c(sys.pos), c(sys.acc), c(sys.Q_b_w), sys.elevation, sys.azimuth, sys.course, sys.heading_x, 
         c(sys.e_x), c(sys.tether_vel), c(sys.twist_angle), c(sys.kite_vel)]
     )
     get_y = getu(sys, sys.y)

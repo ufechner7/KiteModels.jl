@@ -142,7 +142,7 @@ const BUILD_SYS = true
         for _ in 1:steps
             set_values = -s.set.drum_radius * s.integrator[s.sys.winch_force] + d_set_values
             KiteModels.next_step!(s, set_values; dt)
-            @show s.integrator[s.sys.heading_y]
+            @show s.integrator[s.sys.heading_x]
         end
     end
 
