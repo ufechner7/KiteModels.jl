@@ -29,7 +29,7 @@ set = se("system_ram.yaml")
 set.segments = 2
 set.quasi_static = true
 set.bridle_fracs = [0.0, 0.93]
-set.sample_freq = 200
+set.sample_freq = 20
 dt = 1/set.sample_freq
 
 wing = RamAirWing(set; prn=false, n_groups=2)
@@ -77,12 +77,12 @@ end
 
 # Get initial state
 x_vec = KiteModels.get_unknowns(s)
-set_x = setu(s.integrator, x_vec)
+set_x = setu(s.integrator, Initial.(x_vec))
 set_u = setu(s.integrator, collect(sys.set_values))
 get_x = getu(s.integrator, x_vec)
 x0 = get_x(s.integrator)
 
-function test_response(s, input_range, input_idx, step_fn, x_idxs=nothing; steps=1)
+function test_response(s, input_range, input_idx, step_fn, u0, x_idxs=nothing; steps=1)
     # If no x_idxs specified, default to angular velocities
     if isnothing(x_idxs)
         x_idxs = (length(x0)-8):(length(x0)-6)
@@ -96,7 +96,7 @@ function test_response(s, input_range, input_idx, step_fn, x_idxs=nothing; steps
     iter = 0
 
     for (i, input_val) in enumerate(input_range)
-        u = copy(measure.set_values)
+        u = copy(u0)
         u[input_idx] += input_val
         x = copy(x0)
         for i in 1:steps
@@ -127,20 +127,20 @@ function plot_input_output_relations(step_fn)
     
     # Test ranges
     steer_range = range(-1.0, 1.0, length=20)
-    twist_range = range(-π/4, π/4, length=20)
+    twist_range = range(-0.1, 0.1, length=20)
     
     # Test steering input vs omega
     @info "Testing steering input response..."
-    _, ω_steer_left, _ = test_response(s, steer_range, 2, step_fn, ω_idxs)
-    _, ω_steer_right, _ = test_response(s, steer_range, 3, step_fn, ω_idxs)
-    
+    _, ω_steer_left, _ = test_response(s, steer_range, 2, step_fn, measure.set_values, ω_idxs)
+    _, ω_steer_right, _ = test_response(s, steer_range, 3, step_fn, measure.set_values, ω_idxs)
+
     # Test twist angle vs omega 
     @info "Testing twist angle response..."
     function step_with_twist(x, twist_val, _, p)
         x[twist_idx] = twist_val[1]  # Set twist angle directly
         return step_fn(x, measure.set_values, nothing, p)
     end
-    _, ω_twist, _ = test_response(s, twist_range, 1, step_with_twist, ω_idxs)
+    _, ω_twist, _ = test_response(s, twist_range, 1, step_with_twist, zeros(3), ω_idxs)
 
     # Plot results
     steering_plot = plotx(steer_range, 
@@ -168,5 +168,6 @@ end
 
 # Run analysis and display plots
 steer_plot, twist_plot = plot_input_output_relations(step_with_input_prob)
+# steer_plot, twist_plot = plot_input_output_relations(step_with_input_integ)
 display(steer_plot)
 display(twist_plot)
