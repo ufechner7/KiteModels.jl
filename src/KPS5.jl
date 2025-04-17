@@ -128,7 +128,7 @@ function init_sim!(s::KPS5)
     #solver  = DFBDF(autodiff=AutoFiniteDiff(), max_order=Val{s.set.max_order}()) 
     #s.integrator = OrdinaryDiffEqCore.init(s.prob, Rodas5(autodiff=false); s.set.dt, abstol=s.set.tol, save_on=false)
     #s.integrator = OrdinaryDiffEqCore.init(prob, solver; abstol=abstol, reltol=s.set.rel_tol, save_everystep=false, initializealg=OrdinaryDiffEqCore.NoInit())
-    s.integrator = OrdinaryDiffEqCore.init(s.prob, FBDF(autodiff=false); dt, abstol=s.set.abs_tol, save_on=false)
+    s.integrator = OrdinaryDiffEqCore.init(s.prob, FBDF(autodiff=false); dt, abstol=s.set.abs_tol, reltol = s.set.rel_tol, save_on=false)
 end
 # ------------------------------
 # Calculate Initial State
@@ -154,7 +154,7 @@ function get_kite_points(s::KPS5)
     # P1 Bridle        P2                                    P3                                  P4                              P5
     [0.000         s.set.cord_length/2               -s.set.cord_length/2                       0                              0;
     0.000               0                                    0                                -s.set.width/2           s.set.width/2;
-    0.000     s.set.height_k+s.set.h_bridle    s.set.height_k+s.set.h_bridle  s.set.h_bridle         s.set.h_bridle]
+    0.000     s.set.height_k+s.set.h_bridle    s.set.height_k+s.set.h_bridle                 s.set.h_bridl               s.set.h_bridle]
 
     beta = deg2rad(s.set.elevation)
     Y_r = [sin(beta) 0 cos(beta);
@@ -224,7 +224,7 @@ function model(s::KPS5, pos, vel)
     # same as Uwe here, only rel c and k , wrt tether, can/should be improved, to be for kite/bridle separately
     @parameters K1=s.set.c_spring K2=s.set.c_spring K3=s.set.c_spring  C1=s.set.damping C2=s.set.damping*s.set.rel_damping C3=s.set.damping*s.set.rel_damping
     @parameters m_kite=s.set.mass kcu_mass=s.set.kcu_mass rho_tether=s.set.rho_tether 
-    @parameters rho=s.set.rho_tether g_earth=-9.81 cd_tether=s.set.cd_tether d_tether=s.set.d_tether S=s.set.area
+    @parameters rho=s.set.rho_0 g_earth=-9.81 cd_tether=s.set.cd_tether d_tether=s.set.d_tether S=s.set.area
     @parameters kcu_cd=s.set.cd_kcu kcu_diameter=s.set.kcu_diameter
     @variables pos(t)[1:3, 1:points(s)] = POS0
     @variables vel(t)[1:3, 1:points(s)] = VEL0
@@ -332,20 +332,20 @@ function model(s::KPS5, pos, vel)
         elseif i in 2:5           # the kite points that get Aero Forces
 
             v_app_mag_squared = v_app_point[1, i]^2 + v_app_point[2, i]^2 + v_app_point[3, i]^2
-            # Lift calculation
+            # # Lift calculation
             L_perpoint = (1/4) * 0.5 * rho * Cl * S * (v_app_mag_squared)
             # Cross product and normalization
             cross_vapp_X_e_y = cross(v_app_point[:, i], e_y)
             normcross_vapp_X_e_y = norm(cross_vapp_X_e_y)
             L_direction = cross_vapp_X_e_y / normcross_vapp_X_e_y
-            # Final lift force vector
+             # Final lift force vector
             L = L_perpoint * L_direction
 
             # Drag calculation
             D_perpoint = (1/4) * 0.5 * rho * Cd * S * v_app_mag_squared
-            # Create drag direction components
+            # # Create drag direction components
             D_direction = [v_app_point[1, i] / norm(v_app_point[:, i]), v_app_point[2, i] / norm(v_app_point[:, i]), v_app_point[3, i] / norm(v_app_point[:, i])]
-            # Final drag force vector components
+            # # Final drag force vector components
             D = D_perpoint * D_direction
             
             # Total aerodynamic force
