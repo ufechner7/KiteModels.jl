@@ -229,9 +229,9 @@ function model(s::KPS5, pos, vel)
     rest_lengths, l_tether = calc_rest_lengths(s)
     # @parameters K1=s.set.springconstant_tether K2=s.set.springconstant_bridle K3=s.set.springconstant_kite C1=s.set.damping_tether C2=s.set.rel_damping_bridle*s.set.damping_tether C3=s.set.rel_damping_kite*s.set.damping_tether
     # same as Uwe here, only rel c and k , wrt tether, can/should be improved, to be for kite/bridle separately
-    @parameters K1=s.set.c_spring K2=s.set.c_spring K3=s.set.c_spring  C1=s.set.damping C2=s.set.damping*s.set.rel_damping C3=s.set.damping*s.set.rel_damping
+    @parameters E_modulus_tether=s.set.e_tether  K3=s.set.c_spring_kite  C1=s.set.damping  C3=s.set.damping_kite_springs
     @parameters m_kite=s.set.mass kcu_mass=s.set.kcu_mass rho_tether=s.set.rho_tether rel_compr_k=s.set.rel_compr_stiffness 
-    @parameters rho=s.set.rho_0 g_earth=-9.81 cd_tether=s.set.cd_tether d_tether=s.set.d_tether S=s.set.area
+    @parameters rho=s.set.rho_0 g_earth=-9.81 cd_tether=s.set.cd_tether d_tether=s.set.d_tether d_bridle_line=s.set.d_line S=s.set.area l_bridle=s.set.l_bridle
     @parameters kcu_cd=s.set.cd_kcu kcu_diameter=s.set.kcu_diameter v_wind_ground=s.set.v_wind
     @variables pos(t)[1:3, 1:points(s)] = POS0
     @variables vel(t)[1:3, 1:points(s)] = VEL0
@@ -269,23 +269,26 @@ function model(s::KPS5, pos, vel)
                             # connections   adding segment connections, from origin to bridle 
     conn = getconnections(s)
      # final connection last tether point to bridle point
-                            # unit spring constants (K1 tether, K2 bridle, K3 kite)
+                            # unit spring constants (K1 tether, K2 bridle, K3 kite) K3 from settings
+    K1 = E_modulus_tether*pi*(d_tether/2000)^2
+    K2 = E_modulus_tether*pi*(d_bridle_line/2000)^2
     k_segments = [K2, K3, K2, K2, K3, K3, K2, K3, K3]
     k_segments = vcat(k_segments, [K1 for _ in 1:s.set.segments]...)
-                            # unit damping constants (C1 tether, C2 bridle, C3 kite)
+                            # unit damping constants (C1 tether, C2 bridle, C3 kite) C1 and C3 from settings
+    totalbridlelengths_model = rest_lengths[1]+rest_lengths[3]+rest_lengths[4]+rest_lengths[7]
+    lines_per_segment = l_bridle/totalbridlelengths_model
+    C2 = lines_per_segment*C1*(d_bridle_line/d_tether)^2
     c_segments = [C2, C3, C2, C2, C3, C3, C2, C3, C3]
     c_segments = vcat(c_segments, [C1 for _ in 1:s.set.segments]...)
                             # masses
-    mass_bridlelines = ((s.set.d_line/2000)^2)*pi*rho_tether*s.set.l_bridle #total mass entire bridle 
+    mass_bridlelines = ((d_bridle_line/2000)^2)*pi*rho_tether*s.set.l_bridle #total mass entire bridle 
     mass_halfbridleline = mass_bridlelines/8 # half the connection of bridle line to kite (to assign to each kitepoint) so the other 4 halves get assigned to bridlepoint 
     mass_tether = ((d_tether/2000)^2)*pi*rho_tether*l_tether
     mass_tetherpoints = mass_tether/(s.set.segments+1)
     mass_bridlepoint = 4*mass_halfbridleline + kcu_mass + mass_tetherpoints # 4 bridle connections, kcu and tether
-    m_kitepoints = (m_kite/4) + mass_halfbridleline 
-    PointMasses = [mass_bridlepoint, m_kitepoints, m_kitepoints, m_kitepoints, m_kitepoints]
+    m_kitepoints = [(m_kite*s.set.rel_mass_p2) + mass_halfbridleline, (m_kite*s.set.rel_mass_p3) + mass_halfbridleline, (m_kite*s.set.rel_mass_p4) + mass_halfbridleline, (m_kite*s.set.rel_mass_p4) + mass_halfbridleline] # mass P4=P5
+    PointMasses = [mass_bridlepoint, m_kitepoints[1], m_kitepoints[2], m_kitepoints[3], m_kitepoints[4]]
     PointMasses = vcat(PointMasses, [mass_tetherpoints for _ in 1:s.set.segments]...)
-    # # getting wind vector
-    # wind_vector = get_wind_vector(s)
     # -----------------------------
     # Equations for Each Segment (Spring Forces, Drag, etc.)
     # -----------------------------
@@ -377,7 +380,7 @@ function model(s::KPS5, pos, vel)
     end
     @named sys = ODESystem(reduce(vcat, Symbolics.scalarize.(eqs2)), t)
     simple_sys = structural_simplify(sys) 
-    simple_sys, pos, vel, e_x, e_y, e_z, v_app_point, alpha1p, height, wind_vector
+    simple_sys, pos, vel, e_x, e_y, e_z, v_app_point, alpha1p, height, wind_vector, norm1
 end
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # next step function
@@ -388,11 +391,17 @@ function next_step!(s::KPS5; dt=(1/s.set.sample_freq))
     s.iter += 1
     # Get the current state including wind vector
     state = s.get_state(s.integrator)
+    if !successful_retcode(s.integrator.sol)
+        println("Return code for solution: ", s.integrator.sol.retcode)
+    end
     if length(state) >= 2  # Make sure wind_vector is included in state
         height = state[2]  # The height from the state
-        wind_vec = state[3]  # The wind vector from the state
+        wind_vec = state[3]
+        norm1 = state[4]  # The norm of the segments from the state 
+        # The wind vector from the state
         #println("Height at each segment : $(height[:, :])")
         #println("Time: $(s.integrator.t), Wind Vector at each segment: $(wind_vec[:, :])")
+        println("Norm of the segments at each segment: $(norm1[:, :])")
     end
     s.integrator.t, steptime
 end
@@ -429,7 +438,7 @@ function generate_getters!(s::KPS5)
     sys = s.sys
     c = collect
     get_state = ModelingToolkit.getu(sys, 
-        [c(sys.pos), c(sys.height) , c(sys.wind_vector)]
+        [c(sys.pos), c(sys.height) , c(sys.wind_vector), c(sys.norm1)]
     )
     s.get_state = (integ) -> get_state(integ)
     return nothing
