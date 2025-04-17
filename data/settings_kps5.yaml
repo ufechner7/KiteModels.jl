@@ -3,7 +3,7 @@ system:
                                    #   use / as path delimiter, even on Windows 
     log_level:      2              # 0: no logging 
     time_lapse:   1.0              # relative replay speed
-    sim_time:   10              # simulation time             [sim only]
+    sim_time:   5                  # simulation time             [sim only]
     segments:       6              # number of tether segments
     sample_freq:   20              # sample frequency in Hz
     zoom:        0.03              # zoom factor for the system view
@@ -11,9 +11,9 @@ system:
     fixed_font: ""                 # name or filepath+filename of alternative fixed pitch font, e.g. Liberation Mono
 
 initial:
-    l_tether: 50       # initial tether length       [m]
-    elevation: 70.8        # initial elevation angle   [deg]
-    v_reel_out: 0.0        # initial reel out speed    [m/s]
+    l_tether: 10       # initial tether length       [m]
+    elevation: 45        # initial elevation angle   [deg]
+    v_reel_out: 0.5        # initial reel out speed    [m/s]
     depower:   25.0        # initial depower settings    [%]
 
 solver:
@@ -60,7 +60,14 @@ kps4:
     smc:           0.0      # steering moment coefficient                 [-]
     cmq:           0.0      # pitch rate dependant moment coefficient     [-]
     cord_length:   2.0      # average aerodynamic cord length of the kite [m]
-    
+
+kps5:
+    c_spring_kite: 614600.0 # unit spring constant coefficient of the kite springs [N]
+    damping_kite_springs:  473.0  # unit damping coefficient                      [Ns]
+    rel_mass_p2: 0.25       # rel mass of p2
+    rel_mass_p3: 0.25       # rel mass of p3
+    rel_mass_p4: 0.25       # rel mass of p4 and p5
+
 bridle:
     d_line:    2.5            # bridle line diameter                                                 [mm]
     l_bridle: 33.4            # sum of the lengths of the bridle lines                                [m]
@@ -105,9 +112,8 @@ winch:
     i_speed:  2500.0       # integral gain of the winch speed controller     [-]
 
 environment:
-    v_wind: 9.51
-    # [9.51, 0.0, 0.0]  #changed to vec           # wind speed at reference height          [m/s]
-    upwind_dir: -90.0        # upwind direction                        [deg]
+    v_wind: 9.5            # wind speed at reference height          [m/s]
+    upwind_dir: -180        # upwind direction  (0 is form North, clockwise positive)  [deg]
     temp_ref: 15.0           # temperature at reference height         [°C]
     height_gnd: 0.0          # height of groundstation above see level [m]
     h_ref:  6.0              # reference height for the wind speed     [m]

@@ -79,8 +79,8 @@ function play(s, lg, front_view = false, side_view = true)
             end
             
             # Calculate appropriate limits for side view
-            x_min, x_max = 0, 60
-            z_min, z_max = 0, 60
+            x_min, x_max = 0, 20
+            z_min, z_max = 0, 20
             t = (dt) * (step-1)
             
             # Plot the kite system at this time step (side view)
