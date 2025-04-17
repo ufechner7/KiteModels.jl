@@ -776,6 +776,6 @@ function copy_bin()
     chmod(joinpath(PATH, "update_packages.jl"), 0o664)
 end
 
-# include("precompile.jl")
+include("precompile.jl")
 
 end

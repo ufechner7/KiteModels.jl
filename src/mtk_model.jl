@@ -8,6 +8,16 @@ function calc_moment_acc(winch::TorqueControlledMachine, tether_vel, norm_, set_
     calc_acceleration(winch, tether_vel, norm_; set_speed=nothing, set_torque, use_brake=false)
 end
 
+function calc_heading(x, y)
+    # Returns angle in [-π, π] using atan2(det, dot) formula for cross/dot products
+    # [x1, y1] is [1, 0] (positive x-axis)
+    # [x2, y2] is the input vector [x, y]
+    # https://stackoverflow.com/questions/14066933/direct-way-of-computing-the-clockwise-angle-between-two-vectors
+    dot = 1*x + 0*y    # Dot product with [1,0]
+    det = 1*y - 0*x    # Determinant with [1,0]
+    return atan(det, dot)  # Note: Julia's atan is equivalent to atan2
+end
+
 function sym_normalize(vec)
     return vec / norm(vec)
 end
@@ -547,7 +557,7 @@ function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, 
         va_kite_b ~ R_b_w' * va_kite
     ]
     @variables begin
-        heading_y(t)
+        heading_x(t)
         azimuth(t)
         azimuth_vel(t)
         azimuth_acc(t)
@@ -568,7 +578,7 @@ function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, 
 
     eqs = [
         eqs
-        heading_y       ~ atan(e_x[2]/e_x[1])
+        heading_x       ~ calc_heading(e_x[1], e_x[2])
 
         elevation           ~ atan(z / x)
         # elevation_vel = d/dt(atan(z/x)) = (x*ż' - z*ẋ')/(x^2 + z^2) according to wolframalpha

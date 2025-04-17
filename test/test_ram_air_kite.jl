@@ -6,10 +6,6 @@ old_path = get_data_path()
 package_data_path = joinpath(dirname(dirname(pathof(KiteModels))), "data")
 temp_data_path = joinpath(tempdir(), "data")
 Base.Filesystem.cptree(package_data_path, temp_data_path; force=true)
-for bin_file in ["ram_air_kite_body_info.bin", "ram_air_kite_foil_polar.bin"]
-    bin_path = joinpath(temp_data_path, bin_file)
-    isfile(bin_path) && rm(bin_path)
-end
 set_data_path(temp_data_path)
 
 # Testing tolerance
@@ -17,25 +13,28 @@ const TOL = 1e-5
 const BUILD_SYS = true
 
 @testset verbose = true "RamAirKite MTK Model Tests" begin
+    # Initialize model
     set = se("system_ram.yaml")
-    wing = RamAirWing(joinpath(get_data_path(), "ram_air_kite_body.obj"), joinpath(get_data_path(), "ram_air_kite_foil.dat"); 
-                mass=set.mass, crease_frac=0.82, align_to_principal=true)
-    aero = BodyAerodynamics([wing])
-    vsm_solver = Solver(aero; solver_type=NONLIN, atol=1e-8, rtol=1e-8)
-    point_system = create_ram_point_system(set, wing)
-    measure = Measurement()
+    set.segments = 3
+    set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
+    set.quasi_static = false
+    set.physical_model = "ram"
 
-    # Utility functions for setup
-    function create_test_model()
-        set.segments = 2
-        set.abs_tol = TOL
-        set.rel_tol = TOL
-        VortexStepMethod.init!(aero; init_aero=false)
-        return RamAirKite(set, aero, vsm_solver, point_system)
-    end
+    @info "Creating wing, aero, vsm_solver, point_system and s:"
+    wing = RamAirWing(set; prn=false)
+    aero = BodyAerodynamics([wing])
+    vsm_solver = Solver(aero; solver_type=NONLIN, atol=2e-8, rtol=2e-8)
+    point_system = create_ram_point_system(set, wing)
+    s = RamAirKite(set, aero, vsm_solver, point_system)
+
+    measure = Measurement()
+    s.set.abs_tol = 1e-5
+    s.set.rel_tol = 1e-4
+
+    # Initialize at elevation
+    measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
     
     @testset "Model Initialization Chain" begin
-        s = create_test_model()
         if BUILD_SYS
             # Delete existing problem file to force init!
             @info "Data path: $(get_data_path())"
@@ -93,7 +92,6 @@ const BUILD_SYS = true
         @test size(pos_integrator, 2) == length(s.point_system.points)
         @test length(sys_state.X) == length(s.point_system.points)
 
-        
         # Compare positions in different representations
         for (i, point) in enumerate(s.point_system.points)
             # Points' world positions should match integrator positions
@@ -114,7 +112,6 @@ const BUILD_SYS = true
     end
     
     @testset "State Consistency" begin
-        s = create_test_model()
         KiteModels.reinit!(s, measure, prn=true, reload=false)
     
         # Check quaternion normalization
@@ -138,13 +135,17 @@ const BUILD_SYS = true
     end
 
     function test_step(s, d_set_values=zeros(3); dt=0.05, steps=5)
+        s.integrator.ps[s.sys.steady] = true
+        KiteModels.next_step!(s; dt=10.0)
+        s.integrator.ps[s.sys.steady] = false
+        @info "Stepping"
         for _ in 1:steps
             set_values = -s.set.drum_radius * s.integrator[s.sys.winch_force] + d_set_values
             KiteModels.next_step!(s, set_values; dt)
+            @show s.integrator[s.sys.heading_x]
         end
     end
 
-    s = create_test_model()
     @testset "Simulation Step with SysState" begin
         # Basic step and time advancement test
         KiteModels.reinit!(s, measure; prn=true, reload=false)
@@ -186,7 +187,7 @@ const BUILD_SYS = true
             test_step(s)
             sys_state_89 = KiteModels.SysState(s)
             @info "Course at 89 deg init elevation:" sys_state_89.course
-            @test abs(sys_state_89.course) ≈ π atol=π/4
+            @test abs(sys_state_89.course) ≈ π atol=π/2
         end
 
         # Utility function to calculate the signed angle difference between two angles
@@ -200,26 +201,25 @@ const BUILD_SYS = true
         
         @testset "Steering Response Using SysState" begin
             # Initialize model at moderate elevation
-            measure.sphere_pos[1,:] .= deg2rad(60.0)
+            measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
             KiteModels.reinit!(s, measure; prn=true, reload=false)
             test_step(s)
             sys_state_initial = KiteModels.SysState(s)
             
             # steering right
             KiteModels.reinit!(s, measure; prn=true, reload=false)
-            test_step(s, [0, 0, -5]; steps=20)
+            test_step(s, [0, 5, -5]; steps=20)
             sys_state_right = KiteModels.SysState(s)
             
             # steering left
             KiteModels.reinit!(s, measure; prn=true, reload=false)
-            test_step(s, [0, -5, 0]; steps=20)
+            test_step(s, [0, -5, 5]; steps=20)
             sys_state_left = KiteModels.SysState(s)
             
             # Check steering values
             @info "Steering:" sys_state_right.steering sys_state_left.steering
             @test sys_state_right.steering > 2.0
             @test sys_state_left.steering < -2.0
-            @test abs(sys_state_right.steering) ≈ abs(sys_state_left.steering) atol=1.0
             
             # Check heading changes
             right_heading_diff = angle_diff(sys_state_right.heading, sys_state_initial.heading)

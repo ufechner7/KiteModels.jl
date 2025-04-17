@@ -259,9 +259,8 @@ function init_sim!(s::RamAirKite, measure::Measurement; prn=true, precompile=fal
     if !ispath(prob_path) || remake
         init(s, measure)
     end
-    try
-        reinit!(s, measure; precompile)
-    catch e
+    success = reinit!(s, measure; precompile)
+    if !success
         rm(prob_path)
         @info "Rebuilding the system. This can take some minutes..."
         init(s, measure)
@@ -309,14 +308,14 @@ function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=true, pre
     init_Q_b_w, R_b_w = measure_to_q(measure)
     init_kite_pos = init!(s.point_system, s.set, R_b_w)
     
-    if isnothing(s.prob)
+    if isnothing(s.prob) || reload
         prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set; precompile))
         !ispath(prob_path) && throw(ArgumentError("$prob_path not found. Run init_sim!(s::RamAirKite) first."))
         try
             s.prob = deserialize(prob_path)
         catch e
             @warn "Failure to deserialize $prob_path !"
-            throw(e)
+            return false
         end
     end
     if isnothing(s.integrator) || !successful_retcode(s.integrator.sol) || reload
@@ -340,7 +339,7 @@ function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=true, pre
     s.set_unknowns(s.integrator, s.unknowns_vec)
     OrdinaryDiffEqCore.reinit!(s.integrator, s.integrator.u; reinit_dae=true)
     linearize_vsm!(s)
-    return nothing
+    return true
 end
 
 function generate_getters!(s, sym_vec)
@@ -357,7 +356,7 @@ function generate_getters!(s, sym_vec)
     set_unknowns = setu(sys, sym_vec)
 
     get_state = getu(sys, 
-        [c(sys.pos), c(sys.acc), c(sys.Q_b_w), sys.elevation, sys.azimuth, sys.course, sys.heading_y, 
+        [c(sys.pos), c(sys.acc), c(sys.Q_b_w), sys.elevation, sys.azimuth, sys.course, sys.heading_x, 
         c(sys.e_x), c(sys.tether_vel), c(sys.twist_angle), c(sys.kite_vel)]
     )
     get_y = getu(sys, sys.y)
