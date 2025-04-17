@@ -152,9 +152,9 @@ function get_kite_points(s::KPS5)
     # Original kite points in local reference frame
     kitepos0 =                         # KITE points  
     # P1 Bridle        P2                                    P3                                  P4                              P5
-    [0.000         s.set.cord_length/2               -s.set.cord_length/2                       0                              0;
-    0.000               0                                    0                                -s.set.width/2           s.set.width/2;
-    0.000     s.set.height_k+s.set.h_bridle    s.set.height_k+s.set.h_bridle                 s.set.h_bridl               s.set.h_bridle]
+    [0.000         s.set.cord_length/2               -s.set.cord_length/2                       0                                0;
+    0.000               0                                    0                                -s.set.width/2               s.set.width/2;
+    0.000     s.set.height_k+s.set.h_bridle    s.set.height_k+s.set.h_bridle                 s.set.h_bridle               s.set.h_bridle]
 
     beta = deg2rad(s.set.elevation)
     Y_r = [sin(beta) 0 cos(beta);
