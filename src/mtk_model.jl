@@ -692,6 +692,8 @@ function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measuremen
         [set_values[i] => [-50.0, -1.0, -1.0][i] for i in 1:3]
     ]
 
+    s.defaults = defaults
+    s.guesses = guesses
     if lin_sys
         @info "Creating linearization system"
         @time lin_fun, _ = ModelingToolkit.linearization_function(sys, [set_values], [ω_b]; op=defaults, guesses)
