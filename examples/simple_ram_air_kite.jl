@@ -119,10 +119,10 @@ if PLOT
         [rad2deg.(c(sl.var_09)), rad2deg.(c(sl.var_10))],
         [c(sl.var_11)],
         [rad2deg.(c(sl.heading))];
-        # ylabels=["turn rates [°/s]", L"v_{ro}~[m/s]", "vsm", "twist [°]", "AoA [°]", "heading [°]"],
+        ylabels=["turn rates [°/s]", L"v_{ro}~[m/s]", "vsm", "twist [°]", "AoA [°]", "heading [°]"],
         ysize=10,
         labels=[
-            # [L"ω_x", L"ω_y", L"ω_z"],
+            [L"ω_x", L"ω_y", L"ω_z"],
             ["vel[1]", "vel[2]"],
             ["force[3]", "kite moment[2]", "group moment[1]"],
             ["twist_angle[1]", "twist_angle[2]"],

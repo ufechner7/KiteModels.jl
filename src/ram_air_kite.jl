@@ -108,6 +108,8 @@ $(TYPEDFIELDS)
     iter::Int64 = 0
 
     unknowns_vec::Vector{SimFloat} = zeros(SimFloat, 3)
+    defaults::Vector{Pair{Num, Real}} = Pair{Num, Real}[]
+    guesses::Vector{Pair{Num, Real}} = Pair{Num, Real}[]
 
     set_set_values::Function       = () -> nothing
     set_measure::Function          = () -> nothing
@@ -246,7 +248,7 @@ function init_sim!(s::RamAirKite, measure::Measurement; prn=true, precompile=fal
         dt = SimFloat(1/s.set.sample_freq)
         if prn
             @info "Creating ODEProblem"
-            @time s.prob = ODEProblem(s.sys, defaults, (0.0, dt); guesses)
+            @time s.prob = ODEProblem(s.sys, defaults, (0.0, dt); guesses) # TODO: serialize sys and isys
         else
             s.prob = ODEProblem(s.sys, defaults, (0.0, dt); guesses)
         end
