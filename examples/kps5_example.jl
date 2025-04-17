@@ -30,7 +30,7 @@ KiteModels.generate_getters!(s)
 KiteModels.simulate(s, logger)
 save_log(logger, "tmp")
 lg = load_log("tmp")
-function play(s, lg)
+function play(s, lg, front_view = false, side_view = true)
     dt = 1/s.set.sample_freq
     conn = KiteModels.getconnections(s)
     sl = lg.syslog
@@ -44,29 +44,63 @@ function play(s, lg)
     end
     # Add final connection from last tether point to bridle point
     push!(total_segmentsvector, [6+s.set.segments-1, 1])
+    
     for step in 1:length(0:dt:s.set.sim_time)-1 #-s.set.dt
         # Get positions at this time step
         x = sl.X[step]
         y = sl.Y[step]
-        z = sl.Z[step] 
+        z = sl.Z[step]
+        
         # Create points array for all points in the system
         pointsvector = Vector{Float64}[]
-        for i in 1:KiteModels.points(s)                 #FIX THIS!
-            push!(pointsvector, Float64[x[i], y[i], z[i]])
-        end        
-        # Calculate appropriate limits for the plot
-        x_min, x_max = 0, 40
-        z_min, z_max = 0, 60
-        t = (dt) * (step-1)
-        # Plot the kite system at this time step
-        plot2d(pointsvector, total_segmentsvector, t;
-               zoom = false,
-               xlim = (x_min, x_max),
-               ylim = (z_min, z_max)
-        )
+        
+        # Use comparison operator == instead of assignment =
+        if front_view == true
+            for i in 1:KiteModels.points(s)
+                # For front view: Y on horizontal axis, Z on vertical axis
+                push!(pointsvector, Float64[y[i], z[i], x[i]])
+            end
+            
+            # Calculate appropriate limits for front view
+            y_min, y_max = -10, 10
+            z_min, z_max = 0, 50
+            t = (dt) * (step-1)
+            
+            # Plot the kite system at this time step (front view)
+            plot2d(pointsvector, total_segmentsvector, t;
+                   zoom = false,
+                   xlim = (y_min, y_max),
+                   ylim = (z_min, z_max)
+            )
+        elseif side_view == true
+            for i in 1:KiteModels.points(s)
+                # For side view: X on horizontal axis, Z on vertical axis
+                push!(pointsvector, Float64[x[i], y[i], z[i]])
+            end
+            
+            # Calculate appropriate limits for side view
+            x_min, x_max = 0, 60
+            z_min, z_max = 0, 60
+            t = (dt) * (step-1)
+            
+            # Plot the kite system at this time step (side view)
+            plot2d(pointsvector, total_segmentsvector, t;
+                   zoom = false,
+                   xlim = (x_min, x_max),
+                   ylim = (z_min, z_max)
+            )
+        end
+        
         # Add a small delay to control animation speed
         sleep(0.05)
     end
+    nothing
+end
+function plot_front_view3(lg)
+    display(plotxy(lg.y, lg.z;
+    xlabel="pos_y [m]",
+    ylabel="height [m]",
+    fig="front_view"))
     nothing
 end
 play(s, lg)
