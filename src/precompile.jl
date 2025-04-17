@@ -65,15 +65,15 @@ end
             local set
             # Initialize model
             set = se("system_ram.yaml")
-            set.segments = 2
-            set.bridle_fracs = [0.088, 0.58, 0.93]
+            set.segments = 3
             set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
-            set.quasi_static = false
+            set.quasi_static = true
+            set.physical_model = "ram"
 
-            wing = RamAirWing(set; prn=false, n_groups=2)
+            wing = RamAirWing(set; prn=false, n_groups=4)
             aero = BodyAerodynamics([wing])
             vsm_solver = Solver(aero; solver_type=NONLIN, atol=2e-8, rtol=2e-8)
-            point_system = create_simple_ram_point_system(set, wing)
+            point_system = PointMassSystem(set, wing)
             s = RamAirKite(set, aero, vsm_solver, point_system)
             measure = Measurement()
 

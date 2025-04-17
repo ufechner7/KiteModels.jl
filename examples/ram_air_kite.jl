@@ -20,7 +20,7 @@ include(joinpath(@__DIR__, "plotting.jl"))
 # Simulation parameters
 dt = 0.05
 total_time = 10  # Longer simulation to see oscillations
-vsm_interval = 2
+vsm_interval = 5
 steps = Int(round(total_time / dt))
 
 # Steering parameters
@@ -73,12 +73,14 @@ try
         # Calculate steering inputs based on cosine wave
         steering = steering_magnitude * cos(2π * steering_freq * t+0.1)
         set_values = -s.set.drum_radius .* s.integrator[sys.winch_force]
-        if t > 1.0
+        _vsm_interval = 1
+        if t > 0.0
             set_values .+= [0.0, steering, -steering]  # Opposite steering for left/right
+            _vsm_interval = vsm_interval
         end
         
         # Step simulation
-        steptime = @elapsed (t_new, integ_steptime) = next_step!(s, set_values; dt, vsm_interval)
+        steptime = @elapsed (t_new, integ_steptime) = next_step!(s, set_values; dt, vsm_interval=_vsm_interval)
         t = t_new - 10.0  # Adjust for initial stabilization time
         
         # Track performance after initial transient
