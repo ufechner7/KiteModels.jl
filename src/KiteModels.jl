@@ -54,6 +54,7 @@ import OrdinaryDiffEqCore.step!
 using ModelingToolkit, SymbolicIndexingInterface
 using ModelingToolkit: t_nounits as t, D_nounits as D
 using ADTypes: AutoFiniteDiff
+import JLD2
 import ModelingToolkit.SciMLBase: successful_retcode
 
 export KPS3, KPS4, RamAirKite, KVec3, SimFloat, Measurement, PointMassSystem, ProfileLaw, EXP, LOG, EXPLOG     # constants and types
@@ -772,6 +773,14 @@ function copy_bin()
     chmod(joinpath(PATH, "create_sys_image.jl"), 0o664)
     chmod(joinpath(PATH, "test_for_precompile.jl"), 0o664)
     chmod(joinpath(PATH, "update_packages.jl"), 0o664)
+end
+
+function save_prob(filename::String, p)
+    JLD2.save(filename, "prob", p)
+end
+
+function load_prob(filename::String)
+    JLD2.load(filename)["prob"]
 end
 
 include("precompile.jl")
