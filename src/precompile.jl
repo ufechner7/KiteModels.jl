@@ -42,8 +42,8 @@ end
     kps3_::KPS3 = KPS3(KCU(se("system.yaml")))
     ver = "$(VERSION.major).$(VERSION.minor)_"
 
-    input_file = joinpath(path, "..", "data", "prob_dynamic"*ver*"_3_seg.bin.default.xz")
-    output_file = joinpath(path, "..", "data", "prob_dynamic"*ver*"_3_seg.bin.default")
+    input_file = joinpath(path, "..", "data", "prob_dynamic_"*ver*"3_seg.bin.default.xz")
+    output_file = joinpath(path, "..", "data", "prob_dynamic_"*ver*"3_seg.bin.default")
     if isfile(input_file) && ! isfile(output_file)
         using CodecXz
         decompress_binary(input_file, output_file)
