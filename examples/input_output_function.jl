@@ -42,8 +42,8 @@ s = RamAirKite(set)
 measure = Measurement()
 measure.set_values .= [-55, -4.0, -4.0]  # Set values of the torques of the three winches. [Nm]
 set_values = measure.set_values
-s.set.abs_tol = 1e-5
-s.set.rel_tol = 1e-5
+s.set.abs_tol = 0.01
+s.set.rel_tol = 0.01
 
 # Initialize at elevation
 measure.sphere_pos .= deg2rad.([83.0 83.0; 1.0 -1.0])
@@ -128,7 +128,7 @@ function plot_input_output_relations(step_fn)
     
     # Test ranges
     steer_range = range(-0.1, 0.1, length=20)
-    twist_range = range(-0.01, 0.01, length=20)
+    twist_range = range(-0.1, 0.1, length=20)
     
     # Test steering input vs omega
     @info "Testing steering input response..."
@@ -141,7 +141,7 @@ function plot_input_output_relations(step_fn)
         x[twist_idx] = twist_val[1]  # Set twist angle directly
         return step_fn(x, measure.set_values, nothing, p)
     end
-    # _, ω_twist, _ = test_response(s, twist_range, 1, step_with_twist, zeros(3), ω_idxs)
+    _, ω_twist, _ = test_response(s, twist_range, 1, step_with_twist, zeros(3), ω_idxs)
 
     # Plot results
     steering_plot = plotx(steer_range, 
@@ -157,12 +157,12 @@ function plot_input_output_relations(step_fn)
         fig="Steering Input vs Angular Velocity",
         xlabel="Steering Input [Nm]")
 
-    # twist_plot = plotx(rad2deg.(twist_range),
-    #     [ω_twist[1,:]], [ω_twist[2,:]], [ω_twist[3,:]];
-    #     ylabels=["ω_b[1]", "ω_b[2]", "ω_b[3]"],
-    #     labels=[["Twist Input"], ["Twist Input"], ["Twist Input"]],
-    #     fig="Twist Angle vs Angular Velocity",
-    #     xlabel="Twist Angle [deg]")
+    twist_plot = plotx(rad2deg.(twist_range),
+        [ω_twist[1,:]], [ω_twist[2,:]], [ω_twist[3,:]];
+        ylabels=["ω_b[1]", "ω_b[2]", "ω_b[3]"],
+        labels=[["Twist Input"], ["Twist Input"], ["Twist Input"]],
+        fig="Twist Angle vs Angular Velocity",
+        xlabel="Twist Angle [deg]")
 
     return steering_plot, twist_plot
 end
