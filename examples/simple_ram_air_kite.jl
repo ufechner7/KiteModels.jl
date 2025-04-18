@@ -1,12 +1,13 @@
 using KiteModels, LinearAlgebra
+using Pkg
+if ! ("LaTeXStrings" ∈ keys(Pkg.project().dependencies))
+    using TestEnv; TestEnv.activate()
+end
+using LaTeXStrings
 
-PLOT = false
+PLOT = true
 if PLOT
-    using Pkg
-    if ! ("LaTeXStrings" ∈ keys(Pkg.project().dependencies))
-        using TestEnv; TestEnv.activate()
-    end
-    using ControlPlots, LaTeXStrings
+    using ControlPlots
 end
 
 include(joinpath(@__DIR__, "plotting.jl"))
@@ -92,7 +93,8 @@ try
         sys_state.var_09 = s.integrator[sys.twist_angle[1]]
         sys_state.var_10 = s.integrator[sys.twist_angle[2]]
         
-        sys_state.var_11 = rad2deg(calc_aoa(s))
+        sys_state.var_11 = s.integrator[sys.angle_of_attack]
+        sys_state.var_12 = calc_aoa(s)
         
         log!(logger, sys_state)
     end
@@ -117,7 +119,7 @@ if PLOT
         [c(sl.var_04), c(sl.var_05)],
         [c(sl.var_06), c(sl.var_07), c(sl.var_08)],
         [rad2deg.(c(sl.var_09)), rad2deg.(c(sl.var_10))],
-        [c(sl.var_11)],
+        [rad2deg.(c(sl.var_11))],
         [rad2deg.(c(sl.heading))];
         ylabels=["turn rates [°/s]", L"v_{ro}~[m/s]", "vsm", "twist [°]", "AoA [°]", "heading [°]"],
         ysize=10,
