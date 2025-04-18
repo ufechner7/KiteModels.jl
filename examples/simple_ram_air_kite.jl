@@ -93,7 +93,7 @@ try
         sys_state.var_09 = s.integrator[sys.twist_angle[1]]
         sys_state.var_10 = s.integrator[sys.twist_angle[2]]
         
-        sys_state.var_11 = s.integrator[sys.angle_of_attack]
+        sys_state.var_11 = s.integrator[sys.angle_of_attack] # TODO: investigate why different from vsm aoa
         
         log!(logger, sys_state)
     end
