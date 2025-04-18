@@ -94,7 +94,6 @@ try
         sys_state.var_10 = s.integrator[sys.twist_angle[2]]
         
         sys_state.var_11 = s.integrator[sys.angle_of_attack]
-        sys_state.var_12 = calc_aoa(s)
         
         log!(logger, sys_state)
     end
