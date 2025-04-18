@@ -555,13 +555,14 @@ end
 
 function get_prob_name(set::Settings; precompile=false)
     suffix = ""
+    ver = "$(VERSION.major).$(VERSION.minor)_"
     if precompile
         suffix = ".default"
     end
     if set.quasi_static
-        return "prob_static_" * string(set.segments) * "_seg.bin" * suffix
+        return "prob_static_" * ver * string(set.segments) * "_seg.bin" * suffix
     else
-        return "prob_dynamic_" * string(set.segments) * "_seg.bin" * suffix
+        return "prob_dynamic_" * ver * string(set.segments) * "_seg.bin" * suffix
     end
 end
 
