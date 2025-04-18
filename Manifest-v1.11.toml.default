@@ -2,7 +2,7 @@
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "e5018c1dc211283070671a4ed1062afe5f6fa85a"
+project_hash = "36d920c919d2cc0c2d90120f7ad3c9d7c294f8e2"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "e2478490447631aedba0823d4d7a80b2cc8cdb32"
@@ -944,9 +944,9 @@ version = "0.3.8"
 
 [[deps.KiteUtils]]
 deps = ["Arrow", "CSV", "DocStringExtensions", "LinearAlgebra", "OrderedCollections", "Parameters", "Parsers", "Pkg", "PrecompileTools", "RecursiveArrayTools", "ReferenceFrameRotations", "Rotations", "StaticArrays", "StructArrays", "StructTypes", "YAML"]
-git-tree-sha1 = "45030c586d98912e8d405327d3ba972f17755c5f"
+git-tree-sha1 = "083329eaa20bec5e93f00b1d070ae71a7530f168"
 uuid = "90980105-b163-44e5-ba9f-8b1c83bb0533"
-version = "0.10.1"
+version = "0.10.2"
 
 [[deps.Krylov]]
 deps = ["LinearAlgebra", "Printf", "SparseArrays"]
@@ -2214,9 +2214,9 @@ version = "0.21.71"
 
 [[deps.VortexStepMethod]]
 deps = ["Colors", "DefaultApplication", "DelimitedFiles", "DifferentiationInterface", "FiniteDiff", "Interpolations", "LaTeXStrings", "LinearAlgebra", "Logging", "Measures", "NonlinearSolve", "Parameters", "Pkg", "PreallocationTools", "PrecompileTools", "SciMLBase", "Serialization", "StaticArrays", "Statistics", "Timers", "Xfoil", "YAML"]
-git-tree-sha1 = "7e2ff2d01630f7b29abd0368da1087ba2f3a542b"
+git-tree-sha1 = "fd7616ebd3dc9fc2c0e5e6abf7ba641aa52be444"
 uuid = "ed3cd733-9f0f-46a9-93e0-89b8d4998dd9"
-version = "1.2.3"
+version = "1.2.5"
 
     [deps.VortexStepMethod.extensions]
     VortexStepMethodControlPlotsExt = "ControlPlots"
