@@ -8,7 +8,7 @@ end
 using Dierckx, StaticArrays, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, Sundials, KiteUtils, 
       KitePodModels, AtmosphericModels, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK, ModelingToolkit,
       DSP, JLD2, Colors, REPL, VortexStepMethod, NonlinearSolve, FiniteDiff, OrdinaryDiffEqNonlinearSolve, StatsBase
-using PackageCompiler
+using PackageCompiler, BenchmarkTools, Documenter
 
 @info "Creating sysimage ..."
 push!(LOAD_PATH,joinpath(pwd(),"src"))
@@ -16,7 +16,7 @@ push!(LOAD_PATH,joinpath(pwd(),"src"))
 PackageCompiler.create_sysimage(
     [:Dierckx, :StaticArrays, :Parameters, :NLsolve, :DocStringExtensions, :Sundials, :KiteUtils, 
      :KitePodModels, :AtmosphericModels, :OrdinaryDiffEqCore, :OrdinaryDiffEqBDF, :OrdinaryDiffEqSDIRK, 
-     :OrdinaryDiffEqNonlinearSolve, :StatsBase, :PackageCompiler,
+     :OrdinaryDiffEqNonlinearSolve, :StatsBase, :PackageCompiler, :BenchmarkTools, :Documenter,
      :ModelingToolkit, :JLD2, :Colors, :REPL, :VortexStepMethod, :NonlinearSolve, :DSP, :FiniteDiff];
     sysimage_path="kps-image_tmp.so",
     include_transitive_dependencies=true,
