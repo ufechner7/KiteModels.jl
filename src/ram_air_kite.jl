@@ -393,11 +393,14 @@ function init_sim!(s::RamAirKite, measure::Measurement; prn=true, precompile=fal
         dt = SimFloat(1/s.set.sample_freq)
         if prn
             @info "Creating ODEProblem"
-            @time s.prob = ODEProblem(s.sys, defaults, (0.0, dt); guesses)
+            @time begin expr = ODEProblemExpr(s.sys, defaults, (0.0, dt); guesses); s.prob = eval(expr) end
         else
-            s.prob = ODEProblem(s.sys, defaults, (0.0, dt); guesses)
+            expr = ODEProblemExpr(s.sys, defaults, (0.0, dt); guesses); s.prob = eval(expr)
         end
-        serialize(prob_path, s.prob)
+        # serialize(prob_path, s.prob)
+        # ODEProblemExpr
+        save_prob(prob_path, expr)
+
         s.integrator = nothing
     end
     prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set; precompile))
@@ -458,7 +461,8 @@ function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=true, pre
         prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set; precompile))
         !ispath(prob_path) && throw(ArgumentError("$prob_path not found. Run init_sim!(s::RamAirKite) first."))
         try
-            s.prob = deserialize(prob_path)
+            # s.prob = deserialize(prob_path)
+            s.prob = load_prob(prob_path)
         catch e
             @warn "Failure to deserialize $prob_path !"
             throw(e)
@@ -559,9 +563,9 @@ function get_prob_name(set::Settings; precompile=false)
         suffix = ".default"
     end
     if set.quasi_static
-        return "prob_static_" * string(set.segments) * "_seg.bin" * suffix
+        return "prob_static_" * string(set.segments) * "_seg.jld2" * suffix
     else
-        return "prob_dynamic_" * string(set.segments) * "_seg.bin" * suffix
+        return "prob_dynamic_" * string(set.segments) * "_seg.jld2" * suffix
     end
 end
 
