@@ -2,7 +2,10 @@
 function VortexStepMethod.RamAirWing(set::Settings; prn=true, kwargs...)
     obj_path = joinpath(dirname(get_data_path()), set.model)
     dat_path = joinpath(dirname(get_data_path()), set.foil_file)
-    return RamAirWing(obj_path, dat_path; mass=set.mass, crease_frac=set.crease_frac, align_to_principal=true, prn, kwargs...)
+    return RamAirWing(obj_path, dat_path; 
+        mass=set.mass, crease_frac=set.crease_frac, n_groups=length(set.bridle_fracs), 
+        align_to_principal=true, prn, kwargs...
+    )
 end
 
 
@@ -129,6 +132,9 @@ end
 
 
 function PointMassSystem(set::Settings, wing::RamAirWing)
+    set.physical_model == "simple_ram" && length(set.bridle_fracs) != 2 && throw(ArgumentError("Model simple_ram should have 2 bridle fracs"))
+    set.physical_model == "ram" && length(set.bridle_fracs) != 4 && throw(ArgumentError("Model ram should have 4 bridle fracs"))
+
     if set.physical_model == "ram"
         return create_ram_point_system(set, wing)
     elseif set.physical_model == "simple_ram"

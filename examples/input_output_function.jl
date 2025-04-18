@@ -28,15 +28,16 @@ include(joinpath(@__DIR__, "plotting.jl"))
 set = se("system_ram.yaml")
 set.segments = 2
 set.quasi_static = true
-set.bridle_fracs = [0.0, 0.93]
+set.physical_model = "ram"
+if set.physical_model == "ram"
+    set.bridle_fracs = [0.088, 0.31, 0.58, 0.93]
+elseif set.physical_model == "simple_ram"
+    set.bridle_fracs = [0.0, 0.93]
+end
 set.sample_freq = 20
 dt = 1/set.sample_freq
 
-wing = RamAirWing(set; prn=false, n_groups=2)
-aero = BodyAerodynamics([wing])
-vsm_solver = Solver(aero; solver_type=NONLIN, atol=2e-8, rtol=2e-8)
-point_system = create_simple_ram_point_system(set, wing)
-s = RamAirKite(set, aero, vsm_solver, point_system)
+s = RamAirKite(set)
 
 measure = Measurement()
 measure.set_values .= [-55, -4.0, -4.0]  # Set values of the torques of the three winches. [Nm]
@@ -126,8 +127,8 @@ function plot_input_output_relations(step_fn)
     twist_idx = find_state_index(x_vec, sys.free_twist_angle[1])
     
     # Test ranges
-    steer_range = range(-1.0, 1.0, length=20)
-    twist_range = range(-0.1, 0.1, length=20)
+    steer_range = range(-0.1, 0.1, length=20)
+    twist_range = range(-0.01, 0.01, length=20)
     
     # Test steering input vs omega
     @info "Testing steering input response..."
@@ -140,7 +141,7 @@ function plot_input_output_relations(step_fn)
         x[twist_idx] = twist_val[1]  # Set twist angle directly
         return step_fn(x, measure.set_values, nothing, p)
     end
-    _, ω_twist, _ = test_response(s, twist_range, 1, step_with_twist, zeros(3), ω_idxs)
+    # _, ω_twist, _ = test_response(s, twist_range, 1, step_with_twist, zeros(3), ω_idxs)
 
     # Plot results
     steering_plot = plotx(steer_range, 
@@ -156,12 +157,12 @@ function plot_input_output_relations(step_fn)
         fig="Steering Input vs Angular Velocity",
         xlabel="Steering Input [Nm]")
 
-    twist_plot = plotx(rad2deg.(twist_range),
-        [ω_twist[1,:]], [ω_twist[2,:]], [ω_twist[3,:]];
-        ylabels=["ω_b[1]", "ω_b[2]", "ω_b[3]"],
-        labels=[["Twist Input"], ["Twist Input"], ["Twist Input"]],
-        fig="Twist Angle vs Angular Velocity",
-        xlabel="Twist Angle [deg]")
+    # twist_plot = plotx(rad2deg.(twist_range),
+    #     [ω_twist[1,:]], [ω_twist[2,:]], [ω_twist[3,:]];
+    #     ylabels=["ω_b[1]", "ω_b[2]", "ω_b[3]"],
+    #     labels=[["Twist Input"], ["Twist Input"], ["Twist Input"]],
+    #     fig="Twist Angle vs Angular Velocity",
+    #     xlabel="Twist Angle [deg]")
 
     return steering_plot, twist_plot
 end

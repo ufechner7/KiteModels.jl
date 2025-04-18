@@ -142,6 +142,14 @@ function RamAirKite(set::Settings, aero::BodyAerodynamics, vsm_solver::VortexSte
     return s
 end
 
+function RamAirKite(set::Settings)
+    wing = RamAirWing(set; prn=false)
+    aero = BodyAerodynamics([wing])
+    vsm_solver = Solver(aero; solver_type=NONLIN, atol=2e-8, rtol=2e-8)
+    point_system = PointMassSystem(set, wing)
+    return RamAirKite(set, aero, vsm_solver, point_system)
+end
+
 function update_sys_state!(ss::SysState, s::RamAirKite, zoom=1.0)
     ss.time = s.t_0
     pos, acc, Q_b_w, elevation, azimuth, course, heading, e_x, tether_vel, twist, kite_vel = s.get_state(s.integrator)
