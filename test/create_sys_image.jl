@@ -7,7 +7,7 @@ end
 @info "Loading packages ..."
 using Dierckx, StaticArrays, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, Sundials, KiteUtils, 
       KitePodModels, AtmosphericModels, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK, ModelingToolkit,
-      DSP, JLD2, Colors, REPL, VortexStepMethod, NonlinearSolve, DSP, FiniteDiff, OrdinaryDiffEqNonlinearSolve
+      DSP, JLD2, Colors, REPL, VortexStepMethod, NonlinearSolve, FiniteDiff, OrdinaryDiffEqNonlinearSolve
 using PackageCompiler
 
 @info "Creating sysimage ..."
@@ -17,7 +17,7 @@ PackageCompiler.create_sysimage(
     [:Dierckx, :StaticArrays, :Parameters, :NLsolve, :DocStringExtensions, :Sundials, :KiteUtils, 
      :KitePodModels, :AtmosphericModels, :OrdinaryDiffEqCore, :OrdinaryDiffEqBDF, :OrdinaryDiffEqSDIRK, 
      :OrdinaryDiffEqNonlinearSolve,
-     :ModelingToolkit, :DSP, :JLD2, :Colors, :REPL, :VortexStepMethod, :NonlinearSolve, :DSP, :FiniteDiff];
+     :ModelingToolkit, :JLD2, :Colors, :REPL, :VortexStepMethod, :NonlinearSolve, :DSP, :FiniteDiff];
     sysimage_path="kps-image_tmp.so",
     include_transitive_dependencies=true,
     precompile_execution_file=joinpath("test", "test_for_precompile.jl")
