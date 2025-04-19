@@ -94,7 +94,7 @@ end
             # Initialize at elevation
             measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
             KiteModels.init_sim!(s, measure; prn=false, precompile=true)
-            cp(output_file, prob_file)
+            cp(output_file, prob_file; force=true)
         end
         nothing
     end
