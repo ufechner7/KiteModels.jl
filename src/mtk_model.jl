@@ -182,8 +182,12 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             ]
             defaults = [
                 defaults
-                [pos[j, point.idx] => point.pos_w[j] for j in 1:3]
                 [vel[j, point.idx] => 0 for j in 1:3]
+                [acc[j, point.idx] => 0 for j in 1:3]
+            ]
+            guesses = [
+                guesses
+                [pos[j, point.idx] => point.pos_w[j] for j in 1:3]
             ]
         elseif point.type == STATIC
             eqs = [
@@ -417,8 +421,12 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             ]
             defaults = [
                 defaults
-                pulley_l0[pulley.idx] => segments[pulley.segments[1]].l0
                 pulley_vel[pulley.idx] => 0
+                pulley_acc[pulley.idx] => 0
+            ]
+            guesses = [
+                guesses
+                pulley_l0[pulley.idx] => segments[pulley.segments[1]].l0
             ]
         elseif pulley.type == STATIC
             eqs = [
