@@ -126,7 +126,7 @@ function plot_input_output_relations(step_fn)
     
     # Test ranges
     steer_range = range(-0.1, 0.1, length=20)
-    twist_range = range(-0.1, 0.1, length=20)
+    twist_range = range(-0.06, 0.06, length=20)
     
     # Test steering input vs omega
     @info "Testing steering input response..."
