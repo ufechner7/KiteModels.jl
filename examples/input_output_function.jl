@@ -40,10 +40,8 @@ dt = 1/set.sample_freq
 s = RamAirKite(set)
 
 measure = Measurement()
-measure.set_values .= [-55, -4.0, -4.0]  # Set values of the torques of the three winches. [Nm]
+measure.set_values .= [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
 set_values = measure.set_values
-s.set.abs_tol = 0.01
-s.set.rel_tol = 0.01
 
 # Initialize at elevation
 measure.sphere_pos .= deg2rad.([83.0 83.0; 1.0 -1.0])
