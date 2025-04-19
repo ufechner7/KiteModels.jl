@@ -13,29 +13,23 @@ providing insight into the kite's steering behavior and control characteristics.
 
 using Timers
 tic()
-using KiteModels, LinearAlgebra, OrdinaryDiffEqCore
+using KiteModels, LinearAlgebra, OrdinaryDiffEqCore, OrdinaryDiffEqNonlinearSolve, OrdinaryDiffEqBDF
 using ModelingToolkit
 using ModelingToolkit: setu, getu
 
 PLOT = true
 if PLOT
-    using Pkg
-    if ! ("LaTeXStrings" ∈ keys(Pkg.project().dependencies))
-        using TestEnv; TestEnv.activate()
-    end
-    using ControlPlots, LaTeXStrings
+    using ControlPlots
 end
 
 include(joinpath(@__DIR__, "plotting.jl"))
 
-# Simulation parameters
-dt = 0.05
-
 # Initialize model
 set = se("system_ram.yaml")
 set.segments = 2
-set_values = [-50, 0.0, 0.0]  # Initial values
 set.quasi_static = true
+set.sample_freq = 20
+dt = 1/set.sample_freq
 
 wing = RamAirWing(set)
 aero = BodyAerodynamics([wing])
@@ -44,13 +38,12 @@ point_system = PointMassSystem(set, wing)
 s = RamAirKite(set, aero, vsm_solver, point_system)
 
 measure = Measurement()
-s.set.abs_tol = 1e-5
-s.set.rel_tol = 1e-3
+measure.set_values .= [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
+set_values = measure.set_values
 
 # Initialize at elevation
-measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
+measure.sphere_pos .= deg2rad.([83.0 83.0; 1.0 -1.0])
 KiteModels.init_sim!(s, measure)
-toc()
 sys = s.sys
 
 # Stabilize system
@@ -59,67 +52,119 @@ next_step!(s; dt=10.0, vsm_interval=1)
 s.integrator.ps[sys.steady] = false
 
 # Function to step simulation with input u
-function step_with_input(x, u, _, p)
-    (s, stiff_x, set_x, set_sx, get_x, dt) = p
+function step_with_input_integ(x, u, _, p)
+    (s, set_x, set_u, get_x, dt) = p
     set_x(s.integrator, x)
-    set_sx(s.integrator, stiff_x)
-    OrdinaryDiffEqCore.reinit!(s.integrator, s.integrator.u; reinit_dae=false)
-    next_step!(s, u; dt=dt, vsm_interval=0)
+    set_u(s.integrator, u)
+    OrdinaryDiffEqCore.reinit!(s.integrator, s.integrator.u; reinit_dae=true)
+    OrdinaryDiffEqCore.step!(s.integrator, dt)
     return get_x(s.integrator)
 end
 
-# Get initial state
-x_vec = KiteModels.get_nonstiff_unknowns(s)
-sx_vec = KiteModels.get_stiff_unknowns(s)
-set_x = setu(s.integrator, x_vec)
-set_sx = setu(s.integrator, sx_vec)
-get_x = getu(s.integrator, x_vec)
-get_sx = getu(s.integrator, sx_vec)
-x0 = get_x(s.integrator)
-sx0 = get_sx(s.integrator)
+solver = FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.4))
 
-# Test steering inputs and record angular velocity response
-function test_response(s, input_range, input_idx; steps=1)
-    angular_vels = zeros(3, length(input_range))
+# Function to step simulation with input u
+function step_with_input_prob(x, u, _, p)
+    (s, set_x, set_u, get_x, dt) = p
+    set_x(s.prob, x)
+    set_u(s.prob, u)
+    sol = solve(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, save_everystep=false, save_start=false)
+    return get_x(sol)[1]
+end
+
+# Get initial state
+x_vec = KiteModels.get_unknowns(s)
+set_x = setu(s.integrator, Initial.(x_vec))
+set_u = setu(s.integrator, collect(sys.set_values))
+get_x = getu(s.integrator, x_vec)
+x0 = get_x(s.integrator)
+
+function test_response(s, input_range, input_idx, step_fn, u0, x_idxs=nothing; steps=1)
+    # If no x_idxs specified, default to angular velocities
+    if isnothing(x_idxs)
+        x_idxs = (length(x0)-8):(length(x0)-6)
+        output_size = 3
+    else
+        output_size = length(x_idxs)
+    end
+    
+    output = zeros(output_size, length(input_range))
     total_time = 0.0
     iter = 0
 
     for (i, input_val) in enumerate(input_range)
-        u = [-50.0, 0.0, 0.0]
-        u[input_idx] = input_val
+        u = copy(u0)
+        u[input_idx] += input_val
         x = copy(x0)
         for i in 1:steps
-            p = (s, sx0, set_x, set_sx, get_x, dt)
-            total_time += @elapsed x = step_with_input(x, u, nothing, p)
+            p = (s, set_x, set_u, get_x, dt)
+            total_time += @elapsed x = step_fn(x, u, nothing, p)
             iter += 1
         end
-        angular_vels[:, i] = x[11:13]
+        output[:, i] = x[x_idxs]
     end
     
     times_rt = dt*iter/total_time
-    @info "Number of steps: $iter, Times realtime: $times_rt"
-    return input_range, angular_vels, times_rt
+    @info "Number of steps: $iter, Times realtime: $times_rt, Total time: $total_time"
+    return input_range, output, times_rt
 end
 
-# Test left and right steering inputs
-left_range = range(-1.0, 1.0, length=20)
-time_vec_left, angular_vels_left, _ = test_response(s, left_range, 2)
+# Add helper function to find state indices
+function find_state_index(x_vec, symbol)
+    # Compare the variables using isequal for symbolic equality
+    idx = findfirst(x -> isequal(x, symbol), x_vec)
+    isnothing(idx) && error("Symbol $symbol not found in state vector")
+    return idx
+end
 
-right_range = range(-1.0, 1.0, length=20)
-time_vec_right, angular_vels_right, _ = test_response(s, right_range, 3)
+function plot_input_output_relations(step_fn)
+    # Find relevant state indices
+    ω_idxs = [find_state_index(x_vec, sys.ω_b[i]) for i in 1:3]
+    twist_idx = find_state_index(x_vec, sys.free_twist_angle[1])
+    
+    # Test ranges
+    steer_range = range(-0.1, 0.1, length=20)
+    twist_range = range(-0.06, 0.06, length=20)
+    
+    # Test steering input vs omega
+    @info "Testing steering input response..."
+    _, ω_steer_left, _ = test_response(s, steer_range, 2, step_fn, measure.set_values, ω_idxs)
+    _, ω_steer_right, _ = test_response(s, steer_range, 3, step_fn, measure.set_values, ω_idxs)
 
-# Compare steering inputs effect on angular velocity
-left_vs_right = plotx(time_vec_left, 
-    [angular_vels_left[1,:], angular_vels_right[1,:]],
-    [angular_vels_left[2,:], angular_vels_right[2,:]],
-    [angular_vels_left[3,:], angular_vels_right[3,:]];
-    ylabels=["ω_b[1]", "ω_b[2]", "ω_b[3]"], 
-    labels=[
-        ["Left Steering", "Right Steering"],
-        ["Left Steering", "Right Steering"],
-        ["Left Steering", "Right Steering"],
-    ],
-    fig="Steering Input vs Angular Velocity",
-    xlabel="Steering Input Value")
+    # Test twist angle vs omega 
+    @info "Testing twist angle response..."
+    function step_with_twist(x, twist_val, _, p)
+        x[twist_idx] = twist_val[1]  # Set twist angle directly
+        return step_fn(x, measure.set_values, nothing, p)
+    end
+    _, ω_twist, _ = test_response(s, twist_range, 1, step_with_twist, zeros(3), ω_idxs)
 
-display(left_vs_right)
+    # Plot results
+    steering_plot = plotx(steer_range, 
+        [ω_steer_left[1,:], ω_steer_right[1,:]],
+        [ω_steer_left[2,:], ω_steer_right[2,:]],
+        [ω_steer_left[3,:], ω_steer_right[3,:]];
+        ylabels=["ω_b[1]", "ω_b[2]", "ω_b[3]"], 
+        labels=[
+            ["Left Steering", "Right Steering"],
+            ["Left Steering", "Right Steering"],
+            ["Left Steering", "Right Steering"],
+        ],
+        fig="Steering Input vs Angular Velocity",
+        xlabel="Steering Input [Nm]")
+
+    twist_plot = plotx(rad2deg.(twist_range),
+        [ω_twist[1,:]], [ω_twist[2,:]], [ω_twist[3,:]];
+        ylabels=["ω_b[1]", "ω_b[2]", "ω_b[3]"],
+        labels=[["Twist Input"], ["Twist Input"], ["Twist Input"]],
+        fig="Twist Angle vs Angular Velocity",
+        xlabel="Twist Angle [deg]")
+
+    return steering_plot, twist_plot
+end
+
+# Run analysis and display plots
+steer_plot, twist_plot = plot_input_output_relations(step_with_input_prob)
+# steer_plot, twist_plot = plot_input_output_relations(step_with_input_integ)
+display(steer_plot)
+display(twist_plot)
