@@ -262,7 +262,7 @@ function init_sim!(s::RamAirKite, measure::Measurement; prn=true, precompile=fal
         rm(prob_path)
         @info "Rebuilding the system. This can take some minutes..."
         init(s, measure)
-        reinit!(s, measure; precompile)
+        reinit!(s, measure; precompile, prn)
     end
     return nothing
 end
@@ -406,11 +406,12 @@ end
 
 function get_prob_name(set::Settings; precompile=false)
     suffix = ""
+    ver = "$(VERSION.major).$(VERSION.minor)_"
     if precompile
         suffix = ".default"
     end
     dynamics_type = ifelse(set.quasi_static, "static", "dynamic")
-    return "prob_$(set.physical_model)_$(dynamics_type)_$(set.segments)_seg.bin$suffix"
+    return "prob_$ver_$(set.physical_model)_$(dynamics_type)_$(set.segments)_seg.bin$suffix"
 end
 
 """
