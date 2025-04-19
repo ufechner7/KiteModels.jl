@@ -1,58 +1,50 @@
-using Timers
-tic()
-@info "Loading packages "
-
 using KiteModels, LinearAlgebra
+using Pkg
+if ! ("LaTeXStrings" ∈ keys(Pkg.project().dependencies))
+    using TestEnv; TestEnv.activate()
+end
+using LaTeXStrings
 
 PLOT = true
 if PLOT
-    using Pkg
-    if ! ("LaTeXStrings" ∈ keys(Pkg.project().dependencies))
-        using TestEnv; TestEnv.activate()
-    end
-    using ControlPlots, LaTeXStrings
+    using ControlPlots
 end
-toc()
-
 
 include(joinpath(@__DIR__, "plotting.jl"))
 
 # Simulation parameters
 dt = 0.05
 total_time = 10  # Longer simulation to see oscillations
-vsm_interval = 5
+vsm_interval = 2
 steps = Int(round(total_time / dt))
 
 # Steering parameters
 steering_freq = 1/2  # Hz - full left-right cycle frequency
-steering_magnitude = 5.0      # Magnitude of steering input [Nm]
+steering_magnitude = 1.0      # Magnitude of steering input [Nm]
 
 # Initialize model
 set = se("system_ram.yaml")
-set.segments = 3
-set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
-set.quasi_static = false
-set.physical_model = "ram"
+set.segments = 2
+set.quasi_static = true
+set.bridle_fracs = [0.0, 0.93]
+set.physical_model = "simple_ram"
 
-@info "Creating wing, aero, vsm_solver, point_system and s:"
-wing = RamAirWing(set; prn=false)
+wing = RamAirWing(set; prn=false, n_groups=2)
 aero = BodyAerodynamics([wing])
 vsm_solver = Solver(aero; solver_type=NONLIN, atol=2e-8, rtol=2e-8)
-point_system = create_ram_point_system(set, wing)
+point_system = create_simple_ram_point_system(set, wing)
 s = RamAirKite(set, aero, vsm_solver, point_system)
-toc()
 
 measure = Measurement()
+measure.set_values .= [-55, -4.0, -4.0]  # Set values of the torques of the three winches. [Nm]
+set_values = measure.set_values
 s.set.abs_tol = 1e-5
 s.set.rel_tol = 1e-4
 
 # Initialize at elevation
-measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
-KiteModels.init_sim!(s, measure)
+measure.sphere_pos .= deg2rad.([83.0 83.0; 1.0 -1.0])
+KiteModels.init_sim!(s, measure; remake=false)
 sys = s.sys
-
-@info "System initialized at:"
-toc()
 
 # Stabilize system
 s.integrator.ps[sys.steady] = true
@@ -71,16 +63,12 @@ try
         PLOT && plot(s, t; zoom=false, front=false)
         
         # Calculate steering inputs based on cosine wave
-        steering = steering_magnitude * cos(2π * steering_freq * t+0.1)
+        steering = steering_magnitude * cos(2π * steering_freq * t)
         set_values = -s.set.drum_radius .* s.integrator[sys.winch_force]
-        _vsm_interval = 1
-        if t > 0.0
-            set_values .+= [0.0, steering, -steering]  # Opposite steering for left/right
-            _vsm_interval = vsm_interval
-        end
+        set_values .+= [0.0, steering, -steering]  # Opposite steering for left/right
         
         # Step simulation
-        steptime = @elapsed (t_new, integ_steptime) = next_step!(s, set_values; dt, vsm_interval=_vsm_interval)
+        steptime = @elapsed (t_new, integ_steptime) = next_step!(s, set_values; dt, vsm_interval)
         t = t_new - 10.0  # Adjust for initial stabilization time
         
         # Track performance after initial transient
@@ -88,7 +76,7 @@ try
             runtime += steptime
             integ_runtime += integ_steptime
         end
-        
+
         # Log state variables
         KiteModels.update_sys_state!(sys_state, s)
         sys_state.var_01 = s.integrator[sys.ω_b[1]]
@@ -104,13 +92,8 @@ try
 
         sys_state.var_09 = s.integrator[sys.twist_angle[1]]
         sys_state.var_10 = s.integrator[sys.twist_angle[2]]
-        sys_state.var_11 = s.integrator[sys.twist_angle[3]]
-        sys_state.var_12 = s.integrator[sys.twist_angle[4]]
-
-        sys_state.var_13 = s.integrator[sys.pulley_l0[1]]
-        sys_state.var_14 = s.integrator[sys.pulley_l0[2]]
         
-        sys_state.var_15 = rad2deg(calc_aoa(s))
+        sys_state.var_11 = s.integrator[sys.angle_of_attack] # TODO: investigate why different from vsm aoa
         
         log!(logger, sys_state)
     end
@@ -122,8 +105,6 @@ catch e
         rethrow(e)
     end
 end
-@info "Total time without plotting:"
-toc()
 
 # Plot results
 c = collect
@@ -136,18 +117,16 @@ if PLOT
         [rad2deg.(sl.var_01), rad2deg.(sl.var_02), rad2deg.(sl.var_03)],
         [c(sl.var_04), c(sl.var_05)],
         [c(sl.var_06), c(sl.var_07), c(sl.var_08)],
-        [rad2deg.(c(sl.var_09)), rad2deg.(c(sl.var_10)), rad2deg.(c(sl.var_11)), rad2deg.(c(sl.var_12))],
-        [c(sl.var_13), c(sl.var_14)],
-        [c(sl.var_15)],
+        [rad2deg.(c(sl.var_09)), rad2deg.(c(sl.var_10))],
+        [rad2deg.(c(sl.var_11))],
         [rad2deg.(c(sl.heading))];
-        ylabels=["turn rates [°/s]", L"v_{ro}~[m/s]", "vsm", "twist [°]", "pulley", "AoA [°]", "heading [°]"],
+        ylabels=["turn rates [°/s]", L"v_{ro}~[m/s]", "vsm", "twist [°]", "AoA [°]", "heading [°]"],
         ysize=10,
         labels=[
             [L"ω_x", L"ω_y", L"ω_z"],
             ["vel[1]", "vel[2]"],
             ["force[3]", "kite moment[2]", "group moment[1]"],
-            ["twist_angle[1]", "twist_angle[2]", "twist_angle[3]", "twist_angle[4]"],
-            ["pulley_l0[1]", "pulley_l0[2]"],
+            ["twist_angle[1]", "twist_angle[2]"],
             ["angle of attack"],
             ["heading"]
         ],

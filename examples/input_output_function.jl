@@ -32,14 +32,16 @@ include(joinpath(@__DIR__, "plotting.jl"))
 set = se("system_ram.yaml")
 set.segments = 2
 set.quasi_static = true
+set.physical_model = "ram"
+if set.physical_model == "ram"
+    set.bridle_fracs = [0.088, 0.31, 0.58, 0.93]
+elseif set.physical_model == "simple_ram"
+    set.bridle_fracs = [0.0, 0.93]
+end
 set.sample_freq = 20
 dt = 1/set.sample_freq
 
-wing = RamAirWing(set)
-aero = BodyAerodynamics([wing])
-vsm_solver = Solver(aero; solver_type=NONLIN, atol=1e-8, rtol=1e-8)
-point_system = PointMassSystem(set, wing)
-s = RamAirKite(set, aero, vsm_solver, point_system)
+s = RamAirKite(set)
 
 measure = Measurement()
 measure.set_values .= [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
@@ -47,7 +49,7 @@ set_values = measure.set_values
 
 # Initialize at elevation
 measure.sphere_pos .= deg2rad.([83.0 83.0; 1.0 -1.0])
-KiteModels.init_sim!(s, measure)
+KiteModels.init_sim!(s, measure; remake=false)
 sys = s.sys
 
 # Stabilize system
