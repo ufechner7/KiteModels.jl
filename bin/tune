@@ -1,0 +1,16 @@
+#!/bin/bash -eu
+
+if [[ $(basename $(pwd)) == "bin" ]]; then
+    cd ..
+fi
+
+# check Julia version
+
+# check that the active manifest is the default manifest
+
+# create new prob_xxx.bin file
+# copy it to the prob_xxx.bin.default file
+# run xz
+
+# delete the relevant compiled package folder
+# load the package
