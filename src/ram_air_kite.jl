@@ -405,12 +405,12 @@ function init_sim!(s::RamAirKite, measure::Measurement; prn=true, precompile=fal
         init(s, measure)
     end
     try
-        reinit!(s, measure; precompile)
+        reinit!(s, measure; precompile, prn)
     catch e
         rm(prob_path)
         @info "Rebuilding the system. This can take some minutes..."
         init(s, measure)
-        reinit!(s, measure; precompile)
+        reinit!(s, measure; precompile, prn)
     end
     return nothing
 end
