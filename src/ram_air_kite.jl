@@ -416,12 +416,12 @@ end
 
 function get_prob_name(set::Settings; precompile=false)
     suffix = ""
-    ver = "$(VERSION.major).$(VERSION.minor)_"
+    ver = "$(VERSION.major).$(VERSION.minor)"
     if precompile
         suffix = ".default"
     end
     dynamics_type = ifelse(set.quasi_static, "static", "dynamic")
-    return "prob_$ver_$(set.physical_model)_$(dynamics_type)_$(set.segments)_seg.bin$suffix"
+    return "prob_$(ver)_$(set.physical_model)_$(dynamics_type)_$(set.segments)_seg.bin$suffix"
 end
 
 """
