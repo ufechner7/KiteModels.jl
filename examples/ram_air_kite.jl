@@ -131,26 +131,28 @@ save_log(logger, "tmp")
 lg =load_log("tmp")
 sl = lg.syslog
 
-p = plotx(sl.time .- 10, 
-    [rad2deg.(sl.var_01), rad2deg.(sl.var_02), rad2deg.(sl.var_03)],
-    [c(sl.var_04), c(sl.var_05)],
-    [c(sl.var_06), c(sl.var_07), c(sl.var_08)],
-    [rad2deg.(c(sl.var_09)), rad2deg.(c(sl.var_10)), rad2deg.(c(sl.var_11)), rad2deg.(c(sl.var_12))],
-    [c(sl.var_13), c(sl.var_14)],
-    [c(sl.var_15)],
-    [rad2deg.(c(sl.heading))];
-    ylabels=["turn rates [°/s]", L"v_{ro}~[m/s]", "vsm", "twist [°]", "pulley", "AoA [°]", "heading [°]"],
-    ysize=10,
-    labels=[
-        [L"ω_x", L"ω_y", L"ω_z"],
-        ["vel[1]", "vel[2]"],
-        ["force[3]", "kite moment[2]", "group moment[1]"],
-        ["twist_angle[1]", "twist_angle[2]", "twist_angle[3]", "twist_angle[4]"],
-        ["pulley_l0[1]", "pulley_l0[2]"],
-        ["angle of attack"],
-        ["heading"]
-    ],
-    fig="Oscillating Steering Input Response")
-display(p)
+if PLOT
+    p = plotx(sl.time .- 10, 
+        [rad2deg.(sl.var_01), rad2deg.(sl.var_02), rad2deg.(sl.var_03)],
+        [c(sl.var_04), c(sl.var_05)],
+        [c(sl.var_06), c(sl.var_07), c(sl.var_08)],
+        [rad2deg.(c(sl.var_09)), rad2deg.(c(sl.var_10)), rad2deg.(c(sl.var_11)), rad2deg.(c(sl.var_12))],
+        [c(sl.var_13), c(sl.var_14)],
+        [c(sl.var_15)],
+        [rad2deg.(c(sl.heading))];
+        ylabels=["turn rates [°/s]", L"v_{ro}~[m/s]", "vsm", "twist [°]", "pulley", "AoA [°]", "heading [°]"],
+        ysize=10,
+        labels=[
+            [L"ω_x", L"ω_y", L"ω_z"],
+            ["vel[1]", "vel[2]"],
+            ["force[3]", "kite moment[2]", "group moment[1]"],
+            ["twist_angle[1]", "twist_angle[2]", "twist_angle[3]", "twist_angle[4]"],
+            ["pulley_l0[1]", "pulley_l0[2]"],
+            ["angle of attack"],
+            ["heading"]
+        ],
+        fig="Oscillating Steering Input Response")
+    display(p)
+end
 
 @info "Performance:" times_realtime=(total_time/2)/runtime integrator_times_realtime=(total_time/2)/integ_runtime

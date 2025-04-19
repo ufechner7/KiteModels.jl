@@ -8,14 +8,12 @@ function calc_moment_acc(winch::TorqueControlledMachine, tether_vel, norm_, set_
     calc_acceleration(winch, tether_vel, norm_; set_speed=nothing, set_torque, use_brake=false)
 end
 
-function calc_heading(x, y)
-    # Returns angle in [-π, π] using atan2(det, dot) formula for cross/dot products
-    # [x1, y1] is [1, 0] (positive x-axis)
-    # [x2, y2] is the input vector [x, y]
-    # https://stackoverflow.com/questions/14066933/direct-way-of-computing-the-clockwise-angle-between-two-vectors
-    dot = 1*x + 0*y    # Dot product with [1,0]
-    det = 1*y - 0*x    # Determinant with [1,0]
-    return atan(det, dot)  # Note: Julia's atan is equivalent to atan2
+function calc_heading(e_x)
+    return atan(e_x[2], e_x[1])
+end
+
+function calc_angle_of_attack(va_kite_b)
+    return atan(va_kite_b[3], va_kite_b[1])
 end
 
 function sym_normalize(vec)
@@ -536,7 +534,7 @@ function diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero
 end
 
 
-function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc)
+function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc, twist_angle)
     @parameters wind_scale_gnd = s.set.v_wind
     @parameters measured_wind_dir_gnd = measure.wind_dir_gnd
     @variables begin
@@ -570,15 +568,18 @@ function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, 
         sphere_pos(t)[1:2, 1:2]
         sphere_vel(t)[1:2, 1:2]
         sphere_acc(t)[1:2, 1:2]
+        angle_of_attack(t)
     end
 
     x, y, z = kite_pos
     x´, y´, z´ = kite_vel
     x´´, y´´, z´´ = kite_acc
 
+    twist_idxs = (length(twist_angle)÷2, length(twist_angle)÷2+1)
+
     eqs = [
         eqs
-        heading_x       ~ calc_heading(e_x[1], e_x[2])
+        heading_x       ~ calc_heading(e_x)
 
         elevation           ~ atan(z / x)
         # elevation_vel = d/dt(atan(z/x)) = (x*ż' - z*ẋ')/(x^2 + z^2) according to wolframalpha
@@ -593,6 +594,8 @@ function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, 
         x_acc               ~ kite_acc ⋅ e_x
         y_acc               ~ kite_acc ⋅ e_y
         course              ~ atan(-azimuth_vel, elevation_vel)
+
+        angle_of_attack     ~ calc_angle_of_attack(va_kite_b) + 0.5twist_angle[twist_idxs[1]] + 0.5twist_angle[twist_idxs[2]]
     ]
     return eqs
 end
@@ -670,7 +673,7 @@ function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measuremen
     eqs, guesses = linear_vsm_eqs!(s, eqs, guesses; aero_force_b, aero_moment_b, group_aero_moment, init_va, twist_angle, va_kite_b, ω_b)
     eqs, defaults = diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero_force_b, aero_moment_b, 
         ω_b, R_b_w, kite_pos, kite_vel, kite_acc, init_Q_b_w, init_kite_pos, steady)
-    eqs = scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc)
+    eqs = scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc, twist_angle)
     
     # te_I = (1/3 * (s.set.mass/8) * te_length^2)
     # # -damping / I * ω = α_damping
@@ -702,6 +705,8 @@ function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measuremen
         [set_values[i] => [-50.0, -1.0, -1.0][i] for i in 1:3]
     ]
 
+    s.defaults = defaults
+    s.guesses = guesses
     if lin_sys
         @info "Creating linearization system"
         @time lin_fun, _ = ModelingToolkit.linearization_function(sys, [set_values], [ω_b]; op=defaults, guesses)

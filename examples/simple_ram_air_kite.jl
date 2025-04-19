@@ -1,12 +1,13 @@
 using KiteModels, LinearAlgebra
+using Pkg
+if ! ("LaTeXStrings" ∈ keys(Pkg.project().dependencies))
+    using TestEnv; TestEnv.activate()
+end
+using LaTeXStrings
 
 PLOT = true
 if PLOT
-    using Pkg
-    if ! ("LaTeXStrings" ∈ keys(Pkg.project().dependencies))
-        using TestEnv; TestEnv.activate()
-    end
-    using ControlPlots, LaTeXStrings
+    using ControlPlots
 end
 
 include(joinpath(@__DIR__, "plotting.jl"))
@@ -92,7 +93,7 @@ try
         sys_state.var_09 = s.integrator[sys.twist_angle[1]]
         sys_state.var_10 = s.integrator[sys.twist_angle[2]]
         
-        sys_state.var_11 = rad2deg(calc_aoa(s))
+        sys_state.var_11 = s.integrator[sys.angle_of_attack] # TODO: investigate why different from vsm aoa
         
         log!(logger, sys_state)
     end
@@ -111,24 +112,26 @@ save_log(logger, "tmp")
 lg =load_log("tmp")
 sl = lg.syslog
 
-p = plotx(sl.time .- 10, 
-    [rad2deg.(sl.var_01), rad2deg.(sl.var_02), rad2deg.(sl.var_03)],
-    [c(sl.var_04), c(sl.var_05)],
-    [c(sl.var_06), c(sl.var_07), c(sl.var_08)],
-    [rad2deg.(c(sl.var_09)), rad2deg.(c(sl.var_10))],
-    [c(sl.var_11)],
-    [rad2deg.(c(sl.heading))];
-    ylabels=["turn rates [°/s]", L"v_{ro}~[m/s]", "vsm", "twist [°]", "AoA [°]", "heading [°]"],
-    ysize=10,
-    labels=[
-        [L"ω_x", L"ω_y", L"ω_z"],
-        ["vel[1]", "vel[2]"],
-        ["force[3]", "kite moment[2]", "group moment[1]"],
-        ["twist_angle[1]", "twist_angle[2]"],
-        ["angle of attack"],
-        ["heading"]
-    ],
-    fig="Oscillating Steering Input Response")
-display(p)
+if PLOT
+    p = plotx(sl.time .- 10, 
+        [rad2deg.(sl.var_01), rad2deg.(sl.var_02), rad2deg.(sl.var_03)],
+        [c(sl.var_04), c(sl.var_05)],
+        [c(sl.var_06), c(sl.var_07), c(sl.var_08)],
+        [rad2deg.(c(sl.var_09)), rad2deg.(c(sl.var_10))],
+        [rad2deg.(c(sl.var_11))],
+        [rad2deg.(c(sl.heading))];
+        ylabels=["turn rates [°/s]", L"v_{ro}~[m/s]", "vsm", "twist [°]", "AoA [°]", "heading [°]"],
+        ysize=10,
+        labels=[
+            [L"ω_x", L"ω_y", L"ω_z"],
+            ["vel[1]", "vel[2]"],
+            ["force[3]", "kite moment[2]", "group moment[1]"],
+            ["twist_angle[1]", "twist_angle[2]"],
+            ["angle of attack"],
+            ["heading"]
+        ],
+        fig="Oscillating Steering Input Response")
+    display(p)
+end
 
 @info "Performance:" times_realtime=(total_time/2)/runtime integrator_times_realtime=(total_time/2)/integ_runtime
