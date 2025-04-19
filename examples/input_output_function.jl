@@ -19,7 +19,11 @@ using ModelingToolkit: setu, getu
 
 PLOT = true
 if PLOT
-    using ControlPlots
+    using Pkg
+    if ! ("LaTeXStrings" ∈ keys(Pkg.project().dependencies))
+        using TestEnv; TestEnv.activate()
+    end
+    using ControlPlots, LaTeXStrings
 end
 
 include(joinpath(@__DIR__, "plotting.jl"))
