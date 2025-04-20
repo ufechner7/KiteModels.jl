@@ -6,7 +6,7 @@
 - the example `ram_air_kite.jl`
 - the struct `PointMassSystem` for easy definition of the kite power system
 #### Changed
-- the model KPS_3L was renamed to RamAirKite
+- BREAKING: the model KPS_3L was renamed to RamAirKite
 - the RamAirKite model is using the **VortexStepMethod** with a deforming wing now
 - bump KiteUtils to `v0.10`
 - bump ModellingToolkit to `9.72`
