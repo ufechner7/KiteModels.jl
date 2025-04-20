@@ -5,6 +5,8 @@
 - added `mwe_26.jl` for debugging the initial state solver 
 - the example `ram_air_kite.jl`
 #### Changed
+- the model KPS_3L was renamed to RamAirKite
+- the RamAirKite model is using the **VortexStepMethod** with a deforming wing now
 - bump KiteUtils to `v0.10`
 - bump ModellingToolkit to `9.72`
 - bump VortexStepMethod to `1.2.5`
