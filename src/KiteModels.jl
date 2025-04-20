@@ -695,7 +695,7 @@ end
 
 function copy_model_settings()
     files = ["settings.yaml", "ram_air_kite_body.obj", "ram_air_kite_foil.dat", "system.yaml", "settings_ram.yaml", 
-             "system_ram.yaml"]
+             "system_ram.yaml", "ram_air_kite_foil_cd_polar.csv", "ram_air_kite_foil_cl_polar.csv", "ram_air_kite_foil_cm_polar.csv"]
     dst_path = abspath(joinpath(pwd(), "data"))
     copy_files("data", files)
     set_data_path(joinpath(pwd(), "data"))
