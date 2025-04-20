@@ -242,7 +242,10 @@ problem already exists.
 # Returns
 - `Nothing`
 """
-function init_sim!(s::RamAirKite, measure::Measurement; prn=true, precompile=false, lin_sys=false, remake=false, reload=false)
+function init_sim!(s::RamAirKite, measure::Measurement;
+    solver=ifelse(s.set.quasi_static, FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.4, max_iter=1000)), FBDF()), 
+    adaptive=true, prn=true, precompile=false, lin_sys=false, remake=false, reload=false
+)
     function init(s, measure)
         init_Q_b_w, R_b_w = measure_to_q(measure)
         init_kite_pos = init!(s.point_system, s.set, R_b_w)
@@ -267,7 +270,7 @@ function init_sim!(s::RamAirKite, measure::Measurement; prn=true, precompile=fal
     if !ispath(prob_path) || remake
         init(s, measure)
     end
-    success = reinit!(s, measure; precompile, reload)
+    success = reinit!(s, measure; solver, adaptive, precompile, reload)
     if !success
         rm(prob_path)
         @info "Rebuilding the system. This can take some minutes..."
@@ -310,7 +313,14 @@ and only updates the state variables to match the current `measure`.
 # Throws
 - `ArgumentError`: If no serialized problem exists (run `init_sim!` first)
 """
-function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=true, precompile=false)
+function reinit!(
+    s::RamAirKite, measure::Measurement; 
+    solver=ifelse(s.set.quasi_static, FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.4, max_iter=1000)), FBDF()),
+    adaptive=true,
+    prn=true, 
+    reload=true, 
+    precompile=false
+)
     isnothing(s.point_system) && throw(ArgumentError("PointMassSystem not defined"))
 
     init_Q_b_w, R_b_w = measure_to_q(measure)
@@ -329,14 +339,10 @@ function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=true, pre
     if isnothing(s.integrator) || !successful_retcode(s.integrator.sol) || reload
         t = @elapsed begin
             dt = SimFloat(1/s.set.sample_freq)
-            if s.set.quasi_static
-                solver = FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.4, max_iter=1000))
-            else
-                solver = FBDF()
-            end
             s.sys = s.prob.f.sys
+            @show adaptive
             s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; 
-                dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, save_everystep=false)
+                adaptive, dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, save_everystep=false)
             sym_vec = get_unknowns(s)
             s.unknowns_vec = zeros(SimFloat, length(sym_vec))
             generate_getters!(s, sym_vec)

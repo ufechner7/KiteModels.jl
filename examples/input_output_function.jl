@@ -27,8 +27,8 @@ include(joinpath(@__DIR__, "plotting.jl"))
 
 # Initialize model
 set = load_settings("system_ram.yaml")
-set.abs_tol = 5e-5
-set.rel_tol = 5e-5
+set.abs_tol = 1e-2
+set.rel_tol = 1e-2
 set.segments = 2
 set.quasi_static = false
 set.physical_model = "simple_ram"
@@ -47,8 +47,8 @@ measure.set_values .= [-50, -1.0, -1.0]  # Set values of the torques of the thre
 set_values = measure.set_values
 
 # Initialize at elevation
-measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
-KiteModels.init_sim!(s, measure; remake=false, reload=true)
+measure.sphere_pos .= deg2rad.([83.0 83.0; 1.0 -1.0])
+KiteModels.init_sim!(s, measure; adaptive=false, remake=false, reload=true)
 
 sys = s.sys
 
@@ -58,6 +58,8 @@ function step_with_input_integ(x, u, _, p)
     set_x(s.integrator, x)
     set_sx(s.integrator, sx)
     set_u(s.integrator, u)
+    OrdinaryDiffEqCore.set_t!(s.integrator, 0.0)
+    OrdinaryDiffEqCore.set_proposed_dt!(s.integrator, 1e-3)
     OrdinaryDiffEqCore.reinit!(s.integrator, s.integrator.u; reinit_dae=false)
     OrdinaryDiffEqCore.step!(s.integrator, dt)
     return get_x(s.integrator)
@@ -73,9 +75,6 @@ function step_with_input_prob(x, u, _, p)
     sol = solve(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, save_everystep=false, save_start=false)
     return get_x(sol)[1]
 end
-
-measure.sphere_pos .= deg2rad.([83.0 83.0; 1.0 -1.0])
-KiteModels.reinit!(s, measure; reload=false)
 
 # Get initial state
 x_vec = KiteModels.get_nonstiff_unknowns(s)
