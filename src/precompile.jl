@@ -70,13 +70,9 @@ end
             set.segments = 3
             set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
             set.quasi_static = true
-            set.physical_model = "ram"
-
-            wing = RamAirWing(set; prn=false, n_groups=4)
-            aero = BodyAerodynamics([wing])
-            vsm_solver = Solver(aero; solver_type=NONLIN, atol=2e-8, rtol=2e-8)
-            point_system = PointMassSystem(set, wing)
-            s = RamAirKite(set, aero, vsm_solver, point_system)
+            set.physical_model = "simple_ram"
+            set.bridle_fracs = [0.0, 0.93]
+            s = RamAirKite(set)
             measure = Measurement()
 
             # Initialize at elevation

@@ -15,8 +15,8 @@ initial:
     v_reel_out: 0.0        # initial reel out speed    [m/s]
 
 solver:
-    abs_tol: 0.006        # absolute tolerance of the DAE solver [m, m/s]
-    rel_tol: 0.01         # relative tolerance of the DAE solver [-]
+    abs_tol: 0.0001        # absolute tolerance of the DAE solver [m, m/s]
+    rel_tol: 0.0001         # relative tolerance of the DAE solver [-]
     solver: "DFBDF"        # DAE solver, IDA or DImplicitEuler, DFBDF
     linear_solver: "GMRES" # can be GMRES or Dense or LapackDense (only for IDA)
     max_order: 4           # maximal order, usually between 3 and 5
