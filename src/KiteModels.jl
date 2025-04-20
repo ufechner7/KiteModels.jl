@@ -713,6 +713,7 @@ function install_examples(add_packages=true)
         Pkg.add("ControlPlots")
         Pkg.add("LaTeXStrings")
         Pkg.add("StatsBase")
+        Pkg.add("Timers")
     end
 end
 
