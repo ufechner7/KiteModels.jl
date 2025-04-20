@@ -66,7 +66,7 @@ Then add KiteModels from  Julia's package manager, by typing:
 using Pkg
 pkg"add KiteModels"
 ``` 
-at the Julia prompt. You can run the unit tests with the command:
+at the Julia prompt. You can run the unit tests with the command (careful, can take 60 min):
 ```julia
 pkg"test KiteModels"
 ```
