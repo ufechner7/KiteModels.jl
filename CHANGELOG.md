@@ -1,9 +1,10 @@
-### KiteModels v0.6.18 2025-04-20
+### KiteModels v0.7.0 2025-04-20
 #### Fixed
 - fixed broken installation by freezing NLSolversBase to `~7.8.3` in Project.toml
 #### Added
 - added `mwe_26.jl` for debugging the initial state solver 
 - the example `ram_air_kite.jl`
+- the struct `PointMassSystem` was added for easy definition of the kite power system
 #### Changed
 - the model KPS_3L was renamed to RamAirKite
 - the RamAirKite model is using the **VortexStepMethod** with a deforming wing now
