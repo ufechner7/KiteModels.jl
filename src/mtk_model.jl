@@ -295,10 +295,12 @@ function force_eqs!(s, system, eqs, defaults, guesses;
     end
     for segment in segments
         p1, p2 = segment.points[1], segment.points[2]
-        guesses = [
-            guesses
-            [segment_vec[i, segment.idx] => points[p2].pos_w[i] - points[p1].pos_w[i] for i in 1:3]
-        ]
+        if s.set.quasi_static
+            guesses = [
+                guesses
+                [segment_vec[i, segment.idx] => points[p2].pos_w[i] - points[p1].pos_w[i] for i in 1:3]
+            ]
+        end
 
         if segment.type == BRIDLE
             in_pulley = 0
@@ -635,10 +637,9 @@ function linear_vsm_eqs!(s, eqs, guesses; aero_force_b, aero_moment_b, group_aer
         [aero_force_b; aero_moment_b; group_aero_moment] ~ last_x + vsm_jac * dy
     ]
 
-    guesses = [
-        guesses
-        [y[i] => y_[i] for i in eachindex(y_)]
-    ]
+    if s.set.quasi_static
+        guesses = [guesses; [y[i] => y_[i] for i in eachindex(y_)]]
+    end
 
     return eqs, guesses
 end

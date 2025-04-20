@@ -336,9 +336,7 @@ function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=true, pre
             end
             s.sys = s.prob.f.sys
             s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; 
-                dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, save_everystep=false,
-                initializealg=BrownFullBasicInit(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.4, max_iter=1000))
-                )
+                dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, save_everystep=false)
             sym_vec = get_unknowns(s)
             s.unknowns_vec = zeros(SimFloat, length(sym_vec))
             generate_getters!(s, sym_vec)

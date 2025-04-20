@@ -15,6 +15,7 @@ using Timers
 tic()
 using KiteModels, LinearAlgebra, OrdinaryDiffEqCore, OrdinaryDiffEqNonlinearSolve, OrdinaryDiffEqBDF
 using ModelingToolkit
+using SciMLBase: successful_retcode
 using ModelingToolkit: setu, getu
 
 PLOT = true
@@ -25,9 +26,9 @@ end
 include(joinpath(@__DIR__, "plotting.jl"))
 
 # Initialize model
-set = se("system_ram.yaml")
+set = load_settings("system_ram.yaml")
 set.segments = 2
-set.quasi_static = true
+set.quasi_static = false
 set.physical_model = "ram"
 if set.physical_model == "ram"
     set.bridle_fracs = [0.088, 0.31, 0.58, 0.93]
@@ -40,20 +41,18 @@ dt = 1/set.sample_freq
 s = RamAirKite(set)
 
 measure = Measurement()
-measure.set_values .= [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
+measure.set_values .= [-50, -1.0, -1.0]  # Set values of the torques of the three winches. [Nm]
 set_values = measure.set_values
 
 # Initialize at elevation
 measure.sphere_pos .= deg2rad.([83.0 83.0; 1.0 -1.0])
-KiteModels.init_sim!(s, measure; remake=true)
+KiteModels.init_sim!(s, measure; remake=false, reload=true)
 sys = s.sys
 
 # Stabilize system
 @show norm(s.integrator.ps[sys.vsm_jac])
 s.integrator.ps[sys.steady] = true
-for i in 1:10
-    next_step!(s; vsm_interval=1)
-end
+next_step!(s; dt=10.0, vsm_interval=1)
 s.integrator.ps[sys.steady] = false
 
 # Function to step simulation with input u
@@ -129,7 +128,7 @@ function plot_input_output_relations(step_fn)
     
     # Test ranges
     steer_range = range(-0.1, 0.1, length=20)
-    twist_range = range(-0.06, 0.06, length=20)
+    twist_range = range(-0.1, 0.1, length=20)
     
     # Test steering input vs omega
     @info "Testing steering input response..."

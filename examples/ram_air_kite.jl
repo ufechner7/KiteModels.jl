@@ -28,7 +28,7 @@ steering_freq = 1/2  # Hz - full left-right cycle frequency
 steering_magnitude = 5.0      # Magnitude of steering input [Nm]
 
 # Initialize model
-set = se("system_ram.yaml")
+set = load_settings("system_ram.yaml")
 set.segments = 3
 set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
 set.quasi_static = false
@@ -49,7 +49,7 @@ s.set.rel_tol = 1e-4
 
 # Initialize at elevation
 measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
-KiteModels.init_sim!(s, measure; remake=false, reload=true)
+KiteModels.init_sim!(s, measure; remake=false, reload=false)
 sys = s.sys
 
 @info "System initialized at:"
