@@ -33,13 +33,14 @@ set.segments = 3
 set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
 set.quasi_static = false
 set.physical_model = "ram"
+if set.physical_model == "ram"
+    set.bridle_fracs = [0.088, 0.31, 0.58, 0.93]
+elseif set.physical_model == "simple_ram"
+    set.bridle_fracs = [0.0, 0.93]
+end
 
 @info "Creating wing, aero, vsm_solver, point_system and s:"
-wing = RamAirWing(set; prn=false)
-aero = BodyAerodynamics([wing])
-vsm_solver = Solver(aero; solver_type=NONLIN, atol=2e-8, rtol=2e-8)
-point_system = create_ram_point_system(set, wing)
-s = RamAirKite(set, aero, vsm_solver, point_system)
+s = RamAirKite(set)
 toc()
 
 measure = Measurement()
@@ -48,7 +49,7 @@ s.set.rel_tol = 1e-4
 
 # Initialize at elevation
 measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
-KiteModels.init_sim!(s, measure)
+KiteModels.init_sim!(s, measure; remake=false, reload=true)
 sys = s.sys
 
 @info "System initialized at:"
@@ -104,11 +105,13 @@ try
 
         sys_state.var_09 = s.integrator[sys.twist_angle[1]]
         sys_state.var_10 = s.integrator[sys.twist_angle[2]]
-        sys_state.var_11 = s.integrator[sys.twist_angle[3]]
-        sys_state.var_12 = s.integrator[sys.twist_angle[4]]
-
-        sys_state.var_13 = s.integrator[sys.pulley_l0[1]]
-        sys_state.var_14 = s.integrator[sys.pulley_l0[2]]
+        if set.physical_model == "ram"
+            sys_state.var_11 = s.integrator[sys.twist_angle[3]]
+            sys_state.var_12 = s.integrator[sys.twist_angle[4]]
+            
+            sys_state.var_13 = s.integrator[sys.pulley_l0[1]]
+            sys_state.var_14 = s.integrator[sys.pulley_l0[2]]
+        end
         
         sys_state.var_15 = rad2deg(calc_aoa(s))
         

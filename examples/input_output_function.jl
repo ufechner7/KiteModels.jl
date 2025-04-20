@@ -45,12 +45,15 @@ set_values = measure.set_values
 
 # Initialize at elevation
 measure.sphere_pos .= deg2rad.([83.0 83.0; 1.0 -1.0])
-KiteModels.init_sim!(s, measure; remake=false)
+KiteModels.init_sim!(s, measure; remake=true)
 sys = s.sys
 
 # Stabilize system
+@show norm(s.integrator.ps[sys.vsm_jac])
 s.integrator.ps[sys.steady] = true
-next_step!(s; dt=10.0, vsm_interval=1)
+for i in 1:10
+    next_step!(s; vsm_interval=1)
+end
 s.integrator.ps[sys.steady] = false
 
 # Function to step simulation with input u

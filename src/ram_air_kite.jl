@@ -242,7 +242,7 @@ problem already exists.
 # Returns
 - `Nothing`
 """
-function init_sim!(s::RamAirKite, measure::Measurement; prn=true, precompile=false, lin_sys=false, remake=false)
+function init_sim!(s::RamAirKite, measure::Measurement; prn=true, precompile=false, lin_sys=false, remake=false, reload=false)
     function init(s, measure)
         init_Q_b_w, R_b_w = measure_to_q(measure)
         init_kite_pos = init!(s.point_system, s.set, R_b_w)
@@ -267,7 +267,7 @@ function init_sim!(s::RamAirKite, measure::Measurement; prn=true, precompile=fal
     if !ispath(prob_path) || remake
         init(s, measure)
     end
-    success = reinit!(s, measure; precompile)
+    success = reinit!(s, measure; precompile, reload)
     if !success
         rm(prob_path)
         @info "Rebuilding the system. This can take some minutes..."
@@ -335,7 +335,10 @@ function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=true, pre
                 solver = FBDF()
             end
             s.sys = s.prob.f.sys
-            s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, save_everystep=false)
+            s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; 
+                dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, save_everystep=false,
+                initializealg=BrownFullBasicInit(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.4, max_iter=1000))
+                )
             sym_vec = get_unknowns(s)
             s.unknowns_vec = zeros(SimFloat, length(sym_vec))
             generate_getters!(s, sym_vec)
@@ -464,16 +467,7 @@ function init_unknowns_vec!(
                 end
             end
         end
-
-        for group in groups
-            if group.type == DYNAMIC
-                vec[vec_idx] = 0
-                vec_idx += 1
-                vec[vec_idx] = 0
-                vec_idx += 1
-            end
-        end
-
+        
         for pulley in pulleys
             if pulley.type == DYNAMIC
                 vec[vec_idx] = segments[pulley.segments[1]].l0
@@ -481,6 +475,15 @@ function init_unknowns_vec!(
                 vec[vec_idx] = 0
                 vec_idx += 1
             end
+        end
+    end
+
+    for group in groups
+        if group.type == DYNAMIC
+            vec[vec_idx] = 0
+            vec_idx += 1
+            vec[vec_idx] = 0
+            vec_idx += 1
         end
     end
 
@@ -531,10 +534,6 @@ function get_stiff_unknowns(s, vec=Num[])
             point.type == DYNAMIC && push!(vec, s.sys.vel[i, point.idx])
         end
     end
-    for group in groups
-        group.type == DYNAMIC && push!(vec, s.sys.free_twist_angle[group.idx])
-        group.type == DYNAMIC && push!(vec, s.sys.twist_ω[group.idx])
-    end
     for pulley in pulleys
         pulley.type == DYNAMIC && push!(vec, s.sys.pulley_l0[pulley.idx])
         pulley.type == DYNAMIC && push!(vec, s.sys.pulley_vel[pulley.idx])
@@ -544,6 +543,10 @@ end
 
 function get_nonstiff_unknowns(s, vec=Num[])
     @unpack points, groups, segments, pulleys, winches = s.point_system
+    for group in groups
+        group.type == DYNAMIC && push!(vec, s.sys.free_twist_angle[group.idx])
+        group.type == DYNAMIC && push!(vec, s.sys.twist_ω[group.idx])
+    end
     for winch in winches
         push!(vec, s.sys.tether_length[winch.idx])
         push!(vec, s.sys.tether_vel[winch.idx])
