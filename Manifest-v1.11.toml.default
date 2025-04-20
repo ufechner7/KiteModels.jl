@@ -1854,9 +1854,9 @@ version = "0.4.18"
 
 [[deps.Sparspak]]
 deps = ["Libdl", "LinearAlgebra", "Logging", "OffsetArrays", "Printf", "SparseArrays", "Test"]
-git-tree-sha1 = "dab176139228ee967b6ab388c34184effeb36b64"
+git-tree-sha1 = "8de8288e33a4b5b37b197cefda28974659988d11"
 uuid = "e56a9233-b9d6-4f03-8d0f-1825330902ac"
-version = "0.3.10"
+version = "0.3.11"
 
 [[deps.SpecialFunctions]]
 deps = ["IrrationalConstants", "LogExpFunctions", "OpenLibm_jll", "OpenSpecFun_jll"]
