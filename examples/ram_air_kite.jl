@@ -11,6 +11,7 @@ if PLOT
         using TestEnv; TestEnv.activate()
     end
     using ControlPlots, LaTeXStrings
+    import ControlPlots: plot
 end
 toc()
 
@@ -66,6 +67,7 @@ integ_runtime = 0.0
 
 try
     while t < total_time
+        local steering
         global t, set_values, runtime, integ_runtime
         PLOT && plot(s, t; zoom=false, front=false)
         
