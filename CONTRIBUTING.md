@@ -6,6 +6,7 @@ Before creating a new release, please check
 - that all tests pass
 - that all examples are part of the menu
 - that all examples in the menu work
+- update `create_sys_image2.jl` by comparing it with `create_sys_image.jl` using `meld`
 - make sure that the scripts
   - test_installation
   - test_installation2 and
