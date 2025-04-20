@@ -1,10 +1,13 @@
-### Unreleased
+### KiteModels v0.6.18 2025-04-20
 #### Fixed
-- fixed broken installation by freezing some package versions in Project.toml
+- fixed broken installation by freezing NLSolversBase to `~7.8.3` in Project.toml
 #### Added
 - added `mwe_26.jl` for debugging the initial state solver 
+- the example `ram_air_kite.jl`
 #### Changed
 - bump KiteUtils to `v0.10`
+- bump ModellingToolkit to `9.72`
+- bump VortexStepMethod to `1.2.5`
 
 ### KiteModels v0.6.17 2025-02-11
 #### Changed
