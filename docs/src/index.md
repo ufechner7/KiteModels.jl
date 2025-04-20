@@ -5,7 +5,7 @@ CurrentModule = KiteModels
 # KiteModels
 Documentation for the package [KiteModels](https://github.com/ufechner7/KiteModels.jl).
 
-The model has the following subcomponents, implement in separate packages:
+The model has the following subcomponents, implemented in separate packages:
 - AtmosphericModel from [AtmosphericModels](https://github.com/aenarete/AtmosphericModels.jl)
 - WinchModel from [WinchModels](https://github.com/aenarete/WinchModels.jl) 
 - KitePodModel from  [KitePodModels](https://github.com/aenarete/KitePodModels.jl)
@@ -50,9 +50,10 @@ include("examples/menu.jl")
 
 ## News
 #### Work in progress
-- a much better aerodynamic model is being integrated using the package [VortexStepMethod](https://github.com/Albatross-Kite-Transport/VortexStepMethod.jl)
-- a new 5-point model based on ModellingToolkit (MTK) is in development;  
+- a new 5-point model based on ModelingToolkit (MTK) is in development;  
   this will allow to create linearized models around any operation point and to do analysis in the frequency domain.
+#### April 2025
+- a new model `RamAirKite` was contributed, based on the package [VortexStepMethod](https://github.com/Albatross-Kite-Transport/VortexStepMethod.jl)
 #### November 2024
 - the four point kite model KPS4 was extended to include aerodynamic damping of pitch oscillations;
   for this purpose, the parameters `cmq` and `cord_length` must be defined in `settings.yaml`
