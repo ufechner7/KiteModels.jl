@@ -11,5 +11,6 @@ Before creating a new release, please check
   - test_installation
   - test_installation2 and
   - test_installation3 work
+- execute `meld README.md docs/src/index.md` and make sure both are up-to-date 
 - test the installation on Linux for both Julia 1.10 and the latest stable Julia version
 - test the installation on Windows after deleting the .julia folder
