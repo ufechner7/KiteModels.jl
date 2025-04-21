@@ -123,11 +123,6 @@ function init_sim!(s::KPS5)
     s.sys = simple_sys
     tspan = (0.0, s.set.sim_time)
     s.prob = ODEProblem(simple_sys, nothing, tspan)
-    #differential_vars = ones(Bool, length(y0))
-    #prob = DAEProblem{true}(residual!, yd0, y0, tspan, s; differential_vars)
-    #solver  = DFBDF(autodiff=AutoFiniteDiff(), max_order=Val{s.set.max_order}()) 
-    #s.integrator = OrdinaryDiffEqCore.init(s.prob, Rodas5(autodiff=false); s.set.dt, abstol=s.set.tol, save_on=false)
-    #s.integrator = OrdinaryDiffEqCore.init(prob, solver; abstol=abstol, reltol=s.set.rel_tol, save_everystep=false, initializealg=OrdinaryDiffEqCore.NoInit())
     s.integrator = OrdinaryDiffEqCore.init(s.prob, FBDF(autodiff=false); dt, abstol=s.set.abs_tol, reltol = s.set.rel_tol, save_on=false)
     generate_getters!(s)
 end
@@ -221,8 +216,9 @@ function get_wind_vector(s::KPS5, v_wind_height)
     wind_vector = v_wind_magnitude*[-cos(wind_angle),-sin(wind_angle), 0.0]
     return wind_vector
 end
+
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
-#Define the Model
+# Define the Model
 # -----------------------------------------------
 function model(s::KPS5, pos, vel)
     POS0, VEL0 = pos, vel
@@ -264,12 +260,12 @@ function model(s::KPS5, pos, vel)
     eqs2 = vcat(eqs1...)
     eqs2 = vcat(eqs2, acc[:,6] .~ [0.0, 0.0, 0.0])      # origin is six, make 6 not being hardcoded
     # -----------------------------
-    # defining the connections and their respective rest lengths, unit spring constants, damping and masses
+    # Defining the connections and their respective rest lengths, unit spring constants, damping and masses
     # -----------------------------
-                            # connections   adding segment connections, from origin to bridle 
+    # connections   adding segment connections, from origin to bridle 
     conn = getconnections(s)
-     # final connection last tether point to bridle point
-                            # unit spring constants (K1 tether, K2 bridle, K3 kite) K3 from settings
+    # final connection last tether point to bridle point
+    # unit spring constants (K1 tether, K2 bridle, K3 kite) K3 from settings
     K1 = E_modulus_tether*pi*(d_tether/2000)^2
     K2 = E_modulus_tether*pi*(d_bridle_line/2000)^2
     k_segments = [K2, K3, K2, K2, K3, K3, K2, K3, K3]
@@ -401,7 +397,7 @@ function next_step!(s::KPS5; dt=(1/s.set.sample_freq))
         # The wind vector from the state
         #println("Height at each segment : $(height[:, :])")
         #println("Time: $(s.integrator.t), Wind Vector at each segment: $(wind_vec[:, :])")
-        println("Norm of the segments at each segment: $(norm1[:, :])")
+        #println("Norm of the segments at each segment: $(norm1[:, :])")
     end
     s.integrator.t, steptime
 end
@@ -423,9 +419,9 @@ function simulate(s, logger)
         sys_state.X .= x
         sys_state.Y .= y
         sys_state.Z .= z
-        println("iter: $iter", " steps: $steps")
+        #println("iter: $iter", " steps: $steps")
         log!(logger, sys_state)
-        println(x[end], ", ", sys_state.X[end])
+        #println(x[end], ", ", sys_state.X[end])
     end
     println("iter: $iter", " steps: $steps")
     return nothing
