@@ -51,6 +51,15 @@
 - fix #88: the function `init_sim!()` has the new parameter `upwind_dir` to define the
   initial wind direction 
 
+### Unreleased
+#### Changed
+- fixed or documented issues found by `Aqua.jl`
+- made `DSP` a test dependency
+- remove package `OrdinaryDiffEqSDIRK`
+#### Added
+- the examples `calc_spectrum.jl` and `plot_spectrum.jl` to the menu
+- the quality insurance package `Aqua.jl`
+
 ### KiteModels v0.6.12 2024-12-01
 #### Changed
 - update the fields `set_torque`, `set_force`, `set_speed`, `alpha3`, `alpha4`, `roll`, `pitch`, `yaw`
