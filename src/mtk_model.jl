@@ -574,13 +574,14 @@ function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, 
         sphere_vel(t)[1:2, 1:2]
         sphere_acc(t)[1:2, 1:2]
         angle_of_attack(t)
+        simple_twist_angle(t)[1:2]
     end
 
     x, y, z = kite_pos
     x´, y´, z´ = kite_vel
     x´´, y´´, z´´ = kite_acc
 
-    twist_idxs = (length(twist_angle)÷2, length(twist_angle)÷2+1)
+    half_len = length(twist_angle)÷2
 
     eqs = [
         eqs
@@ -600,7 +601,9 @@ function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, 
         y_acc               ~ kite_acc ⋅ e_y
         course              ~ atan(-azimuth_vel, elevation_vel)
 
-        angle_of_attack     ~ calc_angle_of_attack(va_kite_b) + 0.5twist_angle[twist_idxs[1]] + 0.5twist_angle[twist_idxs[2]]
+        angle_of_attack     ~ calc_angle_of_attack(va_kite_b) + 0.5twist_angle[half_len] + 0.5twist_angle[half_len+1]
+        simple_twist_angle[1] ~ sum(twist_angle[1:half_len]) / half_len
+        simple_twist_angle[2] ~ sum(twist_angle[half_len+1:end]) / half_len
     ]
     return eqs
 end
