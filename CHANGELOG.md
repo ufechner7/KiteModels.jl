@@ -59,6 +59,7 @@
 #### Added
 - the examples `calc_spectrum.jl` and `plot_spectrum.jl` to the menu
 - the quality insurance package `Aqua.jl`
+- added the script `update_default_manifest`
 
 ### KiteModels v0.6.12 2024-12-01
 #### Changed
