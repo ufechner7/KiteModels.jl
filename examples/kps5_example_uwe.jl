@@ -6,6 +6,8 @@ if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
 end
 using ControlPlots
 
+include("plotting_kps5.jl")
+
 set = deepcopy(load_settings("system_kps5.yaml"))
 kcu::KCU = KCU(set)
 s = KPS5(kcu)
@@ -16,11 +18,10 @@ steps = length(time_range)
 logger = Logger(KiteModels.points(s), steps)
 KiteModels.get_kite_points(s)
 KiteModels.calc_initial_state(s)
-KiteModels.init_sim!(s)
+init_sim!(s)
 KiteModels.generate_getters!(s)
 KiteModels.simulate(s, logger)
 save_log(logger, "tmp")
-lg = load_log("tmp")
 
 function play(s, lg, front_view = false, side_view = true)
     dt = 1/s.set.sample_freq
@@ -88,19 +89,6 @@ function play(s, lg, front_view = false, side_view = true)
     end
     nothing
 end
-function plot_front_view3(lg)
-    display(plotxy(lg.y, lg.z;
-    xlabel="pos_y [m]",
-    ylabel="height [m]",
-    fig="front_view"))
-    nothing
-end
-play(s, lg)
 
-function plot_front_view3(lg)
-    display(plotxy(lg.y, lg.z;
-    xlabel="pos_y [m]",
-    ylabel="height [m]",
-    fig="front_view"))
-    nothing
-end
+lg = load_log("tmp")
+play(s, lg)
