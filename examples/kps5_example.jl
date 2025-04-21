@@ -1,10 +1,9 @@
 using KiteModels
 using Timers
 using Pkg 
-using DAEProblemLibrary
-# if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
-#     using TestEnv; TestEnv.activate()
-# end
+if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
+    using TestEnv; TestEnv.activate()
+end
 using ControlPlots
 import OrdinaryDiffEqCore.init
 import OrdinaryDiffEqCore.step!
