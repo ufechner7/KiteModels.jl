@@ -1,10 +1,17 @@
-### Unreleased
+### KiteModels v0.7.0 2025-04-20
 #### Fixed
-- fixed broken installation by freezing some package versions in Project.toml
+- fixed broken installation by freezing NLSolversBase to `~7.8.3` in Project.toml
 #### Added
 - added `mwe_26.jl` for debugging the initial state solver 
+- the example `ram_air_kite.jl`
+- the struct `PointMassSystem` for easy definition of the kite power system
 #### Changed
+- BREAKING: the model KPS_3L was renamed to RamAirKite
+- the RamAirKite model is using the **VortexStepMethod** with a deforming wing now
 - bump KiteUtils to `v0.10`
+- bump ModellingToolkit to `9.72`
+- bump VortexStepMethod to `1.2.5`
+- the file CONTRIBUTING.md was updated
 
 ### KiteModels v0.6.17 2025-02-11
 #### Changed
@@ -43,6 +50,16 @@
 #### Fixed
 - fix #88: the function `init_sim!()` has the new parameter `upwind_dir` to define the
   initial wind direction 
+
+### Unreleased
+#### Changed
+- fixed or documented issues found by `Aqua.jl`
+- made `DSP` a test dependency
+- remove package `OrdinaryDiffEqSDIRK`
+#### Added
+- the examples `calc_spectrum.jl` and `plot_spectrum.jl` to the menu
+- the quality insurance package `Aqua.jl`
+- added the script `update_default_manifest`
 
 ### KiteModels v0.6.12 2024-12-01
 #### Changed

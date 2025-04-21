@@ -35,11 +35,12 @@ module KiteModels
 
 using PrecompileTools: @setup_workload, @compile_workload 
 using Dierckx, Interpolations, Serialization, StaticArrays, LinearAlgebra, Statistics, Parameters, NLsolve,
-      DocStringExtensions, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK, OrdinaryDiffEqNonlinearSolve,
-      NonlinearSolve, FiniteDiff, DifferentiationInterface
+      DocStringExtensions, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqNonlinearSolve,
+      NonlinearSolve
 import Sundials
 using Reexport, Pkg
-@reexport using VortexStepMethod
+using VortexStepMethod
+@reexport using VortexStepMethod: RamAirWing, BodyAerodynamics, Solver, NONLIN
 @reexport using KitePodModels
 @reexport using WinchModels
 @reexport using AtmosphericModels
@@ -59,7 +60,7 @@ import ModelingToolkit.SciMLBase: successful_retcode
 export KPS3, KPS4, RamAirKite, KVec3, SimFloat, Measurement, PointMassSystem, ProfileLaw, EXP, LOG, EXPLOG     # constants and types
 export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                            # helper functions
 export clear!, find_steady_state!, residual!                                                  # low level workers
-export init_sim!, init!, reinit!, next_step!, init_pos_vel, init_pos, model!                                 # high level workers
+export init_sim!, init!, reinit!, next_step!, init_pos_vel                                    # high level workers
 export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, calc_orient_quat, calc_aoa  # getters
 export calc_azimuth_north, calc_azimuth_east
 export winch_force, lift_drag, cl_cd, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
@@ -696,7 +697,7 @@ end
 
 function copy_model_settings()
     files = ["settings.yaml", "ram_air_kite_body.obj", "ram_air_kite_foil.dat", "system.yaml", "settings_ram.yaml", 
-             "system_ram.yaml"]
+             "system_ram.yaml", "ram_air_kite_foil_cd_polar.csv", "ram_air_kite_foil_cl_polar.csv", "ram_air_kite_foil_cm_polar.csv"]
     dst_path = abspath(joinpath(pwd(), "data"))
     copy_files("data", files)
     set_data_path(joinpath(pwd(), "data"))
@@ -714,6 +715,7 @@ function install_examples(add_packages=true)
         Pkg.add("ControlPlots")
         Pkg.add("LaTeXStrings")
         Pkg.add("StatsBase")
+        Pkg.add("Timers")
     end
 end
 

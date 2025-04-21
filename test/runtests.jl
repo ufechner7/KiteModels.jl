@@ -29,4 +29,5 @@ KiteUtils.set_data_path("")
     end
     include("test_helpers.jl")
     include("test_inertia_calculation.jl")
+    include("aqua.jl")
 end

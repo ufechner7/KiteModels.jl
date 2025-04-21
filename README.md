@@ -5,6 +5,7 @@
 [![CI](https://github.com/ufechner7/KiteModels.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/ufechner7/KiteModels.jl/actions/workflows/CI.yml)
 [![Coverage](https://codecov.io/gh/ufechner7/KiteModels.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/ufechner7/KiteModels.jl)
 [![DOI](https://zenodo.org/badge/443855286.svg)](https://zenodo.org/doi/10.5281/zenodo.13310253)
+[![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
 
 ## Kite power system models, consisting of tether and kite
 The model has the following subcomponents, implemented in separate packages:
@@ -17,9 +18,10 @@ This package is part of Julia Kite Power Tools, which consists of the following 
 
 ## News
 #### Work in progress
-- a much better aerodynamic model is being integrated using the package [VortexStepMethod](https://github.com/Albatross-Kite-Transport/VortexStepMethod.jl)
 - a new 5-point model based on ModelingToolkit (MTK) is in development;  
   this will allow to create linearized models around any operation point and to do analysis in the frequency domain.
+#### April 2025
+- a new model `RamAirKite` was contributed, based on the package [VortexStepMethod](https://github.com/Albatross-Kite-Transport/VortexStepMethod.jl)
 #### November 2024
 - the four point kite model KPS4 was extended to include aerodynamic damping of pitch oscillations;
   for this purpose, the parameters `cmq` and `cord_length` must be defined in `settings.yaml`
@@ -65,7 +67,7 @@ Then add KiteModels from  Julia's package manager, by typing:
 using Pkg
 pkg"add KiteModels"
 ``` 
-at the Julia prompt. You can run the unit tests with the command:
+at the Julia prompt. You can run the unit tests with the command (careful, can take 60 min):
 ```julia
 pkg"test KiteModels"
 ```
@@ -109,6 +111,9 @@ When combined with a controller for the turn rate it can be used to simulate a p
 This model assumes the kite to consist of four-point masses with aerodynamic forces acting on points B, C and D. It reacts much more realistically than the one-point model because it has rotational inertia in every axis.
 <p align="center"><img src="./docs/src/4-point-kite.png" width="200" /></p>
 
+## Ram air kite model
+This model represents the kite as a deforming rigid body, with orientation governed by quaternion dynamics. Aerodynamics are computed using the Vortex Step Method. The kite is controlled from the ground via four tethers.
+
 ## Tether
 The tether is modeled as point masses, connected by spring-damper elements. Aerodynamic drag is modeled realistically. When reeling out or in the unstreched length of the spring-damper elements
 is varied. This does not translate into physics directly, but it avoids adding point masses at run-time, which would be even worse because it would introduce discontinuities. When using
@@ -137,7 +142,7 @@ If you like this software, please consider donating to [Flood in Kenya](https://
 - the package [KiteUtils](https://github.com/ufechner7/KiteUtils.jl)
 - the packages [WinchModels](https://github.com/aenarete/WinchModels.jl) and [KitePodModels](https://github.com/aenarete/KitePodModels.jl) and [AtmosphericModels](https://github.com/aenarete/AtmosphericModels.jl)
 - the packages [KiteControllers](https://github.com/aenarete/KiteControllers.jl) and [KiteViewers](https://github.com/aenarete/KiteViewers.jl)
-- soon the [VortexStepMethod](https://github.com/Albatross-Kite-Transport/VortexStepMethod.jl) will be used
+- the [VortexStepMethod](https://github.com/Albatross-Kite-Transport/VortexStepMethod.jl)
 
 **Documentation** [Stable Version](https://ufechner7.github.io/KiteModels.jl/stable) --- [Development Version](https://ufechner7.github.io/KiteModels.jl/dev)
 

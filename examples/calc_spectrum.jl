@@ -1,7 +1,7 @@
 
 
 using Printf
-using KiteModels, StatsBase, LinearAlgebra, DSP
+using KiteModels, StatsBase, LinearAlgebra
 
 if haskey(ENV, "USE_V9")
     set = deepcopy(load_settings("system_v9.yaml"))
@@ -13,7 +13,7 @@ using Pkg
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
     using TestEnv; TestEnv.activate()
 end
-using ControlPlots, JLD2
+using ControlPlots, JLD2, DSP
 plt.close("all")
 
 set.abs_tol=0.0006

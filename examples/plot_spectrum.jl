@@ -1,7 +1,7 @@
 
 
 using Printf
-using KiteModels, StatsBase, LinearAlgebra, DSP
+using KiteModels, StatsBase, LinearAlgebra
 
 if haskey(ENV, "USE_V9")
     set = deepcopy(load_settings("system_v9.yaml"))
@@ -13,10 +13,20 @@ using Pkg
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
     using TestEnv; TestEnv.activate()
 end
-using ControlPlots, JLD2
+using ControlPlots, JLD2, DSP
 plt.close("all")
 
-function plot_spectrum(name)
+#if !@isdefined Spectrum begin
+    mutable struct Spectrum
+        name::String
+        cmq::Float64
+        v_wind::Float64
+        f_ex::Vector{Float64}
+        aoa_eff::Vector{Float64}
+    end
+#end
+
+function plot_spectrum3(name)
     todb(mag) = 20 * log10(mag)
     spectrum = jldopen("data/" * name * ".jld2") do file
         read(file, "spectrum")
@@ -44,5 +54,4 @@ function plot_spectrum(name)
     plt.legend()
 end
 
-plot_spectrum("spectrum2_8.0_0.09")
-plot_spectrum("spectrum2_8.0_0.0")
+plot_spectrum3("spectrum2_8.0_-0.0")

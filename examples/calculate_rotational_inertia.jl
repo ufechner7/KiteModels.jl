@@ -29,7 +29,7 @@ function print_settings(include_kcu::Bool=true, around_kcu::Bool=false)
 end
 
 
-SETFILE = "system_v9.yaml"
+SETFILE = "system.yaml"
 INCL_KCU = false
 AROUND_KCU = false
 
