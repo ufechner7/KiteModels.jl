@@ -2,7 +2,7 @@
 
 julia_version = "1.10.9"
 manifest_format = "2.0"
-project_hash = "65d96e928888ca159f911155a4296a67141486e1"
+project_hash = "eaa46d9631de0e589ce00508cf7a50aef15a8bc9"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "e2478490447631aedba0823d4d7a80b2cc8cdb32"
@@ -14,17 +14,6 @@ weakdeps = ["ChainRulesCore", "ConstructionBase", "EnzymeCore"]
     ADTypesChainRulesCoreExt = "ChainRulesCore"
     ADTypesConstructionBaseExt = "ConstructionBase"
     ADTypesEnzymeCoreExt = "EnzymeCore"
-
-[[deps.AbstractFFTs]]
-deps = ["LinearAlgebra"]
-git-tree-sha1 = "d92ad398961a3ed262d8bf04a1a2b8340f915fef"
-uuid = "621f4979-c628-5d54-868e-fcf4e3e8185c"
-version = "1.5.0"
-weakdeps = ["ChainRulesCore", "Test"]
-
-    [deps.AbstractFFTs.extensions]
-    AbstractFFTsChainRulesCoreExt = "ChainRulesCore"
-    AbstractFFTsTestExt = "Test"
 
 [[deps.AbstractTrees]]
 git-tree-sha1 = "2d9c9a55f9c93e8887ad391fbae72f8ef55e1177"
@@ -365,12 +354,6 @@ git-tree-sha1 = "249fe38abf76d48563e2f4556bebd215aa317e15"
 uuid = "a8cc5b0e-0ffa-5ad4-8c14-923d3ee1735f"
 version = "4.1.1"
 
-[[deps.DSP]]
-deps = ["Compat", "FFTW", "IterTools", "LinearAlgebra", "Polynomials", "Random", "Reexport", "SpecialFunctions", "Statistics"]
-git-tree-sha1 = "0df00546373af8eee1598fb4b2ba480b1ebe895c"
-uuid = "717857b8-e6f2-59f4-9121-6e50c889abd2"
-version = "0.7.10"
-
 [[deps.DataAPI]]
 git-tree-sha1 = "abe83f3a2f1b857aac70ef8b269080af17764bbe"
 uuid = "9a962f9c-6df0-11e9-0e5d-c546b8b5ee8a"
@@ -651,18 +634,6 @@ git-tree-sha1 = "c13f0b150373771b0fdc1713c97860f8df12e6c2"
 uuid = "55351af7-c7e9-48d6-89ff-24e801d99491"
 version = "0.10.14"
 
-[[deps.FFTW]]
-deps = ["AbstractFFTs", "FFTW_jll", "LinearAlgebra", "MKL_jll", "Preferences", "Reexport"]
-git-tree-sha1 = "7de7c78d681078f027389e067864a8d53bd7c3c9"
-uuid = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
-version = "1.8.1"
-
-[[deps.FFTW_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "6d6219a004b8cf1e0b4dbe27a2860b8e04eba0be"
-uuid = "f5851436-0d7a-5f13-b9de-f02708fd171a"
-version = "3.3.11+0"
-
 [[deps.FastBroadcast]]
 deps = ["ArrayInterface", "LinearAlgebra", "Polyester", "Static", "StaticArrayInterface", "StrideArraysCore"]
 git-tree-sha1 = "ab1b34570bcdf272899062e1a56285a53ecaae08"
@@ -891,11 +862,6 @@ weakdeps = ["Dates", "Test"]
 git-tree-sha1 = "e2222959fbc6c19554dc15174c81bf7bf3aa691c"
 uuid = "92d709cd-6900-40b7-9082-c6be49f344b6"
 version = "0.2.4"
-
-[[deps.IterTools]]
-git-tree-sha1 = "42d5f897009e7ff2cf88db414a389e5ed1bdd023"
-uuid = "c8e1da08-722c-5040-9ed9-7db0dc04731e"
-version = "1.10.0"
 
 [[deps.IteratorInterfaceExtensions]]
 git-tree-sha1 = "a3f24677c21f5bbe9d2a714f95dcd58337fb2856"
@@ -1454,24 +1420,6 @@ deps = ["BitTwiddlingConvenienceFunctions", "CPUSummary", "IfElse", "Static", "T
 git-tree-sha1 = "645bed98cd47f72f67316fd42fc47dee771aefcd"
 uuid = "1d0040c9-8b98-4ee7-8388-3f51789ca0ad"
 version = "0.2.2"
-
-[[deps.Polynomials]]
-deps = ["LinearAlgebra", "OrderedCollections", "RecipesBase", "Requires", "Setfield", "SparseArrays"]
-git-tree-sha1 = "555c272d20fc80a2658587fb9bbda60067b93b7c"
-uuid = "f27b6e38-b328-58d1-80ce-0feddd5e7a45"
-version = "4.0.19"
-
-    [deps.Polynomials.extensions]
-    PolynomialsChainRulesCoreExt = "ChainRulesCore"
-    PolynomialsFFTWExt = "FFTW"
-    PolynomialsMakieCoreExt = "MakieCore"
-    PolynomialsMutableArithmeticsExt = "MutableArithmetics"
-
-    [deps.Polynomials.weakdeps]
-    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-    FFTW = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
-    MakieCore = "20f20a25-4f0e-4fdf-b5d1-57303727442b"
-    MutableArithmetics = "d8a4904e-b15c-11e9-3269-09a3773c0cb0"
 
 [[deps.PooledArrays]]
 deps = ["DataAPI", "Future"]
