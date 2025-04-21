@@ -30,7 +30,7 @@ are acting on three of the four kite point masses.
 Four point kite model, included from KiteModels.jl.
 
 Scientific background: http://arxiv.org/abs/1406.6218 =#
-KiteModels.stiffnea=1000
+# KiteModels.stiffness=1000
 """
     mutable struct KPS5{S, T, P, Q, SP} <: AbstractKiteModel
 
