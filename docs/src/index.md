@@ -80,11 +80,28 @@ include("examples/menu.jl")
 - added support for the native Julia DAE solver DFBDF. It is much more accurate and faster than the IDA solver that was used before.
 
 ## Provides
-The type [`AbstractKiteModel`](@ref) with the implementation [`KPS3`](@ref), [`KPS4`](@ref) and [`RamAirKite`](@ref), representing the one point, the four point kite model and the four point - three lines model, together with the high level simulation interface consisting of the functions [`init_sim!`](@ref) and [`next_step!`](@ref). Other kite models can be added inside or outside of this package by implementing the non-generic methods required for an AbstractKiteModel.
+The type [`AbstractKiteModel`](@ref) with the implementation [`KPS3`](@ref), [`KPS4`](@ref) and [`RamAirKite`](@ref), representing the one point, the four point kite model and the ram air kite model, together with the high level simulation interface consisting of the functions [`init_sim!`](@ref) and [`next_step!`](@ref). Other kite models can be added inside or outside of this package by implementing the non-generic methods required for an AbstractKiteModel.
 
 Additional functions to provide inputs and outputs of the model on each time step. In particular the constructor [`SysState`](@ref) can be called once per time step to create a SysState struct for
-logging or for displaying the state in a viewer. Per time step the [`residual!`](@ref) function is called as many times as needed to find the solution at the end
+logging or for displaying the state in a viewer. For the KPS3 and KPS4 model, once per time step the [`residual!`](@ref) function is called as many times as needed to find the solution at the end
 of the time step. The formulas are based on basic physics and aerodynamics and can be quite simple because a differential algebraic notation is used.
+
+## One point model
+This model assumes the kite to be a point mass. This is sufficient to model the aerodynamic forces, but the dynamic concerning the turning action of the kite is not realistic.
+When combined with a controller for the turn rate it can be used to simulate a pumping kite power system with medium accuracy.
+
+## Four point model
+This model assumes the kite to consist of four-point masses with aerodynamic forces acting on points B, C and D. It reacts much more realistically than the one-point model because it has rotational inertia in every axis.
+<p align="center"><img src="./docs/src/4-point-kite.png" width="200" /></p>
+
+## Ram air kite model
+This model represents the kite as a deforming rigid body, with orientation governed by quaternion dynamics. Aerodynamics are computed using the Vortex Step Method. The kite is controlled from the ground via four tethers.
+
+## Tether
+The tether is modeled as point masses, connected by spring-damper elements. Aerodynamic drag is modeled realistically. When reeling out or in the unstreched length of the spring-damper elements
+is varied. This does not translate into physics directly, but it avoids adding point masses at run-time, which would be even worse because it would introduce discontinuities. When using
+Dyneema or similar high-strength materials for the tether the resulting system is very stiff which is a challenge for the solver.
+
 
 ![Four point kite power system model](kps4.png)
 
