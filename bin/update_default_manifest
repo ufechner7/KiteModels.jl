@@ -18,7 +18,7 @@ fi
 cd ..
 if [[ $julia_major == "1.10" ]]; then
     cp Manifest-v1.10.toml Manifest-v1.10.toml.default
-    rm -rf ~/.julia/compiled/v1.11/KiteModels/
+    rm -rf ~/.julia/compiled/v1.10/KiteModels/
 else
     cp Manifest-v1.11.toml Manifest-v1.11.toml.default
     rm -rf ~/.julia/compiled/v1.11/KiteModels/
