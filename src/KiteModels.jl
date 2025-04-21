@@ -40,6 +40,7 @@ using Dierckx, Interpolations, Serialization, StaticArrays, LinearAlgebra, Stati
 import Sundials
 using Reexport, Pkg
 using VortexStepMethod
+@reexport using VortexStepMethod: RamAirWing, BodyAerodynamics, Solver, NONLIN
 @reexport using KitePodModels
 @reexport using WinchModels
 @reexport using AtmosphericModels
