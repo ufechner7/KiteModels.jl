@@ -63,7 +63,7 @@ function rotation_matrix_to_quaternion(R)
 end
 
 function force_eqs!(s, system, eqs, defaults, guesses; 
-        R_b_w, kite_pos, kite_vel, wind_vec_gnd, group_aero_moment, twist_angle, steady, set_values)
+        R_b_w, kite_pos, kite_vel, wind_vec_gnd, group_aero_moment, twist_angle, twist_ω, steady, set_values)
 
     @parameters acc_multiplier = 1
 
@@ -213,7 +213,6 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         trailing_edge_ω(t)[eachindex(groups)] # angular rate
         trailing_edge_α(t)[eachindex(groups)] # angular acc
         free_twist_angle(t)[eachindex(groups)]
-        twist_ω(t)[eachindex(groups)] # angular rate
         twist_α(t)[eachindex(groups)] # angular acc
         group_tether_moment(t)[eachindex(groups)]
         tether_moment(t)[eachindex(groups), 1:length(groups[1].points)-1]
@@ -539,7 +538,7 @@ function diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero
 end
 
 
-function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc, twist_angle)
+function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc, twist_angle, twist_ω)
     @parameters wind_scale_gnd = s.set.v_wind
     @parameters measured_wind_dir_gnd = measure.wind_dir_gnd
     @variables begin
@@ -672,6 +671,7 @@ function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measuremen
         aero_force_b(t)[1:3]
         aero_moment_b(t)[1:3]
         twist_angle(t)[eachindex(system.groups)]
+        twist_ω(t)[eachindex(system.groups)]
         group_aero_moment(t)[eachindex(system.groups)]
         wind_vec_gnd(t)[1:3]
         va_kite_b(t)[1:3]
@@ -679,11 +679,11 @@ function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measuremen
 
     eqs, defaults, guesses, tether_kite_force, tether_kite_moment = 
         force_eqs!(s, system, eqs, defaults, guesses; 
-            R_b_w, kite_pos, kite_vel, wind_vec_gnd, group_aero_moment, twist_angle, steady, set_values)
+            R_b_w, kite_pos, kite_vel, wind_vec_gnd, group_aero_moment, twist_angle, twist_ω, steady, set_values)
     eqs, guesses = linear_vsm_eqs!(s, eqs, guesses; aero_force_b, aero_moment_b, group_aero_moment, init_va, twist_angle, va_kite_b, ω_b)
     eqs, defaults = diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero_force_b, aero_moment_b, 
         ω_b, R_b_w, kite_pos, kite_vel, kite_acc, init_Q_b_w, init_kite_pos, steady)
-    eqs = scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc, twist_angle)
+    eqs = scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc, twist_angle, twist_ω)
     
     # te_I = (1/3 * (s.set.mass/8) * te_length^2)
     # # -damping / I * ω = α_damping
