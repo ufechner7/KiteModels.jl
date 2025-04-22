@@ -575,6 +575,7 @@ function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, 
         sphere_acc(t)[1:2, 1:2]
         angle_of_attack(t)
         simple_twist_angle(t)[1:2]
+        simple_twist_ω(t)[1:2]
     end
 
     x, y, z = kite_pos
@@ -604,6 +605,8 @@ function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, 
         angle_of_attack     ~ calc_angle_of_attack(va_kite_b) + 0.5twist_angle[half_len] + 0.5twist_angle[half_len+1]
         simple_twist_angle[1] ~ sum(twist_angle[1:half_len]) / half_len
         simple_twist_angle[2] ~ sum(twist_angle[half_len+1:end]) / half_len
+        simple_twist_ω[1] ~ sum(twist_ω[1:half_len]) / half_len
+        simple_twist_ω[2] ~ sum(twist_ω[half_len+1:end]) / half_len
     ]
     return eqs
 end

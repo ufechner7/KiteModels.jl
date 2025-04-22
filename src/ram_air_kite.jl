@@ -340,7 +340,6 @@ function reinit!(
         t = @elapsed begin
             dt = SimFloat(1/s.set.sample_freq)
             s.sys = s.prob.f.sys
-            @show adaptive
             s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; 
                 adaptive, dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, save_everystep=false)
             sym_vec = get_unknowns(s)
@@ -519,10 +518,10 @@ function init_unknowns_vec!(
     nothing
 end
 
-function get_unknowns(s::RamAirKite)
+function get_unknowns(s::RamAirKite; simple=false)
     vec = Num[]
     vec = get_stiff_unknowns(s, vec)
-    vec = get_nonstiff_unknowns(s, vec)
+    vec = get_nonstiff_unknowns(s, vec; simple)
     !s.set.quasi_static && (length(vec) != length(s.integrator.u)) &&
         throw(ArgumentError("Integrator unknowns of length $(length(s.integrator.u)) should equal vec of length $(length(vec))"))
     return vec
@@ -545,11 +544,18 @@ function get_stiff_unknowns(s, vec=Num[])
     return vec
 end
 
-function get_nonstiff_unknowns(s, vec=Num[])
+function get_nonstiff_unknowns(s, vec=Num[]; simple=false)
     @unpack points, groups, segments, pulleys, winches = s.point_system
-    for group in groups
-        group.type == DYNAMIC && push!(vec, s.sys.free_twist_angle[group.idx])
-        group.type == DYNAMIC && push!(vec, s.sys.twist_ω[group.idx])
+    if !simple
+        for group in groups
+            group.type == DYNAMIC && push!(vec, s.sys.free_twist_angle[group.idx])
+            group.type == DYNAMIC && push!(vec, s.sys.twist_ω[group.idx])
+        end
+    else
+        for i in 1:2
+            group.type == DYNAMIC && push!(vec, s.sys.simple_twist_angle[i])
+            group.type == DYNAMIC && push!(vec, s.sys.simple_twist_ω[i])
+        end
     end
     for winch in winches
         push!(vec, s.sys.tether_length[winch.idx])
