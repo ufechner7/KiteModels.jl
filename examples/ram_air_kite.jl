@@ -61,6 +61,15 @@ s.integrator.ps[sys.steady] = true
 next_step!(s; dt=10.0, vsm_interval=1)
 s.integrator.ps[sys.steady] = false
 
+
+"""
+TODO:
+- initialize with azimuth and elevation, not xyz kite pos
+- calculate effective power chord frac and steering line chord frac
+    - balance the front 3 lines, keep the back line at the same position
+    - (F_1 * x_1 + F_2 * x_2 + F_3 * x_3) / F_total
+"""
+
 logger = Logger(length(s.point_system.points), steps)
 sys_state = KiteModels.SysState(s)
 t = 0.0
@@ -114,8 +123,8 @@ try
             sys_state.var_13 = s.integrator[sys.pulley_l0[1]]
             sys_state.var_14 = s.integrator[sys.pulley_l0[2]]
         end
-        
-        sys_state.var_15 = rad2deg(calc_aoa(s))
+
+        sys_state.var_15 = s.integrator[sys.angle_of_attack]
         
         log!(logger, sys_state)
     end
@@ -143,7 +152,7 @@ if PLOT
         [c(sl.var_06), c(sl.var_07), c(sl.var_08)],
         [rad2deg.(c(sl.var_09)), rad2deg.(c(sl.var_10)), rad2deg.(c(sl.var_11)), rad2deg.(c(sl.var_12))],
         [c(sl.var_13), c(sl.var_14)],
-        [c(sl.var_15)],
+        [rad2deg.(c(sl.var_15))],
         [rad2deg.(c(sl.heading))];
         ylabels=["turn rates [°/s]", L"v_{ro}~[m/s]", "vsm", "twist [°]", "pulley", "AoA [°]", "heading [°]"],
         ysize=10,

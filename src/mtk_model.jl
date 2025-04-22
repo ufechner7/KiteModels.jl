@@ -215,7 +215,9 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         free_twist_angle(t)[eachindex(groups)]
         twist_α(t)[eachindex(groups)] # angular acc
         group_tether_moment(t)[eachindex(groups)]
-        tether_moment(t)[eachindex(groups), 1:length(groups[1].points)-1]
+        tether_force(t)[eachindex(groups), eachindex(groups[1].points)]
+        tether_moment(t)[eachindex(groups), eachindex(groups[1].points)]
+        front_frac(t)[eachindex(groups)]
     end
     
     for group in groups
@@ -223,12 +225,12 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         x_airf = normalize(group.chord)
         init_z_airf = x_airf × group.y_airf
         z_airf = x_airf * sin(twist_angle[group.idx]) + init_z_airf * cos(twist_angle[group.idx])
-        moving_points = filter(p -> p != group.points[group.fixed_index], group.points)
-        for (i, point_idx) in enumerate(moving_points)
+        for (i, point_idx) in enumerate(group.points)
             r = (points[point_idx].pos_b - points[group.points[group.fixed_index]].pos_b) ⋅ normalize(group.chord)
             eqs = [
                 eqs
-                tether_moment[group.idx, i] ~ r * (point_force[:, point_idx] ⋅ (R_b_w * -z_airf))
+                tether_force[group.idx, i] ~ (point_force[:, point_idx] ⋅ (R_b_w * -z_airf))
+                tether_moment[group.idx, i] ~ r * tether_force[group.idx, i]
             ]
         end
         
@@ -237,6 +239,9 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         @parameters twist_damp = s.set.quasi_static ? 200 : 100
         eqs = [
             eqs
+            front_frac[group.idx] ~ 
+                sum([tether_force[group.idx, i] * s.set.bridle_fracs[i] for i in eachindex(s.set.bridle_fracs[1:end-1])]) /
+                sum(tether_force[group.idx, 1:end-1])
             group_tether_moment[group.idx] ~ sum(tether_moment[group.idx, :])
             twist_α[group.idx] ~ (group_aero_moment[group.idx] + group_tether_moment[group.idx]) / inertia
             twist_angle[group.idx] ~ clamp(free_twist_angle[group.idx], -π/2, π/2)
