@@ -553,8 +553,8 @@ function get_nonstiff_unknowns(s, vec=Num[]; simple=false)
         end
     else
         for i in 1:2
-            group.type == DYNAMIC && push!(vec, s.sys.simple_twist_angle[i])
-            group.type == DYNAMIC && push!(vec, s.sys.simple_twist_ω[i])
+            push!(vec, s.sys.simple_twist_angle[i])
+            push!(vec, s.sys.simple_twist_ω[i])
         end
     end
     for winch in winches
