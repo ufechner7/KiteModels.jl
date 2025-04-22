@@ -1,10 +1,12 @@
-using KiteModels
 using Timers
+tic()
+using KiteModels
 using Pkg 
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
     using TestEnv; TestEnv.activate()
 end
 using ControlPlots
+toc()
 
 include("plotting_kps5.jl")
 
