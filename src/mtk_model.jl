@@ -167,7 +167,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             n = sym_normalize(kite_pos)
             n = n * (p ⋅ n)
             r = (p - n) # https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line#Vector_formulation
-            @parameters bridle_damp = 100
+            @parameters bridle_damp = 1.0
             @parameters measured_ω_z = 0.6
             eqs = [
                 eqs
@@ -405,7 +405,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         pulley_force(t)[eachindex(pulleys)]
         pulley_acc(t)[eachindex(pulleys)]
     end
-    @parameters pulley_damp = 20
+    @parameters pulley_damp = 1.0
     for pulley in pulleys
         segment = segments[pulley.segments[1]]
         mass_per_meter = s.set.rho_tether * π * (segment.diameter/2)^2
@@ -522,11 +522,11 @@ function diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero
         moment_b ~ aero_moment_b + R_b_w' * total_tether_kite_moment
         
         D(kite_pos) ~ kite_vel
-        D(kite_vel) ~ kite_acc
-        kite_acc ~ R_b_w * [ifelse(steady==true, 0, kite_acc_b[1]),
-                            ifelse(steady==true, 0, kite_acc_b[2]),
-                            kite_acc_b[3]]
-        kite_acc_b        ~ (R_b_w' * total_tether_kite_force + aero_force_b) / s.set.mass
+        D(kite_vel) ~ ifelse.(steady==true,
+            kite_acc ⋅ normalize(init_kite_pos) * normalize(init_kite_pos),
+            kite_acc
+        )
+        kite_acc ~ (total_tether_kite_force + R_b_w * aero_force_b) / s.set.mass
         total_tether_kite_force ~ [sum(tether_kite_force[i, :]) for i in 1:3]
     ]
     defaults = [

@@ -145,15 +145,21 @@ function PointMassSystem(set::Settings, wing::RamAirWing)
 end
 
 
-function create_kite_point_group(idx, points, wing, dynamics_type)
+function create_kite_point_group(idx, points, wing, dynamics_type; simple=false)
     gamma = (-1 + 1/wing.n_groups + 2(idx-1)/wing.n_groups) * wing.gamma_tip
     le_pos = [wing.le_interp[i](gamma) for i in 1:3]
     chord = [wing.te_interp[i](gamma) for i in 1:3] .- le_pos
     y_airf = normalize([wing.le_interp[i](gamma-0.01) for i in 1:3] - le_pos)
-    return KitePointGroup(idx, points, le_pos, chord, y_airf, dynamics_type)
+    if simple
+        top_point = wing.R_cad_body * (set.top_bridle_points[1] + wing.T_cad_body)
+        gamma > 0 && (top_point .= top_point .* [1,-1,1])
+        return KitePointGroup(idx, points, top_point, chord, y_airf, dynamics_type)
+    else
+        return KitePointGroup(idx, points, le_pos, chord, y_airf, dynamics_type)
+    end
 end
 
-function create_kite_point(points, idx, set, wing)
+function create_kite_point(points, idx, set, wing; simple=false)
     points_per_group = length(set.bridle_fracs)
     kite_point_idx = count(p -> p.type == KITE, points) + 1
     group_idx = ceil(Int, kite_point_idx/points_per_group)
@@ -162,7 +168,13 @@ function create_kite_point(points, idx, set, wing)
     chord = [wing.te_interp[i](gamma) for i in 1:3] .- le_pos
 
     frac_idx = (kite_point_idx-1)%wing.n_groups+1
-    pos = le_pos .+ chord .* set.bridle_fracs[frac_idx]
+    if simple
+        top_point = wing.R_cad_body * (set.top_bridle_points[1] + wing.T_cad_body)
+        gamma > 0 && (top_point .= top_point .* [1,-1,1])
+        pos = top_point .+ chord .* set.bridle_fracs[frac_idx]
+    else
+        pos = le_pos .+ chord .* set.bridle_fracs[frac_idx]
+    end
     return Point(idx, pos, KITE)
 end
 
@@ -338,12 +350,12 @@ function create_simple_ram_point_system(set::Settings, wing::RamAirWing)
 
     dynamics_type = set.quasi_static ? STATIC : DYNAMIC
 
-    [points = [points; create_kite_point(points, i, set, wing)] for i in 1:4]
+    [points = [points; create_kite_point(points, i, set, wing; simple=true)] for i in 1:4]
 
     groups = [
         groups
-        create_kite_point_group(1, [1,2], wing, DYNAMIC)
-        create_kite_point_group(2, [3,4], wing, DYNAMIC)
+        create_kite_point_group(1, [1,2], wing, DYNAMIC; simple=true)
+        create_kite_point_group(2, [3,4], wing, DYNAMIC; simple=true)
     ]
 
     points, segments, tethers, left_power_idx = create_tether(1, set, points, segments, tethers, points[1], POWER, dynamics_type)
