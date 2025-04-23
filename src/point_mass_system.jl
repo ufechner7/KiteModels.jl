@@ -36,12 +36,12 @@ function Point(idx, pos_b, type)
 end
 
 """
-Set of bridle lines that share the same twist angle and trailing edge angle
+Set of bridle lines that share the same twist angle and trailing edge angle and that rotates around the leading edge
 """
 struct KitePointGroup
     idx::Int16
     points::Vector{Int16}
-    fixed_index::Int16 # point which the group rotates around under kite deformation
+    le_point::KVec3 # point which the group rotates around under kite deformation
     chord::KVec3 # chord vector in body frame which the group rotates around under kite deformation
     y_airf::KVec3 # spanwise vector in local panel frame which the group rotates around under kite deformation
     type::DynamicsType
@@ -145,22 +145,23 @@ function PointMassSystem(set::Settings, wing::RamAirWing)
 end
 
 
-function create_kite_point_group(idx, points, fixed_index, wing, dynamics_type)
+function create_kite_point_group(idx, points, wing, dynamics_type)
     gamma = (-1 + 1/wing.n_groups + 2(idx-1)/wing.n_groups) * wing.gamma_tip
     le_pos = [wing.le_interp[i](gamma) for i in 1:3]
     chord = [wing.te_interp[i](gamma) for i in 1:3] .- le_pos
     y_airf = normalize([wing.le_interp[i](gamma-0.01) for i in 1:3] - le_pos)
-    return KitePointGroup(idx, points, fixed_index, chord, y_airf, dynamics_type)
+    return KitePointGroup(idx, points, le_pos, chord, y_airf, dynamics_type)
 end
 
-function create_kite_point(idx, set, wing)
+function create_kite_point(points, idx, set, wing)
     points_per_group = length(set.bridle_fracs)
-    group_idx = ceil(Int, idx/points_per_group)
+    kite_point_idx = count(p -> p.type == KITE, points) + 1
+    group_idx = ceil(Int, kite_point_idx/points_per_group)
     gamma = (-1 + 1/wing.n_groups + 2(group_idx-1)/wing.n_groups) * wing.gamma_tip
     le_pos = [wing.le_interp[i](gamma) for i in 1:3]
     chord = [wing.te_interp[i](gamma) for i in 1:3] .- le_pos
 
-    frac_idx = (idx-1)%wing.n_groups+1
+    frac_idx = (kite_point_idx-1)%wing.n_groups+1
     pos = le_pos .+ chord .* set.bridle_fracs[frac_idx]
     return Point(idx, pos, KITE)
 end
@@ -218,21 +219,15 @@ function create_ram_point_system(set::Settings, wing::RamAirWing)
         i_pul = length(pulleys) # last pulley idx
 
         i = 1
-        for gamma in gammas # 2 gammas per bridle system
-            le_pos = [wing.le_interp[i](gamma) for i in 1:3]
-            chord = [wing.te_interp[i](gamma) for i in 1:3] .- le_pos
-            y_airf = normalize([wing.le_interp[i](gamma-0.01) for i in 1:3] - le_pos)
-
+        for _ in gammas # 2 gammas per bridle system
             point_idxs = Int16[]
-            for frac in set.bridle_fracs # 4 fracs
-                pos = le_pos .+ chord .* frac
-                points = [points; Point(i+i_pnt, pos, KITE)]
-                push!(point_idxs, points[end].idx)
+            for _ in set.bridle_fracs # 4 fracs
+                points = [points; create_kite_point(points, i+i_pnt, set, wing)]
                 i += 1
             end
-            
             i_grp = 1 + length(groups)
-            groups = [groups; KitePointGroup(i_grp, point_idxs, 1, chord, y_airf, DYNAMIC)]
+            point_idxs = collect(points[end-3].idx:points[end].idx)
+            groups = [groups; create_kite_point_group(i_grp, point_idxs, wing, DYNAMIC)]
         end
 
         points = [
@@ -343,18 +338,12 @@ function create_simple_ram_point_system(set::Settings, wing::RamAirWing)
 
     dynamics_type = set.quasi_static ? STATIC : DYNAMIC
 
-    points = [
-        points
-        create_kite_point(1, set, wing)
-        create_kite_point(2, set, wing)
-        create_kite_point(3, set, wing)
-        create_kite_point(4, set, wing)
-    ]
+    [points = [points; create_kite_point(points, i, set, wing)] for i in 1:4]
 
     groups = [
         groups
-        create_kite_point_group(1, [1,2], 1, wing, DYNAMIC)
-        create_kite_point_group(2, [3,4], 1, wing, DYNAMIC)
+        create_kite_point_group(1, [1,2], wing, DYNAMIC)
+        create_kite_point_group(2, [3,4], wing, DYNAMIC)
     ]
 
     points, segments, tethers, left_power_idx = create_tether(1, set, points, segments, tethers, points[1], POWER, dynamics_type)

@@ -21,7 +21,7 @@ include(joinpath(@__DIR__, "plotting.jl"))
 # Simulation parameters
 dt = 0.05
 total_time = 10  # Longer simulation to see oscillations
-vsm_interval = 5
+vsm_interval = 3
 steps = Int(round(total_time / dt))
 
 # Steering parameters
@@ -33,11 +33,11 @@ set = load_settings("system_ram.yaml")
 set.segments = 3
 set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
 set.quasi_static = false
-set.physical_model = "ram"
+set.physical_model = "simple_ram"
 if set.physical_model == "ram"
     set.bridle_fracs = [0.088, 0.31, 0.58, 0.93]
 elseif set.physical_model == "simple_ram"
-    set.bridle_fracs = [0.0, 0.93]
+    set.bridle_fracs = [0.21, 0.93]
 end
 
 @info "Creating wing, aero, vsm_solver, point_system and s:"
@@ -49,8 +49,8 @@ s.set.abs_tol = 1e-5
 s.set.rel_tol = 1e-4
 
 # Initialize at elevation
-measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
-KiteModels.init_sim!(s, measure; remake=false, reload=false)
+measure.sphere_pos .= deg2rad.([83.0 83.0; 1.0 -1.0])
+KiteModels.init_sim!(s, measure; remake=true, reload=true)
 sys = s.sys
 
 @info "System initialized at:"

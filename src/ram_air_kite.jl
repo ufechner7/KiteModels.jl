@@ -394,7 +394,7 @@ function linearize_vsm!(s::RamAirKite)
         va_idxs=1:3, 
         omega_idxs=4:6,
         theta_idxs=7:6+length(s.point_system.groups),
-        moment_frac=s.bridle_fracs[s.point_system.groups[1].fixed_index])
+        moment_frac=0.0)
     s.set_vsm(s.integrator, [x, y, jac])
     nothing
 end

@@ -141,14 +141,11 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                 and should be part of exactly 1 groups."))
 
             group = groups[group_idx]
-            if point.idx == group.points[group.fixed_index]
-                pos_b = point.pos_b
-            else
-                fixed_pos = points[group.points[group.fixed_index]].pos_b
-                chord_b = point.pos_b - fixed_pos
-                normal = chord_b × group.y_airf
-                pos_b = fixed_pos + cos(twist_angle[group_idx]) * chord_b - sin(twist_angle[group_idx]) * normal
-            end
+            fixed_pos = group.le_point
+            chord_b = point.pos_b - fixed_pos
+            normal = chord_b × group.y_airf
+            pos_b = fixed_pos + cos(twist_angle[group_idx]) * chord_b - sin(twist_angle[group_idx]) * normal
+            
             eqs = [
                 eqs
                 tether_kite_force[:, point.idx] ~ point_force[:, point.idx]
@@ -226,7 +223,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         init_z_airf = x_airf × group.y_airf
         z_airf = x_airf * sin(twist_angle[group.idx]) + init_z_airf * cos(twist_angle[group.idx])
         for (i, point_idx) in enumerate(group.points)
-            r = (points[point_idx].pos_b - points[group.points[group.fixed_index]].pos_b) ⋅ normalize(group.chord)
+            r = (points[point_idx].pos_b - group.le_point) ⋅ normalize(group.chord)
             eqs = [
                 eqs
                 tether_force[group.idx, i] ~ (point_force[:, point_idx] ⋅ (R_b_w * -z_airf))
@@ -241,7 +238,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             eqs
             front_frac[group.idx] ~ 
                 sum([tether_force[group.idx, i] * s.set.bridle_fracs[i] for i in eachindex(s.set.bridle_fracs[1:end-1])]) /
-                sum(tether_force[group.idx, 1:end-1])
+                sum(tether_force[group.idx, 1:end-1]) # TODO: parameterize the bridle fracs
             group_tether_moment[group.idx] ~ sum(tether_moment[group.idx, :])
             twist_α[group.idx] ~ (group_aero_moment[group.idx] + group_tether_moment[group.idx]) / inertia
             twist_angle[group.idx] ~ clamp(free_twist_angle[group.idx], -π/2, π/2)
@@ -627,7 +624,7 @@ function linear_vsm_eqs!(s, eqs, guesses; aero_force_b, aero_moment_b, group_aer
         va_idxs=1:3, 
         omega_idxs=4:6,
         theta_idxs=7:6+length(s.point_system.groups), 
-        moment_frac=s.bridle_fracs[s.point_system.groups[1].fixed_index])
+        moment_frac=0.0)
 
     @parameters begin
         last_y[eachindex(y_)] = y_
