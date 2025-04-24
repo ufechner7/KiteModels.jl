@@ -2,7 +2,7 @@ using Timers
 tic()
 @info "Loading packages "
 
-using KiteModels, LinearAlgebra
+using KiteModels, LinearAlgebra, Statistics
 
 PLOT = true
 if PLOT
@@ -26,18 +26,19 @@ steps = Int(round(total_time / dt))
 
 # Steering parameters
 steering_freq = 1/2  # Hz - full left-right cycle frequency
-steering_magnitude = 2.0      # Magnitude of steering input [Nm]
+steering_magnitude = 5.0      # Magnitude of steering input [Nm]
 
 # Initialize model
 set = load_settings("system_ram.yaml")
 set.segments = 3
 set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
 set.quasi_static = false
-set.physical_model = "simple_ram"
+set.physical_model = "ram"
 if set.physical_model == "ram"
     set.bridle_fracs = [0.088, 0.31, 0.58, 0.93]
 elseif set.physical_model == "simple_ram"
-    set.bridle_fracs = [0.20, 0.93]
+    set.l_tether = 53
+    set.bridle_fracs = [0.25, 0.93]
 end
 
 @info "Creating wing, aero, vsm_solver, point_system and s:"
@@ -85,7 +86,7 @@ try
     while t < total_time
         local steering
         global t, set_values, runtime, integ_runtime
-        PLOT && plot(s, t; zoom=false, front=true)
+        # PLOT && plot(s, t; zoom=false, front=true)
         
         # Calculate steering inputs based on cosine wave
         steering = steering_magnitude * cos(2π * steering_freq * t+0.1)
@@ -102,6 +103,7 @@ try
         
         # Track performance after initial transient
         if (t > total_time/2)
+            @show dt/integ_steptime
             runtime += steptime
             integ_runtime += integ_steptime
         end
@@ -126,6 +128,7 @@ try
 
         sys_state.var_12 = s.integrator[sys.angle_of_attack]
         
+        # @show mean(s.integrator[sys.front_frac])
         log!(logger, sys_state)
     end
 catch e

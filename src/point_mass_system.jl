@@ -223,16 +223,11 @@ function create_ram_point_system(set::Settings, wing::RamAirWing)
         i_seg = length(segments) # last segment idx
         i_pul = length(pulleys) # last pulley idx
 
-        i = 1
         for _ in gammas # 2 gammas per bridle system
-            point_idxs = Int16[]
             for _ in set.bridle_fracs # 4 fracs
-                points = [points; create_kite_point(points, i+i_pnt, set, wing)]
-                i += 1
+                points = [points; create_kite_point(points, set, wing)]
             end
-            i_grp = 1 + length(groups)
-            point_idxs = collect(points[end-3].idx:points[end].idx)
-            groups = [groups; create_kite_point_group(i_grp, point_idxs, wing, DYNAMIC)]
+            groups = [groups; create_kite_point_group(groups, points, wing, DYNAMIC)]
         end
 
         points = [
