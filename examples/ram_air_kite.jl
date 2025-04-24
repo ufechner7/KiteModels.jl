@@ -103,7 +103,7 @@ try
         
         # Track performance after initial transient
         if (t > total_time/2)
-            @show dt/integ_steptime
+            println(dt/integ_steptime, " ", t)
             runtime += steptime
             integ_runtime += integ_steptime
         end
@@ -127,8 +127,6 @@ try
         sys_state.var_11 = norm(s.integrator[sys.kite_pos])
 
         sys_state.var_12 = s.integrator[sys.angle_of_attack]
-        
-        # @show mean(s.integrator[sys.front_frac])
         log!(logger, sys_state)
     end
 catch e
