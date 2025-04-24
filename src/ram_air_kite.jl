@@ -65,7 +65,7 @@ Type of segment.
 end
 
 """
-   DynamicsType `DYNAMIC` `STATIC` `KITE` `WINCH`
+    DynamicsType `DYNAMIC` `STATIC` `KITE` `WINCH`
 
 Enumeration of the models that are attached to a point.
 
