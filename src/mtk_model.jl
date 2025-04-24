@@ -62,6 +62,34 @@ function rotation_matrix_to_quaternion(R)
     return [w, x, y, z]
 end
 
+"""
+    force_eqs!(s, system, eqs, defaults, guesses; kwargs...)
+
+Generate the force equations for the kite system including spring forces, drag forces,
+pulley dynamics and winch forces.
+
+# Arguments
+- `s::RamAirKite`: The kite system state
+- `system::PointMassSystem`: The point mass representation
+- `eqs`: Current system equations
+- `defaults`: Default values for variables
+- `guesses`: Initial guesses for variables
+- `R_b_w`: Body to world rotation matrix
+- `kite_pos`: Kite position vector
+- `kite_vel`: Kite velocity vector  
+- `wind_vec_gnd`: Ground wind vector
+- `group_aero_moment`: Aerodynamic moments per group
+- `twist_angle`: Twist angles per group
+- `steady`: Whether in steady mode
+
+# Returns
+Tuple containing:
+- Updated equations
+- Updated defaults
+- Updated guesses
+- Tether forces on kite
+- Tether moments on kite
+"""
 function force_eqs!(s, system, eqs, defaults, guesses; 
         R_b_w, kite_pos, kite_vel, wind_vec_gnd, group_aero_moment, twist_angle, twist_ω, steady, set_values)
 
@@ -478,6 +506,32 @@ function force_eqs!(s, system, eqs, defaults, guesses;
     return eqs, defaults, guesses, tether_kite_force, tether_kite_moment
 end
 
+"""
+    diff_eqs!(s, eqs, defaults; kwargs...)
+
+Generate the differential equations for kite dynamics including quaternion kinematics,
+angular velocities and accelerations, and forces/moments.
+
+# Arguments
+- `s::RamAirKite`: The kite system state
+- `eqs`: Current system equations  
+- `defaults`: Default values for variables
+- `tether_kite_force`: Forces from tethers on kite
+- `tether_kite_moment`: Moments from tethers on kite
+- `aero_force_b`: Aerodynamic forces in body frame
+- `aero_moment_b`: Aerodynamic moments in body frame
+- `ω_b`: Angular velocity in body frame
+- `R_b_w`: Body to world rotation matrix
+- `kite_pos`: Kite position vector
+- `kite_vel`: Kite velocity vector
+- `kite_acc`: Kite acceleration vector
+- `init_Q_b_w`: Initial quaternion orientation
+- `init_kite_pos`: Initial kite position
+- `steady`: Whether in steady mode
+
+# Returns
+Tuple of updated equations and defaults
+"""
 function diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero_force_b, 
     aero_moment_b, ω_b, R_b_w, kite_pos, kite_vel, kite_acc, init_Q_b_w, init_kite_pos, steady
 )
@@ -538,7 +592,30 @@ function diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero
     return eqs, defaults
 end
 
+"""
+    scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc, twist_angle, twist_ω)
 
+Generate equations for scalar quantities like elevation, azimuth, heading and course angles.
+    
+    # Arguments
+    - `s::RamAirKite`: The kite system state
+    - `eqs`: Current system equations
+    - `measure::Measurement`: Current measurement data
+    - `R_b_w`: Body to world rotation matrix
+    - `wind_vec_gnd`: Ground wind vector
+    - `va_kite_b`: Apparent wind velocity in body frame
+    - `kite_pos`: Kite position vector
+    - `kite_vel`: Kite velocity vector
+    - `kite_acc`: Kite acceleration vector
+    
+    # Returns
+    - Updated system equations including:
+    - Heading angle from x-axis
+    - Elevation angle
+    - Azimuth angle
+    - Course angle
+    - Angular velocities and accelerations
+    """
 function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc, twist_angle, twist_ω)
     @parameters wind_scale_gnd = s.set.v_wind
     @parameters measured_wind_dir_gnd = measure.wind_dir_gnd
@@ -611,6 +688,30 @@ function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, 
     return eqs
 end
 
+"""
+linear_vsm_eqs!(s, eqs; aero_force_b, aero_moment_b, group_aero_moment, init_va_b, twist_angle, va_kite_b, ω_b)
+
+Generate linearized aerodynamic equations using the Vortex Step Method (VSM).
+Uses linearization around current operating point to approximate aerodynamic forces
+and moments. The Jacobian is computed using the VSM solver.
+
+# Arguments
+- `s::RamAirKite`: The kite system state
+- `eqs`: Current system equations
+- `aero_force_b`: Aerodynamic forces in body frame
+- `aero_moment_b`: Aerodynamic moments in body frame 
+- `group_aero_moment`: Aerodynamic moments per group
+- `init_va_b`: Initial apparent wind velocity
+- `twist_angle`: Twist angles per group
+- `va_kite_b`: Apparent wind velocity in body frame
+- `ω_b`: Angular velocity in body frame
+
+# Returns
+- Updated system equations including linearized aerodynamics:
+- Force and moment calculations
+- Group moment distributions
+- Jacobian matrix for state derivatives
+"""
 function linear_vsm_eqs!(s, eqs, guesses; aero_force_b, aero_moment_b, group_aero_moment, init_va, twist_angle, va_kite_b, ω_b)
     sol = s.vsm_solver.sol
     @assert length(s.point_system.groups) == length(sol.group_moment_dist)

@@ -89,9 +89,9 @@ $(TYPEDFIELDS)
     wm::AbstractWinchModel
     "Iterations, number of calls to the function residual!"
     iter:: Int64 = 0
-    "Function for calculation the lift coefficent, using a spline based on the provided value pairs."
+    "Function for calculation the lift coefficient, using a spline based on the provided value pairs."
     calc_cl::Spline1D
-    "Function for calculation the drag coefficent, using a spline based on the provided value pairs."
+    "Function for calculation the drag coefficient, using a spline based on the provided value pairs."
     calc_cd::Spline1D
     "wind vector at the height of the kite" 
     v_wind::T =           zeros(S, 3)
