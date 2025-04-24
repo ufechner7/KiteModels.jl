@@ -20,10 +20,10 @@ else
     file2="Manifest-v1.11.toml.default"
 fi
 
-if cmp -s "$file1" "$file2"; then
-    printf 'The file "%s" is the same as "%s"\n' "$file1" "$file2"
-else
+if ! cmp -s "$file1" "$file2"; then
     printf 'The file "%s" is different from "%s"\n' "$file1" "$file2"
+    echo "Aborting..."
+    exit
 fi
 
 # create new prob_xxx.bin file
