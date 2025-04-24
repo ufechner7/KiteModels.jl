@@ -5,8 +5,21 @@ if [[ $(basename $(pwd)) == "bin" ]]; then
 fi
 
 # check Julia version
+julia_version=$(julia --version | awk '{print($3)}')
+julia_major=${julia_version:0:3}
+if [[ $julia_major == "1.1" ]]; then
+    julia_major=${julia_version:0:4} 
+fi
 
 # check that the active manifest is the default manifest
+file1="Manifest-v1.11.toml"
+file2="Manifest-v1.11.toml.default"
+
+if cmp -s "$file1" "$file2"; then
+    printf 'The file "%s" is the same as "%s"\n' "$file1" "$file2"
+else
+    printf 'The file "%s" is different from "%s"\n' "$file1" "$file2"
+fi
 
 # create new prob_xxx.bin file
 # copy it to the prob_xxx.bin.default file
