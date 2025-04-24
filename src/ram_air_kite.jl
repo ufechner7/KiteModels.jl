@@ -354,29 +354,32 @@ function SysState(s::RamAirKite, zoom=1.0) # TODO: add left and right lines, sto
 end
 
 """
-    init_sim!(s::RamAirKite; prn=true) -> Nothing
+    init_sim!(s::RamAirKite, measure::Measurement; prn=true, precompile=false) -> Nothing
 
-Initialize a complete kite power system model from scratch.
+Initialize a kite power system model. 
 
-This function performs the following operations:
-1. Converts measurement data to quaternion orientation
-2. Initializes the point mass system representing the kite and tethers
-3. Creates the symbolic MTK system with all equations
-4. Simplifies the system equations
-5. Creates an ODEProblem
-6. Serializes the problem to disk for future reuse
-7. Calls `reinit!` to set up the integrator
+If a serialized model exists for the current configuration, it will load that model
+and only update the state variables. Otherwise, it will create a new model from scratch.
 
-This is a computationally expensive operation and should only be called when the model
-structure changes. For normal simulations, prefer calling `reinit!` directly if a serialized
-problem already exists.
+# Fast path (serialized model exists):
+1. Loads existing ODEProblem from disk
+2. Calls `reinit!` to update state variables
+3. Sets up integrator with current measurements
+
+# Slow path (no serialized model):
+1. Creates symbolic MTK system with all equations
+2. Simplifies system equations
+3. Creates ODEProblem and serializes to disk
+4. Proceeds with fast path
 
 # Arguments
-- `s::RamAirKite`: The kite power system state object
+- `s::RamAirKite`: The kite system state object  
+- `measure::Measurement`: Initial state measurements
 - `prn::Bool=true`: Whether to print progress information
+- `precompile::Bool=false`: Whether to build problem for precompilation
 
 # Returns
-- `Nothing`
+`Nothing`
 """
 function init_sim!(s::RamAirKite, measure::Measurement; prn=true, precompile=false)
     function init(s, measure)
