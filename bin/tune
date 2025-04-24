@@ -12,8 +12,13 @@ if [[ $julia_major == "1.1" ]]; then
 fi
 
 # check that the active manifest is the default manifest
-file1="Manifest-v1.11.toml"
-file2="Manifest-v1.11.toml.default"
+if [[ $julia_major == "1.10" ]]; then
+    file1="Manifest-v1.10.toml"
+    file2="Manifest-v1.10.toml.default"
+else
+    file1="Manifest-v1.11.toml"
+    file2="Manifest-v1.11.toml.default"
+fi
 
 if cmp -s "$file1" "$file2"; then
     printf 'The file "%s" is the same as "%s"\n' "$file1" "$file2"
