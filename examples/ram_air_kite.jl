@@ -26,18 +26,17 @@ steps = Int(round(total_time / dt))
 
 # Steering parameters
 steering_freq = 1/2  # Hz - full left-right cycle frequency
-steering_magnitude = 5.0      # Magnitude of steering input [Nm]
+steering_magnitude = 2.0      # Magnitude of steering input [Nm]
 
 # Initialize model
 set = load_settings("system_ram.yaml")
 set.segments = 3
 set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
 set.quasi_static = false
-set.physical_model = "ram"
+set.physical_model = "simple_ram"
 if set.physical_model == "ram"
     set.bridle_fracs = [0.088, 0.31, 0.58, 0.93]
 elseif set.physical_model == "simple_ram"
-    steering_magnitude *= 0.3
     set.bridle_fracs = [0.20, 0.93]
 end
 
@@ -45,9 +44,13 @@ end
 s = RamAirKite(set)
 toc()
 
+# init_Q_b_w, R_b_w = KiteModels.measure_to_q(measure)
+# init_kite_pos = init!(s.point_system, s.set, R_b_w)
+# plot(s.point_system, 0.0; zoom=false, front=true)
+
 measure = Measurement()
-s.set.abs_tol = 1e-5
-s.set.rel_tol = 1e-4
+s.set.abs_tol = 1e-2
+s.set.rel_tol = 1e-2
 
 # Initialize at elevation
 measure.sphere_pos .= deg2rad.([80.0 80.0; 1.0 -1.0])
@@ -58,10 +61,11 @@ sys = s.sys
 toc()
 
 # Stabilize system
+s.integrator.ps[sys.stiffness_frac] = 0.01
 s.integrator.ps[sys.steady] = true
 next_step!(s; dt=10.0, vsm_interval=1)
 s.integrator.ps[sys.steady] = false
-
+s.integrator.ps[sys.ω_damp] = 1000
 
 """
 TODO:
@@ -108,8 +112,8 @@ try
         sys_state.var_02 = s.integrator[sys.ω_b[2]]
         sys_state.var_03 = s.integrator[sys.ω_b[3]]
 
-        sys_state.var_04 = s.integrator[sys.tether_vel[2]]
-        sys_state.var_05 = s.integrator[sys.tether_vel[3]]
+        sys_state.var_04 = s.integrator[sys.tether_length[2]]
+        sys_state.var_05 = s.integrator[sys.tether_length[3]]
 
         sys_state.var_06 = s.integrator[sys.aero_force_b[3]]
         sys_state.var_07 = s.integrator[sys.aero_moment_b[2]]
@@ -117,15 +121,10 @@ try
 
         sys_state.var_09 = s.integrator[sys.twist_angle[1]]
         sys_state.var_10 = s.integrator[sys.twist_angle[2]]
-        if set.physical_model == "ram"
-            sys_state.var_11 = s.integrator[sys.twist_angle[3]]
-            sys_state.var_12 = s.integrator[sys.twist_angle[4]]
-            
-            sys_state.var_13 = s.integrator[sys.pulley_l0[1]]
-            sys_state.var_14 = s.integrator[sys.pulley_l0[2]]
-        end
+        
+        sys_state.var_11 = norm(s.integrator[sys.kite_pos])
 
-        sys_state.var_15 = s.integrator[sys.angle_of_attack]
+        sys_state.var_12 = s.integrator[sys.angle_of_attack]
         
         log!(logger, sys_state)
     end
@@ -151,18 +150,18 @@ if PLOT
         [rad2deg.(sl.var_01), rad2deg.(sl.var_02), rad2deg.(sl.var_03)],
         [c(sl.var_04), c(sl.var_05)],
         [c(sl.var_06), c(sl.var_07), c(sl.var_08)],
-        [rad2deg.(c(sl.var_09)), rad2deg.(c(sl.var_10)), rad2deg.(c(sl.var_11)), rad2deg.(c(sl.var_12))],
-        [c(sl.var_13), c(sl.var_14)],
-        [rad2deg.(c(sl.var_15))],
+        [rad2deg.(c(sl.var_09)), rad2deg.(c(sl.var_10))],
+        [c(sl.var_11)],
+        [rad2deg.(c(sl.var_12))],
         [rad2deg.(c(sl.heading))];
-        ylabels=["turn rates [°/s]", L"v_{ro}~[m/s]", "vsm", "twist [°]", "pulley", "AoA [°]", "heading [°]"],
+        ylabels=["turn rates [°/s]", "tether length [m]", "vsm", "twist [°]", "distance [m]", "AoA [°]", "heading [°]"],
         ysize=10,
         labels=[
             [L"ω_x", L"ω_y", L"ω_z"],
-            ["vel[1]", "vel[2]"],
+            ["len[1]", "len[2]"],
             ["force[3]", "kite moment[2]", "group moment[1]"],
-            ["twist_angle[1]", "twist_angle[2]", "twist_angle[3]", "twist_angle[4]"],
-            ["pulley_l0[1]", "pulley_l0[2]"],
+            ["twist_angle[1]", "twist_angle[2]"],
+            ["distance"],
             ["angle of attack"],
             ["heading"]
         ],

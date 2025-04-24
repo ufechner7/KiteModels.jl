@@ -358,15 +358,18 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         end
 
         stiffness_m = s.set.e_tether * (segment.diameter/2)^2 * pi
-        (segment.type == BRIDLE) && (compression_frac = 0.1)
-        (segment.type == POWER) && (compression_frac = 0.1)
-        (segment.type == STEERING) && (compression_frac = 0.1)
-        
         @parameters stiffness_frac = 0.1
         (segment.type == BRIDLE) && (stiffness_m = stiffness_frac * stiffness_m)
 
         damping_m = (s.set.damping / s.set.c_spring) * stiffness_m
         
+        if segment.compression_frac ≈ 1.0
+            eqs = [eqs; stiffness[segment.idx]       ~ stiffness_m / len[segment.idx]]
+        else
+            eqs = [eqs; stiffness[segment.idx]       ~ ifelse(len[segment.idx] > l0[segment.idx],
+                                        stiffness_m / len[segment.idx],
+                                        segment.compression_frac * stiffness_m / len[segment.idx])]
+        end
         eqs = [
             eqs
             # spring force equations
@@ -375,10 +378,6 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             unit_vec[:, segment.idx]  ~ segment_vec[:, segment.idx]/len[segment.idx]
             rel_vel[:, segment.idx]      ~ vel[:, p1] - vel[:, p2]
             spring_vel[segment.idx]      ~ rel_vel[:, segment.idx] ⋅ unit_vec[:, segment.idx]
-            stiffness[segment.idx]       ~ ifelse(len[segment.idx] > l0[segment.idx],
-                                        stiffness_m / len[segment.idx],
-                                        compression_frac * stiffness_m / len[segment.idx]
-            )
             damping[segment.idx]         ~ damping_m / len[segment.idx]
             spring_force[segment.idx] ~  (stiffness[segment.idx] * (len[segment.idx] - l0[segment.idx]) - 
                             damping[segment.idx] * spring_vel[segment.idx])
