@@ -151,6 +151,8 @@ $(TYPEDFIELDS)
     "aoa at particle D"
     alpha_4::S =           0.0
     alpha_4b::S =          0.0
+    "side_slip angle [rad]"
+    side_slip::S = 0.0
     "relative start time of the current time interval"
     t_0::S =               0.0
     "reel out speed of the winch"
@@ -346,8 +348,11 @@ Updates the vector s.forces of the first parameter.
 
     va_xz1 = va_1 - (va_1 ⋅ y) * y
     va_xz2 = va_2 - (va_2 ⋅ y) * y
+    va_xy2 = va_2 - (va_2 ⋅ z) * z # va at the top particle in the xy plane
     va_xy3 = va_3 - (va_3 ⋅ z) * z
     va_xy4 = va_4 - (va_4 ⋅ z) * z
+
+    s.side_slip = atan(va_xy2[2], va_xy2[1])
 
     alpha_2 = rad2deg(π - acos2(normalize(va_xz2) ⋅ x) - alpha_depower)     + s.set.alpha_zero
     alpha_3 = rad2deg(π - acos2(normalize(va_xy3) ⋅ x) + rel_steering * s.ks) + s.set.alpha_ztip
