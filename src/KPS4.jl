@@ -352,7 +352,11 @@ Updates the vector s.forces of the first parameter.
     va_xy3 = va_3 - (va_3 ⋅ z) * z
     va_xy4 = va_4 - (va_4 ⋅ z) * z
 
-    s.side_slip = atan(va_xy2[2], va_xy2[1])
+    R_k_w = [x, y, z]
+    # println(size(R_k_w))
+    va_k = R_k_w' * va_xy2
+
+    s.side_slip = atan(va_k[2], va_k[1])
 
     alpha_2 = rad2deg(π - acos2(normalize(va_xz2) ⋅ x) - alpha_depower)     + s.set.alpha_zero
     alpha_3 = rad2deg(π - acos2(normalize(va_xy3) ⋅ x) + rel_steering * s.ks) + s.set.alpha_ztip
