@@ -352,9 +352,9 @@ Updates the vector s.forces of the first parameter.
     va_xy3 = va_3 - (va_3 ⋅ z) * z
     va_xy4 = va_4 - (va_4 ⋅ z) * z
 
-    R_k_w = [x, y, z]
+    R_k_w = [x y z]
     # println(size(R_k_w))
-    va_k = R_k_w' * va_xy2
+    va_k = R_k_w' * va_2
 
     s.side_slip = atan(va_k[2], -va_k[1])
 
