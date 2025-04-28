@@ -1,4 +1,4 @@
-### Unreleased
+### KiteModels v0.7.1 2025-04-28
 #### Changed
 - fixed or documented issues found by `Aqua.jl`
 - made `DSP` a test dependency
@@ -7,6 +7,7 @@
 - the examples `calc_spectrum.jl` and `plot_spectrum.jl` to the menu
 - the quality insurance package `Aqua.jl`
 - added the script `update_default_manifest`
+- calculate `side_slip` angle in radian
 
 ### KiteModels v0.7.0 2025-04-20
 #### Fixed
