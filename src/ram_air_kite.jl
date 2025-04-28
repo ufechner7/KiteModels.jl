@@ -255,7 +255,7 @@ function init_sim!(s::RamAirKite, measure::Measurement;
 
         init_va_b = R_b_w' * [s.set.v_wind, 0., 0.]
         
-        sys, defaults, guesses, inputs = create_sys!(s, s.point_system, measure; init_Q_b_w, init_kite_pos, init_va, lin_sys)
+        sys, defaults, guesses, inputs = create_sys!(s, s.point_system, measure; init_Q_b_w, init_kite_pos, init_va_b, lin_sys)
         prn && @info "Simplifying the system"
         @time sys = structural_simplify(sys; additional_passes=[ModelingToolkit.IfLifting])
         s.sys = sys
