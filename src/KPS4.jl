@@ -348,13 +348,11 @@ Updates the vector s.forces of the first parameter.
 
     va_xz1 = va_1 - (va_1 ⋅ y) * y
     va_xz2 = va_2 - (va_2 ⋅ y) * y
-    va_xy2 = va_2 - (va_2 ⋅ z) * z # va at the top particle in the xy plane
     va_xy3 = va_3 - (va_3 ⋅ z) * z
     va_xy4 = va_4 - (va_4 ⋅ z) * z
 
-    R_k_w = [x y z]
-    # println(size(R_k_w))
-    va_k = R_k_w' * va_2
+    R_k_w = SMatrix{3,3}([x y z])
+    va_k = R_k_w' * SVector{3}(va_2)
 
     s.side_slip = atan(va_k[2], -va_k[1])
 
