@@ -143,14 +143,10 @@ $(TYPEDFIELDS)
     pitch_rate::S =       0.0
     "aoa at particle B"
     alpha_2::S =           0.0
-    "aoa at particle B, corrected formula"
-    alpha_2b::S =          0.0
     "aoa at particle C"
     alpha_3::S =           0.0
-    alpha_3b::S =          0.0
     "aoa at particle D"
     alpha_4::S =           0.0
-    alpha_4b::S =          0.0
     "side_slip angle [rad]"
     side_slip::S = 0.0
     "relative start time of the current time interval"
