@@ -1,3 +1,15 @@
+### KiteModels v0.7.1 2025-04-28
+#### Changed
+- fixed or documented issues found by `Aqua.jl`
+- made `DSP` a test dependency
+- remove package `OrdinaryDiffEqSDIRK`
+- improve documentation for `RamAirKite`
+#### Added
+- the examples `calc_spectrum.jl` and `plot_spectrum.jl` to the menu
+- the quality insurance package `Aqua.jl`
+- added the script `update_default_manifest`
+- calculate `side_slip` angle in radian
+
 ### KiteModels v0.7.0 2025-04-20
 #### Fixed
 - fixed broken installation by freezing NLSolversBase to `~7.8.3` in Project.toml
@@ -50,16 +62,6 @@
 #### Fixed
 - fix #88: the function `init_sim!()` has the new parameter `upwind_dir` to define the
   initial wind direction 
-
-### Unreleased
-#### Changed
-- fixed or documented issues found by `Aqua.jl`
-- made `DSP` a test dependency
-- remove package `OrdinaryDiffEqSDIRK`
-#### Added
-- the examples `calc_spectrum.jl` and `plot_spectrum.jl` to the menu
-- the quality insurance package `Aqua.jl`
-- added the script `update_default_manifest`
 
 ### KiteModels v0.6.12 2024-12-01
 #### Changed

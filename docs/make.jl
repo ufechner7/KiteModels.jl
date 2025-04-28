@@ -17,6 +17,7 @@ makedocs(;
         "Home" => "index.md",
         "Types" => "types.md",
         "Functions" => "functions.md",
+        "RamAirKite" => "ram_air_kite.md",
         "Parameters" => "parameters.md",
         "Examples_1p" => "examples.md",
         "Examples_4p" => "examples_4p.md",

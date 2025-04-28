@@ -27,6 +27,7 @@ set_v_wind_ground!
 unstretched_length
 tether_length
 pos_kite
+calc_aoa
 calc_height
 calc_elevation
 calc_azimuth
@@ -63,6 +64,7 @@ residual!
 copy_examples
 copy_bin
 calc_drag
+calculate_rotational_inertia!
 calc_set_cl_cd!
 calc_aero_forces!
 calc_particle_forces!

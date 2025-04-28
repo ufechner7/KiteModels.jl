@@ -20,19 +20,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. =#
 
-#= Model of a kite-power system in implicit form: residual = f(y, yd)
-
-This model implements a 3D mass-spring system with reel-out. It uses six tether segments (the number can be
-configured in the file data/settings.yaml). The kite is modelled using 4 point masses and 2n aerodynamic 
-surfaces. The spring constant and the damping decrease with the segment length. The aerodynamic kite forces
-are acting on the inertial kite point. 
-
-Four point kite model, included from KiteModels.jl.
-
-Scientific background: http://arxiv.org/abs/1406.6218 =#
-
 """
-    mutable struct RamAirKite{S, T, P, Q, SP} <: AbstractKiteModel
+    mutable struct RamAirKite{S, V, P} <: AbstractKiteModel
 
 State of the kite power system, using a quaternion kite model and three steering lines to the ground. Parameters:
 - S: Scalar type, e.g. SimFloat
