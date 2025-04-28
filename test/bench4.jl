@@ -126,8 +126,8 @@ msg = String[]
     time = 0.0
     t = @benchmark residual!($res, $yd0, $y0, $kps4, $time)
     push!(msg, ("Mean time residual!:           $(round(mean(t.times), digits=1)) ns"))
-    println("t.memory: ", t.memory)
-    @test t.memory <= 144
+    # println("t.memory: ", t.memory)
+    @test t.memory <= 176 # 144 for Julia 1.11
 
     # time using Python/ Numba: 8.94 µs, time using Julia 1.7.2: 1.6µs, Julia 1.8.0: 1.244µs
     # Julia 1.9 on Ryzen:  816.1 ns
