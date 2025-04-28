@@ -353,7 +353,6 @@ Updates the vector s.forces of the first parameter.
 
     R_k_w = SMatrix{3,3}([x y z])
     va_k = R_k_w' * SVector{3}(va_2)
-
     s.side_slip = atan(va_k[2], -va_k[1])
 
     alpha_2 = rad2deg(π - acos2(normalize(va_xz2) ⋅ x) - alpha_depower)     + s.set.alpha_zero
