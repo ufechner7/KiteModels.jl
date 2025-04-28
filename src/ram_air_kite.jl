@@ -189,7 +189,6 @@ end
 A discrete mass-spring-damper representation of a kite system, where point masses 
 connected by elastic segments model the kite and tether dynamics:
 
-# Fields
 - `points::Vector{Point}`: Point masses representing:
   - Kite attachment points 
   - Dynamic bridle/tether points

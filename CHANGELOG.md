@@ -3,6 +3,7 @@
 - fixed or documented issues found by `Aqua.jl`
 - made `DSP` a test dependency
 - remove package `OrdinaryDiffEqSDIRK`
+- improve documentation for `RamAirKite`
 #### Added
 - the examples `calc_spectrum.jl` and `plot_spectrum.jl` to the menu
 - the quality insurance package `Aqua.jl`

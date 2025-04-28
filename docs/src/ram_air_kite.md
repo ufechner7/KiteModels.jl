@@ -18,6 +18,7 @@ Segment
 Tether
 Winch
 KitePointGroup
+PointMassSystem
 ```
 
 ## Private functions
