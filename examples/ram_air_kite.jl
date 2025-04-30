@@ -40,11 +40,11 @@ elseif set.physical_model == "simple_ram"
     set.l_tether = 53
     set.bridle_fracs = [0.25, 0.93]
 end
-s.set.abs_tol = 1e-2
-s.set.rel_tol = 1e-2
 
 @info "Creating wing, aero, vsm_solver, point_system and s:"
 s = RamAirKite(set)
+s.set.abs_tol = 1e-2
+s.set.rel_tol = 1e-2
 toc()
 
 # init_Q_b_w, R_b_w = KiteModels.measure_to_q(measure)
@@ -76,7 +76,7 @@ try
     while t < total_time
         local steering
         global t, set_values, runtime, integ_runtime
-        PLOT && plot(s, t; zoom=false, front=false)
+        # PLOT && plot(s, t; zoom=false, front=false)
         
         # Calculate steering inputs based on cosine wave
         steering = steering_magnitude * cos(2π * steering_freq * t+0.1)
