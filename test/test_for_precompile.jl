@@ -100,18 +100,14 @@ let
     simulate(integrator, 100, true)
 end
 if ! haskey(ENV, "NO_MTK")
-    using KiteModels, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqSDIRK, LinearAlgebra
+    using KiteModels, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, LinearAlgebra
     using Base: summarysize
 
     update_settings()
     set = se("system_ram.yaml")
     set.segments = 2
     set_values = [-50, -1.1, -1.1]
-    wing = RamAirWing(set)
-    aero = BodyAerodynamics([wing])
-    vsm_solver = Solver(aero; solver_type=NONLIN, atol=1e-8, rtol=1e-8)
-    point_system = create_ram_point_system(set, wing)
-    mtk_kite = RamAirKite(set, aero, vsm_solver, point_system)
+    mtk_kite = RamAirKite(set)
     measure = Measurement()
     KiteModels.init_sim!(mtk_kite, measure)
     logger = Logger(length(mtk_kite.point_system.points), 5)

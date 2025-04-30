@@ -494,7 +494,7 @@ const MeasureFloat = Float32
     tether_acc::MVector{3, MeasureFloat}    = zeros(MeasureFloat, 3)
     tether_force::MVector{3, MeasureFloat}  = [540., 3., 3.]
     "elevation and azimuth in spherical coordinate system with columns (left, right) and rows (elevation, azimuth)"
-    sphere_pos::Matrix{MeasureFloat}            = deg2rad.([89.0 89.0; 1.0 -1.0])
+    sphere_pos::Matrix{MeasureFloat}            = deg2rad.([80.0 80.0; 1.0 -1.0])
     sphere_vel::Matrix{MeasureFloat}            = zeros(MeasureFloat, 2, 2)
     sphere_acc::Matrix{MeasureFloat}            = zeros(MeasureFloat, 2, 2)
     "positive azimuth wind direction in right-handed ENU frame relative to east / x-axis"

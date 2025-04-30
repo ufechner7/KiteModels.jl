@@ -139,9 +139,9 @@ const BUILD_SYS = true
     end
 
     function test_step(s, d_set_values=zeros(3); dt=0.05, steps=5)
-        s.integrator.ps[s.sys.steady] = true
+        s.integrator.ps[s.sys.stabilize] = true
         KiteModels.next_step!(s; dt=10.0)
-        s.integrator.ps[s.sys.steady] = false
+        s.integrator.ps[s.sys.stabilize] = false
         @info "Stepping"
         for _ in 1:steps
             set_values = -s.set.drum_radius * s.integrator[s.sys.winch_force] + d_set_values
