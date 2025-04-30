@@ -5,10 +5,11 @@ CurrentModule = KiteModels
 # KiteModels
 Documentation for the package [KiteModels](https://github.com/ufechner7/KiteModels.jl).
 
-The model has the following subcomponents, implemented in separate packages:
+The models have the following subcomponents, implemented in separate packages:
 - AtmosphericModel from [AtmosphericModels](https://github.com/aenarete/AtmosphericModels.jl)
 - WinchModel from [WinchModels](https://github.com/aenarete/WinchModels.jl) 
 - KitePodModel from  [KitePodModels](https://github.com/aenarete/KitePodModels.jl)
+- The aerodynamic forces and moments of some of the models are calculated using the package [VortexStepMethod](https://github.com/Albatross-Kite-Transport/VortexStepMethod.jl)
 
 This package is part of Julia Kite Power Tools, which consist of the following packages:
 
