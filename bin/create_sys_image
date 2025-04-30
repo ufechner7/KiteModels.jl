@@ -1,16 +1,40 @@
 #!/bin/bash -eu
 
 update=false
-if [[ $# -gt 0 ]]; then
-    if [[ $1 != "--update" ]]; then
-        echo "Invalid parameter! Use:"
-        echo "./create_sys_image"
-        echo "or"
-        echo "./create_sys_image --update"
-        exit 1
-    else
-        update=true
-    fi
+julia_version=""
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --update)
+            update=true
+            shift
+            ;;
+        --version)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: --version requires a version argument"
+                exit 1
+            fi
+            julia_version="$2"
+            shift 2
+            ;;
+        *)
+            echo "Invalid parameter! Use:"
+            echo "./create_sys_image"
+            echo "or"
+            echo "./create_sys_image --update"
+            echo "or"
+            echo "./create_sys_image --version 1.x"
+            exit 1
+            ;;
+    esac
+done
+
+# Store current Julia version if we're going to override it
+if [[ -n "$julia_version" ]]; then
+    old_version=$(juliaup status | grep default | awk '{print $2}')
+    echo "Temporarily switching from Julia $old_version to $julia_version"
+    juliaup default "$julia_version"
 fi
 
 if [[ $(basename $(pwd)) == "bin" ]]; then
@@ -146,4 +170,10 @@ if [[ $branch != "" ]]; then
     julia --startup-file=no --project -J $SOFILE -e "using TestEnv; TestEnv.activate(); using ControlPlots; using VortexStepMethod"
 else
     julia --startup-file=no --project -J $SOFILE -e "using ControlPlots; using VortexStepMethod"
+fi
+
+# Switch back to original Julia version if we changed it
+if [[ -n "$julia_version" ]]; then
+    echo "Switching back to Julia $old_version"
+    juliaup default "$old_version"
 fi
