@@ -12,6 +12,7 @@ The model has the following subcomponents, implemented in separate packages:
 - AtmosphericModel from [AtmosphericModels](https://github.com/aenarete/AtmosphericModels.jl)
 - WinchModel from [WinchModels](https://github.com/aenarete/WinchModels.jl) 
 - KitePodModel from  [KitePodModels](https://github.com/aenarete/KitePodModels.jl)
+- The aerodynamic forces and moments of some of the models are calculated using the package [VortexStepMethod](https://github.com/Albatross-Kite-Transport/VortexStepMethod.jl)
 
 This package is part of Julia Kite Power Tools, which consists of the following packages:
 <p align="center"><img src="./docs/src/kite_power_tools.png" width="500" /></p>
