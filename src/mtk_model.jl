@@ -207,12 +207,8 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             ]
             defaults = [
                 defaults
-                [vel[j, point.idx] => 0 for j in 1:3]
-                [acc[j, point.idx] => 0 for j in 1:3]
-            ]
-            guesses = [
-                guesses
                 [pos[j, point.idx] => point.pos_w[j] for j in 1:3]
+                [vel[j, point.idx] => 0 for j in 1:3]
             ]
         elseif point.type == STATIC
             eqs = [
@@ -261,7 +257,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         
         inertia = 1/3 * (s.set.mass/length(groups)) * (norm(group.chord))^2 # plate inertia around leading edge
         @assert !(inertia ≈ 0.0)
-        @parameters twist_damp = s.set.quasi_static ? 200 : 100
+        @parameters twist_damp = 300
         eqs = [
             eqs
             front_frac[group.idx] ~ 
@@ -451,12 +447,8 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             ]
             defaults = [
                 defaults
-                pulley_vel[pulley.idx] => 0
-                pulley_acc[pulley.idx] => 0
-            ]
-            guesses = [
-                guesses
                 pulley_l0[pulley.idx] => segments[pulley.segments[1]].l0
+                pulley_vel[pulley.idx] => 0
             ]
         elseif pulley.type == STATIC
             eqs = [
@@ -487,7 +479,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         end
         eqs = [
             eqs
-            D(tether_length[winch.idx]) ~ tether_vel[winch.idx]
+            D(tether_length[winch.idx]) ~ ifelse(stabilize==true, 0, tether_vel[winch.idx])
             D(tether_vel[winch.idx]) ~ ifelse(stabilize==true, 0, tether_acc[winch.idx])
 
             tether_acc[winch.idx] ~ calc_moment_acc( # TODO: moment and speed control
@@ -539,6 +531,8 @@ function diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero
         # potential differential variables
         kite_acc_b(t)[1:3]
         α_b(t)[1:3] # angular acceleration in principal frame
+        α_b_damped(t)[1:3]
+        ω_b_stable(t)[1:3]
 
         # rotations and frames
         Q_b_w(t)[1:4] # quaternion orientation of the kite body frame relative to the world frame
@@ -551,32 +545,41 @@ function diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero
     end
     @parameters ω_damp = 150
 
-    Ω = [0       -ω_b[1]  -ω_b[2]  -ω_b[3];
-        ω_b[1]    0        ω_b[3]  -ω_b[2];
-        ω_b[2]   -ω_b[3]   0        ω_b[1];
-        ω_b[3]    ω_b[2]  -ω_b[1]   0]
+    Ω(ω) = [0      -ω[1]  -ω[2]  -ω[3];
+            ω[1]    0      ω[3]  -ω[2];
+            ω[2]   -ω[3]   0      ω[1];
+            ω[3]    ω[2]  -ω[1]   0]
 
     I_b = [s.wing.inertia_tensor[1,1], s.wing.inertia_tensor[2,2], s.wing.inertia_tensor[3,3]]
     @assert !(s.set.mass ≈ 0)
     eqs = [
         eqs
         [D(Q_b_w[i]) ~ Q_vel[i] for i in 1:4]
-        [Q_vel[i] ~ 0.5 * sum(Ω[i, j] * Q_b_w[j] for j in 1:4) for i in 1:4]
+        [Q_vel[i] ~ 0.5 * sum(Ω(ω_b_stable)[i, j] * Q_b_w[j] for j in 1:4) for i in 1:4]
+        ω_b_stable ~ ifelse.(stabilize==true,
+            ω_b - ω_b ⋅ sym_normalize(kite_pos) * sym_normalize(kite_pos),
+            ω_b
+        )
+        D(ω_b) ~ ifelse.(stabilize==true,
+            α_b_damped - α_b_damped ⋅ sym_normalize(kite_pos) * sym_normalize(kite_pos),
+            α_b_damped
+        )
+        α_b_damped ~ [α_b[1], α_b[2] - ω_damp*ω_b[2], α_b[3]]
+
         [R_b_w[:, i] ~ quaternion_to_rotation_matrix(Q_b_w)[:, i] for i in 1:3]
-
-        D(ω_b[1]) ~ α_b[1]
-        D(ω_b[2]) ~ α_b[2] - ω_damp * ω_b[2]
-        D(ω_b[3]) ~ ifelse(stabilize==true, 0, α_b[3])
-
+        
         α_b[1] ~ (moment_b[1] + (I_b[2] - I_b[3]) * ω_b[2] * ω_b[3]) / I_b[1]
         α_b[2] ~ (moment_b[2] + (I_b[3] - I_b[1]) * ω_b[3] * ω_b[1]) / I_b[2]
         α_b[3] ~ (moment_b[3] + (I_b[1] - I_b[2]) * ω_b[1] * ω_b[2]) / I_b[3]
         total_tether_kite_moment ~ [sum(tether_kite_moment[i, :]) for i in 1:3]
         moment_b ~ aero_moment_b + R_b_w' * total_tether_kite_moment
         
-        D(kite_pos) ~ kite_vel
+        D(kite_pos) ~ ifelse.(stabilize==true,
+            kite_vel ⋅ sym_normalize(kite_pos) * sym_normalize(kite_pos),
+            kite_vel
+        )
         D(kite_vel) ~ ifelse.(stabilize==true,
-            kite_acc ⋅ normalize(init_kite_pos) * normalize(init_kite_pos),
+            kite_acc ⋅ sym_normalize(kite_pos) * sym_normalize(kite_pos),
             kite_acc
         )
         kite_acc ~ (total_tether_kite_force + R_b_w * aero_force_b) / s.set.mass

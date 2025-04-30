@@ -40,6 +40,8 @@ elseif set.physical_model == "simple_ram"
     set.l_tether = 53
     set.bridle_fracs = [0.25, 0.93]
 end
+s.set.abs_tol = 1e-2
+s.set.rel_tol = 1e-2
 
 @info "Creating wing, aero, vsm_solver, point_system and s:"
 s = RamAirKite(set)
@@ -50,8 +52,6 @@ toc()
 # plot(s.point_system, 0.0; zoom=false, front=true)
 
 measure = Measurement()
-s.set.abs_tol = 1e-2
-s.set.rel_tol = 1e-2
 
 # Initialize at elevation
 measure.sphere_pos .= deg2rad.([80.0 80.0; 1.0 -1.0])
@@ -62,19 +62,9 @@ sys = s.sys
 toc()
 
 # Stabilize system
-s.integrator.ps[sys.stiffness_frac] = 0.01
-s.integrator.ps[sys.steady] = true
+s.integrator.ps[sys.stabilize] = true
 next_step!(s; dt=10.0, vsm_interval=1)
-s.integrator.ps[sys.steady] = false
-s.integrator.ps[sys.ω_damp] = 1000
-
-"""
-TODO:
-- initialize with azimuth and elevation, not xyz kite pos
-- calculate effective power chord frac and steering line chord frac
-    - balance the front 3 lines, keep the back line at the same position
-    - (F_1 * x_1 + F_2 * x_2 + F_3 * x_3) / F_total
-"""
+s.integrator.ps[sys.stabilize] = false
 
 logger = Logger(length(s.point_system.points), steps)
 sys_state = KiteModels.SysState(s)
@@ -86,7 +76,7 @@ try
     while t < total_time
         local steering
         global t, set_values, runtime, integ_runtime
-        # PLOT && plot(s, t; zoom=false, front=true)
+        PLOT && plot(s, t; zoom=false, front=false)
         
         # Calculate steering inputs based on cosine wave
         steering = steering_magnitude * cos(2π * steering_freq * t+0.1)
@@ -103,11 +93,10 @@ try
         
         # Track performance after initial transient
         if (t > total_time/2)
-            println(dt/integ_steptime, " ", t)
             runtime += steptime
             integ_runtime += integ_steptime
         end
-        
+
         # Log state variables
         KiteModels.update_sys_state!(sys_state, s)
         sys_state.var_01 = s.integrator[sys.ω_b[1]]
@@ -117,16 +106,15 @@ try
         sys_state.var_04 = s.integrator[sys.tether_length[2]]
         sys_state.var_05 = s.integrator[sys.tether_length[3]]
 
-        sys_state.var_06 = s.integrator[sys.aero_force_b[3]]
-        sys_state.var_07 = s.integrator[sys.aero_moment_b[2]]
-        sys_state.var_08 = s.integrator[sys.group_aero_moment[1]]
+        sys_state.var_06 = s.integrator[sys.elevation_vel]
+        sys_state.var_07 = s.integrator[sys.azimuth_vel]
 
-        sys_state.var_09 = s.integrator[sys.twist_angle[1]]
-        sys_state.var_10 = s.integrator[sys.twist_angle[2]]
+        sys_state.var_08 = s.integrator[sys.twist_angle[1]]
+        sys_state.var_09 = s.integrator[sys.twist_angle[2]]
         
-        sys_state.var_11 = norm(s.integrator[sys.kite_pos])
+        sys_state.var_10 = norm(s.integrator[sys.kite_pos])
 
-        sys_state.var_12 = s.integrator[sys.angle_of_attack]
+        sys_state.var_11 = s.integrator[sys.angle_of_attack]
         log!(logger, sys_state)
     end
 catch e
@@ -150,17 +138,17 @@ if PLOT
     p = plotx(sl.time .- 10, 
         [rad2deg.(sl.var_01), rad2deg.(sl.var_02), rad2deg.(sl.var_03)],
         [c(sl.var_04), c(sl.var_05)],
-        [c(sl.var_06), c(sl.var_07), c(sl.var_08)],
-        [rad2deg.(c(sl.var_09)), rad2deg.(c(sl.var_10))],
-        [c(sl.var_11)],
-        [rad2deg.(c(sl.var_12))],
+        [c(sl.var_06), c(sl.var_07)],
+        [rad2deg.(c(sl.var_08)), rad2deg.(c(sl.var_09))],
+        [c(sl.var_10)],
+        [rad2deg.(c(sl.var_11))],
         [rad2deg.(c(sl.heading))];
-        ylabels=["turn rates [°/s]", "tether length [m]", "vsm", "twist [°]", "distance [m]", "AoA [°]", "heading [°]"],
+        ylabels=["turn rates [°/s]", "tether length [m]", "sphere vel [rad/s]", "twist [°]", "distance [m]", "AoA [°]", "heading [°]"],
         ysize=10,
         labels=[
             [L"ω_x", L"ω_y", L"ω_z"],
             ["len[1]", "len[2]"],
-            ["force[3]", "kite moment[2]", "group moment[1]"],
+            ["elevation_vel", "azimuth_vel"],
             ["twist_angle[1]", "twist_angle[2]"],
             ["distance"],
             ["angle of attack"],
