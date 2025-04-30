@@ -8,13 +8,33 @@ function VortexStepMethod.RamAirWing(set::Settings; prn=true, kwargs...)
     )
 end
 
+"""
+    SegmentType `POWER` `STEERING` `BRIDLE`
 
+Type of segment.
+
+# Elements
+- POWER: Belongs to a power line
+- STEERING: Belongs to a steering line
+- BRIDLE: Belongs to the bridle
+"""
 @enum SegmentType begin
     POWER
     STEERING
     BRIDLE
 end
 
+"""
+    DynamicsType `DYNAMIC` `STATIC` `KITE` `WINCH`
+
+Enumeration of the models that are attached to a point.
+
+# Elements
+- DYNAMIC: Belongs to a dynamic tether model
+- STATIC: Belongs to a static tether model
+- KITE: Rigid body
+- WINCH: Winch
+"""
 @enum DynamicsType begin
     DYNAMIC
     STATIC
@@ -23,7 +43,11 @@ end
 end
 
 """
-A normal freely moving tether point
+    mutable struct Point
+
+A normal freely moving tether point.
+
+$(TYPEDFIELDS)
 """
 mutable struct Point
     idx::Int16
@@ -36,7 +60,11 @@ function Point(idx, pos_b, type)
 end
 
 """
-Set of bridle lines that share the same twist angle and trailing edge angle and that rotates around the leading edge
+    struct KitePointGroup
+
+Set of bridle lines that share the same twist angle and trailing edge angle.
+
+$(TYPEDFIELDS)
 """
 struct KitePointGroup
     idx::Int16
@@ -48,7 +76,11 @@ struct KitePointGroup
 end
 
 """
-A segment from one point index to another point index
+    mutable struct Segment
+
+A segment from one point index to another point index.
+
+$(TYPEDFIELDS)
 """
 mutable struct Segment
     idx::Int16
@@ -63,7 +95,11 @@ function Segment(idx, points, type, l0=zero(SimFloat), compression_frac=0.1)
 end
 
 """
-A pulley described by two segments with the common point of the segments being the pulley
+    mutable struct Pulley
+
+A pulley described by two segments with the common point of the segments being the pulley.
+
+$(TYPEDFIELDS)
 """
 mutable struct Pulley
     idx::Int16
@@ -76,7 +112,11 @@ mutable struct Pulley
 end
 
 """
+    struct Tether
+
 A set of segments making a flexible tether. The winch point should only be part of one segment.
+
+$(TYPEDFIELDS)
 """
 struct Tether
     idx::Int16
@@ -85,7 +125,11 @@ struct Tether
 end
 
 """
-A set of tethers or just one tether connected to a winch
+    mutable struct Winch
+
+A set of tethers or just one tether connected to a winch.
+
+$(TYPEDFIELDS)
 """
 mutable struct Winch
     idx::Int16
@@ -97,6 +141,25 @@ mutable struct Winch
     end
 end
 
+"""
+    struct PointMassSystem
+
+A discrete mass-spring-damper representation of a kite system, where point masses 
+connected by elastic segments model the kite and tether dynamics:
+
+- `points::Vector{Point}`: Point masses representing:
+  - Kite attachment points 
+  - Dynamic bridle/tether points
+  - Fixed ground anchor points
+- `groups::Vector{KitePointGroup}`: Collections of points that move together, 
+    according to kite deformation (twist and trailing edge deflection)
+- `segments::Vector{Segment}`: Spring-damper elements between points
+- `pulleys::Vector{Pulley}`: Elements that redistribute line lengths
+- `tethers::Vector{Tether}`: Groups of segments with a common unstretched length
+- `winches::Vector{Winch}`: Ground-based winches that control the tether lengths
+
+See also: [`Point`](@ref), [`Segment`](@ref), [`KitePointGroup`](@ref), [`Pulley`](@ref)
+"""
 struct PointMassSystem
     name::String
     points::Vector{Point}

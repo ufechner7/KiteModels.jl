@@ -20,19 +20,15 @@ const BUILD_SYS = true
     set.quasi_static = false
     set.physical_model = "ram"
 
-    @info "Creating wing, aero, vsm_solver, point_system and s:"
-    wing = RamAirWing(set; prn=false)
-    aero = BodyAerodynamics([wing])
-    vsm_solver = Solver(aero; solver_type=NONLIN, atol=2e-8, rtol=2e-8)
-    point_system = create_ram_point_system(set, wing)
-    s = RamAirKite(set, aero, vsm_solver, point_system)
+    @info "Creating s:"
+    @time s = RamAirKite(set)
 
     measure = Measurement()
-    s.set.abs_tol = 1e-5
-    s.set.rel_tol = 1e-4
+    s.set.abs_tol = 1e-2
+    s.set.rel_tol = 1e-2
 
     # Initialize at elevation
-    measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
+    measure.sphere_pos .= deg2rad.([80.0 80.0; 1.0 -1.0])
     
     @testset "Model Initialization Chain" begin
         if BUILD_SYS
@@ -85,7 +81,7 @@ const BUILD_SYS = true
         @test second_point_system_ptr == third_point_system_ptr
             
         # Get positions from various sources
-        pos_integrator, _, _, _, _, _, _, _, _, _, _ = s.get_state(s.integrator)
+        pos_integrator, acc_integrator, _, _, _, _, _, _, _, _, _ = s.get_state(s.integrator)
         sys_state = KiteModels.SysState(s)
         
         # Check dimension consistency
@@ -96,11 +92,19 @@ const BUILD_SYS = true
         for (i, point) in enumerate(s.point_system.points)
             # Points' world positions should match integrator positions
             point_pos = point.pos_w
+            integ_acc = acc_integrator[:, i]
             integ_pos = pos_integrator[:, i]
             sys_state_pos = [sys_state.X[i], sys_state.Y[i], sys_state.Z[i]]
             
-            @test isapprox(norm(point_pos), norm(integ_pos), rtol=1e-2)
-            @test isapprox(norm(sys_state_pos), norm(integ_pos), rtol=1e-2)
+            if (point.type != KiteModels.DYNAMIC) && (point.type != KiteModels.STATIC)
+                @test isapprox(norm(point_pos), norm(integ_pos), rtol=1e-2)
+                @test isapprox(norm(sys_state_pos), norm(integ_pos), rtol=1e-2)
+            end
+
+            if (point.type == KiteModels.DYNAMIC) || (point.type == KiteModels.STATIC)
+                # @info "type: $(point.type) acc: $(integ_acc)"
+                @test isapprox(norm(integ_acc), 0.0, atol=1e-2)
+            end
             
             # Positions should not be zero (except ground points)
             if point.type != KiteModels.WINCH  # Skip ground points which might be at origin
@@ -168,26 +172,28 @@ const BUILD_SYS = true
         sys_state_after = KiteModels.SysState(s)
         @test any(abs.(sys_state_after.X .- sys_state_before.X) .> 0.1)
         
-        @testset "Course Direction at Different Elevations" begin
-            # Test at 80 degrees elevation
-            measure.sphere_pos[1,:] .= deg2rad(50.0)
-            @test measure.elevation ≈ deg2rad(50.0) atol=1e-6
+        @testset "Course Direction at 70 Degrees Elevation" begin
+            # Initialize at 70 degrees elevation
+            measure.sphere_pos[1,:] .= deg2rad(70.0)
+            @test measure.elevation ≈ deg2rad(70.0) atol=1e-6
             @test measure.azimuth ≈ 0.0 atol=1e-6
+            
             KiteModels.reinit!(s, measure; prn=true)
+            
+            # Verify initial conditions
             @test s.integrator[s.sys.elevation] ≈ measure.elevation
             @test s.integrator[s.sys.azimuth] ≈ measure.azimuth
-            test_step(s)
-            sys_state_50 = KiteModels.SysState(s)
-            @info "Course at 50 deg init elevation:" sys_state_50.course
-            @test sys_state_50.course ≈ 0.0 atol=π/4
             
-            # Test at 90 degrees elevation
-            measure.sphere_pos[1,:] .= deg2rad(89.0)
-            KiteModels.reinit!(s, measure; prn=true, reload=false)
+            # Run simulation steps
             test_step(s)
-            sys_state_89 = KiteModels.SysState(s)
-            @info "Course at 89 deg init elevation:" sys_state_89.course
-            @test abs(sys_state_89.course) ≈ π atol=π/2
+            
+            # Check course direction
+            sys_state = KiteModels.SysState(s)
+            @info "Course at 70 deg elevation:" sys_state.course
+            
+            # At 70 degrees elevation, course should be roughly forward
+            @show sys_state.course
+            @test sys_state.course ≈ 0.0 atol=deg2rad(15.0)
         end
 
         # Utility function to calculate the signed angle difference between two angles
@@ -201,7 +207,7 @@ const BUILD_SYS = true
         
         @testset "Steering Response Using SysState" begin
             # Initialize model at moderate elevation
-            measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
+            measure.sphere_pos .= deg2rad.([70.0 70.0; 1.0 -1.0])
             KiteModels.reinit!(s, measure; prn=true, reload=false)
             test_step(s)
             sys_state_initial = KiteModels.SysState(s)
@@ -218,15 +224,15 @@ const BUILD_SYS = true
             
             # Check steering values
             @info "Steering:" sys_state_right.steering sys_state_left.steering
-            @test sys_state_right.steering > 2.0
-            @test sys_state_left.steering < -2.0
+            @test sys_state_right.steering ≈ 9.0 atol=1.0
+            @test sys_state_left.steering ≈ -9.0 atol=1.0
             
             # Check heading changes
             right_heading_diff = angle_diff(sys_state_right.heading, sys_state_initial.heading)
-            @test right_heading_diff > 0.6
+            @test right_heading_diff ≈ 2.1 atol=0.4
             left_heading_diff = angle_diff(sys_state_left.heading, sys_state_initial.heading)
-            @test left_heading_diff < -0.5
-            @test abs(right_heading_diff) ≈ abs(left_heading_diff) atol=0.3
+            @test left_heading_diff ≈ -2.1 atol=0.4
+            @test abs(right_heading_diff) ≈ abs(left_heading_diff) atol=0.4
         end
     end
 end

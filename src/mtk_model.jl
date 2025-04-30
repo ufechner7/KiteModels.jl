@@ -80,7 +80,7 @@ pulley dynamics and winch forces.
 - `wind_vec_gnd`: Ground wind vector
 - `group_aero_moment`: Aerodynamic moments per group
 - `twist_angle`: Twist angles per group
-- `steady`: Whether in steady mode
+- `stabilize`: Whether in stabilize mode
 
 # Returns
 Tuple containing:
@@ -91,7 +91,7 @@ Tuple containing:
 - Tether moments on kite
 """
 function force_eqs!(s, system, eqs, defaults, guesses; 
-        R_b_w, kite_pos, kite_vel, wind_vec_gnd, group_aero_moment, twist_angle, twist_ω, steady, set_values)
+        R_b_w, kite_pos, kite_vel, wind_vec_gnd, group_aero_moment, twist_angle, twist_ω, stabilize, set_values)
 
     @parameters acc_multiplier = 1
 
@@ -203,7 +203,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                 D(vel[:, point.idx]) ~ acc_multiplier * acc[:, point.idx] - in_bridle * bridle_damp * (vel[:, point.idx] - kite_vel)
                 acc[:, point.idx]    ~ point_force[:, point.idx] / mass + 
                                         [0, 0, -G_EARTH] + 
-                                        ifelse.(steady==true, r * norm(measured_ω_z)^2, zeros(3)) # TODO: add other steady accelerations
+                                        ifelse.(stabilize==true, r * norm(measured_ω_z)^2, zeros(3)) # TODO: add other stabilize accelerations
             ]
             defaults = [
                 defaults
@@ -488,7 +488,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         eqs = [
             eqs
             D(tether_length[winch.idx]) ~ tether_vel[winch.idx]
-            D(tether_vel[winch.idx]) ~ ifelse(steady==true, 0, tether_acc[winch.idx])
+            D(tether_vel[winch.idx]) ~ ifelse(stabilize==true, 0, tether_acc[winch.idx])
 
             tether_acc[winch.idx] ~ calc_moment_acc( # TODO: moment and speed control
                 winch.model, tether_vel[winch.idx], 
@@ -527,13 +527,13 @@ angular velocities and accelerations, and forces/moments.
 - `kite_acc`: Kite acceleration vector
 - `init_Q_b_w`: Initial quaternion orientation
 - `init_kite_pos`: Initial kite position
-- `steady`: Whether in steady mode
+- `stabilize`: Whether in stabilize mode
 
 # Returns
 Tuple of updated equations and defaults
 """
 function diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero_force_b, 
-    aero_moment_b, ω_b, R_b_w, kite_pos, kite_vel, kite_acc, init_Q_b_w, init_kite_pos, steady
+    aero_moment_b, ω_b, R_b_w, kite_pos, kite_vel, kite_acc, init_Q_b_w, init_kite_pos, stabilize
 )
     @variables begin
         # potential differential variables
@@ -566,7 +566,7 @@ function diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero
 
         D(ω_b[1]) ~ α_b[1]
         D(ω_b[2]) ~ α_b[2] - ω_damp * ω_b[2]
-        D(ω_b[3]) ~ ifelse(steady==true, 0, α_b[3])
+        D(ω_b[3]) ~ ifelse(stabilize==true, 0, α_b[3])
 
         α_b[1] ~ (moment_b[1] + (I_b[2] - I_b[3]) * ω_b[2] * ω_b[3]) / I_b[1]
         α_b[2] ~ (moment_b[2] + (I_b[3] - I_b[1]) * ω_b[3] * ω_b[1]) / I_b[2]
@@ -575,7 +575,7 @@ function diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero
         moment_b ~ aero_moment_b + R_b_w' * total_tether_kite_moment
         
         D(kite_pos) ~ kite_vel
-        D(kite_vel) ~ ifelse.(steady==true,
+        D(kite_vel) ~ ifelse.(stabilize==true,
             kite_acc ⋅ normalize(init_kite_pos) * normalize(init_kite_pos),
             kite_acc
         )
@@ -757,8 +757,11 @@ function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measuremen
     guesses = Pair{Num, Real}[]
 
     init_set_values = measure.set_values
-    @parameters steady = false
-    @parameters set_values[eachindex(system.winches)] = init_set_values
+    @parameters begin
+        stabilize = false
+        only_stiff = false
+        set_values[eachindex(system.winches)] = init_set_values
+    end
     @variables begin
         # potential differential variables
         kite_pos(t)[1:3] # xyz pos of kite in world frame
@@ -781,10 +784,10 @@ function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measuremen
 
     eqs, defaults, guesses, tether_kite_force, tether_kite_moment = 
         force_eqs!(s, system, eqs, defaults, guesses; 
-            R_b_w, kite_pos, kite_vel, wind_vec_gnd, group_aero_moment, twist_angle, twist_ω, steady, set_values)
+            R_b_w, kite_pos, kite_vel, wind_vec_gnd, group_aero_moment, twist_angle, twist_ω, stabilize, set_values)
     eqs, guesses = linear_vsm_eqs!(s, eqs, guesses; aero_force_b, aero_moment_b, group_aero_moment, init_va_b, twist_angle, va_kite_b, ω_b)
     eqs, defaults = diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero_force_b, aero_moment_b, 
-        ω_b, R_b_w, kite_pos, kite_vel, kite_acc, init_Q_b_w, init_kite_pos, steady)
+        ω_b, R_b_w, kite_pos, kite_vel, kite_acc, init_Q_b_w, init_kite_pos, stabilize)
     eqs = scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc, twist_angle, twist_ω)
     
     # te_I = (1/3 * (s.set.mass/8) * te_length^2)
