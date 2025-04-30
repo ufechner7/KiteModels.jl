@@ -257,7 +257,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         
         inertia = 1/3 * (s.set.mass/length(groups)) * (norm(group.chord))^2 # plate inertia around leading edge
         @assert !(inertia ≈ 0.0)
-        @parameters twist_damp = s.set.quasi_static ? 200 : 100
+        @parameters twist_damp = 300
         eqs = [
             eqs
             front_frac[group.idx] ~ 
@@ -531,6 +531,7 @@ function diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero
         # potential differential variables
         kite_acc_b(t)[1:3]
         α_b(t)[1:3] # angular acceleration in principal frame
+        α_b_damped(t)[1:3]
         ω_b_stable(t)[1:3]
 
         # rotations and frames
@@ -556,13 +557,14 @@ function diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero
         [D(Q_b_w[i]) ~ Q_vel[i] for i in 1:4]
         [Q_vel[i] ~ 0.5 * sum(Ω(ω_b_stable)[i, j] * Q_b_w[j] for j in 1:4) for i in 1:4]
         ω_b_stable ~ ifelse.(stabilize==true,
-            ω_b ⋅ sym_normalize(kite_pos) * sym_normalize(kite_pos),
+            ω_b - ω_b ⋅ sym_normalize(kite_pos) * sym_normalize(kite_pos),
             ω_b
         )
         D(ω_b) ~ ifelse.(stabilize==true,
-            α_b ⋅ sym_normalize(kite_pos) * sym_normalize(kite_pos),
-            α_b
+            α_b_damped - α_b_damped ⋅ sym_normalize(kite_pos) * sym_normalize(kite_pos),
+            α_b_damped
         )
+        α_b_damped ~ [α_b[1], α_b[2] - ω_damp*ω_b[2], α_b[3]]
 
         [R_b_w[:, i] ~ quaternion_to_rotation_matrix(Q_b_w)[:, i] for i in 1:3]
         

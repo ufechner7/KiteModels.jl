@@ -40,6 +40,8 @@ elseif set.physical_model == "simple_ram"
     set.l_tether = 53
     set.bridle_fracs = [0.25, 0.93]
 end
+s.set.abs_tol = 1e-2
+s.set.rel_tol = 1e-2
 
 @info "Creating wing, aero, vsm_solver, point_system and s:"
 s = RamAirKite(set)
@@ -50,8 +52,6 @@ toc()
 # plot(s.point_system, 0.0; zoom=false, front=true)
 
 measure = Measurement()
-s.set.abs_tol = 1e-2
-s.set.rel_tol = 1e-2
 
 # Initialize at elevation
 measure.sphere_pos .= deg2rad.([80.0 80.0; 1.0 -1.0])
@@ -93,11 +93,10 @@ try
         
         # Track performance after initial transient
         if (t > total_time/2)
-            println(dt/integ_steptime, " ", t)
             runtime += steptime
             integ_runtime += integ_steptime
         end
-        
+
         # Log state variables
         KiteModels.update_sys_state!(sys_state, s)
         sys_state.var_01 = s.integrator[sys.ω_b[1]]
