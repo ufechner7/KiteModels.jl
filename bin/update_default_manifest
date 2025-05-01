@@ -1,6 +1,6 @@
 #!/bin/bash -eu
 
-julia_version=""
+julia_version="all"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -28,10 +28,13 @@ if [[ $(basename $(pwd)) == "bin" ]]; then
 fi
 
 cd bin
-if [[ -n "$julia_version" ]]; then
-    ./create_sys_image --update --version "$julia_version"
+if [[ "$julia_version" == "all" ]]; then
+    echo "Updating manifests for Julia 1.10 and 1.11..."
+    ./create_sys_image --update --version 1.10
+    ./create_sys_image --update --version 1.11
 else
-    ./create_sys_image --update
+    echo "Updating manifests for Julia $julia_version..."
+    ./create_sys_image --update --version "$julia_version"
 fi
 
 julia_version=$(julia --version | awk '{print($3)}')

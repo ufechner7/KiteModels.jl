@@ -30,11 +30,11 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Store current Julia version if we're going to override it
+# Remove the version switching code
 if [[ -n "$julia_version" ]]; then
-    old_version=$(juliaup status | grep default | awk '{print $2}')
-    echo "Temporarily switching from Julia $old_version to $julia_version"
-    juliaup default "$julia_version"
+    JULIA_CMD="julia +$julia_version"
+else
+    JULIA_CMD="julia"
 fi
 
 if [[ $(basename $(pwd)) == "bin" ]]; then
@@ -92,7 +92,7 @@ if [[ $totalmem -lt 27000 ]]; then
     export JULIA_IMAGE_THREADS=1
 fi
 
-julia_version=$(julia --version | awk '{print($3)}')
+julia_version=$($JULIA_CMD --version | awk '{print($3)}')
 julia_major=${julia_version:0:3}
 if [[ $julia_major == "1.1" ]]; then
     julia_major=${julia_version:0:4} 
@@ -105,7 +105,7 @@ fi
 if test -f "kps-image-${julia_major}-${branch}.so"; then
     mv bin/kps-image-${julia_major}-${branch}.so kps-image-${julia_major}-${branch}.so.bak
 fi
-julia --startup-file=no -e "using Pkg; Pkg.add(\"TestEnv\")"
+$JULIA_CMD --startup-file=no -e "using Pkg; Pkg.add(\"TestEnv\")"
 
 if [[ $update == true ]]; then
     echo "Updating packages..."
@@ -122,11 +122,11 @@ if [[ $update == true ]]; then
             mv Manifest-v1.11.toml Manifest-v1.11.toml.bak
         fi
     fi
-    julia --startup-file=no --pkgimages=no --project -e "using TestEnv; TestEnv.activate(); using Pkg; Pkg.add(\"PyCall\"); Pkg.build(\"PyCall\")"
+    $JULIA_CMD --startup-file=no --pkgimages=no --project -e "using TestEnv; TestEnv.activate(); using Pkg; Pkg.add(\"PyCall\"); Pkg.build(\"PyCall\")"
     if [[ $PYTHON == "" ]]; then
-        julia --startup-file=no --pkgimages=no --project -e "using TestEnv; TestEnv.activate(); using Pkg; Pkg.add(\"Conda\"); using Conda; Conda.add(\"matplotlib\"); using ControlPlots"
+        $JULIA_CMD --startup-file=no --pkgimages=no --project -e "using TestEnv; TestEnv.activate(); using Pkg; Pkg.add(\"Conda\"); using Conda; Conda.add(\"matplotlib\"); using ControlPlots"
     fi
-    julia --startup-file=no --pkgimages=no --project -e "using Pkg; Pkg.update()"
+    $JULIA_CMD --startup-file=no --pkgimages=no --project -e "using Pkg; Pkg.update()"
     if [[ $julia_major == "1.10" ]]; then
         mv Manifest.toml Manifest-v1.10.toml
     else
@@ -142,10 +142,10 @@ else
     fi
 fi
 if [[ $update == true ]]; then
-    julia --startup-file=no --pkgimages=no --project -e "include(\"./test/create_sys_image.jl\");"
+    $JULIA_CMD --startup-file=no --pkgimages=no --project -e "include(\"./test/create_sys_image.jl\");"
 else
-    julia --startup-file=no --pkgimages=no --project -e "using Pkg; Pkg.instantiate();"
-    julia --startup-file=no --pkgimages=no --project -e "using TestEnv; TestEnv.activate(); include(\"./test/create_sys_image.jl\");"
+    $JULIA_CMD --startup-file=no --pkgimages=no --project -e "using Pkg; Pkg.instantiate();"
+    $JULIA_CMD --startup-file=no --pkgimages=no --project -e "using TestEnv; TestEnv.activate(); include(\"./test/create_sys_image.jl\");"
 fi
 
 if [[ $branch != "" ]]; then
@@ -157,23 +157,17 @@ if test -f $SOFILE; then
     mv $SOFILE $SOFILE.bak
 fi
 mv kps-image_tmp.so $SOFILE
-julia --startup-file=no  --project -e "using Pkg; Pkg.precompile(); Pkg.resolve()"
+$JULIA_CMD --startup-file=no  --project -e "using Pkg; Pkg.precompile(); Pkg.resolve()"
 if [ -d src ]; then
     cd src
     touch *.jl # make sure all modules get recompiled in the next step
     cd ..
 fi
 echo "Precompiling package KiteModels..."
-julia --startup-file=no --project -J $SOFILE -e "using KiteModels, KitePodModels, KiteUtils"
+$JULIA_CMD --startup-file=no --project -J $SOFILE -e "using KiteModels, KitePodModels, KiteUtils"
 echo "Precompiling package ControlPlots..."
 if [[ $branch != "" ]]; then
-    julia --startup-file=no --project -J $SOFILE -e "using TestEnv; TestEnv.activate(); using ControlPlots; using VortexStepMethod"
+    $JULIA_CMD --startup-file=no --project -J $SOFILE -e "using TestEnv; TestEnv.activate(); using ControlPlots; using VortexStepMethod"
 else
-    julia --startup-file=no --project -J $SOFILE -e "using ControlPlots; using VortexStepMethod"
-fi
-
-# Switch back to original Julia version if we changed it
-if [[ -n "$julia_version" ]]; then
-    echo "Switching back to Julia $old_version"
-    juliaup default "$old_version"
+    $JULIA_CMD --startup-file=no --project -J $SOFILE -e "using ControlPlots; using VortexStepMethod"
 fi
