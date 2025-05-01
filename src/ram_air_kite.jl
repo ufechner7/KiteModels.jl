@@ -513,14 +513,14 @@ end
 
 function get_unknowns(s::RamAirKite; simple=false)
     vec = Num[]
-    vec = get_stiff_unknowns(s, vec)
-    vec = get_nonstiff_unknowns(s, vec; simple)
+    vec = get_stiff_unknowns(s, vec; simple)
+    vec = get_nonstiff_unknowns(s, vec)
     !s.set.quasi_static && (length(vec) != length(s.integrator.u)) &&
         throw(ArgumentError("Integrator unknowns of length $(length(s.integrator.u)) should equal vec of length $(length(vec))"))
     return vec
 end
 
-function get_stiff_unknowns(s, vec=Num[])
+function get_stiff_unknowns(s, vec=Num[]; simple=false)
     @unpack points, groups, segments, pulleys, winches = s.point_system
     for point in points
         for i in 1:3
@@ -534,11 +534,6 @@ function get_stiff_unknowns(s, vec=Num[])
         pulley.type == DYNAMIC && push!(vec, s.sys.pulley_l0[pulley.idx])
         pulley.type == DYNAMIC && push!(vec, s.sys.pulley_vel[pulley.idx])
     end
-    return vec
-end
-
-function get_nonstiff_unknowns(s, vec=Num[]; simple=false)
-    @unpack points, groups, segments, pulleys, winches = s.point_system
     if !simple
         for group in groups
             group.type == DYNAMIC && push!(vec, s.sys.free_twist_angle[group.idx])
@@ -550,6 +545,11 @@ function get_nonstiff_unknowns(s, vec=Num[]; simple=false)
             push!(vec, s.sys.simple_twist_ω[i])
         end
     end
+    return vec
+end
+
+function get_nonstiff_unknowns(s, vec=Num[])
+    @unpack points, groups, segments, pulleys, winches = s.point_system
     for winch in winches
         push!(vec, s.sys.tether_length[winch.idx])
         push!(vec, s.sys.tether_vel[winch.idx])
