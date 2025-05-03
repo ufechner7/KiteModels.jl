@@ -64,8 +64,6 @@ sys = s.sys
 toc()
 
 # # Stabilize system
-s.integrator.ps[sys.twist_damp] = 50
-s.integrator.ps[sys.stiffness_frac] = 0.01
 s.integrator.ps[sys.stabilize] = true
 for i in 1:10÷dt
     next_step!(s; dt, vsm_interval=1)
