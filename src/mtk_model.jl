@@ -174,15 +174,22 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                 chord_b = point.pos_b - fixed_pos
                 normal = chord_b × group.y_airf
                 pos_b = fixed_pos + cos(twist_angle[group_idx]) * chord_b - sin(twist_angle[group_idx]) * normal
+                eqs = [
+                    eqs
+                    tether_kite_moment[:, point.idx] ~ zeros(3)
+                ]
             else
                 pos_b = point.pos_b
+                eqs = [
+                    eqs
+                    tether_r[:, point.idx] ~ pos[:, point.idx] - kite_pos
+                    tether_kite_moment[:, point.idx] ~ tether_r[:, point.idx] × tether_kite_force[:, point.idx]
+                ]
             end
             
             eqs = [
                 eqs
                 tether_kite_force[:, point.idx] ~ point_force[:, point.idx]
-                tether_r[:, point.idx] ~ pos[:, point.idx] - kite_pos
-                tether_kite_moment[:, point.idx] ~ tether_r[:, point.idx] × tether_kite_force[:, point.idx]
                 pos[:, point.idx]    ~ kite_pos + R_b_w * pos_b
                 vel[:, point.idx]    ~ zeros(3)
                 acc[:, point.idx]    ~ zeros(3)
@@ -261,7 +268,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         
         inertia = 1/3 * (s.set.mass/length(groups)) * (norm(group.chord))^2 # plate inertia around leading edge
         @assert !(inertia ≈ 0.0)
-        @parameters twist_damp = 300
+        @parameters twist_damp = 50
         eqs = [
             eqs
             front_frac[group.idx] ~ 
@@ -386,7 +393,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         end
 
         stiffness_m = s.set.e_tether * (segment.diameter/2)^2 * pi
-        @parameters stiffness_frac = 0.1
+        @parameters stiffness_frac = 0.01
         (segment.type == BRIDLE) && (stiffness_m = stiffness_frac * stiffness_m)
 
         damping_m = (s.set.damping / s.set.c_spring) * stiffness_m

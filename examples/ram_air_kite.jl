@@ -26,7 +26,7 @@ steps = Int(round(total_time / dt))
 
 # Steering parameters
 steering_freq = 1/2  # Hz - full left-right cycle frequency
-steering_magnitude = 5.0      # Magnitude of steering input [Nm]
+steering_magnitude = 10.0      # Magnitude of steering input [Nm]
 
 # Initialize model
 set = load_settings("system_ram.yaml")
@@ -54,16 +54,22 @@ toc()
 measure = Measurement()
 
 # Initialize at elevation
-measure.sphere_pos .= deg2rad.([80.0 80.0; 1.0 -1.0])
+s.point_system.winches[2].tether_length += 0.2
+s.point_system.winches[3].tether_length += 0.2
+measure.sphere_pos .= deg2rad.([70.0 70.0; 1.0 -1.0])
 KiteModels.init_sim!(s, measure; remake=false, reload=true)
 sys = s.sys
 
 @info "System initialized at:"
 toc()
 
-# Stabilize system
+# # Stabilize system
+s.integrator.ps[sys.twist_damp] = 50
+s.integrator.ps[sys.stiffness_frac] = 0.01
 s.integrator.ps[sys.stabilize] = true
-next_step!(s; dt=10.0, vsm_interval=1)
+for i in 1:10÷dt
+    next_step!(s; dt, vsm_interval=1)
+end
 s.integrator.ps[sys.stabilize] = false
 
 logger = Logger(length(s.point_system.points), steps)
@@ -71,12 +77,13 @@ sys_state = KiteModels.SysState(s)
 t = 0.0
 runtime = 0.0
 integ_runtime = 0.0
+bias = 2.0
 
 try
     while t < total_time
         local steering
         global t, set_values, runtime, integ_runtime
-        # PLOT && plot(s, t; zoom=false, front=false)
+        PLOT && plot(s, t; zoom=true, front=false)
         
         # Calculate steering inputs based on cosine wave
         steering = steering_magnitude * cos(2π * steering_freq * t+0.1)
@@ -85,6 +92,8 @@ try
         if t > 1.0
             set_values .+= [0.0, steering, -steering]  # Opposite steering for left/right
             _vsm_interval = vsm_interval
+        else
+            set_values[2] += bias
         end
         
         # Step simulation
@@ -95,6 +104,7 @@ try
         if (t > total_time/2)
             runtime += steptime
             integ_runtime += integ_steptime
+            s.integrator.ps[sys.twist_damp] = 10
         end
 
         # Log state variables
@@ -113,8 +123,9 @@ try
         sys_state.var_09 = s.integrator[sys.twist_angle[2]]
         
         sys_state.var_10 = norm(s.integrator[sys.kite_pos])
-
+        
         sys_state.var_11 = s.integrator[sys.angle_of_attack]
+        sys_state.var_12 = KiteModels.calc_aoa(s)
         log!(logger, sys_state)
     end
 catch e
@@ -141,7 +152,7 @@ if PLOT
         [c(sl.var_06), c(sl.var_07)],
         [rad2deg.(c(sl.var_08)), rad2deg.(c(sl.var_09))],
         [c(sl.var_10)],
-        [rad2deg.(c(sl.var_11))],
+        [rad2deg.(c(sl.var_11)), rad2deg.(c(sl.var_12))],
         [rad2deg.(c(sl.heading))];
         ylabels=["turn rates [°/s]", "tether length [m]", "sphere vel [rad/s]", "twist [°]", "distance [m]", "AoA [°]", "heading [°]"],
         ysize=10,
@@ -151,7 +162,7 @@ if PLOT
             ["elevation_vel", "azimuth_vel"],
             ["twist_angle[1]", "twist_angle[2]"],
             ["distance"],
-            ["angle of attack"],
+            ["mtk AoA", "vsm AoA"],
             ["heading"]
         ],
         fig="Oscillating Steering Input Response")

@@ -298,8 +298,8 @@ function create_ram_point_system(set::Settings, wing::RamAirWing)
             Point(12+i_pnt, bridle_top[1] .+ [0, 0, -2], dynamics_type)
             Point(13+i_pnt, bridle_top[3] .+ [0, 0, -2], dynamics_type)
 
-            Point(14+i_pnt, bridle_top[1] .+ [0, 0, -3], dynamics_type)
-            Point(15+i_pnt, bridle_top[3] .+ [0, 0, -3], dynamics_type)
+            Point(14+i_pnt, bridle_top[1] .+ [0, 0, -4], dynamics_type)
+            Point(15+i_pnt, bridle_top[3] .+ [0, 0, -4], dynamics_type)
         ]
         segments = [
             segments
@@ -314,14 +314,14 @@ function create_ram_point_system(set::Settings, wing::RamAirWing)
             Segment(7+i_seg, (7+i_pnt, 12+i_pnt), BRIDLE, 2)
             Segment(8+i_seg, (8+i_pnt, 11+i_pnt), BRIDLE, 1)
             Segment(9+i_seg, (9+i_pnt, 13+i_pnt), BRIDLE, 2)
-            Segment(10+i_seg, (10+i_pnt, 15+i_pnt), BRIDLE, 3)
+            Segment(10+i_seg, (10+i_pnt, 15+i_pnt), BRIDLE, 4)
             
             Segment(11+i_seg, (11+i_pnt, 12+i_pnt), BRIDLE, 1)
             Segment(12+i_seg, (11+i_pnt, 13+i_pnt), BRIDLE, 1)
             
-            Segment(13+i_seg, (12+i_pnt, 14+i_pnt), BRIDLE, 1)
-            Segment(14+i_seg, (13+i_pnt, 14+i_pnt), BRIDLE, 1)
-            Segment(15+i_seg, (13+i_pnt, 15+i_pnt), BRIDLE, 1)
+            Segment(13+i_seg, (12+i_pnt, 14+i_pnt), BRIDLE, 2)
+            Segment(14+i_seg, (13+i_pnt, 14+i_pnt), BRIDLE, 2)
+            Segment(15+i_seg, (13+i_pnt, 15+i_pnt), BRIDLE, 2)
         ]
         pulleys = [
             pulleys
@@ -508,7 +508,7 @@ function measure_to_q(measure::Measurement, R_cad_body=I(3))
     x = rotate_around_z(x, measure.azimuth)
     z = rotate_around_z(z, measure.azimuth)
     R_b_w = hcat(x, z × x, z)
-    Q_b_w = rotation_matrix_to_quaternion(R_cad_body' * R_b_w)
+    Q_b_w = rotation_matrix_to_quaternion(R_b_w)
     return Q_b_w, R_b_w
 end
 
