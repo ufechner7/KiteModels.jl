@@ -239,7 +239,7 @@ function init_sim!(s::RamAirKite, measure::Measurement;
     adaptive=true, prn=true, precompile=false, lin_sys=false, remake=false, reload=false
 )
     function init(s, measure)
-        init_Q_b_w, R_b_w = measure_to_q(measure)
+        init_Q_b_w, R_b_w = measure_to_q(measure, s.wing.R_cad_body)
         init_kite_pos = init!(s.point_system, s.set, R_b_w)
 
         init_va_b = R_b_w' * [s.set.v_wind, 0., 0.]
@@ -316,7 +316,7 @@ function reinit!(
 )
     isnothing(s.point_system) && throw(ArgumentError("PointMassSystem not defined"))
 
-    init_Q_b_w, R_b_w = measure_to_q(measure)
+    init_Q_b_w, R_b_w = measure_to_q(measure, s.wing.R_cad_body)
     init_kite_pos = init!(s.point_system, s.set, R_b_w)
     
     if isnothing(s.prob) || reload
@@ -387,7 +387,7 @@ function linearize_vsm!(s::RamAirKite)
         va_idxs=1:3, 
         omega_idxs=4:6,
         theta_idxs=7:6+length(s.point_system.groups),
-        moment_frac=0.0)
+        moment_frac=s.point_system.groups[1].moment_frac)
     s.set_vsm(s.integrator, [x, y, jac])
     nothing
 end

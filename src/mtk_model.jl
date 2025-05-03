@@ -165,20 +165,24 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                     found += 1
                 end
             end
-            !(found == 1) && throw(ArgumentError("Kite point number $(point.idx) is part of $found groups, 
-                and should be part of exactly 1 groups."))
+            !(found in [0,1]) && throw(ArgumentError("Kite point number $(point.idx) is part of $found groups, 
+                and should be part of exactly 0 or 1 groups."))
 
-            group = groups[group_idx]
-            fixed_pos = group.le_point
-            chord_b = point.pos_b - fixed_pos
-            normal = chord_b × group.y_airf
-            pos_b = fixed_pos + cos(twist_angle[group_idx]) * chord_b - sin(twist_angle[group_idx]) * normal
+            if found == 1
+                group = groups[group_idx]
+                fixed_pos = group.le_pos
+                chord_b = point.pos_b - fixed_pos
+                normal = chord_b × group.y_airf
+                pos_b = fixed_pos + cos(twist_angle[group_idx]) * chord_b - sin(twist_angle[group_idx]) * normal
+            else
+                pos_b = point.pos_b
+            end
             
             eqs = [
                 eqs
                 tether_kite_force[:, point.idx] ~ point_force[:, point.idx]
                 tether_r[:, point.idx] ~ pos[:, point.idx] - kite_pos
-                tether_kite_moment[:, point.idx] ~ tether_r[:, point.idx] × point_force[:, point.idx]
+                tether_kite_moment[:, point.idx] ~ tether_r[:, point.idx] × tether_kite_force[:, point.idx]
                 pos[:, point.idx]    ~ kite_pos + R_b_w * pos_b
                 vel[:, point.idx]    ~ zeros(3)
                 acc[:, point.idx]    ~ zeros(3)
@@ -247,7 +251,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         init_z_airf = x_airf × group.y_airf
         z_airf = x_airf * sin(twist_angle[group.idx]) + init_z_airf * cos(twist_angle[group.idx])
         for (i, point_idx) in enumerate(group.points)
-            r = (points[point_idx].pos_b - group.le_point) ⋅ normalize(group.chord)
+            r = (points[point_idx].pos_b - (group.le_pos + group.moment_frac*group.chord)) ⋅ normalize(group.chord)
             eqs = [
                 eqs
                 tether_force[group.idx, i] ~ (point_force[:, point_idx] ⋅ (R_b_w * -z_airf))
@@ -544,6 +548,7 @@ function diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero
         total_tether_kite_moment(t)[1:3]
     end
     @parameters ω_damp = 150
+    @parameters fix_orient = false
 
     Ω(ω) = [0      -ω[1]  -ω[2]  -ω[3];
             ω[1]    0      ω[3]  -ω[2];
@@ -552,16 +557,21 @@ function diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero
 
     I_b = [s.wing.inertia_tensor[1,1], s.wing.inertia_tensor[2,2], s.wing.inertia_tensor[3,3]]
     @assert !(s.set.mass ≈ 0)
+    axis = sym_normalize(kite_pos)
+    axis_b = R_b_w' * axis
     eqs = [
         eqs
         [D(Q_b_w[i]) ~ Q_vel[i] for i in 1:4]
         [Q_vel[i] ~ 0.5 * sum(Ω(ω_b_stable)[i, j] * Q_b_w[j] for j in 1:4) for i in 1:4]
-        ω_b_stable ~ ifelse.(stabilize==true,
-            ω_b - ω_b ⋅ sym_normalize(kite_pos) * sym_normalize(kite_pos),
-            ω_b
+        ω_b_stable ~ ifelse.(fix_orient==true,
+            zeros(3),
+            ifelse.(stabilize==true,
+                ω_b - ω_b ⋅ axis_b * axis_b,
+                ω_b
+            )
         )
         D(ω_b) ~ ifelse.(stabilize==true,
-            α_b_damped - α_b_damped ⋅ sym_normalize(kite_pos) * sym_normalize(kite_pos),
+            α_b_damped - α_b_damped ⋅ axis_b * axis_b,
             α_b_damped
         )
         α_b_damped ~ [α_b[1], α_b[2] - ω_damp*ω_b[2], α_b[3]]
@@ -575,11 +585,11 @@ function diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero
         moment_b ~ aero_moment_b + R_b_w' * total_tether_kite_moment
         
         D(kite_pos) ~ ifelse.(stabilize==true,
-            kite_vel ⋅ sym_normalize(kite_pos) * sym_normalize(kite_pos),
+            kite_vel ⋅ axis * axis,
             kite_vel
         )
         D(kite_vel) ~ ifelse.(stabilize==true,
-            kite_acc ⋅ sym_normalize(kite_pos) * sym_normalize(kite_pos),
+            kite_acc ⋅ axis * axis,
             kite_acc
         )
         kite_acc ~ (total_tether_kite_force + R_b_w * aero_force_b) / s.set.mass
@@ -727,7 +737,7 @@ function linear_vsm_eqs!(s, eqs, guesses; aero_force_b, aero_moment_b, group_aer
         va_idxs=1:3, 
         omega_idxs=4:6,
         theta_idxs=7:6+length(s.point_system.groups), 
-        moment_frac=0.0)
+        moment_frac=s.point_system.groups[1].moment_frac)
 
     @parameters begin
         last_y[eachindex(y_)] = y_
