@@ -140,69 +140,82 @@ function RamAirKite(set::Settings)
 end
 
 function update_sys_state!(ss::SysState, s::RamAirKite, zoom=1.0)
-    ss.time = s.t_0
-    pos, acc, Q_b_w, elevation, azimuth, course, heading, e_x, tether_vel, twist, kite_vel = s.get_state(s.integrator)
+    isnothing(s.integrator) && throw(ArgumentError("run init_sim!(s) first"))
+    ss.time = s.integrator.t # Use integrator time
+
+    # Get the extended state vector from the integrator
+    # Note: This assumes generate_getters! is updated accordingly
+    set_values, pos, acc_vec, Q_b_w, elevation, azimuth, course, heading_y, tether_length, tether_vel, winch_force,
+        twist_angle, kite_vel, aero_force_b, aero_moment_b, ω_b, va_kite_b, wind_vec_gnd, wind_vel_kite = s.get_state(s.integrator)
+
     P = length(s.point_system.points)
     for i in 1:P
         ss.X[i] = pos[1, i] * zoom
         ss.Y[i] = pos[2, i] * zoom
         ss.Z[i] = pos[3, i] * zoom
     end
-    # TODO
-    # ss.kite_acc      .= kite_acc(s)
-    # ss.left_tether_vel = tether_vel[1]
-    # ss.right_tether_vel = tether_vel[2]
-    ss.acc = norm(acc)
+
+    # --- Populate SysState fields ---
+    ss.acc = norm(acc_vec) # Use the norm of the kite's acceleration vector
     ss.orient .= Q_b_w
+    ss.turn_rates .= ω_b
     ss.elevation = elevation
     ss.azimuth = azimuth
-    ss.force .= 0
-    ss.heading = heading
+
+    # Handle potential size mismatch for tether/winch related arrays
+    num_winches = length(s.point_system.winches)
+    ss.l_tether[1:num_winches] .= tether_length
+    ss.v_reelout[1:num_winches] .= tether_vel
+    ss.force[1:num_winches] .= winch_force
+
+    # Depower and Steering from twist angles
+    num_groups = length(s.point_system.groups)
+    ss.twist_angles[1:num_groups] .= twist_angle
+    ss.depower = rad2deg(mean(twist_angle)) # Average twist for depower
+    ss.steering = rad2deg(twist_angle[end] - twist_angle[1])
+    ss.heading = heading_y # Use heading_y from MTK model
     ss.course = course
-    ss.l_tether.= [s.tether_lengths; 0]
-    ss.v_reelout = [tether_vel; 0]
-    ss.depower = rad2deg(mean(twist))
-    ss.steering = rad2deg(twist[end] - twist[1])
+    # Apparent Wind and Aerodynamics
+    ss.v_app = norm(va_kite_b)
+    ss.v_wind_gnd .= wind_vec_gnd
+    ss.v_wind_kite .= wind_vel_kite
+    # Calculate AoA and Side Slip from apparent wind in body frame
+    # AoA: angle between v_app projected onto xz-plane and x-axis
+    # Side Slip: angle between v_app and the xz-plane
+    if ss.v_app > 1e-6 # Avoid division by zero
+        ss.AoA = atan(va_kite_b[3], va_kite_b[1])
+        ss.side_slip = asin(va_kite_b[2] / ss.v_app)
+    else
+        ss.AoA = 0.0
+        ss.side_slip = 0.0
+    end
+    ss.aero_force_b .= aero_force_b
+    ss.aero_moment_b .= aero_moment_b
     ss.vel_kite .= kite_vel
+    # Calculate Roll, Pitch, Yaw from Quaternion
+    q = Q_b_w
+    # roll (x-axis rotation)
+    sinr_cosp = 2 * (q[1] * q[2] + q[3] * q[4])
+    cosr_cosp = 1 - 2 * (q[2] * q[2] + q[3] * q[3])
+    ss.roll = atan(sinr_cosp, cosr_cosp)
+    # pitch (y-axis rotation)
+    sinp = 2 * (q[1] * q[3] - q[4] * q[2])
+    if abs(sinp) >= 1
+        ss.pitch = copysign(pi / 2, sinp) # use 90 degrees if out of range
+    else
+        ss.pitch = asin(sinp)
+    end
+    # yaw (z-axis rotation)
+    siny_cosp = 2 * (q[1] * q[4] + q[2] * q[3])
+    cosy_cosp = 1 - 2 * (q[3] * q[3] + q[4] * q[4])
+    ss.yaw = atan(siny_cosp, cosy_cosp)
+    ss.set_torque[1:3] .= set_values
     nothing
 end
 
-function SysState(s::RamAirKite, zoom=1.0) # TODO: add left and right lines, stop using getters and setters
-    isnothing(s.integrator) && throw(ArgumentError("run init_sim!(s) first"))
-    pos, acc, Q_b_w, elevation, azimuth, course, heading, e_x, tether_vel, twist, kite_vel = s.get_state(s.integrator)
-    P = length(s.point_system.points)
-    X = zeros(MVector{P, MyFloat})
-    Y = zeros(MVector{P, MyFloat})
-    Z = zeros(MVector{P, MyFloat})
-    for i in 1:P
-        X[i] = pos[1, i] * zoom
-        Y[i] = pos[2, i] * zoom
-        Z[i] = pos[3, i] * zoom
-    end
-    
-    orient = MVector{4, Float32}(Q_b_w) # TODO: add Q_b_w
-    # forces = s.get_tether_force() # TODO: add tether force
-    forces = zeros(3)
-    t_sim = 0
-    depower = rad2deg(mean(twist))
-    steering = rad2deg(twist[end] - twist[1])
-    ss = SysState{P}()
-    ss.time = s.t_0
-    ss.t_sim = t_sim
-    ss.orient .= orient
-    ss.elevation = elevation
-    ss.azimuth = azimuth
-    ss.l_tether .= [s.tether_lengths; 0]
-    ss.v_reelout .= [tether_vel; 0]
-    ss.force .= [forces; 0]
-    ss.depower = depower
-    ss.steering = steering
-    ss.heading = heading
-    ss.course = course
-    ss.vel_kite .= kite_vel
-    ss.X = X
-    ss.Y = Y
-    ss.Z = Z
+function SysState(s::RamAirKite, zoom=1.0)
+    ss = SysState{length(s.point_system.points)}()
+    update_sys_state!(ss, s, zoom)
     ss
 end
 
@@ -362,9 +375,27 @@ function generate_getters!(s, sym_vec)
     ]))
     set_unknowns = setu(sys, sym_vec)
 
-    get_state = getu(sys, 
-        [c(sys.pos), c(sys.acc), c(sys.Q_b_w), sys.elevation, sys.azimuth, sys.course, sys.heading_x, 
-        c(sys.e_x), c(sys.tether_vel), c(sys.twist_angle), c(sys.kite_vel)]
+    get_state = getu(sys,
+        [c(sys.set_values),
+         c(sys.pos),             # Particle positions
+         c(sys.acc),             # Kite center acceleration vector (world frame)
+         c(sys.Q_b_w),           # Orientation quaternion
+         sys.elevation,          # Elevation angle
+         sys.azimuth,            # Azimuth angle
+         sys.course,             # Course angle
+         sys.heading_y,          # Heading angle (based on body x-axis projection)
+         c(sys.tether_length),   # Unstretched length per winch
+         c(sys.tether_vel),      # Reeling velocity per winch
+         c(sys.winch_force),     # Force at winch connection point per winch
+         c(sys.twist_angle),     # Twist angle per group
+         c(sys.kite_vel),        # Kite center velocity vector (world frame)
+         c(sys.aero_force_b),    # Aerodynamic force (body frame)
+         c(sys.aero_moment_b),   # Aerodynamic moment (body frame)
+         c(sys.ω_b),             # Angular velocity (body frame)
+         c(sys.va_kite_b),       # Apparent wind velocity (body frame)
+         c(sys.wind_vec_gnd),    # Ground wind vector (world frame)
+         c(sys.wind_vel_kite)    # Wind vector at kite height (world frame)
+        ]
     )
     get_y = getu(sys, sys.y)
 

@@ -87,11 +87,11 @@ try
         else
             set_values[2] += bias
         end
-        
+
         # Step simulation
         steptime = @elapsed (t_new, integ_steptime) = next_step!(s, set_values; dt, vsm_interval=_vsm_interval)
         t = t_new - 10.0  # Adjust for initial stabilization time
-        
+
         # Track performance after initial transient
         if (t > total_time/2)
             runtime += steptime
@@ -101,23 +101,7 @@ try
 
         # Log state variables
         KiteModels.update_sys_state!(sys_state, s)
-        sys_state.var_01 = s.integrator[sys.ω_b[1]]
-        sys_state.var_02 = s.integrator[sys.ω_b[2]]
-        sys_state.var_03 = s.integrator[sys.ω_b[3]]
-
-        sys_state.var_04 = s.integrator[sys.tether_length[2]]
-        sys_state.var_05 = s.integrator[sys.tether_length[3]]
-
-        sys_state.var_06 = s.integrator[sys.elevation_vel]
-        sys_state.var_07 = s.integrator[sys.azimuth_vel]
-
-        sys_state.var_08 = s.integrator[sys.twist_angle[1]]
-        sys_state.var_09 = s.integrator[sys.twist_angle[2]]
-        
-        sys_state.var_10 = norm(s.integrator[sys.kite_pos])
-        
-        sys_state.var_11 = s.integrator[sys.angle_of_attack]
-        sys_state.var_12 = KiteModels.calc_aoa(s)
+        @show sys_state.v_reelout
         log!(logger, sys_state)
     end
 catch e
@@ -137,28 +121,34 @@ save_log(logger, "tmp")
 lg =load_log("tmp")
 sl = lg.syslog
 
-if PLOT
-    p = plotx(sl.time .- 10, 
-        [rad2deg.(sl.var_01), rad2deg.(sl.var_02), rad2deg.(sl.var_03)],
-        [c(sl.var_04), c(sl.var_05)],
-        [c(sl.var_06), c(sl.var_07)],
-        [rad2deg.(c(sl.var_08)), rad2deg.(c(sl.var_09))],
-        [c(sl.var_10)],
-        [rad2deg.(c(sl.var_11)), rad2deg.(c(sl.var_12))],
-        [rad2deg.(c(sl.heading))];
-        ylabels=["turn rates [°/s]", "tether length [m]", "sphere vel [rad/s]", "twist [°]", "distance [m]", "AoA [°]", "heading [°]"],
-        ysize=10,
-        labels=[
-            [L"ω_x", L"ω_y", L"ω_z"],
-            ["len[1]", "len[2]"],
-            ["elevation_vel", "azimuth_vel"],
-            ["twist_angle[1]", "twist_angle[2]"],
-            ["distance"],
-            ["mtk AoA", "vsm AoA"],
-            ["heading"]
-        ],
-        fig="Oscillating Steering Input Response")
-    display(p)
-end
+# --- Updated Plotting ---
+# Extract necessary data using meaningful names
+turn_rates_deg = rad2deg.(hcat(sl.turn_rates...))
+v_reelout_23 = [sl.v_reelout[i][2] for i in eachindex(sl.v_reelout)], [sl.v_reelout[i][3] for i in eachindex(sl.v_reelout)] # Winch 2 and 3
+aero_force_z = [sl.aero_force_b[i][3] for i in eachindex(sl.aero_force_b)]
+aero_moment_y = [sl.aero_moment_b[i][2] for i in eachindex(sl.aero_moment_b)]
+twist_angles_deg = rad2deg.(hcat(sl.twist_angles...))
+AoA_deg = rad2deg.(sl.AoA)
+heading_deg = rad2deg.(sl.heading)
+
+p = plotx(sl.time .- 10,
+    [turn_rates_deg[1,:], turn_rates_deg[2,:], turn_rates_deg[3,:]],
+    v_reelout_23,
+    [aero_force_z, aero_moment_y],
+    [twist_angles_deg[1,:], twist_angles_deg[2,:], twist_angles_deg[3,:], twist_angles_deg[4,:]],
+    [AoA_deg],
+    [heading_deg];
+    ylabels=["turn rates [°/s]", L"v_{ro}~[m/s]", "aero F/M", "twist [°]", "AoA [°]", "heading [°]"],
+    ysize=10,
+    labels=[
+        [L"\omega_x", L"\omega_y", L"\omega_z"],
+        ["v_ro[2]", "v_ro[3]"],
+        [L"F_{aero,z}", L"M_{aero,y}"],
+        ["twist[1]", "twist[2]", "twist[3]", "twist[4]"],
+        ["AoA"],
+        ["heading"]
+    ],
+    fig="Oscillating Steering Input Response")
+display(p)
 
 @info "Performance:" times_realtime=(total_time/2)/runtime integrator_times_realtime=(total_time/2)/integ_runtime
