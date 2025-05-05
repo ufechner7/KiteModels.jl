@@ -200,8 +200,7 @@ end
 
 
 function PointMassSystem(set::Settings, wing::RamAirWing)
-    set.physical_model == "simple_ram" && length(set.bridle_fracs) != 2 && throw(ArgumentError("Model simple_ram should have 2 bridle fracs"))
-    set.physical_model == "ram" && length(set.bridle_fracs) != 4 && throw(ArgumentError("Model ram should have 4 bridle fracs"))
+    length(set.bridle_fracs) != 4 && throw(ArgumentError("4 bridle fracs should be provided for all models."))
 
     if set.physical_model == "ram"
         return create_ram_point_system(set, wing)
@@ -379,8 +378,6 @@ function create_ram_point_system(set::Settings, wing::RamAirWing)
 end
 
 function create_simple_ram_point_system(set::Settings, wing::RamAirWing)
-    (length(set.bridle_fracs) != 2) && throw(ArgumentError("Only 2 bridle fracs should be provided for the simple model."))
-
     points = Point[]
     groups = KitePointGroup[]
     segments = Segment[]
@@ -389,44 +386,52 @@ function create_simple_ram_point_system(set::Settings, wing::RamAirWing)
     winches = Winch[]
 
     dynamics_type = set.quasi_static ? STATIC : DYNAMIC
+    gammas = [-3/4, -1/4, 1/4, 3/4] * wing.gamma_tip
 
-    [points = [points; create_kite_point(points, wing, set.bridle_fracs)] for _ in 1:8]
-    [groups = [groups; create_kite_point_group(groups, points, wing, DYNAMIC, set.bridle_fracs, set.bridle_fracs[1])] for _ in 1:4]
+    # ==================== CREATE DEFORMING KITE GROUPS ==================== #
+    points = [
+        points
+        Point(1, calc_pos(wing, gammas[1], set.bridle_fracs[4]), KITE)
+        Point(2, calc_pos(wing, gammas[2], set.bridle_fracs[4]), KITE)
+        Point(3, calc_pos(wing, gammas[3], set.bridle_fracs[4]), KITE)
+        Point(4, calc_pos(wing, gammas[4], set.bridle_fracs[4]), KITE)
+    ]
+    groups = [
+        groups
+        KitePointGroup(1, [1], wing, gammas[1], DYNAMIC, set.bridle_fracs[2])
+        KitePointGroup(2, [2], wing, gammas[2], DYNAMIC, set.bridle_fracs[2])
+        KitePointGroup(3, [3], wing, gammas[3], DYNAMIC, set.bridle_fracs[2])
+        KitePointGroup(4, [4], wing, gammas[4], DYNAMIC, set.bridle_fracs[2])
+    ]
 
     bridle_top_left = [wing.R_cad_body * (set.top_bridle_points[i] + wing.T_cad_body) for i in eachindex(set.top_bridle_points)] # cad to kite frame
     bridle_top_right = [bridle_top_left[i] .* [1, -1, 1] for i in eachindex(set.top_bridle_points)]
     
+    # ==================== CREATE PULLEY BRIDLE SYSTEM ==================== #
     points = [
         points
-        Point(9, bridle_top_left[2], dynamics_type)
-        Point(10, bridle_top_left[4], dynamics_type)
-        Point(11, bridle_top_right[2], dynamics_type)
-        Point(12, bridle_top_right[4], dynamics_type)
+        Point(5, bridle_top_left[2], KITE)
+        Point(6, bridle_top_left[4], dynamics_type)
+        Point(7, bridle_top_right[2], KITE)
+        Point(8, bridle_top_right[4], dynamics_type)
     ]
 
-    l1 = norm(points[1].pos_b - points[9].pos_b)
-    l2 = norm(points[3].pos_b - points[9].pos_b)
     segments = [
         segments
-        Segment(1, (1, 9),  BRIDLE, l1, 1.0)
-        Segment(2, (2, 10), BRIDLE, l1, 1.0)
-        Segment(3, (3, 9),  BRIDLE, l2, 1.0)
-        Segment(4, (4, 10), BRIDLE, l2, 1.0)
-
-        Segment(5, (5, 11), BRIDLE, l2, 1.0)
-        Segment(6, (6, 12), BRIDLE, l2, 1.0)
-        Segment(7, (7, 11), BRIDLE, l1, 1.0)
-        Segment(8, (8, 12), BRIDLE, l1, 1.0)
+        Segment(1, (1, 6), BRIDLE)
+        Segment(2, (2, 6), BRIDLE)
+        Segment(3, (3, 8), BRIDLE)
+        Segment(4, (4, 8), BRIDLE)
     ]
 
-    points, segments, tethers, left_power_idx = create_tether(1, set, points, segments, tethers, points[9], POWER, dynamics_type)
-    points, segments, tethers, right_power_idx = create_tether(2, set, points, segments, tethers, points[11], POWER, dynamics_type)
-    points, segments, tethers, left_steering_idx = create_tether(3, set, points, segments, tethers, points[10], STEERING, dynamics_type)
-    points, segments, tethers, right_steering_idx = create_tether(4, set, points, segments, tethers, points[12], STEERING, dynamics_type)
+    points, segments, tethers, left_power_idx = create_tether(1, set, points, segments, tethers, points[5], POWER, dynamics_type)
+    points, segments, tethers, right_power_idx = create_tether(2, set, points, segments, tethers, points[7], POWER, dynamics_type)
+    points, segments, tethers, left_steering_idx = create_tether(3, set, points, segments, tethers, points[6], STEERING, dynamics_type)
+    points, segments, tethers, right_steering_idx = create_tether(4, set, points, segments, tethers, points[8], STEERING, dynamics_type)
 
-    winches = [winches; Winch(1, TorqueControlledMachine(set), [left_power_idx, right_power_idx])]
-    winches = [winches; Winch(2, TorqueControlledMachine(set), [left_steering_idx])]
-    winches = [winches; Winch(3, TorqueControlledMachine(set), [right_steering_idx])]
+    winches = [winches; Winch(1, TorqueControlledMachine(set), [left_power_idx, right_power_idx], set.l_tether)]
+    winches = [winches; Winch(2, TorqueControlledMachine(set), [left_steering_idx], set.l_tether)]
+    winches = [winches; Winch(3, TorqueControlledMachine(set), [right_steering_idx], set.l_tether)]
 
     return PointMassSystem(set.physical_model, points, groups, segments, pulleys, tethers, winches)
 end

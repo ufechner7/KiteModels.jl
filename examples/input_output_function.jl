@@ -13,41 +13,66 @@ providing insight into the kite's steering behavior and control characteristics.
 
 using Timers
 tic()
-using KiteModels, LinearAlgebra, OrdinaryDiffEqCore, OrdinaryDiffEqNonlinearSolve, OrdinaryDiffEqBDF
-using ModelingToolkit
-using SciMLBase: successful_retcode
-using ModelingToolkit: setu, getu
+@info "Loading packages "
+
+using KiteModels, LinearAlgebra, Statistics
 
 PLOT = true
 if PLOT
-    using ControlPlots
+    using Pkg
+    if ! ("LaTeXStrings" ∈ keys(Pkg.project().dependencies))
+        using TestEnv; TestEnv.activate()
+    end
+    using ControlPlots, LaTeXStrings
+    import ControlPlots: plot
 end
+toc()
+
 
 include(joinpath(@__DIR__, "plotting.jl"))
 
+# Simulation parameters
+dt = 0.05
+total_time = 10  # Longer simulation to see oscillations
+vsm_interval = 3
+steps = Int(round(total_time / dt))
+
+# Steering parameters
+steering_freq = 1/2  # Hz - full left-right cycle frequency
+steering_magnitude = 10.0      # Magnitude of steering input [Nm]
+
 # Initialize model
 set = load_settings("system_ram.yaml")
-set.abs_tol = 0.1
-set.rel_tol = 0.1
-set.segments = 2
+set.segments = 3
+set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
 set.quasi_static = true
 set.physical_model = "ram"
-set.sample_freq = 20
-dt = 1/set.sample_freq
 
+@info "Creating wing, aero, vsm_solver, point_system and s:"
 s = RamAirKite(set)
+s.set.abs_tol = 1e-2
+s.set.rel_tol = 1e-2
+toc()
+
+# init_Q_b_w, R_b_w = KiteModels.measure_to_q(measure)
+# init_kite_pos = init!(s.point_system, s.set, R_b_w)
+# plot(s.point_system, 0.0; zoom=false, front=true)
 
 measure = Measurement()
-measure.set_values .= [-50, -1.0, -1.0]  # Set values of the torques of the three winches. [Nm]
-set_values = measure.set_values
 
 # Initialize at elevation
+s.point_system.winches[2].tether_length += 0.2
+s.point_system.winches[3].tether_length += 0.2
 measure.sphere_pos .= deg2rad.([70.0 70.0; 1.0 -1.0])
 KiteModels.init_sim!(s, measure; 
     adaptive=false, remake=false, reload=true, 
     solver=FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.8, max_iter=1000))
 )
 OrdinaryDiffEqCore.set_proposed_dt!(s.integrator, dt)
+sys = s.sys
+
+@info "System initialized at:"
+toc()
 
 sys = s.sys
 # # Stabilize system
@@ -100,8 +125,8 @@ function test_response(s, input_range, input_idx, step_fn, u0, x_idxs=nothing; s
         u[input_idx] += input_val
         x = copy(x0)
         sx_ = copy(sx)
-        set_ix(s.integrator, x)
-        OrdinaryDiffEqCore.reinit!(s.integrator)
+        # set_ix(s.integrator, x)
+        # OrdinaryDiffEqCore.reinit!(s.integrator)
         for _ in 1:steps # Use _ if i is not used inside the loop
             p = (s, set_x, set_ix, set_sx, sx_, set_u, get_x, dt) # Pass set_ix even if unused by integ function
             total_time += @elapsed x = step_fn(x, u, nothing, p)

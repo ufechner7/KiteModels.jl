@@ -249,7 +249,6 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         group_tether_moment(t)[eachindex(groups)]
         tether_force(t)[eachindex(groups), eachindex(groups[1].points)]
         tether_moment(t)[eachindex(groups), eachindex(groups[1].points)]
-        front_frac(t)[eachindex(groups)]
     end
     
     for group in groups
@@ -269,11 +268,9 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         inertia = 1/3 * (s.set.mass/length(groups)) * (norm(group.chord))^2 # plate inertia around leading edge
         @assert !(inertia ≈ 0.0)
         @parameters twist_damp = 50
+
         eqs = [
             eqs
-            front_frac[group.idx] ~ 
-                sum([tether_force[group.idx, i] * s.set.bridle_fracs[i] for i in eachindex(s.set.bridle_fracs[1:end-1])]) /
-                sum(tether_force[group.idx, 1:end-1]) # TODO: parameterize the bridle fracs
             group_tether_moment[group.idx] ~ sum(tether_moment[group.idx, :])
             twist_α[group.idx] ~ (group_aero_moment[group.idx] + group_tether_moment[group.idx]) / inertia
             twist_angle[group.idx] ~ clamp(free_twist_angle[group.idx], -π/2, π/2)

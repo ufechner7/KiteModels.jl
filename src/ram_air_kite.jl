@@ -145,7 +145,7 @@ function update_sys_state!(ss::SysState, s::RamAirKite, zoom=1.0)
 
     # Get the extended state vector from the integrator
     # Note: This assumes generate_getters! is updated accordingly
-    set_values, pos, acc_vec, Q_b_w, elevation, azimuth, course, heading_y, tether_length, tether_vel, winch_force,
+    set_values, pos, acc_vec, Q_b_w, elevation, azimuth, course, heading_x, tether_length, tether_vel, winch_force,
         twist_angle, kite_vel, aero_force_b, aero_moment_b, ω_b, va_kite_b, wind_vec_gnd, wind_vel_kite = s.get_state(s.integrator)
 
     P = length(s.point_system.points)
@@ -173,7 +173,7 @@ function update_sys_state!(ss::SysState, s::RamAirKite, zoom=1.0)
     ss.twist_angles[1:num_groups] .= twist_angle
     ss.depower = rad2deg(mean(twist_angle)) # Average twist for depower
     ss.steering = rad2deg(twist_angle[end] - twist_angle[1])
-    ss.heading = heading_y # Use heading_y from MTK model
+    ss.heading = heading_x # Use heading_x from MTK model
     ss.course = course
     # Apparent Wind and Aerodynamics
     ss.v_app = norm(va_kite_b)
@@ -383,7 +383,7 @@ function generate_getters!(s, sym_vec)
          sys.elevation,          # Elevation angle
          sys.azimuth,            # Azimuth angle
          sys.course,             # Course angle
-         sys.heading_y,          # Heading angle (based on body x-axis projection)
+         sys.heading_x,          # Heading angle (based on body x-axis projection)
          c(sys.tether_length),   # Unstretched length per winch
          c(sys.tether_vel),      # Reeling velocity per winch
          c(sys.winch_force),     # Force at winch connection point per winch
