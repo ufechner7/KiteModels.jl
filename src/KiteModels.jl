@@ -481,12 +481,12 @@ function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
     ss.orient .= calc_orient_quat(s)
     ss.elevation = calc_elevation(s)
     ss.azimuth = calc_azimuth(s)
-    ss.force = winch_force(s)
+    ss.force[1] = winch_force(s)
     ss.heading = calc_heading(s)
     ss.course = calc_course(s)
     ss.v_app = norm(s.v_apparent)
-    ss.l_tether = s.l_tether
-    ss.v_reelout = s.v_reel_out
+    ss.l_tether[1] = s.l_tether
+    ss.v_reelout[1] = s.v_reel_out
     ss.depower = s.depower
     ss.steering = s.steering/s.set.cs_4p
     ss.kcu_steering = s.kcu_steering/s.set.cs_4p
@@ -497,9 +497,9 @@ function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
         ss.alpha3 = deg2rad(s.alpha_3)
         ss.alpha4 = deg2rad(s.alpha_4)
         if isnothing(s.set_force)
-            ss.set_force = NaN
+            ss.set_force[1] = NaN
         else
-            ss.set_force = s.set_force
+            ss.set_force[1] = s.set_force
         end
         if isnothing(s.bearing)
             ss.bearing = NaN
@@ -514,14 +514,14 @@ function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
     end
     ss.set_steering = s.kcu.set_steering
     if isnothing(s.set_torque)
-        ss.set_torque = NaN
+        ss.set_torque[1] = NaN
     else
-        ss.set_torque = s.set_torque
+        ss.set_torque[1] = s.set_torque
     end
     if isnothing(s.sync_speed)
-        ss.set_speed = NaN
+        ss.set_speed[1] = NaN
     else
-        ss.set_speed = s.sync_speed
+        ss.set_speed[1] = s.sync_speed
     end
     ss.roll, ss.pitch, ss.yaw = orient_euler(s)
     cl, cd = cl_cd(s)
