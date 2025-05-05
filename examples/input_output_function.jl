@@ -27,8 +27,8 @@ include(joinpath(@__DIR__, "plotting.jl"))
 
 # Initialize model
 set = load_settings("system_ram.yaml")
-set.abs_tol = 0.01
-set.rel_tol = 0.01
+set.abs_tol = 0.1
+set.rel_tol = 0.1
 set.segments = 2
 set.quasi_static = true
 set.physical_model = "ram"
@@ -100,6 +100,8 @@ function test_response(s, input_range, input_idx, step_fn, u0, x_idxs=nothing; s
         u[input_idx] += input_val
         x = copy(x0)
         sx_ = copy(sx)
+        set_ix(s.integrator, x)
+        OrdinaryDiffEqCore.reinit!(s.integrator)
         for _ in 1:steps # Use _ if i is not used inside the loop
             p = (s, set_x, set_ix, set_sx, sx_, set_u, get_x, dt) # Pass set_ix even if unused by integ function
             total_time += @elapsed x = step_fn(x, u, nothing, p)
@@ -127,8 +129,8 @@ function plot_input_output_relations(step_fn, suffix)
     twist_idx = find_state_index(sx_vec, sys.free_twist_angle[1])
 
     # Test ranges
-    steer_range = range(-1e-2, 1e-2, length=10)
-    twist_range = range(-1e-2, 1e-2, length=10)
+    steer_range = range(-1e-2, 1e-2, length=100)
+    twist_range = range(-1e-2, 1e-2, length=100)
 
     # Test steering input vs omega
     @info "Testing steering input response for $suffix..."
