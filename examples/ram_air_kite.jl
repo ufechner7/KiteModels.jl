@@ -33,13 +33,7 @@ set = load_settings("system_ram.yaml")
 set.segments = 3
 set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
 set.quasi_static = false
-set.physical_model = "ram"
-if set.physical_model == "ram"
-    set.bridle_fracs = [0.088, 0.31, 0.58, 0.93]
-elseif set.physical_model == "simple_ram"
-    set.l_tether = 53
-    set.bridle_fracs = [0.25, 0.93]
-end
+set.physical_model = "simple_ram"
 
 @info "Creating wing, aero, vsm_solver, point_system and s:"
 s = RamAirKite(set)
