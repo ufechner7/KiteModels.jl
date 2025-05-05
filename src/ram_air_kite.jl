@@ -369,41 +369,10 @@ end
 
 function SysState(s::RamAirKite, zoom=1.0) # TODO: add left and right lines, stop using getters and setters
     isnothing(s.integrator) && throw(ArgumentError("run init_sim!(s) first"))
-    pos, acc, Q_b_w, elevation, azimuth, course, heading, e_x, tether_vel, twist, kite_vel = s.get_state(s.integrator)
     P = length(s.point_system.points)
-    X = zeros(MVector{P, MyFloat})
-    Y = zeros(MVector{P, MyFloat})
-    Z = zeros(MVector{P, MyFloat})
-    for i in 1:P
-        X[i] = pos[1, i] * zoom
-        Y[i] = pos[2, i] * zoom
-        Z[i] = pos[3, i] * zoom
-    end
-    
-    orient = MVector{4, Float32}(Q_b_w) # TODO: add Q_b_w
-    # forces = s.get_tether_force() # TODO: add tether force
-    forces = zeros(3)
-    t_sim = 0
-    depower = rad2deg(mean(twist))
-    steering = rad2deg(twist[end] - twist[1])
     ss = SysState{P}()
-    ss.time = s.t_0
-    ss.t_sim = t_sim
-    ss.orient .= orient
-    ss.elevation = elevation
-    ss.azimuth = azimuth
-    ss.l_tether .= [s.tether_lengths; 0]
-    ss.v_reelout .= [tether_vel; 0]
-    ss.force .= [forces; 0]
-    ss.depower = depower
-    ss.steering = steering
-    ss.heading = heading
-    ss.course = course
-    ss.vel_kite .= kite_vel
-    ss.X = X
-    ss.Y = Y
-    ss.Z = Z
-    ss
+    update_sys_state!(ss, s, zoom)
+    return ss
 end
 
 """
