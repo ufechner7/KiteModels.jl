@@ -70,47 +70,27 @@ try
         local steering
         global t, set_values, runtime, integ_runtime
         PLOT && plot(s, t; zoom=false, front=false)
-        
+
         # Calculate steering inputs based on cosine wave
         steering = steering_magnitude * cos(2π * steering_freq * t+0.1)
         set_values = -s.set.drum_radius .* s.integrator[sys.winch_force]
         if t > 1.0
             set_values .+= [0.0, steering, -steering]  # Opposite steering for left/right
         end
-        
+
         # Step simulation
         steptime = @elapsed (t_new, integ_steptime) = next_step!(s, set_values; dt, vsm_interval)
         t = t_new - 10.0  # Adjust for initial stabilization time
-        
+
         # Track performance after initial transient
         if (t > total_time/2)
             runtime += steptime
             integ_runtime += integ_steptime
         end
-        
+
         # Log state variables
         KiteModels.update_sys_state!(sys_state, s)
-        sys_state.var_01 = s.integrator[sys.ω_b[1]]
-        sys_state.var_02 = s.integrator[sys.ω_b[2]]
-        sys_state.var_03 = s.integrator[sys.ω_b[3]]
-
-        sys_state.var_04 = s.integrator[sys.tether_vel[2]]
-        sys_state.var_05 = s.integrator[sys.tether_vel[3]]
-
-        sys_state.var_06 = s.integrator[sys.aero_force_b[3]]
-        sys_state.var_07 = s.integrator[sys.aero_moment_b[2]]
-        sys_state.var_08 = s.integrator[sys.group_aero_moment[1]]
-
-        sys_state.var_09 = s.integrator[sys.twist_angle[1]]
-        sys_state.var_10 = s.integrator[sys.twist_angle[2]]
-        sys_state.var_11 = s.integrator[sys.twist_angle[3]]
-        sys_state.var_12 = s.integrator[sys.twist_angle[4]]
-
-        sys_state.var_13 = s.integrator[sys.pulley_l0[1]]
-        sys_state.var_14 = s.integrator[sys.pulley_l0[2]]
-        
-        sys_state.var_15 = rad2deg(calc_aoa(s))
-        
+        @show sys_state.v_reelout
         log!(logger, sys_state)
     end
 catch e
@@ -130,23 +110,31 @@ save_log(logger, "tmp")
 lg =load_log("tmp")
 sl = lg.syslog
 
-p = plotx(sl.time .- 10, 
-    [rad2deg.(sl.var_01), rad2deg.(sl.var_02), rad2deg.(sl.var_03)],
-    [c(sl.var_04), c(sl.var_05)],
-    [c(sl.var_06), c(sl.var_07), c(sl.var_08)],
-    [rad2deg.(c(sl.var_09)), rad2deg.(c(sl.var_10)), rad2deg.(c(sl.var_11)), rad2deg.(c(sl.var_12))],
-    [c(sl.var_13), c(sl.var_14)],
-    [c(sl.var_15)],
-    [rad2deg.(c(sl.heading))];
-    ylabels=["turn rates [°/s]", L"v_{ro}~[m/s]", "vsm", "twist [°]", "pulley", "AoA [°]", "heading [°]"],
+# --- Updated Plotting ---
+# Extract necessary data using meaningful names
+turn_rates_deg = rad2deg.(hcat(sl.turn_rates...))
+v_reelout_23 = [sl.v_reelout[i][2] for i in eachindex(sl.v_reelout)], [sl.v_reelout[i][3] for i in eachindex(sl.v_reelout)] # Winch 2 and 3
+aero_force_z = [sl.aero_force_b[i][3] for i in eachindex(sl.aero_force_b)]
+aero_moment_y = [sl.aero_moment_b[i][2] for i in eachindex(sl.aero_moment_b)]
+twist_angles_deg = rad2deg.(hcat(sl.twist_angles...))
+AoA_deg = rad2deg.(sl.AoA)
+heading_deg = rad2deg.(sl.heading)
+
+p = plotx(sl.time .- 10,
+    [turn_rates_deg[1,:], turn_rates_deg[2,:], turn_rates_deg[3,:]],
+    v_reelout_23,
+    [aero_force_z, aero_moment_y],
+    [twist_angles_deg[1,:], twist_angles_deg[2,:], twist_angles_deg[3,:], twist_angles_deg[4,:]],
+    [AoA_deg],
+    [heading_deg];
+    ylabels=["turn rates [°/s]", L"v_{ro}~[m/s]", "aero F/M", "twist [°]", "AoA [°]", "heading [°]"],
     ysize=10,
     labels=[
-        [L"ω_x", L"ω_y", L"ω_z"],
-        ["vel[1]", "vel[2]"],
-        ["force[3]", "kite moment[2]", "group moment[1]"],
-        ["twist_angle[1]", "twist_angle[2]", "twist_angle[3]", "twist_angle[4]"],
-        ["pulley_l0[1]", "pulley_l0[2]"],
-        ["angle of attack"],
+        [L"\omega_x", L"\omega_y", L"\omega_z"],
+        ["v_ro[2]", "v_ro[3]"],
+        [L"F_{aero,z}", L"M_{aero,y}"],
+        ["twist[1]", "twist[2]", "twist[3]", "twist[4]"],
+        ["AoA"],
         ["heading"]
     ],
     fig="Oscillating Steering Input Response")
