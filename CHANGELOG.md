@@ -1,3 +1,7 @@
+### KiteModels v0.7.2 2025-05-05
+#### Changed
+- bump KiteUtils to v0.10.5, which provides much more fields for in the SysState
+
 ### KiteModels v0.7.1 2025-04-28
 #### Changed
 - fixed or documented issues found by `Aqua.jl`
