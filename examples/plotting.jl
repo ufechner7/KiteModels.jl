@@ -1,7 +1,7 @@
 
-function plot(sys::PointMassSystem, reltime; kite_pos=nothing, zoom=false, front=false)
+function plot(sys::PointMassSystem, reltime; kite_pos=nothing, e_z=zeros(3), zoom=false, front=false)
     pos = [sys.points[i].pos_w for i in eachindex(sys.points)]
-    !isnothing(kite_pos) && (pos = [pos..., kite_pos])
+    !isnothing(kite_pos) && (pos = [pos..., kite_pos, kite_pos+e_z])
     seg = [[sys.segments[i].points[1], sys.segments[i].points[2]] for i in eachindex(sys.segments)]
     if zoom && !front
         xlim = (pos[end][1] - 5, pos[end][1]+5)
@@ -25,5 +25,6 @@ function plot(s::RamAirKite, reltime; kwargs...)
     for (i, point) in enumerate(s.point_system.points)
         point.pos_w .= pos[:, i]
     end
-    plot(s.point_system, reltime; kite_pos, kwargs...)
+    e_z = s.integrator[s.sys.e_z]
+    plot(s.point_system, reltime; kite_pos, e_z, kwargs...)
 end

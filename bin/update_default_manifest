@@ -1,11 +1,41 @@
 #!/bin/bash -eu
 
+julia_version="all"
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --version)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: --version requires a version argument"
+                exit 1
+            fi
+            julia_version="$2"
+            shift 2
+            ;;
+        *)
+            echo "Invalid parameter! Use:"
+            echo "./update_default_manifest"
+            echo "or"
+            echo "./update_default_manifest --version 1.x"
+            exit 1
+            ;;
+    esac
+done
+
 if [[ $(basename $(pwd)) == "bin" ]]; then
     cd ..
 fi
 
 cd bin
-./create_sys_image --update
+if [[ "$julia_version" == "all" ]]; then
+    echo "Updating manifests for Julia 1.10 and 1.11..."
+    ./create_sys_image --update --version 1.10
+    ./create_sys_image --update --version 1.11
+else
+    echo "Updating manifests for Julia $julia_version..."
+    ./create_sys_image --update --version "$julia_version"
+fi
 
 julia_version=$(julia --version | awk '{print($3)}')
 julia_major=${julia_version:0:3}
