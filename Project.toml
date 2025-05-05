@@ -1,7 +1,7 @@
 name = "KiteModels"
 uuid = "b94af626-7959-4878-9336-2adc27959007"
 authors = ["Uwe Fechner <fechner@aenarete.eu> and contributors"]
-version = "0.7.2"
+version = "0.7.3"
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
