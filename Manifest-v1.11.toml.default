@@ -2,7 +2,7 @@
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "d9537be05803c77a3f08934cbf5da344e953c8f7"
+project_hash = "59d5d1e07c5eb8899b6018cabcf39c8e0944f5c2"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "e2478490447631aedba0823d4d7a80b2cc8cdb32"
@@ -912,9 +912,9 @@ version = "0.3.8"
 
 [[deps.KiteUtils]]
 deps = ["Arrow", "CSV", "DocStringExtensions", "LinearAlgebra", "OrderedCollections", "Parameters", "Parsers", "Pkg", "PrecompileTools", "RecursiveArrayTools", "ReferenceFrameRotations", "Rotations", "StaticArrays", "StructArrays", "StructTypes", "YAML"]
-git-tree-sha1 = "32c3827cdadb11c7c50791daafba91b8ca953457"
+git-tree-sha1 = "c12a2b8f5be50ef0b5a60ce10b7b1fc77a2d96cc"
 uuid = "90980105-b163-44e5-ba9f-8b1c83bb0533"
-version = "0.10.4"
+version = "0.10.5"
 
 [[deps.Krylov]]
 deps = ["LinearAlgebra", "Printf", "SparseArrays"]
@@ -2050,9 +2050,9 @@ version = "1.11.0"
 
 [[deps.TestEnv]]
 deps = ["Pkg"]
-git-tree-sha1 = "2a57e05cb9854e7260c354f1bcdbe5190adba19f"
+git-tree-sha1 = "d664e5f5331fc2683efafac64dcbab5ed99049d6"
 uuid = "1e6cf692-eddd-4d53-88a5-2d735e33781b"
-version = "1.102.0"
+version = "1.102.1"
 
 [[deps.TestItems]]
 git-tree-sha1 = "42fd9023fef18b9b78c8343a4e2f3813ffbcefcb"
