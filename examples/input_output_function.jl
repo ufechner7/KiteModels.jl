@@ -27,16 +27,11 @@ include(joinpath(@__DIR__, "plotting.jl"))
 
 # Initialize model
 set = load_settings("system_ram.yaml")
-set.abs_tol = 1e-2
-set.rel_tol = 1e-2
+set.abs_tol = 0.01
+set.rel_tol = 0.01
 set.segments = 2
-set.quasi_static = false
-set.physical_model = "simple_ram"
-if set.physical_model == "ram"
-    set.bridle_fracs = [0.088, 0.31, 0.58, 0.93]
-elseif set.physical_model == "simple_ram"
-    set.bridle_fracs = [0.0, 0.93]
-end
+set.quasi_static = true
+set.physical_model = "ram"
 set.sample_freq = 20
 dt = 1/set.sample_freq
 
@@ -47,10 +42,21 @@ measure.set_values .= [-50, -1.0, -1.0]  # Set values of the torques of the thre
 set_values = measure.set_values
 
 # Initialize at elevation
-measure.sphere_pos .= deg2rad.([83.0 83.0; 1.0 -1.0])
-KiteModels.init_sim!(s, measure; adaptive=false, remake=false, reload=true)
+measure.sphere_pos .= deg2rad.([70.0 70.0; 1.0 -1.0])
+KiteModels.init_sim!(s, measure; 
+    adaptive=false, remake=false, reload=true, 
+    solver=FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.8, max_iter=1000))
+)
+OrdinaryDiffEqCore.set_proposed_dt!(s.integrator, dt)
 
 sys = s.sys
+# # Stabilize system
+s.integrator.ps[sys.stabilize] = true
+for i in 1:10÷dt
+    next_step!(s; dt, vsm_interval=1)
+end
+s.integrator.ps[sys.stabilize] = false
+plot(s, 0.0; zoom=true, front=false)
 
 # Function to step simulation with input u
 function step_with_input_integ(x, u, _, p)
@@ -59,27 +65,15 @@ function step_with_input_integ(x, u, _, p)
     set_sx(s.integrator, sx)
     set_u(s.integrator, u)
     OrdinaryDiffEqCore.set_t!(s.integrator, 0.0)
-    OrdinaryDiffEqCore.set_proposed_dt!(s.integrator, 1e-3)
     OrdinaryDiffEqCore.reinit!(s.integrator, s.integrator.u; reinit_dae=false)
     OrdinaryDiffEqCore.step!(s.integrator, dt)
     return get_x(s.integrator)
 end
 
-solver = FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.4))
-
-# Function to step simulation with input u
-function step_with_input_prob(x, u, _, p)
-    (s, set_x, set_ix, set_sx, sx, set_u, get_x, dt) = p
-    set_ix(s.prob, x)
-    set_u(s.prob, u)
-    sol = solve(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, save_everystep=false, save_start=false)
-    return get_x(sol)[1]
-end
-
 # Get initial state
 x_vec = KiteModels.get_nonstiff_unknowns(s)
 sx_vec = KiteModels.get_stiff_unknowns(s)
-set_ix = setu(s.integrator, Initial.(x_vec))
+set_ix = setu(s.integrator, Initial.(x_vec)) # set_ix might not be needed anymore if prob is removed
 set_x = setu(s.integrator, x_vec)
 set_sx = setu(s.integrator, sx_vec)
 set_u = setu(s.integrator, collect(sys.set_values))
@@ -91,12 +85,12 @@ x0 = get_x(s.integrator)
 function test_response(s, input_range, input_idx, step_fn, u0, x_idxs=nothing; steps=1)
     # If no x_idxs specified, default to angular velocities
     if isnothing(x_idxs)
-        x_idxs = (length(x0)-8):(length(x0)-6)
+        x_idxs = (length(x0)-8):(length(x0)-6) # Assuming ω_b are the last 3 non-stiff states before stiff ones
         output_size = 3
     else
         output_size = length(x_idxs)
     end
-    
+
     output = zeros(output_size, length(input_range))
     total_time = 0.0
     iter = 0
@@ -106,14 +100,14 @@ function test_response(s, input_range, input_idx, step_fn, u0, x_idxs=nothing; s
         u[input_idx] += input_val
         x = copy(x0)
         sx_ = copy(sx)
-        for i in 1:steps
-            p = (s, set_x, set_ix, set_sx, sx_, set_u, get_x, dt)
+        for _ in 1:steps # Use _ if i is not used inside the loop
+            p = (s, set_x, set_ix, set_sx, sx_, set_u, get_x, dt) # Pass set_ix even if unused by integ function
             total_time += @elapsed x = step_fn(x, u, nothing, p)
             iter += 1
         end
         output[:, i] = x[x_idxs]
     end
-    
+
     times_rt = dt*iter/total_time
     @info "Number of steps: $iter, Times realtime: $times_rt, Total time: $total_time"
     return input_range, output, times_rt
@@ -130,65 +124,56 @@ end
 function plot_input_output_relations(step_fn, suffix)
     # Find relevant state indices
     ω_idxs = [find_state_index(x_vec, sys.ω_b[i]) for i in 1:3]
-    twist_idx = find_state_index(x_vec, sys.free_twist_angle[1])
-    
+    twist_idx = find_state_index(sx_vec, sys.free_twist_angle[1])
+
     # Test ranges
-    steer_range = range(-0.1, 0.1, length=100)
-    twist_range = range(-0.1, 0.1, length=100)
-    
+    steer_range = range(-1e-2, 1e-2, length=10)
+    twist_range = range(-1e-2, 1e-2, length=10)
+
     # Test steering input vs omega
     @info "Testing steering input response for $suffix..."
     _, ω_steer_left, _ = test_response(s, steer_range, 2, step_fn, measure.set_values, ω_idxs)
     _, ω_steer_right, _ = test_response(s, steer_range, 3, step_fn, measure.set_values, ω_idxs)
 
-    # Test twist angle vs omega 
+    # Test twist angle vs omega
     @info "Testing twist angle response for $suffix..."
     function step_with_twist(x, twist_val, _, p)
-        x[twist_idx] = twist_val[1]  # Set twist angle directly
+        p[5][twist_idx] = twist_val[1]  # Set twist angle directly in stiff state vector copy
         return step_fn(x, measure.set_values, nothing, p)
     end
-    _, ω_twist, _ = test_response(s, twist_range, 1, step_with_twist, zeros(3), ω_idxs)
+    _, ω_twist, _ = test_response(s, twist_range, 1, step_with_twist, zeros(3), ω_idxs) # u0 is zeros(3) here, seems ok
 
     return ω_steer_left, ω_steer_right, ω_twist, steer_range, twist_range
 end
 
-# Run analysis for both methods
-ω_steer_left_prob, ω_steer_right_prob, ω_twist_prob, steer_range, twist_range = 
-    plot_input_output_relations(step_with_input_prob, "prob")
-ω_steer_left_integ, ω_steer_right_integ, ω_twist_integ, _, _ = 
+ω_steer_left_integ, ω_steer_right_integ, ω_twist_integ, steer_range, twist_range =
     plot_input_output_relations(step_with_input_integ, "integ")
 
-# Plot combined results
-steering_plot = plotx(steer_range, 
-    [ω_steer_left_prob[1,:], ω_steer_right_prob[1,:], 
-     ω_steer_left_integ[1,:], ω_steer_right_integ[1,:]],
-    [ω_steer_left_prob[2,:], ω_steer_right_prob[2,:],
-     ω_steer_left_integ[2,:], ω_steer_right_integ[2,:]],
-    [ω_steer_left_prob[3,:], ω_steer_right_prob[3,:],
-     ω_steer_left_integ[3,:], ω_steer_right_integ[3,:]];
-    ylabels=["ω_b[1]", "ω_b[2]", "ω_b[3]"], 
-    labels=[
-        ["Left Steering (prob)", "Right Steering (prob)", 
-         "Left Steering (integ)", "Right Steering (integ)"],
-        ["Left Steering (prob)", "Right Steering (prob)",
-         "Left Steering (integ)", "Right Steering (integ)"],
-        ["Left Steering (prob)", "Right Steering (prob)",
-         "Left Steering (integ)", "Right Steering (integ)"],
-    ],
-    fig="Steering Input vs Angular Velocity Comparison",
+# --- Plot combined results ---
+# Simplified data collection
+steering_data = [ω_steer_left_integ[1,:], ω_steer_right_integ[1,:]]
+steering_labels = ["Left Steering (integ)", "Right Steering (integ)"]
+twist_data = [ω_twist_integ[1,:]]
+twist_labels = ["Twist Input (integ)"]
+
+# Steering Plot
+steering_plot = plotx(steer_range,
+    steering_data, # ω_b[1] data
+    [ω_steer_left_integ[2,:], ω_steer_right_integ[2,:]], # ω_b[2] data
+    [ω_steer_left_integ[3,:], ω_steer_right_integ[3,:]]; # ω_b[3] data
+    ylabels=["ω_b[1]", "ω_b[2]", "ω_b[3]"],
+    labels=[steering_labels, steering_labels, steering_labels], # Repeat labels for each subplot
+    fig="Steering Input vs Angular Velocity (Integrator)",
     xlabel="Steering Input [Nm]")
 
+# Twist Plot
 twist_plot = plotx(rad2deg.(twist_range),
-    [ω_twist_prob[1,:], ω_twist_integ[1,:]],
-    [ω_twist_prob[2,:], ω_twist_integ[2,:]],
-    [ω_twist_prob[3,:], ω_twist_integ[3,:]];
+    twist_data, # ω_b[1] data
+    [ω_twist_integ[2,:]], # ω_b[2] data
+    [ω_twist_integ[3,:]]; # ω_b[3] data
     ylabels=["ω_b[1]", "ω_b[2]", "ω_b[3]"],
-    labels=[
-        ["Twist Input (prob)", "Twist Input (integ)"],
-        ["Twist Input (prob)", "Twist Input (integ)"],
-        ["Twist Input (prob)", "Twist Input (integ)"]
-    ],
-    fig="Twist Angle vs Angular Velocity Comparison",
+    labels=[twist_labels, twist_labels, twist_labels], # Repeat labels for each subplot
+    fig="Twist Angle vs Angular Velocity (Integrator)",
     xlabel="Twist Angle [deg]")
 
 display(steering_plot)
