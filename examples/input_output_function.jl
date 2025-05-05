@@ -43,7 +43,7 @@ steering_magnitude = 10.0      # Magnitude of steering input [Nm]
 
 # Initialize model
 set = load_settings("system_ram.yaml")
-set.segments = 3
+set.segments = 2
 set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
 set.quasi_static = true
 set.physical_model = "ram"
@@ -61,8 +61,6 @@ toc()
 measure = Measurement()
 
 # Initialize at elevation
-s.point_system.winches[2].tether_length += 0.2
-s.point_system.winches[3].tether_length += 0.2
 measure.sphere_pos .= deg2rad.([70.0 70.0; 1.0 -1.0])
 KiteModels.init_sim!(s, measure; 
     adaptive=false, remake=false, reload=true, 
@@ -124,9 +122,9 @@ function test_response(s, input_range, input_idx, step_fn, u0, x_idxs=nothing; s
         u = copy(u0)
         u[input_idx] += input_val
         x = copy(x0)
-        sx_ = copy(sx)
-        # set_ix(s.integrator, x)
-        # OrdinaryDiffEqCore.reinit!(s.integrator)
+        set_ix(s.integrator, x)
+        OrdinaryDiffEqCore.reinit!(s.integrator)
+        sx_ = get_sx(s.integrator)
         for _ in 1:steps # Use _ if i is not used inside the loop
             p = (s, set_x, set_ix, set_sx, sx_, set_u, get_x, dt) # Pass set_ix even if unused by integ function
             total_time += @elapsed x = step_fn(x, u, nothing, p)

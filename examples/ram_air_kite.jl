@@ -33,7 +33,7 @@ set = load_settings("system_ram.yaml")
 set.segments = 3
 set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
 set.quasi_static = false
-set.physical_model = "simple_ram"
+set.physical_model = "ram"
 
 @info "Creating wing, aero, vsm_solver, point_system and s:"
 s = RamAirKite(set)
@@ -75,7 +75,7 @@ try
     while t < total_time
         local steering
         global t, set_values, runtime, integ_runtime
-        PLOT && plot(s, t; zoom=true, front=false)
+        PLOT && plot(s, t; zoom=false, front=false)
         
         # Calculate steering inputs based on cosine wave
         steering = steering_magnitude * cos(2π * steering_freq * t+0.1)
