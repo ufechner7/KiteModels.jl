@@ -252,9 +252,9 @@ function init_sim!(s::RamAirKite, measure::Measurement;
         dt = SimFloat(1/s.set.sample_freq)
         if prn
             @info "Creating ODEProblem"
-            @time s.prob = ODEProblem(s.sys, defaults, (0.0, dt); guesses, initializealg=CheckInit())
+            @time s.prob = ODEProblem(s.sys, defaults, (0.0, dt); guesses)
         else
-            s.prob = ODEProblem(s.sys, defaults, (0.0, dt); guesses, initializealg=CheckInit())
+            s.prob = ODEProblem(s.sys, defaults, (0.0, dt); guesses)
         end
         serialize(prob_path, s.prob)
         s.integrator = nothing
