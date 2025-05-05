@@ -101,7 +101,6 @@ try
 
         # Log state variables
         KiteModels.update_sys_state!(sys_state, s)
-        @show sys_state.v_reelout
         log!(logger, sys_state)
     end
 catch e
