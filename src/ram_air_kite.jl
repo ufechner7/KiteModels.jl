@@ -72,8 +72,8 @@ $(TYPEDFIELDS)
     e_z::V =                 zeros(S, 3)
     "Simplified system of the mtk model"
     sys::Union{ModelingToolkit.ODESystem, Nothing} = nothing
-    "Linearization problem of the mtk model"
-    lin_prob::Union{ModelingToolkit.LinearizationProblem, Nothing} = nothing
+    "Unsimplified system of the mtk model"
+    full_sys::Union{ModelingToolkit.ODESystem, Nothing} = nothing
     "Velocity of the kite"
     vel_kite::V =           zeros(S, 3)
     "Inertia around kite x y and z axis of the body frame"
@@ -249,7 +249,7 @@ and only update the state variables. Otherwise, it will create a new model from 
 """
 function init_sim!(s::RamAirKite, measure::Measurement;
     solver=ifelse(s.set.quasi_static, FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.4, max_iter=1000)), FBDF()), 
-    adaptive=true, prn=true, precompile=false, lin_sys=false, remake=false, reload=false
+    adaptive=true, prn=true, precompile=false, remake=false, reload=false
 )
     function init(s, measure)
         init_Q_b_w, R_b_w = measure_to_q(measure, s.wing.R_cad_body)
@@ -257,19 +257,19 @@ function init_sim!(s::RamAirKite, measure::Measurement;
 
         init_va_b = R_b_w' * [s.set.v_wind, 0., 0.]
         
-        sys, defaults, guesses, inputs = create_sys!(s, s.point_system, measure; init_Q_b_w, init_kite_pos, init_va_b, lin_sys)
+        inputs = create_sys!(s, s.point_system, measure; init_Q_b_w, init_kite_pos, init_va_b)
         prn && @info "Simplifying the system"
-        prn ? (@time sys = structural_simplify(sys; additional_passes=[ModelingToolkit.IfLifting])) :
-            (sys = structural_simplify(sys; additional_passes=[ModelingToolkit.IfLifting]))
+        prn ? (@time (sys, _) = structural_simplify(s.full_sys, (inputs, []))) :
+            ((sys, _) = structural_simplify(sys, (inputs, [])))
         s.sys = sys
         dt = SimFloat(1/s.set.sample_freq)
         if prn
             @info "Creating ODEProblem"
-            @time s.prob = ODEProblem(s.sys, defaults, (0.0, dt); guesses)
+            @time s.prob = ODEProblem(s.sys, s.defaults, (0.0, dt); s.guesses)
         else
-            s.prob = ODEProblem(s.sys, defaults, (0.0, dt); guesses)
+            s.prob = ODEProblem(s.sys, s.defaults, (0.0, dt); s.guesses)
         end
-        serialize(prob_path, s.prob)
+        serialize(prob_path, (s.prob, s.full_sys, s.defaults, s.guesses))
         s.integrator = nothing
     end
     prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set; precompile))
@@ -336,7 +336,7 @@ function reinit!(
         prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set; precompile))
         !ispath(prob_path) && throw(ArgumentError("$prob_path not found. Run init_sim!(s::RamAirKite) first."))
         try
-            s.prob = deserialize(prob_path)
+            (s.prob, s.full_sys, s.defaults, s.guesses) = deserialize(prob_path)
         catch e
             @warn "Failure to deserialize $prob_path !"
             return false

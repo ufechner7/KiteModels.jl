@@ -768,7 +768,7 @@ function linear_vsm_eqs!(s, eqs, guesses; aero_force_b, aero_moment_b, group_aer
     return eqs, guesses
 end
 
-function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measurement; init_Q_b_w, init_kite_pos, init_va_b, lin_sys)
+function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measurement; init_Q_b_w, init_kite_pos, init_va_b)
     eqs = []
     defaults = Pair{Num, Real}[]
     guesses = Pair{Num, Real}[]
@@ -777,10 +777,10 @@ function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measuremen
     @parameters begin
         stabilize = false
         only_stiff = false
-        set_values[eachindex(system.winches)] = init_set_values
     end
     @variables begin
         # potential differential variables
+        set_values(t)[eachindex(system.winches)] = init_set_values
         kite_pos(t)[1:3] # xyz pos of kite in world frame
         kite_vel(t)[1:3]
         kite_acc(t)[1:3]
@@ -839,10 +839,10 @@ function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measuremen
 
     s.defaults = defaults
     s.guesses = guesses
-    if lin_sys
-        @info "Creating linearization system"
-        @time lin_fun, _ = ModelingToolkit.linearization_function(sys, [set_values], [ω_b]; op=defaults, guesses)
-        @time s.lin_prob = LinearizationProblem(lin_fun, 0.0)
-    end
-    return sys, defaults, guesses, set_values
+    s.full_sys = sys
+
+    sys = complete(sys)
+    # lin_fun, simplified_sys = linearization_function(sys, [set_values[i] for i in 1:3], [ω_b[i] for i in 1:3])
+
+    return set_values
 end

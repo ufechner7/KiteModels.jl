@@ -387,6 +387,9 @@ function create_simple_ram_point_system(set::Settings, wing::RamAirWing)
 
     dynamics_type = set.quasi_static ? STATIC : DYNAMIC
     gammas = [-3/4, -1/4, 1/4, 3/4] * wing.gamma_tip
+    
+    bridle_top_left = [wing.R_cad_body * (set.top_bridle_points[i] + wing.T_cad_body) for i in eachindex(set.top_bridle_points)] # cad to kite frame
+    bridle_top_right = [bridle_top_left[i] .* [1, -1, 1] for i in eachindex(set.top_bridle_points)]
 
     # ==================== CREATE DEFORMING KITE GROUPS ==================== #
     points = [
@@ -403,10 +406,6 @@ function create_simple_ram_point_system(set::Settings, wing::RamAirWing)
         KitePointGroup(3, [3], wing, gammas[3], DYNAMIC, set.bridle_fracs[2])
         KitePointGroup(4, [4], wing, gammas[4], DYNAMIC, set.bridle_fracs[2])
     ]
-
-    bridle_top_left = [wing.R_cad_body * (set.top_bridle_points[i] + wing.T_cad_body) for i in eachindex(set.top_bridle_points)] # cad to kite frame
-    bridle_top_right = [bridle_top_left[i] .* [1, -1, 1] for i in eachindex(set.top_bridle_points)]
-    
     # ==================== CREATE PULLEY BRIDLE SYSTEM ==================== #
     points = [
         points
