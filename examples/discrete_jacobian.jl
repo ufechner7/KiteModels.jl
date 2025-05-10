@@ -111,7 +111,14 @@ p = (s, set_x, set_u, get_x, dt)
 @show x0
 x0 .+= (rand(length(x0)) .- 0.5) * NOISE
 set_ix(s.integrator, x0)
-OrdinaryDiffEqCore.reinit!(s.integrator)
+@time OrdinaryDiffEqCore.reinit!(s.integrator)
+@time OrdinaryDiffEqCore.reinit!(s.integrator)
+@time OrdinaryDiffEqCore.reinit!(s.integrator)
+
+# use_scc=false:
+# 0.026057 seconds (2.04 k allocations: 712.352 KiB)
+# use_ssc=true:
+# 0.017217 seconds (4.08 k allocations: 574.000 KiB)
 
 f_x(x) = f(x, u0, nothing, p)
 f_u(u) = f(x0, u, nothing, p)
@@ -144,9 +151,9 @@ sparse_backend = AutoSparse(
     backend;
     sparsity_detector=ADTypes.KnownJacobianSparsityDetector(S)
 )
-jac_prep = prepare_jacobian(f_x, backend, x0)
-@time J = jacobian(f_x, jac_prep, backend, x0)
-@time J = jacobian(f_x, jac_prep, backend, x0)
-@show norm(J)
-display(J)
+# jac_prep = prepare_jacobian(f_x, backend, x0)
+# @time J = jacobian(f_x, jac_prep, backend, x0)
+# @time J = jacobian(f_x, jac_prep, backend, x0)
+# @show norm(J)
+# display(J)
 

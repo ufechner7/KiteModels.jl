@@ -15,7 +15,9 @@ using Timers
 tic()
 @info "Loading packages "
 
-using KiteModels, LinearAlgebra, Statistics
+using KiteModels, LinearAlgebra, Statistics, OrdinaryDiffEqCore, OrdinaryDiffEqNonlinearSolve, OrdinaryDiffEqBDF
+using ModelingToolkit: setu, getu, setp, getp
+using ModelingToolkit
 
 PLOT = true
 if PLOT
@@ -89,6 +91,7 @@ function step_with_input_integ(x, u, _, p)
     set_u(s.integrator, u)
     OrdinaryDiffEqCore.set_t!(s.integrator, 0.0)
     OrdinaryDiffEqCore.reinit!(s.integrator, s.integrator.u; reinit_dae=false)
+    OrdinaryDiffEqCore.set_proposed_dt!(s.integrator, dt)
     OrdinaryDiffEqCore.step!(s.integrator, dt)
     return get_x(s.integrator)
 end
@@ -152,8 +155,8 @@ function plot_input_output_relations(step_fn, suffix)
     twist_idx = find_state_index(sx_vec, sys.free_twist_angle[1])
 
     # Test ranges
-    steer_range = range(-1e-2, 1e-2, length=100)
-    twist_range = range(-1e-2, 1e-2, length=100)
+    steer_range = range(-1, 1, length=100)
+    twist_range = range(-1, 1, length=100)
 
     # Test steering input vs omega
     @info "Testing steering input response for $suffix..."

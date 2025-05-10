@@ -74,6 +74,10 @@ $(TYPEDFIELDS)
     sys::Union{ModelingToolkit.ODESystem, Nothing} = nothing
     "Unsimplified system of the mtk model"
     full_sys::Union{ModelingToolkit.ODESystem, Nothing} = nothing
+    "Linearization system of the mtk model"
+    lin_sys::Union{ModelingToolkit.ODESystem, Nothing} = nothing
+    "Linearization function of the mtk model"
+    lin_fun::Union{ModelingToolkit.LinearizationFunction, Nothing} = nothing
     "Velocity of the kite"
     vel_kite::V =           zeros(S, 3)
     "Inertia around kite x y and z axis of the body frame"
@@ -249,7 +253,7 @@ and only update the state variables. Otherwise, it will create a new model from 
 """
 function init_sim!(s::RamAirKite, measure::Measurement;
     solver=ifelse(s.set.quasi_static, FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.4, max_iter=1000)), FBDF()), 
-    adaptive=true, prn=true, precompile=false, remake=false, reload=false
+    adaptive=true, prn=true, precompile=false, remake=false, reload=false, lin_outputs=Num[]
 )
     function init(s, measure)
         init_Q_b_w, R_b_w = measure_to_q(measure, s.wing.R_cad_body)
@@ -269,8 +273,12 @@ function init_sim!(s::RamAirKite, measure::Measurement;
         else
             s.prob = ODEProblem(s.sys, s.defaults, (0.0, dt); s.guesses)
         end
-        serialize(prob_path, (s.prob, s.full_sys, s.defaults, s.guesses))
+        if length(lin_outputs) > 0
+            s.lin_fun, s.lin_sys = linearization_function(s.full_sys, [inputs...], lin_outputs; op=s.defaults, guesses=s.guesses)
+        end
+        serialize(prob_path, (s.prob, s.full_sys, s.lin_fun, s.lin_sys, s.defaults, s.guesses))
         s.integrator = nothing
+        return nothing
     end
     prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set; precompile))
     if !ispath(prob_path) || remake
@@ -286,8 +294,14 @@ function init_sim!(s::RamAirKite, measure::Measurement;
     return nothing
 end
 
+
 function init_sim!(::RamAirKite; prn=true)
     throw(ArgumentError("Use the function init_sim!(s::RamAirKite, measure::Measurement) instead."))
+end
+
+function linearize(s::RamAirKite)
+    isnothing(s.lin_fun) || isnothing(s.lin_sys) && throw(ArgumentError("Run init_sim! with remake=true and lin_outputs=..."))
+    return ModelingToolkit.linearize(s.lin_sys, s.lin_fun)
 end
 
 """
@@ -336,7 +350,7 @@ function reinit!(
         prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set; precompile))
         !ispath(prob_path) && throw(ArgumentError("$prob_path not found. Run init_sim!(s::RamAirKite) first."))
         try
-            (s.prob, s.full_sys, s.defaults, s.guesses) = deserialize(prob_path)
+            (s.prob, s.full_sys, s.lin_fun, s.lin_sys, s.defaults, s.guesses) = deserialize(prob_path)
         catch e
             @warn "Failure to deserialize $prob_path !"
             return false

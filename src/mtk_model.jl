@@ -840,9 +840,5 @@ function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measuremen
     s.defaults = defaults
     s.guesses = guesses
     s.full_sys = sys
-
-    sys = complete(sys)
-    # lin_fun, simplified_sys = linearization_function(sys, [set_values[i] for i in 1:3], [ω_b[i] for i in 1:3])
-
     return set_values
 end
