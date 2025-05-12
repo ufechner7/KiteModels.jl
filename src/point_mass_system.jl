@@ -53,10 +53,11 @@ mutable struct Point
     idx::Int16
     pos_b::KVec3 # pos relative to kite COM in body frame
     pos_w::KVec3 # pos in world frame
+    vel_w::KVec3 # vel in world frame
     type::DynamicsType
 end
-function Point(idx, pos_b, type)
-    Point(idx, pos_b, copy(pos_b), type)
+function Point(idx, pos_b, type, vel_w=zeros(KVec3))
+    Point(idx, pos_b, copy(pos_b), vel_w, type)
 end
 
 """
@@ -66,7 +67,7 @@ Set of bridle lines that share the same twist angle and trailing edge angle.
 
 $(TYPEDFIELDS)
 """
-struct KitePointGroup
+mutable struct KitePointGroup
     idx::Int16
     points::Vector{Int16}
     le_pos::KVec3 # point which the group rotates around under kite deformation
@@ -74,12 +75,14 @@ struct KitePointGroup
     y_airf::KVec3 # spanwise vector in local panel frame which the group rotates around under kite deformation
     type::DynamicsType
     moment_frac::SimFloat
+    twist::SimFloat
+    twist_vel::SimFloat
 end
 function KitePointGroup(idx, points, wing, gamma, type, moment_frac)
     le_pos = [wing.le_interp[i](gamma) for i in 1:3]
     chord = [wing.te_interp[i](gamma) for i in 1:3] .- le_pos
     y_airf = normalize([wing.le_interp[i](gamma-0.01) for i in 1:3] - le_pos)
-    KitePointGroup(idx, points, le_pos, chord, y_airf, type, moment_frac)
+    KitePointGroup(idx, points, le_pos, chord, y_airf, type, moment_frac, 0.0, 0.0)
 end
 
 """
@@ -113,8 +116,10 @@ mutable struct Pulley
     segments::Tuple{Int16, Int16}
     type::DynamicsType
     sum_length::SimFloat
+    length::SimFloat
+    vel::SimFloat
     function Pulley(idx, segments, type)
-        new(idx, segments, type, zero(SimFloat))
+        new(idx, segments, type, 0.0, 0.0, 0.0)
     end
 end
 
@@ -142,10 +147,18 @@ mutable struct Winch
     idx::Int16
     model::AbstractWinchModel
     tethers::Vector{Int16}
-    tether_length::Float64
-    function Winch(idx, model, tethers, tether_length=zero(Float64))
-        new(idx, model, tethers, tether_length)
+    tether_length::SimFloat
+    tether_vel::SimFloat
+    function Winch(idx, model, tethers, tether_length, tether_vel=0.0)
+        new(idx, model, tethers, tether_length, tether_vel)
     end
+end
+
+@with_kw struct Kite
+    orient::KVec4 = zeros(KVec4)
+    angular_vel::KVec3 = zeros(KVec3)
+    pos::KVec3 = zeros(KVec3)
+    vel::KVec3 = zeros(KVec3)
 end
 
 """
@@ -175,7 +188,8 @@ struct PointMassSystem
     pulleys::Vector{Pulley}
     tethers::Vector{Tether}
     winches::Vector{Winch}
-    function PointMassSystem(name, points, groups, segments, pulleys, tethers, winches)
+    kite::Kite
+    function PointMassSystem(name, points, groups, segments, pulleys, tethers, winches, kite=Kite())
         for (i, point) in enumerate(points)
             @assert point.idx == i
         end
@@ -194,7 +208,7 @@ struct PointMassSystem
         for (i, winch) in enumerate(winches)
             @assert winch.idx == i
         end
-        return new(name, points, groups, segments, pulleys, tethers, winches)
+        return new(name, points, groups, segments, pulleys, tethers, winches, kite)
     end
 end
 
@@ -436,8 +450,8 @@ function create_simple_ram_point_system(set::Settings, wing::RamAirWing)
 end
 
 
-function init!(system::PointMassSystem, set::Settings, R_b_w)
-    @unpack points, groups, segments, pulleys, tethers, winches = system
+function init!(system::PointMassSystem, set::Settings, R_b_w, Q_b_w)
+    @unpack points, groups, segments, pulleys, tethers, winches, kite = system
 
     for segment in segments
         (segment.type === BRIDLE) && (segment.diameter = 0.001set.bridle_tether_diameter)
@@ -451,15 +465,21 @@ function init!(system::PointMassSystem, set::Settings, R_b_w)
     for pulley in pulleys
         segment1, segment2 = segments[pulley.segments[1]], segments[pulley.segments[2]]
         pulley.sum_length = segment1.l0 + segment2.l0
+        pulley.length = segment1.l0
+        pulley.vel = 0.0
         @assert !(pulley.sum_length ≈ 0)
     end
 
     for winch in winches
+        winch.tether_length = set.l_tether
+        winch.tether_vel = 0.0
         @assert !(winch.tether_length ≈ 0)
     end
 
     first_moment_frac = groups[1].moment_frac
     for group in groups
+        group.twist = 0.0
+        group.twist_vel = 0.0
         @assert group.moment_frac ≈ first_moment_frac "All group.moment_frac must be the same."
     end
 
@@ -471,9 +491,13 @@ function init!(system::PointMassSystem, set::Settings, R_b_w)
     end
     for point in points
         point.pos_w .= R_b_w * [point.pos_b[1], point.pos_b[2], point.pos_b[3] - min_z]
+        point.vel_w .= 0.0
     end
-    init_kite_pos = R_b_w * [0.0, 0.0, -min_z]
-    return init_kite_pos
+    kite.pos .= R_b_w * [0.0, 0.0, -min_z]
+    kite.orient .= Q_b_w
+    kite.vel .= 0.0
+    kite.angular_vel .= 0.0
+    return nothing
 end
 
 const MeasureFloat = Float32

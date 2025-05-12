@@ -525,16 +525,15 @@ angular velocities and accelerations, and forces/moments.
 - `kite_pos`: Kite position vector
 - `kite_vel`: Kite velocity vector
 - `kite_acc`: Kite acceleration vector
-- `init_Q_b_w`: Initial quaternion orientation
-- `init_kite_pos`: Initial kite position
 - `stabilize`: Whether in stabilize mode
 
 # Returns
 Tuple of updated equations and defaults
 """
 function diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero_force_b, 
-    aero_moment_b, ω_b, R_b_w, kite_pos, kite_vel, kite_acc, init_Q_b_w, init_kite_pos, stabilize
+    aero_moment_b, ω_b, R_b_w, kite_pos, kite_vel, kite_acc, stabilize
 )
+    kite = s.point_system.kite
     @variables begin
         # potential differential variables
         kite_acc_b(t)[1:3]
@@ -601,10 +600,10 @@ function diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero
     ]
     defaults = [
         defaults
-        [Q_b_w[i] => init_Q_b_w[i] for i in 1:4]
-        [ω_b[i] => 0 for i in 1:3]
-        [kite_pos[i] => init_kite_pos[i] for i in 1:3]
-        [kite_vel[i] => 0 for i in 1:3]
+        [Q_b_w[i] => kite.orient[i] for i in 1:4]
+        [ω_b[i] => kite.angular_vel[i] for i in 1:3]
+        [kite_pos[i] => kite.pos[i] for i in 1:3]
+        [kite_vel[i] => kite.vel[i] for i in 1:3]
     ]
     return eqs, defaults
 end
@@ -768,7 +767,7 @@ function linear_vsm_eqs!(s, eqs, guesses; aero_force_b, aero_moment_b, group_aer
     return eqs, guesses
 end
 
-function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measurement; init_Q_b_w, init_kite_pos, init_va_b)
+function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measurement; init_va_b)
     eqs = []
     defaults = Pair{Num, Real}[]
     guesses = Pair{Num, Real}[]
@@ -804,7 +803,7 @@ function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measuremen
             R_b_w, kite_pos, kite_vel, wind_vec_gnd, group_aero_moment, twist_angle, twist_ω, stabilize, set_values)
     eqs, guesses = linear_vsm_eqs!(s, eqs, guesses; aero_force_b, aero_moment_b, group_aero_moment, init_va_b, twist_angle, va_kite_b, ω_b)
     eqs, defaults = diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero_force_b, aero_moment_b, 
-        ω_b, R_b_w, kite_pos, kite_vel, kite_acc, init_Q_b_w, init_kite_pos, stabilize)
+        ω_b, R_b_w, kite_pos, kite_vel, kite_acc, stabilize)
     eqs = scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc, twist_angle, twist_ω)
     
     # te_I = (1/3 * (s.set.mass/8) * te_length^2)

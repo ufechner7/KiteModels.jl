@@ -91,6 +91,7 @@ const SimFloat = Float64
 Basic 3-dimensional vector, stack allocated, mutable.
 """
 const KVec3    = MVector{3, SimFloat}
+const KVec4    = MVector{4, SimFloat}
 
 """
    const SVec3    = SVector{3, SimFloat}

@@ -14,7 +14,6 @@ tic()
 @info "Loading packages "
 
 using KiteModels, LinearAlgebra, Statistics, OrdinaryDiffEqCore 
-using ModelingToolkit: t_nounits as t
 using ModelingToolkit
 
 PLOT = true
@@ -27,6 +26,8 @@ if PLOT
     import ControlPlots: plot
 end
 toc()
+
+# TODO: USE SPARSE AUTODIFF, AND LINEARIZE AROUND CORRECT OPERATING POINT
 
 include(joinpath(@__DIR__, "plotting.jl"))
 
@@ -56,7 +57,7 @@ toc()
 measure = Measurement()
 
 # Define outputs for linearization - angular velocities
-@variables ω_b(t)[1:3]
+@variables ω_b(ModelingToolkit.t_nounits)[1:3]
 
 # Initialize at elevation with linearization outputs
 s.point_system.winches[2].tether_length += 0.2
@@ -72,18 +73,21 @@ sys = s.sys
 @info "System initialized at:"
 toc()
 
-# # --- Stabilize system at operating point ---
-# @info "Stabilizing system at operating point..."
-# s.integrator.ps[sys.stabilize] = true
+# --- Stabilize system at operating point ---
+@info "Stabilizing system at operating point..."
+s.integrator.ps[sys.stabilize] = true
 # stabilization_steps = Int(10 ÷ dt)  # 10 seconds of stabilization
-# for i in 1:stabilization_steps
-#     next_step!(s; dt, vsm_interval=1)
-# end
-# s.integrator.ps[sys.stabilize] = false
+stabilization_steps = 100
+for i in 1:stabilization_steps
+    next_step!(s; dt, vsm_interval=1)
+end
+s.integrator.ps[sys.stabilize] = false
 
 # --- Linearize at operating point ---
 @info "Linearizing system at operating point..."
 @time (; A, B, C, D) = KiteModels.linearize(s)
+@time (; A, B, C, D) = KiteModels.linearize(s)
+@show norm(A) # 2.1875118055983325e6
 @info "System linearized with matrix dimensions:" A=size(A) B=size(B) C=size(C) D=size(D)
 
 # --- Get operating point values ---
@@ -129,15 +133,12 @@ try
         push!(simulation_time_points, sim_time)
         
         # --- Calculate steering inputs ---
-        # For small inputs, use sinusoidal steering
-        steering = steering_magnitude * sin(2π * steering_freq * sim_time)
+        steering = 10.0
         
         # --- Nonlinear system simulation ---
         # Compute control inputs: base winch force + steering
-        set_values_nonlinear = -s.set.drum_radius .* s.integrator[sys.winch_force]
-        if sim_time > 0.5  # Add steering after initial settling
-            set_values_nonlinear .+= [0.0, steering, -steering]  # Opposite steering for left/right
-        end
+        set_values_nonlinear = copy(u_op)
+        set_values_nonlinear .+= [0.0, steering, -steering]
         push!(input_history, copy(set_values_nonlinear))
         
         # Compute perturbation from operating point
