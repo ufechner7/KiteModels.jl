@@ -106,6 +106,7 @@ $(TYPEDFIELDS)
     set_measure::Function          = () -> nothing
     set_vsm::Function              = () -> nothing
     set_unknowns::Function         = () -> nothing
+    set_initial::Function         = () -> nothing
     
     get_set_values::Function       = () -> nothing
     get_unknowns::Function         = () -> nothing
@@ -302,7 +303,7 @@ function linearize(s::RamAirKite; set_values=s.get_set_values(s.integrator))
     isnothing(s.lin_prob) && throw(ArgumentError("Run init_sim! with remake=true and lin_outputs=..."))
     linearize_vsm!(s, s.lin_prob)
     s.set_set_values(s.lin_prob, set_values)
-    s.set_unknowns(s.lin_prob, s.get_unknowns(s.integrator))
+    s.set_initial(s.lin_prob, s.get_unknowns(s.integrator))
     return solve(s.lin_prob)
 end
 
@@ -390,6 +391,7 @@ function generate_getters!(s, sym_vec)
         sys.vsm_jac,
     ]))
     set_unknowns = setu(sys, sym_vec)
+    set_initial = setu(sys, sym_vec)
     
     get_set_values = getp(sys, sys.set_values)
     get_unknowns = getu(sys, sym_vec)
@@ -421,6 +423,7 @@ function generate_getters!(s, sym_vec)
     s.set_measure = (integ, val) -> set_measure(integ, val)
     s.set_vsm = (integ, val) -> set_vsm(integ, val)
     s.set_unknowns = (integ, val) -> set_unknowns(integ, val)
+    s.set_initial = (integ, val) -> set_initial(integ, val)
 
     s.get_set_values = (integ) -> get_set_values(integ)
     s.get_unknowns = (integ) -> get_unknowns(integ)
