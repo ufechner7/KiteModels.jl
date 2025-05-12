@@ -391,7 +391,7 @@ function generate_getters!(s, sym_vec)
         sys.vsm_jac,
     ]))
     set_unknowns = setu(sys, sym_vec)
-    set_initial = setu(sys, sym_vec)
+    set_initial = setu(sys, Initial.(sym_vec))
     
     get_set_values = getp(sys, sys.set_values)
     get_unknowns = getu(sys, sym_vec)
