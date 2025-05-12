@@ -106,9 +106,8 @@ $(TYPEDFIELDS)
     set_measure::Function          = () -> nothing
     set_vsm::Function              = () -> nothing
     set_unknowns::Function         = () -> nothing
-    set_lin_unknowns::Function     = () -> nothing
-    set_lin_set_values::Function   = () -> nothing
     
+    get_set_values::Function       = () -> nothing
     get_unknowns::Function         = () -> nothing
     get_state::Function            = () -> nothing
     get_y::Function                = () -> nothing
@@ -299,10 +298,11 @@ function init_sim!(::RamAirKite; prn=true)
     throw(ArgumentError("Use the function init_sim!(s::RamAirKite, measure::Measurement) instead."))
 end
 
-function linearize(s::RamAirKite; set_values=s.integrator[s.sys.set_values])
-    isnothing(s.lin_prob) || isnothing(s.set_lin_unknowns) && throw(ArgumentError("Run init_sim! with remake=true and lin_outputs=..."))
-    s.set_lin_unknowns(s.lin_prob, s.get_unknowns(s.integrator))
-    s.set_lin_set_values(s.lin_prob, set_values)
+function linearize(s::RamAirKite; set_values=s.get_set_values(s.integrator))
+    isnothing(s.lin_prob) && throw(ArgumentError("Run init_sim! with remake=true and lin_outputs=..."))
+    linearize_vsm!(s, s.lin_prob)
+    s.set_set_values(s.lin_prob, set_values)
+    s.set_unknowns(s.lin_prob, s.get_unknowns(s.integrator))
     return solve(s.lin_prob)
 end
 
@@ -391,6 +391,7 @@ function generate_getters!(s, sym_vec)
     ]))
     set_unknowns = setu(sys, sym_vec)
     
+    get_set_values = getp(sys, sys.set_values)
     get_unknowns = getu(sys, sym_vec)
     get_state = getu(sys,
         [c(sys.set_values),
@@ -421,21 +422,15 @@ function generate_getters!(s, sym_vec)
     s.set_vsm = (integ, val) -> set_vsm(integ, val)
     s.set_unknowns = (integ, val) -> set_unknowns(integ, val)
 
+    s.get_set_values = (integ) -> get_set_values(integ)
     s.get_unknowns = (integ) -> get_unknowns(integ)
     s.get_state = (integ) -> get_state(integ)
     s.get_y = (integ) -> get_y(integ)
-        
-    if !isnothing(s.lin_prob) 
-        set_lin_unknowns = setu(s.lin_prob, Initial.(sym_vec))
-        set_lin_set_values = setu(s.lin_prob, sys.set_values)
-        s.set_lin_unknowns = (prob, val) -> set_lin_unknowns(prob, val)
-        s.set_lin_set_values = (prob, val) -> set_lin_set_values(prob, val)
-    end
     nothing
 end
 
-function linearize_vsm!(s::RamAirKite)
-    y = s.get_y(s.integrator)
+function linearize_vsm!(s::RamAirKite, integ=s.integrator)
+    y = s.get_y(integ)
     jac, x = VortexStepMethod.linearize(
         s.vsm_solver, 
         s.aero, 
@@ -444,7 +439,7 @@ function linearize_vsm!(s::RamAirKite)
         omega_idxs=4:6,
         theta_idxs=7:6+length(s.point_system.groups),
         moment_frac=s.point_system.groups[1].moment_frac)
-    s.set_vsm(s.integrator, [x, y, jac])
+    s.set_vsm(integ, [x, y, jac])
     nothing
 end
 
