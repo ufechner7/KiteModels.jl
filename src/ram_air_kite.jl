@@ -387,7 +387,7 @@ function generate_getters!(s, sym_vec)
         sys.last_y,
         sys.vsm_jac,
     ]))
-    set_unknowns = setu(sys, Initial.(sym_vec))
+    set_unknowns = setu(sys, sym_vec)
     
     get_unknowns = getu(sys, sym_vec)
     get_state = getu(sys,
@@ -424,7 +424,7 @@ function generate_getters!(s, sym_vec)
     s.get_y = (integ) -> get_y(integ)
         
     if !isnothing(s.lin_prob) 
-        set_lin_unknowns = setu(s.lin_prob, Initial.(sym_vec))
+        set_lin_unknowns = setu(s.lin_prob, sym_vec)
         s.set_lin_unknowns = (prob, val) -> set_lin_unknowns(prob, val)
     end
     nothing

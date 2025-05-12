@@ -27,13 +27,13 @@ if PLOT
 end
 toc()
 
-# TODO: USE SPARSE AUTODIFF, AND LINEARIZE AROUND CORRECT OPERATING POINT
-
 include(joinpath(@__DIR__, "plotting.jl"))
+
+# TODO: use sparse autodiff
 
 # Simulation parameters
 dt = 0.001
-total_time = 0.1  # Seconds of simulation after stabilization
+total_time = 1.0  # Increased from 0.1s to 1.0s for better dynamics observation
 vsm_interval = 3
 steps = Int(round(total_time / dt))
 
@@ -62,7 +62,7 @@ measure = Measurement()
 # Initialize at elevation with linearization outputs
 s.point_system.winches[2].tether_length += 0.2
 s.point_system.winches[3].tether_length += 0.2
-measure.sphere_pos .= deg2rad.([70.0 70.0; 1.0 -1.0])
+measure.sphere_pos .= deg2rad.([65.0 65.0; 1.0 -1.0])
 KiteModels.init_sim!(s, measure; 
     remake=false,
     reload=true,
@@ -70,16 +70,18 @@ KiteModels.init_sim!(s, measure;
 )
 sys = s.sys
 
+@show rad2deg(s.integrator[sys.elevation])
+
+
 @info "System initialized at:"
 toc()
 
 # --- Stabilize system at operating point ---
 @info "Stabilizing system at operating point..."
 s.integrator.ps[sys.stabilize] = true
-# stabilization_steps = Int(10 ÷ dt)  # 10 seconds of stabilization
-stabilization_steps = 100
+stabilization_steps = Int(10 ÷ dt)
 for i in 1:stabilization_steps
-    next_step!(s; dt, vsm_interval=1)
+    next_step!(s; dt, vsm_interval=0.05÷dt)
 end
 s.integrator.ps[sys.stabilize] = false
 
@@ -87,8 +89,10 @@ s.integrator.ps[sys.stabilize] = false
 @info "Linearizing system at operating point..."
 @time (; A, B, C, D) = KiteModels.linearize(s)
 @time (; A, B, C, D) = KiteModels.linearize(s)
-@show norm(A) # 2.1875118055983325e6
+@show norm(A)
 @info "System linearized with matrix dimensions:" A=size(A) B=size(B) C=size(C) D=size(D)
+
+@show rad2deg(s.lin_prob[sys.elevation])
 
 # --- Get operating point values ---
 # Extract state and input at operating point
@@ -97,6 +101,33 @@ u_op = copy(s.integrator[sys.set_values])
 sys_state_op = KiteModels.SysState(s)
 # Also get the direct state vector for linear model
 x_op = copy(s.integrator.u)
+
+# --- Create discretized system matrices ---
+# Function to compute discretized system matrices using matrix exponential method
+function discretize_linear_system(A, B, dt)
+    n = size(A, 1)
+    m = size(B, 2)
+    
+    # Create augmented matrix for simultaneous computation
+    M = [A B; zeros(m, n) zeros(m, m)]
+    
+    # Compute matrix exponential
+    expM = exp(M * dt)
+    
+    # Extract discretized matrices
+    Ad = expM[1:n, 1:n]
+    Bd = expM[1:n, n+1:n+m]
+    
+    return Ad, Bd
+end
+
+# Discretize the continuous-time system for more accurate integration
+@info "Discretizing system matrices..."
+Ad, Bd = discretize_linear_system(A, B, dt)
+
+# Verify operating point stability
+derivatives_at_op = A * zeros(size(A, 1)) + B * zeros(size(B, 2))
+@info "Derivatives at operating point (should be near zero):" norm(derivatives_at_op)
 
 # Create loggers
 logger_nonlinear = Logger(length(s.point_system.points), steps)
@@ -108,60 +139,51 @@ sys_state_nonlinear = KiteModels.SysState(s)
 sys_state_linear = deepcopy(sys_state_op)
 
 # --- Prepare the simulation ---
-sim_time = 0.0
-simulation_time_points = Float64[]
-# Input history for plotting
-input_history = Vector{Float64}[]
-# Perturbation input history
-perturbation_history = Vector{Float64}[]
+simulation_time_points = zeros(Float64, steps)
+# Pre-allocate arrays with fixed size instead of growing them dynamically
+input_history = Vector{Vector{Float64}}(undef, steps)
+perturbation_history = Vector{Vector{Float64}}(undef, steps)
 
 # --- Set up linear state tracking ---
 # Create a linear model state vector that starts at zero (deviations from op point)
 x_linear = zeros(length(x_op))
 # Create output vector for linear model
 y_linear = zeros(size(C, 1))
-# Linear system: dx/dt = A*x + B*u
-# We'll use a simple Euler method to integrate it alongside the nonlinear system
 
 @info "Starting side-by-side simulation..."
-# Begin simulation
+# Begin simulation with fixed number of steps
 try
-    global sim_time
-    sim_time = 0.0  # Start at t=0 for the comparison
-
-    while sim_time < total_time
-        push!(simulation_time_points, sim_time)
+    for i in 1:steps
+        global x_linear, sim_time
+        # Calculate current simulation time
+        sim_time = (i-1) * dt
+        simulation_time_points[i] = sim_time
         
-        # --- Calculate steering inputs ---
-        steering = 10.0
+        # --- Calculate time-varying steering inputs ---
+        # Use sinusoidal input for more realistic testing
+        steering = steering_magnitude * sin(2π * steering_freq * sim_time)
         
         # --- Nonlinear system simulation ---
         # Compute control inputs: base winch force + steering
         set_values_nonlinear = copy(u_op)
         set_values_nonlinear .+= [0.0, steering, -steering]
-        push!(input_history, copy(set_values_nonlinear))
+        input_history[i] = copy(set_values_nonlinear)
         
         # Compute perturbation from operating point
         perturbation = set_values_nonlinear - u_op
-        push!(perturbation_history, copy(perturbation))
+        perturbation_history[i] = copy(perturbation)
         
         # Step nonlinear simulation
         (t_new, _) = next_step!(s, set_values_nonlinear; dt, vsm_interval=vsm_interval)
-        
-        # Update time
-        sim_time = t_new - stabilization_steps*dt  # Adjust for initial stabilization time
         
         # Log nonlinear state
         KiteModels.update_sys_state!(sys_state_nonlinear, s)
         log!(logger_nonlinear, sys_state_nonlinear)
         
         # --- Linear system simulation ---
-        # Linear system step using Euler integration
-        # Perturbation input: du = u - u_op
-        # dx/dt = A*x + B*du
-        # For dt small enough, x(t+dt) ≈ x(t) + dx/dt * dt
-        dx_dt = A * x_linear + B * perturbation
-        x_linear .+= dx_dt * dt
+        # Use discretized state-space model
+        # x[k+1] = Ad*x[k] + Bd*u[k]
+        x_linear = Ad * x_linear + Bd * perturbation
         
         # Compute linear system output
         y_linear .= C * x_linear + D * perturbation
@@ -172,7 +194,7 @@ try
     end
 catch e
     if isa(e, AssertionError)
-        @show sim_time
+        @show i
         println(e)
     else
         rethrow(e)
@@ -202,7 +224,6 @@ steering_inputs = [inputs[2] - u_op[2] for inputs in input_history]
 t_plot = sl_nonlinear.time
 
 # Prepare the data in the format expected by plotx
-# For each turn rate component, we'll have [nonlinear_series, linear_series]
 ω_x_comparison = [turn_rates_nonlinear_deg[1,:], turn_rates_linear_deg[1,:]]
 ω_y_comparison = [turn_rates_nonlinear_deg[2,:], turn_rates_linear_deg[2,:]]
 ω_z_comparison = [turn_rates_nonlinear_deg[3,:], turn_rates_linear_deg[3,:]]
@@ -225,11 +246,52 @@ p_comparison = plotx(t_plot,
 display(p_comparison)
 
 # --- Calculate error metrics ---
-# Trim to same length if needed
-min_length = min(length(turn_rates_nonlinear_deg[1,:]), length(turn_rates_linear_deg[1,:]))
-error_ω_x = norm(turn_rates_nonlinear_deg[1,1:min_length] - turn_rates_linear_deg[1,1:min_length]) / min_length
-error_ω_y = norm(turn_rates_nonlinear_deg[2,1:min_length] - turn_rates_linear_deg[2,1:min_length]) / min_length
-error_ω_z = norm(turn_rates_nonlinear_deg[3,1:min_length] - turn_rates_linear_deg[3,1:min_length]) / min_length
+# Function to calculate normalized RMSE
+function calculate_nrmse(actual, predicted)
+    # Trim to same length if needed
+    min_length = min(length(actual), length(predicted))
+    # Calculate RMSE
+    rmse = sqrt(sum((actual[1:min_length] - predicted[1:min_length]).^2) / min_length)
+    # Normalize by range of actual values
+    range_actual = maximum(actual[1:min_length]) - minimum(actual[1:min_length])
+    # Avoid division by zero
+    if abs(range_actual) < 1e-10
+        return rmse  # Return unnormalized if range is too small
+    else
+        return rmse / range_actual
+    end
+end
+
+# Calculate both average L2 norm and NRMSE
+error_ω_x = norm(turn_rates_nonlinear_deg[1,:] - turn_rates_linear_deg[1,:]) / min_length
+error_ω_y = norm(turn_rates_nonlinear_deg[2,:] - turn_rates_linear_deg[2,:]) / min_length
+error_ω_z = norm(turn_rates_nonlinear_deg[3,:] - turn_rates_linear_deg[3,:]) / min_length
+
+nrmse_ω_x = calculate_nrmse(turn_rates_nonlinear_deg[1,:], turn_rates_linear_deg[1,:])
+nrmse_ω_y = calculate_nrmse(turn_rates_nonlinear_deg[2,:], turn_rates_linear_deg[2,:])
+nrmse_ω_z = calculate_nrmse(turn_rates_nonlinear_deg[3,:], turn_rates_linear_deg[3,:])
 
 @info "Error metrics (average L2 norm):" error_ω_x error_ω_y error_ω_z
+@info "Normalized RMSE (lower is better):" nrmse_ω_x nrmse_ω_y nrmse_ω_z
 
+# --- Plot error over time ---
+# Calculate difference between linear and nonlinear models
+diff_ω_x = turn_rates_linear_deg[1,:] - turn_rates_nonlinear_deg[1,:]
+diff_ω_y = turn_rates_linear_deg[2,:] - turn_rates_nonlinear_deg[2,:]
+diff_ω_z = turn_rates_linear_deg[3,:] - turn_rates_nonlinear_deg[3,:]
+
+# Plot the differences
+p_error = plotx(t_plot,
+    [diff_ω_x],
+    [diff_ω_y],
+    [diff_ω_z],
+    [steering_inputs];
+    ylabels=["ω_x error [°/s]", "ω_y error [°/s]", "ω_z error [°/s]", "Steering [Nm]"],
+    labels=[
+        ["Error"],
+        ["Error"],
+        ["Error"],
+        ["Input"]
+    ],
+    fig="Linear vs Nonlinear Model Error")
+display(p_error)
