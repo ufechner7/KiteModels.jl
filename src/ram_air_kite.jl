@@ -107,6 +107,7 @@ $(TYPEDFIELDS)
     set_vsm::Function              = () -> nothing
     set_unknowns::Function         = () -> nothing
     set_lin_unknowns::Function     = () -> nothing
+    set_lin_set_values::Function   = () -> nothing
     
     get_unknowns::Function         = () -> nothing
     get_state::Function            = () -> nothing
@@ -298,9 +299,10 @@ function init_sim!(::RamAirKite; prn=true)
     throw(ArgumentError("Use the function init_sim!(s::RamAirKite, measure::Measurement) instead."))
 end
 
-function linearize(s::RamAirKite)
+function linearize(s::RamAirKite; set_values=s.integrator[s.sys.set_values])
     isnothing(s.lin_prob) || isnothing(s.set_lin_unknowns) && throw(ArgumentError("Run init_sim! with remake=true and lin_outputs=..."))
     s.set_lin_unknowns(s.lin_prob, s.get_unknowns(s.integrator))
+    s.set_lin_set_values(s.lin_prob, set_values)
     return solve(s.lin_prob)
 end
 
@@ -425,7 +427,9 @@ function generate_getters!(s, sym_vec)
         
     if !isnothing(s.lin_prob) 
         set_lin_unknowns = setu(s.lin_prob, Initial.(sym_vec))
+        set_lin_set_values = setu(s.lin_prob, sys.set_values)
         s.set_lin_unknowns = (prob, val) -> set_lin_unknowns(prob, val)
+        s.set_lin_set_values = (prob, val) -> set_lin_set_values(prob, val)
     end
     nothing
 end

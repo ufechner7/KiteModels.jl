@@ -263,9 +263,10 @@ function calculate_nrmse(actual, predicted)
 end
 
 # Calculate both average L2 norm and NRMSE
-error_ω_x = norm(turn_rates_nonlinear_deg[1,:] - turn_rates_linear_deg[1,:]) / min_length
-error_ω_y = norm(turn_rates_nonlinear_deg[2,:] - turn_rates_linear_deg[2,:]) / min_length
-error_ω_z = norm(turn_rates_nonlinear_deg[3,:] - turn_rates_linear_deg[3,:]) / min_length
+len = turn_rates_nonlinear_deg[1,:]
+error_ω_x = norm(turn_rates_nonlinear_deg[1,:] - turn_rates_linear_deg[1,:]) / len
+error_ω_y = norm(turn_rates_nonlinear_deg[2,:] - turn_rates_linear_deg[2,:]) / len
+error_ω_z = norm(turn_rates_nonlinear_deg[3,:] - turn_rates_linear_deg[3,:]) / len
 
 nrmse_ω_x = calculate_nrmse(turn_rates_nonlinear_deg[1,:], turn_rates_linear_deg[1,:])
 nrmse_ω_y = calculate_nrmse(turn_rates_nonlinear_deg[2,:], turn_rates_linear_deg[2,:])
