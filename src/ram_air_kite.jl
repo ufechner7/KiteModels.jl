@@ -107,6 +107,7 @@ $(TYPEDFIELDS)
     set_vsm::Function              = () -> nothing
     set_unknowns::Function         = () -> nothing
     set_initial::Function          = () -> nothing
+    set_nonstiff::Function         = () -> nothing
     
     get_vsm::Function              = () -> nothing
     get_set_values::Function       = () -> nothing
@@ -148,7 +149,6 @@ function update_sys_state!(ss::SysState, s::RamAirKite, zoom=1.0)
     ss.time = s.integrator.t # Use integrator time
 
     # Get the extended state vector from the integrator
-    # Note: This assumes generate_getters! is updated accordingly
     set_values, pos, acc_vec, Q_b_w, elevation, azimuth, course, heading_x, tether_length, tether_vel, winch_force,
         twist_angle, kite_vel, aero_force_b, aero_moment_b, ω_b, va_kite_b, wind_vec_gnd, wind_vel_kite = s.get_state(s.integrator)
 
@@ -396,6 +396,7 @@ function generate_getters!(s, sym_vec)
     set_vsm = setp(sys, vsm_sym)
     set_unknowns = setu(sys, sym_vec)
     set_initial = setu(sys, Initial.(sym_vec))
+    set_nonstiff = setu(sys, get_nonstiff_unknowns(s))
     
     get_vsm = getp(sys, vsm_sym)
     get_set_values = getp(sys, sys.set_values)
@@ -429,6 +430,7 @@ function generate_getters!(s, sym_vec)
     s.set_vsm = (integ, val) -> set_vsm(integ, val)
     s.set_unknowns = (integ, val) -> set_unknowns(integ, val)
     s.set_initial = (integ, val) -> set_initial(integ, val)
+    s.set_nonstiff = (integ, val) -> set_nonstiff(integ, val)
 
     s.get_vsm = (integ) -> get_vsm(integ)
     s.get_set_values = (integ) -> get_set_values(integ)
@@ -578,6 +580,13 @@ function get_unknowns(s::RamAirKite)
         pulley.type == DYNAMIC && push!(vec, s.sys.pulley_l0[pulley.idx])
         pulley.type == DYNAMIC && push!(vec, s.sys.pulley_vel[pulley.idx])
     end
+    vec = get_nonstiff_unknowns(s, vec)
+    !s.set.quasi_static && (length(vec) != length(s.integrator.u)) &&
+        throw(ArgumentError("Integrator unknowns of length $(length(s.integrator.u)) should equal vec of length $(length(vec))"))
+    return vec
+end
+
+function get_nonstiff_unknowns(s::RamAirKite, vec=Num[])
     for group in groups
         group.type == DYNAMIC && push!(vec, s.sys.free_twist_angle[group.idx])
         group.type == DYNAMIC && push!(vec, s.sys.twist_ω[group.idx])
@@ -590,9 +599,5 @@ function get_unknowns(s::RamAirKite)
     [push!(vec, s.sys.ω_b[i]) for i in 1:3]
     [push!(vec, s.sys.kite_pos[i]) for i in 1:3]
     [push!(vec, s.sys.kite_vel[i]) for i in 1:3]
-
-    !s.set.quasi_static && (length(vec) != length(s.integrator.u)) &&
-        throw(ArgumentError("Integrator unknowns of length $(length(s.integrator.u)) should equal vec of length $(length(vec))"))
     return vec
 end
-
