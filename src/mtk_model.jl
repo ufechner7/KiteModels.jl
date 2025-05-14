@@ -531,13 +531,12 @@ angular velocities and accelerations, and forces/moments.
 Tuple of updated equations and defaults
 """
 function diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero_force_b, 
-    aero_moment_b, ω_b, R_b_w, kite_pos, kite_vel, kite_acc, stabilize
+    aero_moment_b, ω_b, α_b, R_b_w, kite_pos, kite_vel, kite_acc, stabilize
 )
     kite = s.point_system.kite
     @variables begin
         # potential differential variables
         kite_acc_b(t)[1:3]
-        α_b(t)[1:3] # angular acceleration in principal frame
         α_b_damped(t)[1:3]
         ω_b_stable(t)[1:3]
 
@@ -632,7 +631,7 @@ Generate equations for scalar quantities like elevation, azimuth, heading and co
     - Course angle
     - Angular velocities and accelerations
     """
-function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc, twist_angle, twist_ω)
+function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc, twist_angle, twist_ω, ω_b, α_b)
     @parameters wind_scale_gnd = s.set.v_wind
     @parameters measured_wind_dir_gnd = measure.wind_dir_gnd
     @variables begin
@@ -654,6 +653,8 @@ function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, 
     ]
     @variables begin
         heading_x(t)
+        turn_rate(t)
+        turn_acc(t)
         azimuth(t)
         azimuth_vel(t)
         azimuth_acc(t)
@@ -680,6 +681,8 @@ function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, 
     eqs = [
         eqs
         heading_x       ~ calc_heading(e_x)
+        turn_rate       ~ (R_b_w * ω_b) ⋅ sym_normalize(kite_pos)
+        turn_acc        ~ (R_b_w * α_b) ⋅ sym_normalize(kite_pos)
 
         elevation           ~ atan(z / x)
         # elevation_vel = d/dt(atan(z/x)) = (x*ż' - z*ẋ')/(x^2 + z^2) according to wolframalpha
@@ -784,6 +787,7 @@ function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measuremen
         kite_vel(t)[1:3]
         kite_acc(t)[1:3]
         ω_b(t)[1:3] # turn rate in principal frame
+        α_b(t)[1:3]
 
         # rotations and frames
         R_b_w(t)[1:3, 1:3] # rotation of the kite body frame relative to the world frame
@@ -803,8 +807,8 @@ function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measuremen
             R_b_w, kite_pos, kite_vel, wind_vec_gnd, group_aero_moment, twist_angle, twist_ω, stabilize, set_values)
     eqs, guesses = linear_vsm_eqs!(s, eqs, guesses; aero_force_b, aero_moment_b, group_aero_moment, init_va_b, twist_angle, va_kite_b, ω_b)
     eqs, defaults = diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero_force_b, aero_moment_b, 
-        ω_b, R_b_w, kite_pos, kite_vel, kite_acc, stabilize)
-    eqs = scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc, twist_angle, twist_ω)
+        ω_b, α_b, R_b_w, kite_pos, kite_vel, kite_acc, stabilize)
+    eqs = scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc, twist_angle, twist_ω, ω_b, α_b)
     
     # te_I = (1/3 * (s.set.mass/8) * te_length^2)
     # # -damping / I * ω = α_damping
