@@ -284,7 +284,7 @@ function init_sim!(s::RamAirKite, measure::Measurement;
     if !ispath(prob_path) || remake
         init(s, measure)
     end
-    success = reinit!(s, measure; solver, adaptive, precompile, reload)
+    success = reinit!(s, measure; solver, adaptive, precompile, reload, lin_outputs)
     if !success
         rm(prob_path)
         @info "Rebuilding the system. This can take some minutes..."
@@ -342,7 +342,8 @@ function reinit!(
     adaptive=true,
     prn=true, 
     reload=true, 
-    precompile=false
+    precompile=false,
+    lin_outputs
 )
     isnothing(s.point_system) && throw(ArgumentError("PointMassSystem not defined"))
 
@@ -354,6 +355,7 @@ function reinit!(
         !ispath(prob_path) && throw(ArgumentError("$prob_path not found. Run init_sim!(s::RamAirKite) first."))
         try
             (s.prob, s.full_sys, s.lin_prob, s.defaults, s.guesses) = deserialize(prob_path)
+            length(lin_outputs) > 0 && isnothing(s.lin_prob) && throw(ArgumentError("lin_prob is nothing."))
         catch e
             @warn "Failure to deserialize $prob_path !"
             return false
