@@ -651,18 +651,18 @@ function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, 
     end
     eqs = [
         eqs
-        e_x     ~ R_b_w * [1, 0, 0]
-        e_y     ~ R_b_w * [0, 1, 0]
-        e_z     ~ R_b_w * [0, 0, 1]
+        e_x     ~ R_b_w[:,1]
+        e_y     ~ R_b_w[:,2]
+        e_z     ~ R_b_w[:,3]
         wind_vec_gnd ~ wind_scale_gnd * rotate_around_z([1, 0, 0], measured_wind_dir_gnd)
-        wind_vel_kite  ~ AtmosphericModels.calc_wind_factor(s.am, kite_pos[3], s.set.profile_law) * wind_vec_gnd
+        wind_vel_kite ~ AtmosphericModels.calc_wind_factor(s.am, kite_pos[3], s.set.profile_law) * wind_vec_gnd
         va_kite ~ wind_vel_kite - kite_vel
         va_kite_b ~ R_b_w' * va_kite
     ]
     @variables begin
         heading_x(t)
-        turn_rate(t)
-        turn_acc(t)
+        turn_rate(t)[1:3]
+        turn_acc(t)[1:3]
         azimuth(t)
         azimuth_vel(t)
         azimuth_acc(t)
@@ -678,6 +678,13 @@ function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, 
         angle_of_attack(t)
         simple_twist_angle(t)[1:2]
         simple_twist_ω(t)[1:2]
+        R_v_w(t)[1:3, 1:3]
+        view_z(t)[1:3]
+        view_y(t)[1:3]
+        view_x(t)[1:3]
+        distance(t)
+        distance_vel(t)
+        distance_acc(t)
     end
 
     x, y, z = kite_pos
@@ -688,9 +695,18 @@ function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, 
 
     eqs = [
         eqs
+        view_z          ~ sym_normalize(kite_pos)
+        view_y          ~ view_z × e_y
+        view_x          ~ view_y × view_z
+        R_v_w[:,1]      ~ view_x
+        R_v_w[:,2]      ~ view_y
+        R_v_w[:,3]      ~ view_z
         heading_x       ~ calc_heading(e_x)
-        turn_rate       ~ (R_b_w * ω_b) ⋅ sym_normalize(kite_pos)
-        turn_acc        ~ (R_b_w * α_b) ⋅ sym_normalize(kite_pos)
+        turn_rate       ~ R_v_w' * (R_b_w * ω_b) # Project angular velocity onto view frame
+        turn_acc        ~ R_v_w' * (R_b_w * α_b)
+        distance        ~ norm(kite_pos)
+        distance_vel    ~ kite_vel ⋅ view_z
+        distance_acc    ~ kite_acc ⋅ view_z
 
         elevation           ~ atan(z / x)
         # elevation_vel = d/dt(atan(z/x)) = (x*ż' - z*ẋ')/(x^2 + z^2) according to wolframalpha

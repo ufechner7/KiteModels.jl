@@ -500,6 +500,22 @@ function init!(system::PointMassSystem, set::Settings, R_b_w, Q_b_w)
     return nothing
 end
 
+# function update!(system::PointMassSystem, measure::Measurement)
+#     @unpack points, groups, segments, pulleys, tethers, winches, kite = system
+
+#     kite.pos .= R_b_w * [0.0, 0.0, -min_z]
+#     kite.orient .= Q_b_w
+#     kite.vel .= 0.0
+#     kite.angular_vel .= 0.0
+    
+#     for (winch, tether_length, tether_vel) in zip(winches, measure.tether_length, measure.tether_vel)
+#         winch.tether_length = tether_length
+#         winch.tether_vel = tether_vel
+#     end
+
+#     return nothing
+# end
+
 const MeasureFloat = Float32
 
 @with_kw mutable struct Measurement
@@ -507,7 +523,6 @@ const MeasureFloat = Float32
     tether_length::MVector{3, MeasureFloat} = [51., 51., 51.]
     tether_vel::MVector{3, MeasureFloat}    = zeros(MeasureFloat, 3)
     tether_acc::MVector{3, MeasureFloat}    = zeros(MeasureFloat, 3)
-    tether_force::MVector{3, MeasureFloat}  = [540., 3., 3.]
     "elevation and azimuth in spherical coordinate system with columns (left, right) and rows (elevation, azimuth)"
     sphere_pos::Matrix{MeasureFloat}            = deg2rad.([80.0 80.0; 1.0 -1.0])
     sphere_vel::Matrix{MeasureFloat}            = zeros(MeasureFloat, 2, 2)

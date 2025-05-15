@@ -150,7 +150,7 @@ function update_sys_state!(ss::SysState, s::RamAirKite, zoom=1.0)
 
     # Get the extended state vector from the integrator
     set_values, pos, acc_vec, Q_b_w, elevation, azimuth, course, heading_x, tether_length, tether_vel, winch_force,
-        twist_angle, kite_vel, aero_force_b, aero_moment_b, ω_b, va_kite_b, wind_vec_gnd, wind_vel_kite = s.get_state(s.integrator)
+        twist_angle, kite_vel, aero_force_b, aero_moment_b, turn_rate, va_kite_b, wind_vec_gnd, wind_vel_kite = s.get_state(s.integrator)
 
     P = length(s.point_system.points)
     for i in 1:P
@@ -162,7 +162,7 @@ function update_sys_state!(ss::SysState, s::RamAirKite, zoom=1.0)
     # --- Populate SysState fields ---
     ss.acc = norm(acc_vec) # Use the norm of the kite's acceleration vector
     ss.orient .= Q_b_w
-    ss.turn_rates .= ω_b
+    ss.turn_rates .= turn_rate
     ss.elevation = elevation
     ss.azimuth = azimuth
 
@@ -417,7 +417,7 @@ function generate_getters!(s, sym_vec)
          c(sys.kite_vel),        # Kite center velocity vector (world frame)
          c(sys.aero_force_b),    # Aerodynamic force (body frame)
          c(sys.aero_moment_b),   # Aerodynamic moment (body frame)
-         c(sys.ω_b),             # Angular velocity (body frame)
+         c(sys.turn_rate),             # Angular velocity (body frame)
          c(sys.va_kite_b),       # Apparent wind velocity (body frame)
          c(sys.wind_vec_gnd),    # Ground wind vector (world frame)
          c(sys.wind_vel_kite)    # Wind vector at kite height (world frame)
