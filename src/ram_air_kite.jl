@@ -578,7 +578,7 @@ end
 function get_unknowns(s::RamAirKite)
     vec = Num[]
     @unpack points, groups, segments, pulleys, winches, kite = s.point_system
-    sys = s.full_sys
+    sys = s.sys
     for point in points
         for i in 1:3
             point.type == DYNAMIC && push!(vec, sys.pos[i, point.idx])
@@ -599,7 +599,7 @@ end
 
 function get_nonstiff_unknowns(s::RamAirKite, vec=Num[])
     @unpack points, groups, segments, pulleys, winches, kite = s.point_system
-    sys = s.full_sys
+    sys = s.sys
 
     for group in groups
         group.type == DYNAMIC && push!(vec, sys.free_twist_angle[group.idx])
