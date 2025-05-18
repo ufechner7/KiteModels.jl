@@ -106,8 +106,10 @@ $(TYPEDFIELDS)
     set_measure::Function          = () -> nothing
     set_vsm::Function              = () -> nothing
     set_unknowns::Function         = () -> nothing
-    set_initial::Function          = () -> nothing
     set_nonstiff::Function         = () -> nothing
+    set_lin_vsm::Function              = () -> nothing
+    set_lin_set_values::Function       = () -> nothing
+    set_lin_unknowns::Function          = () -> nothing
     
     get_vsm::Function              = () -> nothing
     get_set_values::Function       = () -> nothing
@@ -302,9 +304,9 @@ end
 
 function linearize(s::RamAirKite; set_values=s.get_set_values(s.integrator))
     isnothing(s.lin_prob) && throw(ArgumentError("Run init_sim! with remake=true and lin_outputs=..."))
-    s.set_vsm(s.lin_prob, s.get_vsm(s.integrator))
-    s.set_set_values(s.lin_prob, set_values)
-    s.set_initial(s.lin_prob, s.get_unknowns(s.integrator))
+    s.set_lin_vsm(s.lin_prob, s.get_vsm(s.integrator))
+    s.set_lin_set_values(s.lin_prob, set_values)
+    s.set_lin_unknowns(s.lin_prob, s.get_unknowns(s.integrator))
     return solve(s.lin_prob)
 end
 
@@ -395,7 +397,6 @@ function generate_getters!(s, sym_vec)
     set_measure = setp(sys, sys.measured_wind_dir_gnd)
     set_vsm = setp(sys, vsm_sym)
     set_unknowns = setu(sys, sym_vec)
-    set_initial = setu(sys, Initial.(sym_vec))
     set_nonstiff = setu(sys, get_nonstiff_unknowns(s))
     
     get_vsm = getp(sys, vsm_sym)
@@ -429,14 +430,23 @@ function generate_getters!(s, sym_vec)
     s.set_measure = (integ, val) -> set_measure(integ, val)
     s.set_vsm = (integ, val) -> set_vsm(integ, val)
     s.set_unknowns = (integ, val) -> set_unknowns(integ, val)
-    s.set_initial = (integ, val) -> set_initial(integ, val)
     s.set_nonstiff = (integ, val) -> set_nonstiff(integ, val)
-
+    
     s.get_vsm = (integ) -> get_vsm(integ)
     s.get_set_values = (integ) -> get_set_values(integ)
     s.get_unknowns = (integ) -> get_unknowns(integ)
     s.get_state = (integ) -> get_state(integ)
     s.get_y = (integ) -> get_y(integ)
+    
+    if !isnothing(s.lin_prob)
+        set_lin_set_values = setp(s.lin_prob, sys.set_values)
+        set_lin_unknowns = setu(s.lin_prob, Initial.(sym_vec))
+        set_lin_vsm = setp(s.lin_prob, vsm_sym)
+        
+        s.set_lin_set_values = (lin_prob, val) -> set_lin_set_values(lin_prob, val)
+        s.set_lin_unknowns = (lin_prob, val) -> set_lin_unknowns(lin_prob, val)
+        s.set_lin_vsm = (lin_prob, val) -> set_lin_vsm(lin_prob, val)
+    end
     nothing
 end
 
@@ -568,17 +578,18 @@ end
 function get_unknowns(s::RamAirKite)
     vec = Num[]
     @unpack points, groups, segments, pulleys, winches, kite = s.point_system
+    sys = s.full_sys
     for point in points
         for i in 1:3
-            point.type == DYNAMIC && push!(vec, s.sys.pos[i, point.idx])
+            point.type == DYNAMIC && push!(vec, sys.pos[i, point.idx])
         end
         for i in 1:3 # TODO: add speed to init
-            point.type == DYNAMIC && push!(vec, s.sys.vel[i, point.idx])
+            point.type == DYNAMIC && push!(vec, sys.vel[i, point.idx])
         end
     end
     for pulley in pulleys
-        pulley.type == DYNAMIC && push!(vec, s.sys.pulley_l0[pulley.idx])
-        pulley.type == DYNAMIC && push!(vec, s.sys.pulley_vel[pulley.idx])
+        pulley.type == DYNAMIC && push!(vec, sys.pulley_l0[pulley.idx])
+        pulley.type == DYNAMIC && push!(vec, sys.pulley_vel[pulley.idx])
     end
     vec = get_nonstiff_unknowns(s, vec)
     !s.set.quasi_static && (length(vec) != length(s.integrator.u)) &&
@@ -588,18 +599,19 @@ end
 
 function get_nonstiff_unknowns(s::RamAirKite, vec=Num[])
     @unpack points, groups, segments, pulleys, winches, kite = s.point_system
+    sys = s.full_sys
 
     for group in groups
-        group.type == DYNAMIC && push!(vec, s.sys.free_twist_angle[group.idx])
-        group.type == DYNAMIC && push!(vec, s.sys.twist_ω[group.idx])
+        group.type == DYNAMIC && push!(vec, sys.free_twist_angle[group.idx])
+        group.type == DYNAMIC && push!(vec, sys.twist_ω[group.idx])
     end
     for winch in winches
-        push!(vec, s.sys.tether_length[winch.idx])
-        push!(vec, s.sys.tether_vel[winch.idx])
+        push!(vec, sys.tether_length[winch.idx])
+        push!(vec, sys.tether_vel[winch.idx])
     end
-    [push!(vec, s.sys.Q_b_w[i]) for i in 1:4]
-    [push!(vec, s.sys.ω_b[i]) for i in 1:3]
-    [push!(vec, s.sys.kite_pos[i]) for i in 1:3]
-    [push!(vec, s.sys.kite_vel[i]) for i in 1:3]
+    [push!(vec, sys.Q_b_w[i]) for i in 1:4]
+    [push!(vec, sys.ω_b[i]) for i in 1:3]
+    [push!(vec, sys.kite_pos[i]) for i in 1:3]
+    [push!(vec, sys.kite_vel[i]) for i in 1:3]
     return vec
 end

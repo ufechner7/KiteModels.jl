@@ -493,8 +493,8 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             tether_acc[winch.idx] ~ calc_moment_acc( # TODO: moment and speed control
                 winch.model, tether_vel[winch.idx], 
                 winch_force[winch.idx], 
-                set_values[winch.idx]
-            )
+                set_values[winch.idx] # TODO: SISO mode to test linear model accuracy, MHE to check if it is better, use stabilize as state estimator
+            ) # TODO: add brakes and P. This makes SISO system easy
             winch_force[winch.idx] ~ F
         ]
         defaults = [
