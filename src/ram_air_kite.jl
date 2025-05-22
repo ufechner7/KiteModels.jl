@@ -346,7 +346,7 @@ function reinit!(
     prn=true, 
     reload=true, 
     precompile=false,
-    lin_outputs
+    lin_outputs=Num[]
 )
     isnothing(s.point_system) && throw(ArgumentError("PointMassSystem not defined"))
 
