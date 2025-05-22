@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>- · KiteModels.jl</title><script data-outdated-warner src="../assets/warner.js"></script><link rel="canonical" href="https://ufechner7.github.io/KiteModels.jl/test_plan/"/><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../"><img src="../assets/logo.png" alt="KiteModels.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../">KiteModels.jl</a></span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><a class="tocitem" href="../types/">Types</a></li><li><a class="tocitem" href="../functions/">Functions</a></li><li><a class="tocitem" href="../ram_air_kite/">RamAirKite</a></li><li><a class="tocitem" href="../parameters/">Parameters</a></li><li><a class="tocitem" href="../examples/">Examples_1p</a></li><li><a class="tocitem" href="../examples_4p/">Examples_4p</a></li><li><a class="tocitem" href="../quickstart/">Quickstart</a></li><li><a class="tocitem" href="../advanced/">Advanced usage</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>-</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>-</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/ufechner7/KiteModels.jl/blob/main/docs/src/test_plan.md#" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h2 id="Testing-the-develop-branch-before-merging-it"><a class="docs-heading-anchor" href="#Testing-the-develop-branch-before-merging-it">Testing the develop branch before merging it</a><a id="Testing-the-develop-branch-before-merging-it-1"></a><a class="docs-heading-anchor-permalink" href="#Testing-the-develop-branch-before-merging-it" title="Permalink"></a></h2><p>On  AMD Ryzen 7 7840U.</p><h3 id="Develop-branch"><a class="docs-heading-anchor" href="#Develop-branch">Develop branch</a><a id="Develop-branch-1"></a><a class="docs-heading-anchor-permalink" href="#Develop-branch" title="Permalink"></a></h3><pre><code class="nohighlight hljs">juliaup default 1.11
+git checkout develop
+cd bin
+./create_sys_image --update
+cd ..
+rm data/prob_1.11*.bin
+jl</code></pre><p>On a laptop using </p><pre><code class="nohighlight hljs">include(&quot;examples/ram_air_kite.jl&quot;)</code></pre><p>Expected output:</p><pre><code class="nohighlight hljs">julia&gt; include(&quot;examples/ram_air_kite.jl&quot;)
+[ Info: Loading packages 
+Time elapsed: 2.843903577 s
+[ Info: Creating wing, aero, vsm_solver, point_system and s:
+Time elapsed: 11.780494151 s
+[ Info: Creating ODESystem
+  4.189182 seconds (7.83 M allocations: 200.190 MiB, 0.69% gc time, 24.40% compilation time: 6% of which was recompilation)
+[ Info: Simplifying the system
+ 38.041611 seconds (304.71 M allocations: 10.010 GiB, 2.12% gc time, 25.50% compilation time: 18% of which was recompilation)
+[ Info: Creating ODEProblem
+ 84.739970 seconds (640.11 M allocations: 20.794 GiB, 1.83% gc time, 22.66% compilation time: 12% of which was recompilation)
+[ Info: Initialized integrator in 22.253394034 seconds
+[ Info: System initialized at:
+Time elapsed: 193.93390819 s
+[ Info: Total time without plotting:
+Time elapsed: 211.095669066 s
+┌ Info: Performance:
+│   times_realtime = 8.017735204615859
+└   integrator_times_realtime = 60.411279264296</code></pre><h3 id="Main-branch"><a class="docs-heading-anchor" href="#Main-branch">Main branch</a><a id="Main-branch-1"></a><a class="docs-heading-anchor-permalink" href="#Main-branch" title="Permalink"></a></h3><pre><code class="nohighlight hljs">julia&gt; include(&quot;examples/ram_air_kite.jl&quot;)
+[ Info: Loading packages 
+Time elapsed: 2.9059458 s
+[ Info: Creating wing, aero, vsm_solver, point_system and s:
+Time elapsed: 11.790243385 s
+┌ Warning: Failure to deserialize /home/ufechner/repos/KiteModels.jl/data/prob_dynamic_1.11_3_seg.bin !
+└ @ KiteModels ~/repos/KiteModels.jl/src/ram_air_kite.jl:519
+[ Info: Rebuilding the system. This can take some minutes...
+[ Info: Creating ODESystem
+  4.775993 seconds (8.31 M allocations: 201.174 MiB, 0.64% gc time, 20.63% compilation time: 6% of which was recompilation)
+[ Info: Simplifying the system
+ 43.592286 seconds (329.71 M allocations: 10.926 GiB, 2.06% gc time, 25.35% compilation time: 18% of which was recompilation)
+[ Info: Creating ODEProblem
+ 95.744396 seconds (682.85 M allocations: 23.818 GiB, 2.08% gc time, 17.67% compilation time: 14% of which was recompilation)
+[ Info: Initialized integrator in 23.951264242 seconds
+[ Info: System initialized at:
+Time elapsed: 212.672152747 s
+[ Info: Total time without plotting:
+Time elapsed: 232.546116606 s
+┌ Info: Performance:
+│   times_realtime = 4.415094072484458
+└   integrator_times_realtime = 14.752422253318498</code></pre><h3 id="Update-precompiled-code"><a class="docs-heading-anchor" href="#Update-precompiled-code">Update precompiled code</a><a id="Update-precompiled-code-1"></a><a class="docs-heading-anchor-permalink" href="#Update-precompiled-code" title="Permalink"></a></h3><pre><code class="nohighlight hljs">cd bin
+./update_default_manifest
+cd ..
+cd data
+cp prob_dynamic_1.11_3_seg.bin prob_dynamic_1.11_3_seg.bin.default
+cd ..
+echo &quot; &quot; &gt;&gt; src/precompile.jl </code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.25 on <span class="colophon-date" title="Thursday 22 May 2025 13:09">Thursday 22 May 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
