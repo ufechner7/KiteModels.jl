@@ -1,6 +1,10 @@
 ## Testing the develop branch before merging it
 On  AMD Ryzen 7 7840U.
 
+### Pass criteria for the performance:
+- system initialized          < 15s
+- total time without plotting < 35s
+
 ### Develop branch
 ```
 juliaup default 1.11
@@ -74,3 +78,17 @@ cp prob_dynamic_1.11_3_seg.bin prob_dynamic_1.11_3_seg.bin.default
 cd ..
 echo " " >> src/precompile.jl 
 ```
+## Test again
+julia> include("examples/ram_air_kite.jl")
+[ Info: Loading packages 
+Time elapsed: 2.807525651 s
+[ Info: Creating wing, aero, vsm_solver, point_system and s:
+Time elapsed: 4.499499709 s
+[ Info: Initialized integrator in 5.94955637 seconds
+[ Info: System initialized at:
+Time elapsed: 13.388212381 s
+[ Info: Total time without plotting:
+Time elapsed: 33.223129728 s
+┌ Info: Performance:
+│   times_realtime = 4.4603427235287265
+└   integrator_times_realtime = 15.033714698785786
