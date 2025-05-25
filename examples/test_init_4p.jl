@@ -33,7 +33,7 @@ UPWIND_DIR = -pi/2 +deg2rad(10)
 elev = set.elevation
 i = 1
 set.v_wind = V_WIND # 25
-logger::Logger = Logger(set.segments + 5, STEPS)
+logger = Logger(set.segments + 5, STEPS)
 
 kcu::KCU = KCU(set)
 kps4::KPS4 = KPS4(kcu)
