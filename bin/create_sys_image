@@ -171,3 +171,5 @@ if [[ $branch != "" ]]; then
 else
     $JULIA_CMD --startup-file=no --project -J $SOFILE -e "using ControlPlots; using VortexStepMethod"
 fi
+rm data/*.bin
+rm data/*.bin.default
