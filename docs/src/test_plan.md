@@ -49,6 +49,14 @@ Time elapsed: 211.095669066 s
 └   integrator_times_realtime = 60.411279264296
 ```
 
+### Update precompiled code
+```
+cd data
+cp prob_dynamic_1.11_3_seg.bin prob_dynamic_1.11_3_seg.bin.default
+cd ..
+echo " " >> src/precompile.jl 
+```
+
 ### Main branch
 ```
 julia> include("examples/ram_air_kite.jl")
