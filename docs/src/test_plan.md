@@ -63,7 +63,7 @@ julia> include("examples/ram_air_kite.jl")
 If the test pass, then compress, commit and push the new bin.default.xz file:
 ```
 xz prob_1.11_ram_dynamic_3_seg.bin.default
-git commit -m "update default bin file" prob_1.11_ram_dynamic_3_seg.bin.default.xz
+git commit -m "Update default bin file" data/prob_1.10_ram_dynamic_3_seg.bin.default.xz data/prob_1.11_ram_dynamic_3_seg.bin.default.xz
 ```
 
 ### Main branch
