@@ -71,7 +71,7 @@ end
             set.segments = 3
             set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
             set.quasi_static = false
-            set.physical_model = "simple_ram"
+            set.physical_model = "ram"
             s = RamAirKite(set)
             measure = Measurement()
 
