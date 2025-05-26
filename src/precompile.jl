@@ -42,9 +42,10 @@ end
     kps3_::KPS3 = KPS3(KCU(se("system.yaml")))
     ver = "$(VERSION.major).$(VERSION.minor)_"
 
-    input_file  = joinpath(path, "..", "data", "prob_dynamic_" * ver * "3_seg.bin.default.xz")
-    prob_file   = joinpath(path, "..", "data", "prob_dynamic_" * ver * "3_seg.bin")
-    output_file = joinpath(prob_file * ".default")
+    prob_name   = get_prob_name(set)
+    prob_file   = joinpath(path, "..", "data", prob_name)
+    output_file = joinpath(path, "..", "data", prob_name * ".default")
+    input_file  = joinpath(path, "..", "data", prob_name * ".default.xz")
     if isfile(input_file) && ! isfile(output_file)
         using CodecXz
         decompress_binary(input_file, output_file)
@@ -69,7 +70,7 @@ end
             set = se("system_ram.yaml")
             set.segments = 3
             set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
-            set.quasi_static = true
+            set.quasi_static = false
             set.physical_model = "simple_ram"
             s = RamAirKite(set)
             measure = Measurement()
