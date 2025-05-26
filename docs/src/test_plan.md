@@ -52,7 +52,7 @@ Time elapsed: 211.095669066 s
 ### Update precompiled code
 ```
 cd data
-cp prob_dynamic_1.11_3_seg.bin prob_dynamic_1.11_3_seg.bin.default
+cp prob_1.11_ram_dynamic_3_seg.bin prob_1.11_ram_dynamic_3_seg.bin.default
 cd ..
 echo " " >> src/precompile.jl 
 ```
