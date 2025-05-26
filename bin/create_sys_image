@@ -163,6 +163,8 @@ if [ -d src ]; then
     touch *.jl # make sure all modules get recompiled in the next step
     cd ..
 fi
+rm data/*.bin
+rm data/*.bin.default
 echo "Precompiling package KiteModels..."
 $JULIA_CMD --startup-file=no --project -J $SOFILE -e "using KiteModels, KitePodModels, KiteUtils"
 echo "Precompiling package ControlPlots..."
@@ -171,5 +173,4 @@ if [[ $branch != "" ]]; then
 else
     $JULIA_CMD --startup-file=no --project -J $SOFILE -e "using ControlPlots; using VortexStepMethod"
 fi
-rm data/*.bin
-rm data/*.bin.default
+
