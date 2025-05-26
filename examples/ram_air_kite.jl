@@ -42,7 +42,7 @@ s.set.rel_tol = 1e-2
 toc()
 
 # init_Q_b_w, R_b_w = KiteModels.measure_to_q(measure)
-# init_kite_pos = init!(s.point_system, s.set, R_b_w)
+# init_kite_pos = init!(s.point_system, s.set, R_b_w, init_Q_b_w)
 # plot(s.point_system, 0.0; zoom=false, front=true)
 
 measure = Measurement()

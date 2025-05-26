@@ -233,13 +233,12 @@ function calc_pos(wing::RamAirWing, gamma, frac)
 end
 
 function create_tether(idx, set, points, segments, tethers, attach_point, type, dynamics_type)
-    l0 = set.l_tether / set.segments
     segment_idxs = Int16[]
+    winch_pos = find_z_axis_point(attach_point.pos_b, set.l_tether)
+    dir = winch_pos - attach_point.pos_b
     for i in 1:set.segments
         frac = i / set.segments
-        pos = [(1-frac) * attach_point.pos_b[1], 
-                (1-frac) * attach_point.pos_b[2],
-                attach_point.pos_b[3] - i*l0]
+        pos = attach_point.pos_b + frac * dir
         i_pnt = length(points) # last point idx
         i_seg = length(segments) # last segment idx
         if i == 1
@@ -260,6 +259,25 @@ function create_tether(idx, set, points, segments, tethers, attach_point, type, 
     return points, segments, tethers, tethers[end].idx
 end
 
+function cad_to_body_frame(wing::RamAirWing, pos)
+    return wing.R_cad_body * (pos + wing.T_cad_body)
+end
+
+"""
+Find the point on the z-axis with distance l from P in the negative direction
+"""
+function find_z_axis_point(P, l)
+    # Distance formula: sqrt(xₐ² + yₐ² + (z - zₐ)²) = l
+    # Square both sides: xₐ² + yₐ² + (z - zₐ)² = l²
+    # Solve for z: (z - zₐ)² = l² - xₐ² - yₐ²
+    # z - zₐ = ±sqrt(l² - xₐ² - yₐ²)
+    # z = zₐ ± sqrt(l² - xₐ² - yₐ²)
+    d = l^2 - P[1]^2 - P[2]^2
+    d < 0 && error("No real solution: l is too small")
+    z = P[3] - sqrt(d)
+    return [0, 0, z]
+end
+
 function create_ram_point_system(set::Settings, wing::RamAirWing)
     points = Point[]
     groups = KitePointGroup[]
@@ -270,7 +288,7 @@ function create_ram_point_system(set::Settings, wing::RamAirWing)
 
     attach_points = Point[]
     
-    bridle_top_left = [wing.R_cad_body * (set.top_bridle_points[i] + wing.T_cad_body) for i in eachindex(set.top_bridle_points)] # cad to kite frame
+    bridle_top_left = [cad_to_body_frame(wing, set.top_bridle_points[i]) for i in eachindex(set.top_bridle_points)]
     bridle_top_right = [bridle_top_left[i] .* [1, -1, 1] for i in eachindex(set.top_bridle_points)]
 
     dynamics_type = set.quasi_static ? STATIC : DYNAMIC
@@ -299,6 +317,7 @@ function create_ram_point_system(set::Settings, wing::RamAirWing)
         ]
 
         # ==================== CREATE PULLEY BRIDLE SYSTEM ==================== #
+        # TODO: add initial rotation around y-axis
         points = [
             points
             Point(7+i_pnt, bridle_top[1], dynamics_type)
@@ -346,43 +365,49 @@ function create_ram_point_system(set::Settings, wing::RamAirWing)
         return nothing
     end
 
-    function create_tether(attach_point, type)
-        l0 = set.l_tether / set.segments
-        segment_idxs = Int16[]
-        for i in 1:set.segments
-            frac = i / set.segments
-            pos = [(1-frac) * attach_point.pos_b[1], 
-                    (1-frac) * attach_point.pos_b[2],
-                    attach_point.pos_b[3] - i*l0]
-            i_pnt = length(points) # last point idx
-            i_seg = length(segments) # last segment idx
-            if i == 1
-                points = [points; Point(1+i_pnt, pos, dynamics_type)]
-                segments = [segments; Segment(1+i_seg, (attach_point.idx, 1+i_pnt), type)]
-            elseif i == set.segments
-                points = [points; Point(1+i_pnt, pos, WINCH)]
-                segments = [segments; Segment(1+i_seg, (i_pnt, 1+i_pnt), type)]
-            else
-                points = [points; Point(1+i_pnt, pos, dynamics_type)]
-                segments = [segments; Segment(1+i_seg, (i_pnt, 1+i_pnt), type)]
-            end
-            push!(segment_idxs, 1+i_seg)
-            i_pnt = length(points)
-        end
-        i_tether = length(tethers)
-        winch_point_idx = points[end].idx
-        tethers = [tethers; Tether(1+i_tether, segment_idxs, winch_point_idx)]
-        return tethers[end].idx
-    end
+    # function create_tether(attach_point, type)
+    #     l0 = set.l_tether / set.segments
+    #     segment_idxs = Int16[]
+    #     winch_pos = find_z_axis_point(attach_point.pos_b, set.l_tether)
+    #     dir = winch_pos - attach_point.pos_b
+    #     for i in 1:set.segments
+    #         frac = i / set.segments
+    #         pos = attach_point.pos_b + frac * dir
+    #         i_pnt = length(points) # last point idx
+    #         i_seg = length(segments) # last segment idx
+    #         if i == 1
+    #             points = [points; Point(1+i_pnt, pos, dynamics_type)]
+    #             segments = [segments; Segment(1+i_seg, (attach_point.idx, 1+i_pnt), type)]
+    #         elseif i == set.segments
+    #             points = [points; Point(1+i_pnt, pos, WINCH)]
+    #             segments = [segments; Segment(1+i_seg, (i_pnt, 1+i_pnt), type)]
+    #         else
+    #             points = [points; Point(1+i_pnt, pos, dynamics_type)]
+    #             segments = [segments; Segment(1+i_seg, (i_pnt, 1+i_pnt), type)]
+    #         end
+    #         push!(segment_idxs, 1+i_seg)
+    #         i_pnt = length(points)
+    #     end
+    #     i_tether = length(tethers)
+    #     winch_point_idx = points[end].idx
+    #     tethers = [tethers; Tether(1+i_tether, segment_idxs, winch_point_idx)]
+    #     return tethers[end].idx
+    # end
 
     gammas = [-3/4, -1/4, 1/4, 3/4] * wing.gamma_tip
     create_bridle(bridle_top_left, gammas[[1,2]])
     create_bridle(bridle_top_right, gammas[[4,3]])
 
-    left_power_idx = create_tether(attach_points[1], POWER)
-    right_power_idx = create_tether(attach_points[3], POWER)
-    left_steering_idx = create_tether(attach_points[2], STEERING)
-    right_steering_idx = create_tether(attach_points[4], STEERING)
+
+    # left_power_idx = create_tether(attach_points[1], POWER)
+    # right_power_idx = create_tether(attach_points[3], POWER)
+    # left_steering_idx = create_tether(attach_points[2], STEERING)
+    # right_steering_idx = create_tether(attach_points[4], STEERING)
+
+    points, segments, tethers, left_power_idx = create_tether(1, set, points, segments, tethers, attach_points[1], POWER, dynamics_type)
+    points, segments, tethers, right_power_idx = create_tether(2, set, points, segments, tethers, attach_points[3], POWER, dynamics_type)
+    points, segments, tethers, left_steering_idx = create_tether(3, set, points, segments, tethers, attach_points[2], STEERING, dynamics_type)
+    points, segments, tethers, right_steering_idx = create_tether(4, set, points, segments, tethers, attach_points[4], STEERING, dynamics_type)
 
     winches = [winches; Winch(1, TorqueControlledMachine(set), [left_power_idx, right_power_idx], set.l_tether)]
     winches = [winches; Winch(2, TorqueControlledMachine(set), [left_steering_idx], set.l_tether)]
