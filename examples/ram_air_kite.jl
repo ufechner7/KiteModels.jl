@@ -2,7 +2,8 @@ using Timers
 tic()
 @info "Loading packages "
 
-using KiteModels, LinearAlgebra, Statistics, SteadyStateDiffEq, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqNonlinearSolve
+using KiteModels, LinearAlgebra, Statistics
+# SteadyStateDiffEq, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqNonlinearSolve
 
 PLOT = true
 if PLOT
