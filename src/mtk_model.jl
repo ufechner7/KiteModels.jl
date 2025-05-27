@@ -268,12 +268,13 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         inertia = 1/3 * (s.set.mass/length(groups)) * (norm(group.chord))^2 # plate inertia around leading edge
         @assert !(inertia ≈ 0.0)
         @parameters twist_damp = 50
+        @parameters max_twist = deg2rad(90)
 
         eqs = [
             eqs
             group_tether_moment[group.idx] ~ sum(tether_moment[group.idx, :])
             twist_α[group.idx] ~ (group_aero_moment[group.idx] + group_tether_moment[group.idx]) / inertia
-            twist_angle[group.idx] ~ clamp(free_twist_angle[group.idx], -π/2, π/2)
+            twist_angle[group.idx] ~ clamp(free_twist_angle[group.idx], -max_twist, max_twist)
         ]
         if group.type == DYNAMIC
             eqs = [
@@ -718,9 +719,9 @@ function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, 
         azimuth_vel         ~ (-y*x´ + x*y´) / 
                                 (x^2 + y^2)
         azimuth_acc         ~ ((x^2 + y^2)*(-y*x´´ + x*y´´) + 2(y*x´ - x*y´)*(x*x´ + y*y´))/(x^2 + y^2)^2
+        course              ~ atan(-azimuth_vel, elevation_vel)
         x_acc               ~ kite_acc ⋅ e_x
         y_acc               ~ kite_acc ⋅ e_y
-        course              ~ atan(-azimuth_vel, elevation_vel)
 
         angle_of_attack     ~ calc_angle_of_attack(va_kite_b) + 0.5twist_angle[half_len] + 0.5twist_angle[half_len+1]
         simple_twist_angle[1] ~ sum(twist_angle[1:half_len]) / half_len
