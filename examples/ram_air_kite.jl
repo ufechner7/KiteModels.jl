@@ -4,7 +4,7 @@ tic()
 
 using KiteModels, LinearAlgebra, Statistics
 
-PLOT = true
+PLOT = false
 if PLOT
     using Pkg
     if ! ("LaTeXStrings" ∈ keys(Pkg.project().dependencies))
@@ -26,7 +26,7 @@ steps = Int(round(total_time / dt))
 
 # Steering parameters
 steering_freq = 1/2  # Hz - full left-right cycle frequency
-steering_magnitude = 10.0      # Magnitude of steering input [Nm]
+steering_magnitude = 5.0      # Magnitude of steering input [Nm]
 
 # Initialize model
 set = load_settings("system_ram.yaml")
@@ -57,40 +57,37 @@ sys = s.sys
 @info "System initialized at:"
 toc()
 
-# # Stabilize system
+# Stabilize system
 s.integrator.ps[sys.stabilize] = true
 for i in 1:10÷dt
-    next_step!(s; dt, vsm_interval=1)
+    next_step!(s; dt, vsm_interval=0.05÷dt)
 end
 s.integrator.ps[sys.stabilize] = false
+t0 = s.integrator.t
 
 logger = Logger(length(s.point_system.points), steps)
 sys_state = KiteModels.SysState(s)
 t = 0.0
 runtime = 0.0
 integ_runtime = 0.0
-bias = 2.0
+bias = 0.7
 
 try
     while t < total_time
         local steering
         global t, set_values, runtime, integ_runtime
-        PLOT && plot(s, t; zoom=false, front=false)
+        PLOT && plot(s, t; zoom=true, front=true)
         
         # Calculate steering inputs based on cosine wave
-        steering = steering_magnitude * cos(2π * steering_freq * t+0.1)
+        steering = steering_magnitude * cos(2π * steering_freq * t + bias)
         set_values = -s.set.drum_radius .* s.integrator[sys.winch_force]
-        _vsm_interval = 1
         if t > 1.0
             set_values .+= [0.0, steering, -steering]  # Opposite steering for left/right
-            _vsm_interval = vsm_interval
-        else
-            set_values[2] += bias
         end
 
         # Step simulation
-        steptime = @elapsed (t_new, integ_steptime) = next_step!(s, set_values; dt, vsm_interval=_vsm_interval)
-        t = t_new - 10.0  # Adjust for initial stabilization time
+        steptime = @elapsed (t_new, integ_steptime) = next_step!(s, set_values; dt, vsm_interval=vsm_interval)
+        t = t_new - t0  # Adjust for initial stabilization time
 
         # Track performance after initial transient
         if (t > total_time/2)
