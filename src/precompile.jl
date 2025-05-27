@@ -50,6 +50,10 @@ end
         using CodecXz
         decompress_binary(input_file, output_file)
         @info "Decompressed $input_file to $output_file"
+    elseif isfile(output_file)
+        @info "Output file $output_file already exists, skipping decompression."
+    else
+        @error "Input file $input_file does not exist, skipping decompression."
     end
 
     @assert ! isnothing(kps4_.wm)
@@ -68,8 +72,7 @@ end
         if filecmp(m1, m2)
             @info "Manifest files match, no need to copy."
         else
-            @info "Manifest files differ, copying $m1 to $m2"
-            cp(m1, m2; force=true)
+            @warn "Manifest files differ, no precompilation will be done."
         end
         # Check if the output file exists and is the same as the input file
         if isfile(output_file) && filecmp(m1, m2)
@@ -86,6 +89,7 @@ end
             # Initialize at elevation
             measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
             KiteModels.init_sim!(s, measure; prn=false, precompile=true)
+            @info "Copying $input_file to $output_file!"
             cp(output_file, prob_file; force=true)
         end
         nothing
