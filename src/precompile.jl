@@ -70,7 +70,7 @@ end
             m2 = "Manifest-v1.10.toml.default"
         end
         if filecmp(m1, m2)
-            @info "Manifest files match, no need to copy."
+            @info "Manifest files match, using the default xz files will work!"
         else
             @warn "Manifest files differ, no precompilation will be done."
         end
