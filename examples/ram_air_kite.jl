@@ -2,9 +2,9 @@ using Timers
 tic()
 @info "Loading packages "
 
-using KiteModels, LinearAlgebra, Statistics
+using KiteModels, LinearAlgebra, Statistics, SteadyStateDiffEq, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqNonlinearSolve
 
-PLOT = false
+PLOT = true
 if PLOT
     using Pkg
     if ! ("LaTeXStrings" ∈ keys(Pkg.project().dependencies))
@@ -26,7 +26,7 @@ steps = Int(round(total_time / dt))
 
 # Steering parameters
 steering_freq = 1/2  # Hz - full left-right cycle frequency
-steering_magnitude = 5.0      # Magnitude of steering input [Nm]
+steering_magnitude = 10.0      # Magnitude of steering input [Nm]
 
 # Initialize model
 set = load_settings("system_ram.yaml")
@@ -58,6 +58,11 @@ sys = s.sys
 toc()
 
 # Stabilize system
+# steady_prob = SteadyStateProblem(s.prob)
+# steady_prob.ps[sys.stabilize] = true
+# sol = solve(steady_prob, DynamicSS(FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.9, max_iter=1000))); 
+#     abstol=0.01, reltol=0.01, save_everystep=false)
+# OrdinaryDiffEqCore.reinit!(s.integrator, sol.u; reinit_dae=false)
 s.integrator.ps[sys.stabilize] = true
 for i in 1:10÷dt
     next_step!(s; dt, vsm_interval=0.05÷dt)
@@ -70,13 +75,13 @@ sys_state = KiteModels.SysState(s)
 t = 0.0
 runtime = 0.0
 integ_runtime = 0.0
-bias = 0.7
+bias = 0.4
 
 try
     while t < total_time
         local steering
         global t, set_values, runtime, integ_runtime
-        PLOT && plot(s, t; zoom=true, front=true)
+        PLOT && plot(s, t; zoom=false, front=false)
         
         # Calculate steering inputs based on cosine wave
         steering = steering_magnitude * cos(2π * steering_freq * t + bias)
@@ -98,6 +103,7 @@ try
 
         # Log state variables
         KiteModels.update_sys_state!(sys_state, s)
+        sys_state.time = t
         log!(logger, sys_state)
     end
 catch e
@@ -127,7 +133,7 @@ twist_angles_deg = rad2deg.(hcat(sl.twist_angles...))
 AoA_deg = rad2deg.(sl.AoA)
 heading_deg = rad2deg.(sl.heading)
 
-p = plotx(sl.time .- 10,
+p = plotx(sl.time,
     [turn_rates_deg[1,:], turn_rates_deg[2,:], turn_rates_deg[3,:]],
     v_reelout_23,
     [aero_force_z, aero_moment_y],

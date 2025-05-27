@@ -541,7 +541,7 @@ function measure_to_q(measure::Measurement, R_cad_body=I(3))
     z = rotate_around_y(z, -measure.elevation)
     x = rotate_around_z(x, measure.azimuth)
     z = rotate_around_z(z, measure.azimuth)
-    R_b_w = hcat(x, z × x, z)
+    R_b_w = R_cad_body' * hcat(x, z × x, z)
     Q_b_w = rotation_matrix_to_quaternion(R_b_w)
     return Q_b_w, R_b_w
 end
