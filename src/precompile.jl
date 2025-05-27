@@ -49,6 +49,7 @@ end
     if isfile(input_file) && ! isfile(output_file)
         using CodecXz
         decompress_binary(input_file, output_file)
+        @info "Decompressed $input_file to $output_file"
     end
 
     @assert ! isnothing(kps4_.wm)
@@ -64,6 +65,13 @@ end
             m1 = "Manifest-v1.10.toml"
             m2 = "Manifest-v1.10.toml.default"
         end
+        if filecmp(m1, m2)
+            @info "Manifest files match, no need to copy."
+        else
+            @info "Manifest files differ, copying $m1 to $m2"
+            cp(m1, m2; force=true)
+        end
+        # Check if the output file exists and is the same as the input file
         if isfile(output_file) && filecmp(m1, m2)
             local set
             # Initialize model
