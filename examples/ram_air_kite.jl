@@ -49,8 +49,8 @@ toc()
 measure = Measurement()
 
 # Initialize at elevation
-s.point_system.winches[2].tether_length += 0.2
-s.point_system.winches[3].tether_length += 0.2
+# s.point_system.winches[2].tether_length += 0.2
+# s.point_system.winches[3].tether_length -= 0.2
 measure.sphere_pos .= deg2rad.([70.0 70.0; 1.0 -1.0])
 KiteModels.init_sim!(s, measure; remake=false, reload=true)
 sys = s.sys

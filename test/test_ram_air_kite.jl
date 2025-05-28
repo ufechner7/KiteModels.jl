@@ -135,10 +135,10 @@ const BUILD_SYS = true
         for _ in 1:steps
             set_values = -s.set.drum_radius * s.integrator[s.sys.winch_force] + d_set_values
             KiteModels.next_step!(s, set_values; dt)
-            # Use SysState to get heading_x if needed, or directly from integrator if simpler
+            # Use SysState to get heading if needed, or directly from integrator if simpler
             # sys_state_step = KiteModels.SysState(s)
-            # @show sys_state_step.heading_x # Example if heading_x is in SysState
-            @show s.integrator[s.sys.heading_x] # Keep direct access if simpler for this specific value
+            # @show sys_state_step.heading # Example if heading is in SysState
+            @show s.integrator[s.sys.heading] # Keep direct access if simpler for this specific value
         end
     end
 

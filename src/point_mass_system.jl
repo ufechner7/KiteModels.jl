@@ -462,7 +462,7 @@ function init!(system::PointMassSystem, set::Settings, R_b_w, Q_b_w)
     end
 
     for winch in winches
-        winch.tether_length = set.l_tether
+        winch.tether_length ≈ 0.0 && (winch.tether_length = set.l_tether)
         winch.tether_vel = 0.0
         @assert !(winch.tether_length ≈ 0)
     end

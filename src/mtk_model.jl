@@ -616,6 +616,20 @@ function diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero
     return eqs, defaults
 end
 
+function calc_R_v_w(kite_pos, e_x)
+    z = sym_normalize(kite_pos)
+    y = sym_normalize(z × e_x)
+    x = y × z
+    return [x y z]
+end
+
+function calc_R_t_w(elevation, azimuth)
+    x = rotate_around_z(rotate_around_y([0, 0, -1], -elevation), azimuth)
+    z = rotate_around_z(rotate_around_y([1, 0, 0], -elevation), azimuth)
+    y = z × x
+    return [x y z]
+end
+
 """
     scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc, twist_angle, twist_ω)
 
@@ -661,7 +675,7 @@ function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, 
         va_kite_b ~ R_b_w' * va_kite
     ]
     @variables begin
-        heading_x(t)
+        heading(t)
         turn_rate(t)[1:3]
         turn_acc(t)[1:3]
         azimuth(t)
@@ -680,9 +694,7 @@ function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, 
         simple_twist_angle(t)[1:2]
         simple_twist_ω(t)[1:2]
         R_v_w(t)[1:3, 1:3]
-        view_z(t)[1:3]
-        view_y(t)[1:3]
-        view_x(t)[1:3]
+        R_t_w(t)[1:3, 1:3]
         distance(t)
         distance_vel(t)
         distance_acc(t)
@@ -693,21 +705,18 @@ function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, 
     x´´, y´´, z´´ = kite_acc
 
     half_len = length(twist_angle)÷2
+    heading_vec = R_t_w' * R_v_w[:,1]
 
     eqs = [
         eqs
-        view_z          ~ sym_normalize(kite_pos)
-        view_y          ~ view_z × e_y
-        view_x          ~ view_y × view_z
-        R_v_w[:,1]      ~ view_x
-        R_v_w[:,2]      ~ view_y
-        R_v_w[:,3]      ~ view_z
-        heading_x       ~ calc_heading(e_x)
+        vec(R_v_w)     .~ vec(calc_R_v_w(kite_pos, e_x))
+        vec(R_t_w)     .~ vec(calc_R_t_w(elevation, azimuth))
+        heading         ~ atan(heading_vec[2], heading_vec[1])
         turn_rate       ~ R_v_w' * (R_b_w * ω_b) # Project angular velocity onto view frame
         turn_acc        ~ R_v_w' * (R_b_w * α_b)
         distance        ~ norm(kite_pos)
-        distance_vel    ~ kite_vel ⋅ view_z
-        distance_acc    ~ kite_acc ⋅ view_z
+        distance_vel    ~ kite_vel ⋅ R_v_w[:,3]
+        distance_acc    ~ kite_acc ⋅ R_v_w[:,3]
 
         elevation           ~ atan(z / x)
         # elevation_vel = d/dt(atan(z/x)) = (x*ż' - z*ẋ')/(x^2 + z^2) according to wolframalpha
