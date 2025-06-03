@@ -127,14 +127,14 @@ These models are described in detail in [Dynamic Model of a Pumping Kite Power S
 If you want to replay old flight log files in 2D and 3D to understand and explain better how kite power systems work, please have a look at [KiteViewer](https://github.com/ufechner7/KiteViewer) . How new log files can be created and replayed is explained in the documentation of [KiteSimulators](https://github.com/aenarete/KiteSimulators.jl) .
 
 ## Licence
-This project is licensed under the MIT License. Please see the below WAIVER in association with the license.
+This project is licensed under the MIT License. Please see the below `Copyright notice` in association with the license.
 
 ## Copyright notice
 Technische Universiteit Delft hereby disclaims all copyright interest in the package “KiteModels.jl” (models for airborne wind energy systems) written by the Author(s).
 
 Prof.dr. H.G.C. (Henri) Werij, Dean of Aerospace Engineering, Technische Universiteit Delft.
 
-See the copyright notices in the scripts, and the list of authors in `AUTHORS.md`.
+See the copyright notices in the source files, and the list of authors in `AUTHORS.md`.
 
 ## Donations
 If you like this software, please consider donating to [Flood in Kenya](https://www.climatejusticesolidarity.nl/solidarity/) .
