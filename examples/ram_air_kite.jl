@@ -1,3 +1,6 @@
+# Copyright (c) 2024, 2025 Bart van de Lint, Uwe Fechner
+# SPDX-License-Identifier: MIT
+
 using Timers
 tic()
 @info "Loading packages "

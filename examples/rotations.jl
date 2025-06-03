@@ -1,3 +1,6 @@
+# Copyright (c) 2024 Uwe Fechner
+# SPDX-License-Identifier: MIT
+
 using KiteModels, Rotations, LinearAlgebra, StaticArrays
 
 # kite reference frame; postions in ENU coordinates

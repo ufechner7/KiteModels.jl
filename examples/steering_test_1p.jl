@@ -1,3 +1,6 @@
+# Copyright (c) 2022, 2024 Uwe Fechner
+# SPDX-License-Identifier: MIT
+
 # apply different rel_steering values and plot turn rate
 using Printf
 using KiteModels, KitePodModels, KiteUtils, Pkg
@@ -94,7 +97,6 @@ function simulate(integrator, steps; plot=false)
         end
     end
 end
-
 
 integrator = KiteModels.init_sim!(kps3;  delta=0.0, stiffness_factor=1, prn=STATISTIC)
 simulate(integrator, STEPS; plot=true)

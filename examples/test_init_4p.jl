@@ -1,5 +1,7 @@
-# plot the lift and drag coefficients as function of angle of attack
+# Copyright (c) 2022, 2024 Uwe Fechner
+# SPDX-License-Identifier: MIT
 
+# plot the lift and drag coefficients as function of angle of attack
 using Printf
 using Pkg
 using KiteModels, KitePodModels, KiteUtils, LinearAlgebra
