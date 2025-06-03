@@ -1,3 +1,5 @@
+# Copyright (c) 2022, 2024 Uwe Fechner
+# SPDX-License-Identifier: MIT
 
 function plot(sys::PointMassSystem, reltime; kite_pos=nothing, zoom=false, front=false)
     pos = [sys.points[i].pos_w for i in eachindex(sys.points)]
