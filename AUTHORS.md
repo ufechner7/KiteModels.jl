@@ -11,4 +11,6 @@ programming language, available to the public.
 - Daan van Wolffelaar, Delft, The Netherlands - contributed the scripts 
   - `test_inertia_calculation.jl` 
   - `calculate_rotational_inertia.jl` and the related functions
+- Friso Broekhuizen
+  - the code in the branch `kps5`, in particular the `KPS5` kite model
 
