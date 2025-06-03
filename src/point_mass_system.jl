@@ -1,4 +1,6 @@
 
+# SPDX-License-Identifier: MIT
+
 #= MIT License
 
 Copyright (c) 2024 Bart van de Lint

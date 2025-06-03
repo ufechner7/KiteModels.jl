@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+
 #= MIT License
 
 Copyright (c) 2020, 2021, 2022 Uwe Fechner

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+
 #= MIT License
 
 Copyright (c) 2024 Uwe Fechner and Bart van de Lint
