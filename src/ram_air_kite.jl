@@ -1,4 +1,4 @@
-# Copyright (c) 2024 Uwe Fechner and Bart van de Lint
+# Copyright (c) 2024 Bart van de Lint and Uwe Fechner
 # SPDX-License-Identifier: MIT
 
 const MeasureFloat = Float32
