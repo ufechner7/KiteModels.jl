@@ -8,5 +8,7 @@ programming language, available to the public.
 - Bart van de Lint, Trondheim, Norway - author of the `RamAirKite` model
 
 ## Contributors
-- Daan van Wolffelaar, Delft, The Netherlands - contributed the script `test_inertia_calculation.jl` and the related functions
+- Daan van Wolffelaar, Delft, The Netherlands - contributed the scripts 
+  - `test_inertia_calculation.jl` 
+  - `calculate_rotational_inertia.jl` and the related functions
 
