@@ -134,6 +134,8 @@ Technische Universiteit Delft hereby disclaims all copyright interest in the pac
 
 Prof.dr. H.G.C. (Henri) Werij, Dean of Aerospace Engineering, Technische Universiteit Delft.
 
+See the copyright notices in the scripts, and the list of authors in `AUTHORS.md`.
+
 ## Donations
 If you like this software, please consider donating to [Flood in Kenya](https://www.climatejusticesolidarity.nl/solidarity/) .
 
