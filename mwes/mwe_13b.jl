@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 Uwe Fechner
+#
+# SPDX-License-Identifier: MIT
+
 using Pkg
 if ! ("ModelingToolkit" ∈ keys(Pkg.project().dependencies))
     @info "Installing ModelingToolkit ..."

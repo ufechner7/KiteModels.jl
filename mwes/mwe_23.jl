@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 Uwe Fechner
+#
+# SPDX-License-Identifier: MIT
+
 # Test the euler formulas with different frames
 using Test
 using LinearAlgebra

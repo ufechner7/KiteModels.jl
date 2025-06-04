@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 Uwe Fechner
+#
+# SPDX-License-Identifier: MIT
+
 # generate test cases for the calculation of roll, pitch and yaw
 # convert all vectors to NED reference frame first
 using LinearAlgebra

@@ -1,4 +1,6 @@
 # Copyright (c) 2022, 2024, 2025 Uwe Fechner
+# SPDX-FileCopyrightText: 2025 Uwe Fechner
+#
 # SPDX-License-Identifier: MIT
 
 # activate the test environment if needed

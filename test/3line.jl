@@ -1,4 +1,6 @@
 # Copyright (c) 2024 Bart van de Lint
+# SPDX-FileCopyrightText: 2025 Uwe Fechner
+#
 # SPDX-License-Identifier: MIT
 
 using KiteModels

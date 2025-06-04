@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2025 Uwe Fechner
+
+SPDX-License-Identifier: MIT
+-->
+
 # KiteModels
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://ufechner7.github.io/KiteModels.jl/stable)

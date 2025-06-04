@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 Uwe Fechner
+#
+# SPDX-License-Identifier: MIT
+
 # test calculation of the orientation
 using LinearAlgebra, Rotations, Test
 

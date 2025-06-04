@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2025 Uwe Fechner
+
+SPDX-License-Identifier: MIT
+-->
+
 ### KiteModels v0.7.3 2025-05-05
 #### Fixed
 - fix function update_sys_state!()

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 Uwe Fechner
+#
+# SPDX-License-Identifier: MIT
+
 using ModelingToolkit
 using ModelingToolkit: t_nounits as t, D_nounits as D
 

@@ -1,4 +1,6 @@
 # Copyright (c) 2024 Uwe Fechner
+# SPDX-FileCopyrightText: 2025 Uwe Fechner
+#
 # SPDX-License-Identifier: MIT
 
 using Aqua

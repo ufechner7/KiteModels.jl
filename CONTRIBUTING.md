@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2025 Uwe Fechner
+
+SPDX-License-Identifier: MIT
+-->
+
 # Contribution Guidelines for KiteModels.jl
 
 Welcome to the KiteModels.jl community! We appreciate your interest in contributing. These guidelines will help you get started and ensure your contributions are effective and welcome.
