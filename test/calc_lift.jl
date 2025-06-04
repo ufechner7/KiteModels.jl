@@ -1,6 +1,4 @@
-# Copyright (c) 2024 Bart van de Lint
-# SPDX-FileCopyrightText: 2025 Uwe Fechner
-#
+# SPDX-FileCopyrightText: 2024 Bart van de Lint
 # SPDX-License-Identifier: MIT
 
 using LinearAlgebra

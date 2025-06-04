@@ -1,5 +1,4 @@
 # SPDX-FileCopyrightText: 2025 Uwe Fechner
-#
 # SPDX-License-Identifier: MIT
 
 # unittest for Sundials.jl, works fine with 4.11.4 and older

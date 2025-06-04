@@ -1,5 +1,4 @@
-# SPDX-FileCopyrightText: 2025 Uwe Fechner
-#
+# SPDX-FileCopyrightText: 2025 Daan van Wolffelaar
 # SPDX-License-Identifier: MIT
 
 using KiteModels
