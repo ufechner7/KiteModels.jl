@@ -1,7 +1,6 @@
-using Printf
 # Copyright (c) 2022, 2024 Uwe Fechner
 # SPDX-License-Identifier: MIT
-using KiteModels, KitePodModels, KiteUtils
+using Printf, KiteModels, KitePodModels, KiteUtils
 
 using Pkg
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
