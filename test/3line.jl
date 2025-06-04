@@ -1,3 +1,6 @@
+# Copyright (c) 2024 Bart van de Lint
+# SPDX-License-Identifier: MIT
+
 using KiteModels
 using ControlPlots
 using LinearAlgebra, StaticArrays
