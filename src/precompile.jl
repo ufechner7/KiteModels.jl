@@ -42,13 +42,18 @@ end
     kps3_::KPS3 = KPS3(KCU(se("system.yaml")))
     ver = "$(VERSION.major).$(VERSION.minor)_"
 
-    prob_name   = get_prob_name(set)
+    prob_name   = "prob_" * ver * "ram_dynamic_3_seg.bin"
     prob_file   = joinpath(path, "..", "data", prob_name)
     output_file = joinpath(path, "..", "data", prob_name * ".default")
     input_file  = joinpath(path, "..", "data", prob_name * ".default.xz")
     if isfile(input_file) && ! isfile(output_file)
         using CodecXz
         decompress_binary(input_file, output_file)
+        @info "Decompressed $input_file to $output_file"
+    elseif isfile(output_file)
+        @info "Output file $output_file already exists, skipping decompression."
+    else
+        @error "Input file $input_file does not exist, skipping decompression."
     end
 
     @assert ! isnothing(kps4_.wm)
@@ -64,6 +69,12 @@ end
             m1 = "Manifest-v1.10.toml"
             m2 = "Manifest-v1.10.toml.default"
         end
+        if filecmp(m1, m2)
+            @info "Manifest files match, using the default xz files will work!"
+        else
+            @warn "Manifest files differ, no precompilation will be done."
+        end
+        # Check if the output file exists and is the same as the input file
         if isfile(output_file) && filecmp(m1, m2)
             local set
             # Initialize model
@@ -78,6 +89,7 @@ end
             # Initialize at elevation
             measure.sphere_pos .= deg2rad.([60.0 60.0; 1.0 -1.0])
             KiteModels.init_sim!(s, measure; prn=false, precompile=true)
+            @info "Copying $output_file to $prob_file !"
             cp(output_file, prob_file; force=true)
         end
         nothing
