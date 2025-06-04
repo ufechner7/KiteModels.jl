@@ -1,6 +1,5 @@
 <!--
-SPDX-FileCopyrightText: 2025 Uwe Fechner
-
+SPDX-FileCopyrightText: 2025 Uwe Fechner, Bart van de Lint
 SPDX-License-Identifier: MIT
 -->
 
