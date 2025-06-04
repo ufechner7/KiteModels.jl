@@ -35,18 +35,6 @@ This package is part of Julia Kite Power Tools, which consists of the following 
 - many unit tests added by a new contributor
 - many tests for model verification added; they can be accessed using the `menu2.jl` script
 - the documentation was improved
-#### August 2024
-- a new kite model, KPS3_3L was contributed. It uses three lines to the ground and three winches for steering a ram-air foil kite.
-- a first [ModelingToolkit](https://docs.sciml.ai/ModelingToolkit/stable/) based model was added, which shows a much better performance and easier to read code
-- a new KCU model was added which assumes a linear relationship between the depower settings and the depower angle and thus is easier to configure than the original model.
-- the drag of the KCU is now taken into account
-- the drag of the bridle is now taken into account correctly, also if the real kite has more bridle lines than the model
-- the function to find the initial state is now much more robust
-#### July 2024
-- a new groundstation / winch type is now supported, the `TorqueControlledMachine`. It can be configured in the section `winch` of the `settings.yaml` file. It uses a set torque as input.
-- a Python interface is now provided, see: [pykitemodels](https://github.com/ufechner7/pykitemodels)
-#### April 2024
-- added support for the native Julia DAE solver DFBDF. It is much more accurate and faster than the IDA solver that was used before.
 
 ## What to install
 If you want to run simulations and see the results in 3D, please install the meta package  [KiteSimulators](https://github.com/aenarete/KiteSimulators.jl) . If you are not interested in 3D visualization or control you can just install this package.
