@@ -121,7 +121,7 @@ is varied. This does not translate into physics directly, but it avoids adding p
 Dyneema or similar high-strength materials for the tether the resulting system is very stiff which is a challenge for the solver.
 
 ## Further reading
-These models are described in detail in [Dynamic Model of a Pumping Kite Power System](http://arxiv.org/abs/1406.6218).
+The models KPS3 and KPS4 are described in detail in [Dynamic Model of a Pumping Kite Power System](http://arxiv.org/abs/1406.6218).
 
 ## Replaying log files
 If you want to replay old flight log files in 2D and 3D to understand and explain better how kite power systems work, please have a look at [KiteViewer](https://github.com/ufechner7/KiteViewer) . How new log files can be created and replayed is explained in the documentation of [KiteSimulators](https://github.com/aenarete/KiteSimulators.jl) .
@@ -151,4 +151,4 @@ If you like this software, please consider donating to [Flood in Kenya](https://
 **Documentation** [Stable Version](https://ufechner7.github.io/KiteModels.jl/stable) --- [Development Version](https://ufechner7.github.io/KiteModels.jl/dev)
 
 
-Authors: Uwe Fechner (uwe.fechner.msc@gmail.com), Bart van de Lint (bart@vandelint.net)
+Authors: See AUTHORS.md file
