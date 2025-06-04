@@ -101,3 +101,5 @@ Before creating a new release, please check
 - execute `meld README.md docs/src/index.md` and make sure both are up-to-date 
 - test the installation on Linux for both Julia 1.10 and the latest stable Julia version
 - test the installation on Windows after deleting the .julia folder
+- run `pipx run reuse lint` and make sure all files have a license attached; 
+  See: https://reuse.readthedocs.io/en/latest/readme.html
