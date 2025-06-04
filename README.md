@@ -137,6 +137,3 @@ If you like this software, please consider donating to [Flood in Kenya](https://
 - the [VortexStepMethod](https://github.com/Albatross-Kite-Transport/VortexStepMethod.jl)
 
 **Documentation** [Stable Version](https://ufechner7.github.io/KiteModels.jl/stable) --- [Development Version](https://ufechner7.github.io/KiteModels.jl/dev)
-
-
-Authors: See AUTHORS.md file
