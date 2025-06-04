@@ -126,7 +126,7 @@ Prof.dr. H.G.C. (Henri) Werij, Dean of Aerospace Engineering, Technische Univers
 See the copyright notices in the source files, and the list of authors in [AUTHORS.md](AUTHORS.md).
 
 ## Donations
-If you like this software, please consider donating to [Flood in Kenya](https://www.climatejusticesolidarity.nl/solidarity/) .
+If you like this software, please consider donating to [Flood in Kenya](https://www.gofundme.com/f/climate-refugees-in-kenya) .
 
 ## See also
 - [Research Fechner](https://research.tudelft.nl/en/publications/?search=Fechner+wind&pageSize=50&ordering=rating&descending=true) for the scientic background of this code
