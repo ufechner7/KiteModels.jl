@@ -68,6 +68,7 @@ calculate_rotational_inertia!
 calc_set_cl_cd!
 calc_aero_forces!
 calc_particle_forces!
+find_z_axis_point
 inner_loop!
 loop!
 ```
