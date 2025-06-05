@@ -30,23 +30,17 @@ Expected output:
 ```
 julia> include("examples/ram_air_kite.jl")
 [ Info: Loading packages 
-Time elapsed: 2.843903577 s
+Time elapsed: 2.863292943 s
 [ Info: Creating wing, aero, vsm_solver, point_system and s:
-Time elapsed: 11.780494151 s
-[ Info: Creating ODESystem
-  4.189182 seconds (7.83 M allocations: 200.190 MiB, 0.69% gc time, 24.40% compilation time: 6% of which was recompilation)
-[ Info: Simplifying the system
- 38.041611 seconds (304.71 M allocations: 10.010 GiB, 2.12% gc time, 25.50% compilation time: 18% of which was recompilation)
-[ Info: Creating ODEProblem
- 84.739970 seconds (640.11 M allocations: 20.794 GiB, 1.83% gc time, 22.66% compilation time: 12% of which was recompilation)
-[ Info: Initialized integrator in 22.253394034 seconds
+Time elapsed: 4.51880941 s
+[ Info: Initialized integrator in 6.000656365 seconds
 [ Info: System initialized at:
-Time elapsed: 193.93390819 s
+Time elapsed: 13.392478822 s
 [ Info: Total time without plotting:
-Time elapsed: 211.095669066 s
+Time elapsed: 30.847251362 s
 ┌ Info: Performance:
-│   times_realtime = 8.017735204615859
-└   integrator_times_realtime = 60.411279264296
+│   times_realtime = 8.426564704784319
+└   integrator_times_realtime = 62.47122497288717
 ```
 
 
