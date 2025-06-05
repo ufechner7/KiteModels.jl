@@ -1,0 +1,13 @@
+version = 1
+
+[[annotations]]
+path = "data/prob*"
+
+SPDX-FileCopyrightText = "2025 Bart van de Lint"
+SPDX-License-Identifier = "MPL-2.0"
+
+[[annotations]]
+path = "data/ram_air_kite*"
+
+SPDX-FileCopyrightText = "2025 Bart van de Lint"
+SPDX-License-Identifier = "MPL-2.0"

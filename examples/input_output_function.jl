@@ -1,3 +1,6 @@
+# Copyright (c) 2025 Bart van de Lint
+# SPDX-License-Identifier: MPL-2.0
+
 #=
 This example analyzes the input-output behavior of a ram air kite model by:
 

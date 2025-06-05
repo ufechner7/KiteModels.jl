@@ -1,3 +1,6 @@
+# Copyright (c) 2025 Bart van de Lint
+# SPDX-License-Identifier: MPL-2.0
+
 using KiteModels, LinearAlgebra
 using Pkg
 if ! ("LaTeXStrings" ∈ keys(Pkg.project().dependencies))

@@ -1,6 +1,6 @@
 
-# Copyright (c) 2024 Bart van de Lint
-# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Bart van de Lint
+# SPDX-License-Identifier: MPL-2.0
 
 function VortexStepMethod.RamAirWing(set::Settings; prn=true, kwargs...)
     obj_path = joinpath(dirname(get_data_path()), set.model)

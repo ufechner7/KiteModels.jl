@@ -1,5 +1,5 @@
-# Copyright (c) 2024 Bart van de Lint
-# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Bart van de Lint
+# SPDX-License-Identifier: MPL-2.0
 
 # ==================== mtk model functions ================================================
 # Implementation of the ram air kite model using ModelingToolkit.jl

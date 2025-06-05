@@ -1,3 +1,6 @@
+# Copyright (c) 2025 Bart van de Lint
+# SPDX-License-Identifier: MPL-2.0
+
 #=
 This example demonstrates linearized model accuracy by comparing:
 1. Nonlinear RamAirKite model simulation 
