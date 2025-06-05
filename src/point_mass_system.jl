@@ -266,13 +266,36 @@ function cad_to_body_frame(wing::RamAirWing, pos)
     return wing.R_cad_body * (pos + wing.T_cad_body)
 end
 
-# Find the point on the z-axis with distance l from P in the negative direction
+"""
+    find_z_axis_point(P, l) -> AbstractVector
+
+Find the point on the z-axis that is at a distance `l` from point `P`,
+in the negative z-direction relative to `P[3]`.
+
+Let point `P` be `[x_p, y_p, z_p]`. We are looking for a point `A = [0, 0, z]`
+on the z-axis. The distance between `P` and `A` is `l`.
+
+The calculation is based on the distance formula:
+  `sqrt((x_p - 0)² + (y_p - 0)² + (z_p - z)²) = l`
+  `sqrt(x_p² + y_p² + (z_p - z)²) = l`
+Squaring both sides gives:
+  `x_p² + y_p² + (z_p - z)² = l²`
+Solving for `z`:
+  `(z_p - z)² = l² - x_p² - y_p²`
+  `z_p - z = ±sqrt(l² - x_p² - y_p²)`
+  `z = z_p ± sqrt(l² - x_p² - y_p²)`
+Since we want the point in the negative z-direction relative to `P[3]` (which is `z_p`),
+we choose the most negative solution:
+  `z = z_p - sqrt(l² - x_p² - y_p²)`
+
+# Arguments
+- `P::AbstractVector`: The reference point `[x_p, y_p, z_p]`.
+- `l::Real`: The desired distance from point `P` to the point on the z-axis.
+
+# Returns
+- `AbstractVector`: A 3-element vector `[0, 0, z]` representing the point on the z-axis.
+"""
 function find_z_axis_point(P, l)
-    # Distance formula: sqrt(xₐ² + yₐ² + (z - zₐ)²) = l
-    # Square both sides: xₐ² + yₐ² + (z - zₐ)² = l²
-    # Solve for z: (z - zₐ)² = l² - xₐ² - yₐ²
-    # z - zₐ = ±sqrt(l² - xₐ² - yₐ²)
-    # z = zₐ ± sqrt(l² - xₐ² - yₐ²)
     d = l^2 - P[1]^2 - P[2]^2
     d < 0 && error("No real solution: l is too small")
     z = P[3] - sqrt(d)
