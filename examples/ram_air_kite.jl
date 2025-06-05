@@ -72,7 +72,7 @@ sys_state = KiteModels.SysState(s)
 t = 0.0
 runtime = 0.0
 integ_runtime = 0.0
-bias = 2.0
+bias = 0.5
 
 try
     while t < total_time
@@ -81,14 +81,12 @@ try
         PLOT && plot(s, t; zoom=false, front=false)
         
         # Calculate steering inputs based on cosine wave
-        steering = steering_magnitude * cos(2π * steering_freq * t+0.1)
+        steering = steering_magnitude * cos(2π * steering_freq * t+bias)
         set_values = -s.set.drum_radius .* s.integrator[sys.winch_force]
         _vsm_interval = 1
         if t > 1.0
             set_values .+= [0.0, steering, -steering]  # Opposite steering for left/right
             _vsm_interval = vsm_interval
-        else
-            set_values[2] += bias
         end
 
         # Step simulation
