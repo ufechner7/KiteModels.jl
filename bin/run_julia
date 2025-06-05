@@ -8,13 +8,7 @@ fi
 
 export JULIA_PKG_SERVER_REGISTRY_PREFERENCE=eager
 
-# Use the provided Julia version if available, otherwise detect it
-if [ -z "$1" ]; then
-    julia_version=$(julia --version | awk '{print($3)}')
-else
-    julia_version="$1"
-fi
-
+julia_version=$(julia --version | awk '{print($3)}')
 julia_major=${julia_version:0:3} 
 if [[ $julia_major == "1.1" ]]; then
     julia_major=${julia_version:0:4} 
