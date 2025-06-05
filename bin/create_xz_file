@@ -1,0 +1,45 @@
+#!/bin/bash -eu
+
+if [[ $(basename $(pwd)) == "bin" ]]; then
+    cd ..
+fi
+
+julia_version=$(julia --version | awk '{print($3)}')
+julia_major=${julia_version:0:3}
+if [[ $julia_major == "1.1" ]]; then
+    julia_major=${julia_version:0:4} 
+fi
+if [ -d .git ] || git rev-parse --git-dir > /dev/null 2>&1 ; then
+    branch=$(git rev-parse --abbrev-ref HEAD | sed 's/\//-/g')
+else
+    branch=""
+fi
+if [[ $branch != "" ]]; then
+    SOFILE="bin/kps-image-${julia_major}-${branch}.so"
+else
+    SOFILE="bin/kps-image-${julia_major}.so"
+fi
+
+echo "Creating xz file for prob_dynamic_v${julia_major}_3_seg.bin.default.xz ..."
+if [[ $julia_major == "1.10" ]]; then
+    rm -f data/prob_1.10_ram_dynamic_3_seg.bin.default
+    rm -f data/prob_1.10_ram_dynamic_3_seg.bin.default.xz
+    echo "using KiteModels..."
+    printf ' ' >> src/precompile.jl
+    julia --project -J $SOFILE -e 'using KiteModels; include("test/create_xz_file.jl")'
+    cp data/prob_1.10_ram_dynamic_3_seg.bin data/prob_1.10_ram_dynamic_3_seg.bin.default
+    xz data/prob_1.10_ram_dynamic_3_seg.bin.default
+else
+    rm -f data/prob_1.11_ram_dynamic_3_seg.bin.default
+    rm -f data/prob_1.11_ram_dynamic_3_seg.bin.default.xz
+    echo "using KiteModels..."
+    printf ' ' >> src/precompile.jl
+    julia --project -J $SOFILE -e 'using KiteModels; include("test/create_xz_file.jl")'
+    cp data/prob_1.11_ram_dynamic_3_seg.bin data/prob_1.11_ram_dynamic_3_seg.bin.default
+    xz data/prob_1.11_ram_dynamic_3_seg.bin.default
+fi
+
+echo "using KiteModels..."
+truncate -s -1 src/precompile.jl
+julia --project -J $SOFILE -e 'using KiteModels'
+echo "Done creating prob_dynamic_v${julia_major}_3_seg.bin.default.xz !"
