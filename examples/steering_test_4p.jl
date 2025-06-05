@@ -1,3 +1,6 @@
+# Copyright (c) 2022, 2024 Uwe Fechner
+# SPDX-License-Identifier: MIT
+
 # apply different rel_steering values and plot turn rate
 using Printf
 using KiteModels, KitePodModels, KiteUtils, Pkg

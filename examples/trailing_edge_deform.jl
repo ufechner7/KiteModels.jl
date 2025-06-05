@@ -1,3 +1,6 @@
+# Copyright (c) 2025, Bart van de Lint
+# SPDX-License-Identifier: MIT
+
 """
 Plot the trailing edge deformation
 """

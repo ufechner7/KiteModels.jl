@@ -1,3 +1,5 @@
+# Copyright (c) 2022, 2024 Uwe Fechner
+# SPDX-License-Identifier: MIT
 using REPL.TerminalMenus
 
 options = ["plot_cl_cd_plate = include(\"plot_cl_cd_plate.jl\")",

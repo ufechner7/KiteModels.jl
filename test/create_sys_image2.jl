@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2022, 2024, 2025 Uwe Fechner
+# SPDX-License-Identifier: MIT
+
 using Pkg
 if ! ("PackageCompiler" ∈ keys(Pkg.project().dependencies))
     @info "Installing PackageCompiler ..."

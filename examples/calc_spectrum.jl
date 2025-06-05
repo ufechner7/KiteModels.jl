@@ -1,5 +1,5 @@
-
-
+# Copyright (c) 2022, 2024 Uwe Fechner
+# SPDX-License-Identifier: MIT
 using Printf
 using KiteModels, StatsBase, LinearAlgebra
 

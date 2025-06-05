@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 Uwe Fechner
+#
+# SPDX-License-Identifier: MIT
+
 # test calculation of the orientation, kite pointing to the west and is at zenith
 using LinearAlgebra, Rotations, Test
 

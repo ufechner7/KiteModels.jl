@@ -1,3 +1,6 @@
+# Copyright (c) 2024 Uwe Fechner and Bart van de Lint
+# SPDX-License-Identifier: MIT
+
 const KITE_ANGLE = 3.83 # angle between the kite and the last tether segment due to the mass of the control pod
 const PRE_STRESS  = 0.9998   # Multiplier for the initial spring lengths.
 

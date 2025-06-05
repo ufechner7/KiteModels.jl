@@ -1,3 +1,6 @@
+# Copyright (c) 2022, 2024 Uwe Fechner
+# SPDX-License-Identifier: MIT
+
 # plot the side lift coefficient vs rel_steering
 using Printf
 using KiteModels

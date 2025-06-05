@@ -1,3 +1,5 @@
+# Copyright (c) 2022, 2024 Uwe Fechner
+# SPDX-License-Identifier: MIT
 using REPL.TerminalMenus
 
 options = ["bench = include(\"bench.jl\")",

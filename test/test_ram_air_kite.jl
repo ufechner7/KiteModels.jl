@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2025 Uwe Fechner
+# SPDX-License-Identifier: MIT
+
 using Test, LinearAlgebra, KiteUtils, VortexStepMethod
 using KiteModels
 using Statistics

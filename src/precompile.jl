@@ -1,3 +1,6 @@
+# Copyright (c) 2024 Uwe Fechner, Bart van de Lint
+# SPDX-License-Identifier: MIT
+
 function decompress_binary(infile, outfile; chunksize=4096)
     open(infile) do input
         open(outfile, "w") do output

@@ -1,4 +1,7 @@
 
+# Copyright (c) 2024 Bart van de Lint
+# SPDX-License-Identifier: MIT
+
 function VortexStepMethod.RamAirWing(set::Settings; prn=true, kwargs...)
     obj_path = joinpath(dirname(get_data_path()), set.model)
     dat_path = joinpath(dirname(get_data_path()), set.foil_file)

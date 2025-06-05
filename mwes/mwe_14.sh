@@ -1,4 +1,9 @@
 #!/bin/bash -eu
+
+# SPDX-FileCopyrightText: 2025 Uwe Fechner
+#
+# SPDX-License-Identifier: MIT
+
 rm -rf /tmp/testdepot
 mkdir /tmp/testdepot
 rm -rf /tmp/test
