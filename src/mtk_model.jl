@@ -1,5 +1,5 @@
-# Copyright (c) 2024 Bart van de Lint
-# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Bart van de Lint
+# SPDX-License-Identifier: MPL-2.0
 
 # ==================== mtk model functions ================================================
 # Implementation of the ram air kite model using ModelingToolkit.jl
@@ -10,36 +10,17 @@ end
 function calc_moment_acc(winch::TorqueControlledMachine, tether_vel, norm_, set_torque)
     calc_acceleration(winch, tether_vel, norm_; set_speed=nothing, set_torque, use_brake=false)
 end
-@register_symbolic calc_speed_acc(winch::AsyncMachine, tether_vel, norm_, set_speed)
-@register_symbolic calc_moment_acc(winch::TorqueControlledMachine, tether_vel, norm_, set_torque)
 
-function sym_interp(interp::Function, aoa, trailing_edge_angle)
-    return interp(rad2deg(aoa), rad2deg(trailing_edge_angle-aoa)) # TODO: register callable struct https://docs.sciml.ai/Symbolics/dev/manual/functions/#Symbolics.@register_array_symbolic
+function calc_heading(e_x)
+    return atan(e_x[2], e_x[1])
 end
-@register_symbolic sym_interp(interp::Function, aoa, trailing_edge_angle)
+
+function calc_angle_of_attack(va_kite_b)
+    return atan(va_kite_b[3], va_kite_b[1])
+end
 
 function sym_normalize(vec)
     return vec / norm(vec)
-end
-@register_symbolic sym_normalize(vec)
-
-function rotate_by_quaternion(q, v)
-    p = [0, v...]
-    return quaternion_multiply(q, quaternion_multiply(p, quaternion_conjugate(q)))[2:4]
-end
-
-function quaternion_conjugate(q)
-    return [q[1], -q[2], -q[3], -q[4]]
-end
-
-function quaternion_multiply(q1, q2)
-    w1, x1, y1, z1 = q1
-    w2, x2, y2, z2 = q2
-    w = w1*w2 - x1*x2 - y1*y2 - z1*z2
-    x = w1*x2 + x1*w2 + y1*z2 - z1*y2
-    y = w1*y2 - x1*z2 + y1*w2 + z1*x2
-    z = w1*z2 + x1*y2 - y1*x2 + z1*w2
-    return [w, x, y, z]
 end
 
 function quaternion_to_rotation_matrix(q)
@@ -102,7 +83,7 @@ pulley dynamics and winch forces.
 - `wind_vec_gnd`: Ground wind vector
 - `group_aero_moment`: Aerodynamic moments per group
 - `twist_angle`: Twist angles per group
-- `steady`: Whether in steady mode
+- `stabilize`: Whether in stabilize mode
 
 # Returns
 Tuple containing:
@@ -113,7 +94,7 @@ Tuple containing:
 - Tether moments on kite
 """
 function force_eqs!(s, system, eqs, defaults, guesses; 
-        R_b_w, kite_pos, kite_vel, wind_vec_gnd, group_aero_moment, twist_angle, steady)
+        R_b_w, kite_pos, kite_vel, wind_vec_gnd, group_aero_moment, twist_angle, twist_ω, stabilize, set_values, fix_nonstiff)
 
     @parameters acc_multiplier = 1
 
@@ -187,23 +168,31 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                     found += 1
                 end
             end
-            !(found == 1) && throw(ArgumentError("Kite point number $(point.idx) is part of $found groups, 
-                and should be part of exactly 1 groups."))
+            !(found in [0,1]) && throw(ArgumentError("Kite point number $(point.idx) is part of $found groups, 
+                and should be part of exactly 0 or 1 groups."))
 
-            group = groups[group_idx]
-            if point.idx == group.points[group.fixed_index]
-                pos_b = point.pos_b
-            else
-                fixed_pos = points[group.points[group.fixed_index]].pos_b
+            if found == 1
+                group = groups[group_idx]
+                fixed_pos = group.le_pos
                 chord_b = point.pos_b - fixed_pos
                 normal = chord_b × group.y_airf
                 pos_b = fixed_pos + cos(twist_angle[group_idx]) * chord_b - sin(twist_angle[group_idx]) * normal
+                eqs = [
+                    eqs
+                    tether_kite_moment[:, point.idx] ~ zeros(3)
+                ]
+            else
+                pos_b = point.pos_b
+                eqs = [
+                    eqs
+                    tether_r[:, point.idx] ~ pos[:, point.idx] - kite_pos
+                    tether_kite_moment[:, point.idx] ~ tether_r[:, point.idx] × tether_kite_force[:, point.idx]
+                ]
             end
+            
             eqs = [
                 eqs
                 tether_kite_force[:, point.idx] ~ point_force[:, point.idx]
-                tether_r[:, point.idx] ~ pos[:, point.idx] - kite_pos
-                tether_kite_moment[:, point.idx] ~ tether_r[:, point.idx] × point_force[:, point.idx]
                 pos[:, point.idx]    ~ kite_pos + R_b_w * pos_b
                 vel[:, point.idx]    ~ zeros(3)
                 acc[:, point.idx]    ~ zeros(3)
@@ -220,7 +209,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             n = sym_normalize(kite_pos)
             n = n * (p ⋅ n)
             r = (p - n) # https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line#Vector_formulation
-            @parameters bridle_damp = 100
+            @parameters bridle_damp = 1.0
             @parameters measured_ω_z = 0.6
             eqs = [
                 eqs
@@ -228,7 +217,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                 D(vel[:, point.idx]) ~ acc_multiplier * acc[:, point.idx] - in_bridle * bridle_damp * (vel[:, point.idx] - kite_vel)
                 acc[:, point.idx]    ~ point_force[:, point.idx] / mass + 
                                         [0, 0, -G_EARTH] + 
-                                        ifelse.(steady==true, r * norm(measured_ω_z)^2, zeros(3)) # TODO: add other steady accelerations
+                                        ifelse.(stabilize==true, r * norm(measured_ω_z)^2, zeros(3)) # TODO: add other stabilize accelerations
             ]
             defaults = [
                 defaults
@@ -259,10 +248,10 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         trailing_edge_ω(t)[eachindex(groups)] # angular rate
         trailing_edge_α(t)[eachindex(groups)] # angular acc
         free_twist_angle(t)[eachindex(groups)]
-        twist_ω(t)[eachindex(groups)] # angular rate
         twist_α(t)[eachindex(groups)] # angular acc
         group_tether_moment(t)[eachindex(groups)]
-        tether_moment(t)[eachindex(groups), 1:length(groups[1].points)-1]
+        tether_force(t)[eachindex(groups), eachindex(groups[1].points)]
+        tether_moment(t)[eachindex(groups), eachindex(groups[1].points)]
     end
     
     for group in groups
@@ -270,18 +259,19 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         x_airf = normalize(group.chord)
         init_z_airf = x_airf × group.y_airf
         z_airf = x_airf * sin(twist_angle[group.idx]) + init_z_airf * cos(twist_angle[group.idx])
-        moving_points = filter(p -> p != group.points[group.fixed_index], group.points)
-        for (i, point_idx) in enumerate(moving_points)
-            r = (points[point_idx].pos_b - points[group.points[group.fixed_index]].pos_b) ⋅ normalize(group.chord)
+        for (i, point_idx) in enumerate(group.points)
+            r = (points[point_idx].pos_b - (group.le_pos + group.moment_frac*group.chord)) ⋅ normalize(group.chord)
             eqs = [
                 eqs
-                tether_moment[group.idx, i] ~ r * (point_force[:, point_idx] ⋅ (R_b_w * -z_airf))
+                tether_force[group.idx, i] ~ (point_force[:, point_idx] ⋅ (R_b_w * -z_airf))
+                tether_moment[group.idx, i] ~ r * tether_force[group.idx, i]
             ]
         end
         
         inertia = 1/3 * (s.set.mass/length(groups)) * (norm(group.chord))^2 # plate inertia around leading edge
         @assert !(inertia ≈ 0.0)
-        @parameters twist_damp = s.set.quasi_static ? 200 : 100
+        @parameters twist_damp = 50
+
         eqs = [
             eqs
             group_tether_moment[group.idx] ~ sum(tether_moment[group.idx, :])
@@ -291,8 +281,8 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         if group.type == DYNAMIC
             eqs = [
                 eqs
-                D(free_twist_angle[group.idx]) ~ twist_ω[group.idx]
-                D(twist_ω[group.idx]) ~ twist_α[group.idx] - twist_damp * twist_ω[group.idx]
+                D(free_twist_angle[group.idx]) ~ ifelse(fix_nonstiff==true, 0, twist_ω[group.idx])
+                D(twist_ω[group.idx]) ~ ifelse(fix_nonstiff==true, 0, twist_α[group.idx] - twist_damp * twist_ω[group.idx])
             ]
             defaults = [
                 defaults
@@ -341,10 +331,12 @@ function force_eqs!(s, system, eqs, defaults, guesses;
     end
     for segment in segments
         p1, p2 = segment.points[1], segment.points[2]
-        guesses = [
-            guesses
-            [segment_vec[i, segment.idx] => points[p2].pos_w[i] - points[p1].pos_w[i] for i in 1:3]
-        ]
+        if s.set.quasi_static
+            guesses = [
+                guesses
+                [segment_vec[i, segment.idx] => points[p2].pos_w[i] - points[p1].pos_w[i] for i in 1:3]
+            ]
+        end
 
         if segment.type == BRIDLE
             in_pulley = 0
@@ -401,15 +393,18 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         end
 
         stiffness_m = s.set.e_tether * (segment.diameter/2)^2 * pi
-        (segment.type == BRIDLE) && (compression_frac = 0.1)
-        (segment.type == POWER) && (compression_frac = 0.1)
-        (segment.type == STEERING) && (compression_frac = 0.1)
-        
-        @parameters stiffness_frac = 0.1
+        @parameters stiffness_frac = 0.01
         (segment.type == BRIDLE) && (stiffness_m = stiffness_frac * stiffness_m)
 
         damping_m = (s.set.damping / s.set.c_spring) * stiffness_m
         
+        if segment.compression_frac ≈ 1.0
+            eqs = [eqs; stiffness[segment.idx]       ~ stiffness_m / len[segment.idx]]
+        else
+            eqs = [eqs; stiffness[segment.idx]       ~ ifelse(len[segment.idx] > l0[segment.idx],
+                                        stiffness_m / len[segment.idx],
+                                        segment.compression_frac * stiffness_m / len[segment.idx])]
+        end
         eqs = [
             eqs
             # spring force equations
@@ -418,10 +413,6 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             unit_vec[:, segment.idx]  ~ segment_vec[:, segment.idx]/len[segment.idx]
             rel_vel[:, segment.idx]      ~ vel[:, p1] - vel[:, p2]
             spring_vel[segment.idx]      ~ rel_vel[:, segment.idx] ⋅ unit_vec[:, segment.idx]
-            stiffness[segment.idx]       ~ ifelse(len[segment.idx] > l0[segment.idx],
-                                        stiffness_m / len[segment.idx],
-                                        compression_frac * stiffness_m / len[segment.idx]
-            )
             damping[segment.idx]         ~ damping_m / len[segment.idx]
             spring_force[segment.idx] ~  (stiffness[segment.idx] * (len[segment.idx] - l0[segment.idx]) - 
                             damping[segment.idx] * spring_vel[segment.idx])
@@ -448,7 +439,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         pulley_force(t)[eachindex(pulleys)]
         pulley_acc(t)[eachindex(pulleys)]
     end
-    @parameters pulley_damp = 20
+    @parameters pulley_damp = 1.0
     for pulley in pulleys
         segment = segments[pulley.segments[1]]
         mass_per_meter = s.set.rho_tether * π * (segment.diameter/2)^2
@@ -486,7 +477,6 @@ function force_eqs!(s, system, eqs, defaults, guesses;
     end
 
     # ==================== WINCHES ==================== #
-    @parameters set_values(t)[eachindex(winches)] = zeros(length(winches))
     @variables begin
         tether_vel(t)[eachindex(winches)]
         tether_acc(t)[eachindex(winches)]
@@ -500,14 +490,14 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         end
         eqs = [
             eqs
-            D(tether_length[winch.idx]) ~ tether_vel[winch.idx]
-            D(tether_vel[winch.idx]) ~ ifelse(steady==true, 0, tether_acc[winch.idx])
+            D(tether_length[winch.idx]) ~ ifelse(fix_nonstiff==true, 0, ifelse(stabilize==true, 0, tether_vel[winch.idx]))
+            D(tether_vel[winch.idx]) ~ ifelse(fix_nonstiff==true, 0, ifelse(stabilize==true, 0, tether_acc[winch.idx]))
 
             tether_acc[winch.idx] ~ calc_moment_acc( # TODO: moment and speed control
                 winch.model, tether_vel[winch.idx], 
                 winch_force[winch.idx], 
-                set_values[winch.idx]
-            )
+                set_values[winch.idx] # TODO: SISO mode to test linear model accuracy, MHE to check if it is better, use stabilize as state estimator
+            ) # TODO: add brakes and P. This makes SISO system easy
             winch_force[winch.idx] ~ F
         ]
         defaults = [
@@ -538,20 +528,20 @@ angular velocities and accelerations, and forces/moments.
 - `kite_pos`: Kite position vector
 - `kite_vel`: Kite velocity vector
 - `kite_acc`: Kite acceleration vector
-- `init_Q_b_w`: Initial quaternion orientation
-- `init_kite_pos`: Initial kite position
-- `steady`: Whether in steady mode
+- `stabilize`: Whether in stabilize mode
 
 # Returns
 Tuple of updated equations and defaults
 """
 function diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero_force_b, 
-    aero_moment_b, ω_b, R_b_w, kite_pos, kite_vel, kite_acc, init_Q_b_w, init_kite_pos, steady
+    aero_moment_b, ω_b, α_b, R_b_w, kite_pos, kite_vel, kite_acc, stabilize, fix_nonstiff
 )
+    kite = s.point_system.kite
     @variables begin
         # potential differential variables
         kite_acc_b(t)[1:3]
-        α_b(t)[1:3] # angular acceleration in principal frame
+        α_b_damped(t)[1:3]
+        ω_b_stable(t)[1:3]
 
         # rotations and frames
         Q_b_w(t)[1:4] # quaternion orientation of the kite body frame relative to the world frame
@@ -564,72 +554,95 @@ function diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero
     end
     @parameters ω_damp = 150
 
-    Ω = [0       -ω_b[1]  -ω_b[2]  -ω_b[3];
-        ω_b[1]    0        ω_b[3]  -ω_b[2];
-        ω_b[2]   -ω_b[3]   0        ω_b[1];
-        ω_b[3]    ω_b[2]  -ω_b[1]   0]
+    Ω(ω) = [0      -ω[1]  -ω[2]  -ω[3];
+            ω[1]    0      ω[3]  -ω[2];
+            ω[2]   -ω[3]   0      ω[1];
+            ω[3]    ω[2]  -ω[1]   0]
 
     I_b = [s.wing.inertia_tensor[1,1], s.wing.inertia_tensor[2,2], s.wing.inertia_tensor[3,3]]
     @assert !(s.set.mass ≈ 0)
+    axis = sym_normalize(kite_pos)
+    axis_b = R_b_w' * axis
     eqs = [
         eqs
         [D(Q_b_w[i]) ~ Q_vel[i] for i in 1:4]
-        [Q_vel[i] ~ 0.5 * sum(Ω[i, j] * Q_b_w[j] for j in 1:4) for i in 1:4]
+        [Q_vel[i] ~ 0.5 * sum(Ω(ω_b_stable)[i, j] * Q_b_w[j] for j in 1:4) for i in 1:4]
+        ω_b_stable ~ ifelse.(fix_nonstiff==true,
+            zeros(3),
+            ifelse.(stabilize==true,
+                ω_b - ω_b ⋅ axis_b * axis_b,
+                ω_b
+            )
+        )
+        D(ω_b) ~ ifelse.(fix_nonstiff==true,
+            zeros(3),
+            ifelse.(stabilize==true,
+                α_b_damped - α_b_damped ⋅ axis_b * axis_b,
+                α_b_damped
+            )
+        )
+        α_b_damped ~ [α_b[1], α_b[2] - ω_damp*ω_b[2], α_b[3]]
+
         [R_b_w[:, i] ~ quaternion_to_rotation_matrix(Q_b_w)[:, i] for i in 1:3]
-
-        D(ω_b[1]) ~ α_b[1]
-        D(ω_b[2]) ~ α_b[2] - ω_damp * ω_b[2]
-        D(ω_b[3]) ~ ifelse(steady==true, 0, α_b[3])
-
+        
         α_b[1] ~ (moment_b[1] + (I_b[2] - I_b[3]) * ω_b[2] * ω_b[3]) / I_b[1]
         α_b[2] ~ (moment_b[2] + (I_b[3] - I_b[1]) * ω_b[3] * ω_b[1]) / I_b[2]
         α_b[3] ~ (moment_b[3] + (I_b[1] - I_b[2]) * ω_b[1] * ω_b[2]) / I_b[3]
         total_tether_kite_moment ~ [sum(tether_kite_moment[i, :]) for i in 1:3]
         moment_b ~ aero_moment_b + R_b_w' * total_tether_kite_moment
         
-        D(kite_pos) ~ kite_vel
-        D(kite_vel) ~ kite_acc
-        kite_acc ~ R_b_w * [ifelse(steady==true, 0, kite_acc_b[1]),
-                            ifelse(steady==true, 0, kite_acc_b[2]),
-                            kite_acc_b[3]]
-        kite_acc_b        ~ (R_b_w' * total_tether_kite_force + aero_force_b) / s.set.mass
+        D(kite_pos) ~ ifelse.(fix_nonstiff==true,
+            zeros(3),
+            ifelse.(stabilize==true,
+                kite_vel ⋅ axis * axis,
+                kite_vel
+            )
+        )
+        D(kite_vel) ~ ifelse.(fix_nonstiff==true,
+            zeros(3),
+            ifelse.(stabilize==true,
+                kite_acc ⋅ axis * axis,
+                kite_acc
+            )
+        )
+        kite_acc ~ (total_tether_kite_force + R_b_w * aero_force_b) / s.set.mass
         total_tether_kite_force ~ [sum(tether_kite_force[i, :]) for i in 1:3]
     ]
     defaults = [
         defaults
-        [Q_b_w[i] => init_Q_b_w[i] for i in 1:4]
-        [ω_b[i] => 0 for i in 1:3]
-        [kite_pos[i] => init_kite_pos[i] for i in 1:3]
-        [kite_vel[i] => 0 for i in 1:3]
+        [Q_b_w[i] => kite.orient[i] for i in 1:4]
+        [ω_b[i] => kite.angular_vel[i] for i in 1:3]
+        [kite_pos[i] => kite.pos[i] for i in 1:3]
+        [kite_vel[i] => kite.vel[i] for i in 1:3]
     ]
     return eqs, defaults
 end
 
 """
-    scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc)
+    scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc, twist_angle, twist_ω)
 
 Generate equations for scalar quantities like elevation, azimuth, heading and course angles.
-
-# Arguments
-- `s::RamAirKite`: The kite system state
-- `eqs`: Current system equations
-- `measure::Measurement`: Current measurement data
-- `R_b_w`: Body to world rotation matrix
-- `wind_vec_gnd`: Ground wind vector
-- `va_kite_b`: Apparent wind velocity in body frame
-- `kite_pos`: Kite position vector
-- `kite_vel`: Kite velocity vector
-- `kite_acc`: Kite acceleration vector
-
-# Returns
-- Updated system equations including:
-  - Heading angle from x-axis
-  - Elevation angle
-  - Azimuth angle
-  - Course angle
-  - Angular velocities and accelerations
-"""
-function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc)
+    
+    # Arguments
+    - `s::RamAirKite`: The kite system state
+    - `eqs`: Current system equations
+    - `measure::Measurement`: Current measurement data
+    - `R_b_w`: Body to world rotation matrix
+    - `wind_vec_gnd`: Ground wind vector
+    - `va_kite_b`: Apparent wind velocity in body frame
+    - `kite_pos`: Kite position vector
+    - `kite_vel`: Kite velocity vector
+    - `kite_acc`: Kite acceleration vector
+    
+    # Returns
+    - Updated system equations including:
+    - Heading angle from x-axis
+    - Elevation angle
+    - Azimuth angle
+    - Course angle
+    - Angular velocities and accelerations
+    """
+function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc, twist_angle, twist_ω, ω_b, α_b)
     @parameters wind_scale_gnd = s.set.v_wind
     @parameters measured_wind_dir_gnd = measure.wind_dir_gnd
     @variables begin
@@ -641,16 +654,18 @@ function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, 
     end
     eqs = [
         eqs
-        e_x     ~ R_b_w * [1, 0, 0]
-        e_y     ~ R_b_w * [0, 1, 0]
-        e_z     ~ R_b_w * [0, 0, 1]
+        e_x     ~ R_b_w[:,1]
+        e_y     ~ R_b_w[:,2]
+        e_z     ~ R_b_w[:,3]
         wind_vec_gnd ~ wind_scale_gnd * rotate_around_z([1, 0, 0], measured_wind_dir_gnd)
-        wind_vel_kite  ~ AtmosphericModels.calc_wind_factor(s.am, kite_pos[3], s.set.profile_law) * wind_vec_gnd
+        wind_vel_kite ~ AtmosphericModels.calc_wind_factor(s.am, kite_pos[3], s.set.profile_law) * wind_vec_gnd
         va_kite ~ wind_vel_kite - kite_vel
         va_kite_b ~ R_b_w' * va_kite
     ]
     @variables begin
-        heading_y(t)
+        heading_x(t)
+        turn_rate(t)[1:3]
+        turn_acc(t)[1:3]
         azimuth(t)
         azimuth_vel(t)
         azimuth_acc(t)
@@ -663,15 +678,38 @@ function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, 
         sphere_pos(t)[1:2, 1:2]
         sphere_vel(t)[1:2, 1:2]
         sphere_acc(t)[1:2, 1:2]
+        angle_of_attack(t)
+        simple_twist_angle(t)[1:2]
+        simple_twist_ω(t)[1:2]
+        R_v_w(t)[1:3, 1:3]
+        view_z(t)[1:3]
+        view_y(t)[1:3]
+        view_x(t)[1:3]
+        distance(t)
+        distance_vel(t)
+        distance_acc(t)
     end
 
     x, y, z = kite_pos
     x´, y´, z´ = kite_vel
     x´´, y´´, z´´ = kite_acc
 
+    half_len = length(twist_angle)÷2
+
     eqs = [
         eqs
-        heading_y       ~ atan(e_x[2]/e_x[1])
+        view_z          ~ sym_normalize(kite_pos)
+        view_y          ~ view_z × e_y
+        view_x          ~ view_y × view_z
+        R_v_w[:,1]      ~ view_x
+        R_v_w[:,2]      ~ view_y
+        R_v_w[:,3]      ~ view_z
+        heading_x       ~ calc_heading(e_x)
+        turn_rate       ~ R_v_w' * (R_b_w * ω_b) # Project angular velocity onto view frame
+        turn_acc        ~ R_v_w' * (R_b_w * α_b)
+        distance        ~ norm(kite_pos)
+        distance_vel    ~ kite_vel ⋅ view_z
+        distance_acc    ~ kite_acc ⋅ view_z
 
         elevation           ~ atan(z / x)
         # elevation_vel = d/dt(atan(z/x)) = (x*ż' - z*ẋ')/(x^2 + z^2) according to wolframalpha
@@ -686,12 +724,18 @@ function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, 
         x_acc               ~ kite_acc ⋅ e_x
         y_acc               ~ kite_acc ⋅ e_y
         course              ~ atan(-azimuth_vel, elevation_vel)
+
+        angle_of_attack     ~ calc_angle_of_attack(va_kite_b) + 0.5twist_angle[half_len] + 0.5twist_angle[half_len+1]
+        simple_twist_angle[1] ~ sum(twist_angle[1:half_len]) / half_len
+        simple_twist_angle[2] ~ sum(twist_angle[half_len+1:end]) / half_len
+        simple_twist_ω[1] ~ sum(twist_ω[1:half_len]) / half_len
+        simple_twist_ω[2] ~ sum(twist_ω[half_len+1:end]) / half_len
     ]
     return eqs
 end
 
 """
-    linear_vsm_eqs!(s, eqs; aero_force_b, aero_moment_b, group_aero_moment, init_va_b, twist_angle, va_kite_b, ω_b)
+linear_vsm_eqs!(s, eqs; aero_force_b, aero_moment_b, group_aero_moment, init_va_b, twist_angle, va_kite_b, ω_b)
 
 Generate linearized aerodynamic equations using the Vortex Step Method (VSM).
 Uses linearization around current operating point to approximate aerodynamic forces
@@ -710,23 +754,23 @@ and moments. The Jacobian is computed using the VSM solver.
 
 # Returns
 - Updated system equations including linearized aerodynamics:
-  - Force and moment calculations
-  - Group moment distributions
-  - Jacobian matrix for state derivatives
+- Force and moment calculations
+- Group moment distributions
+- Jacobian matrix for state derivatives
 """
-function linear_vsm_eqs!(s, eqs; aero_force_b, aero_moment_b, group_aero_moment, init_va_b, twist_angle, va_kite_b, ω_b)
+function linear_vsm_eqs!(s, eqs, guesses; aero_force_b, aero_moment_b, group_aero_moment, init_va_b, twist_angle, va_kite_b, ω_b)
     sol = s.vsm_solver.sol
     @assert length(s.point_system.groups) == length(sol.group_moment_dist)
 
-    y_ = [zeros(4); init_va_b; zeros(3)]
+    y_ = [init_va_b; zeros(length(s.point_system.groups)); zeros(3)]
     jac_, x_ = VortexStepMethod.linearize(
         s.vsm_solver, 
         s.aero, 
         y_;
-        theta_idxs=1:4, 
-        va_idxs=5:7, 
-        omega_idxs=8:10,
-        moment_frac=s.bridle_fracs[s.point_system.groups[1].fixed_index])
+        va_idxs=1:3, 
+        omega_idxs=4:6,
+        theta_idxs=7:6+length(s.point_system.groups), 
+        moment_frac=s.point_system.groups[1].moment_frac)
 
     @parameters begin
         last_y[eachindex(y_)] = y_
@@ -741,180 +785,36 @@ function linear_vsm_eqs!(s, eqs; aero_force_b, aero_moment_b, group_aero_moment,
 
     eqs = [
         eqs
-        y ~ [twist_angle; va_kite_b; ω_b]
+        y ~ [va_kite_b; ω_b; twist_angle]
         dy ~ y - last_y
         [aero_force_b; aero_moment_b; group_aero_moment] ~ last_x + vsm_jac * dy
     ]
 
-    return eqs
+    if s.set.quasi_static
+        guesses = [guesses; [y[i] => y_[i] for i in eachindex(y_)]]
+    end
+
+    return eqs, guesses
 end
 
-function init_unknowns_vec!(
-    s::RamAirKite, 
-    system::PointMassSystem, 
-    vec::Vector{SimFloat},
-    init_Q_b_w,
-    init_kite_pos;
-    non_observed=true
-)
-    !s.set.quasi_static && non_observed && (length(vec) != length(s.integrator.u)) && 
-        throw(ArgumentError("Unknowns of length $(length(s.integrator.u)) but vector provided of length $(length(vec))"))
-        
-    @unpack points, groups, segments, pulleys, winches = system
-    vec_idx = 1
-    
-    if non_observed
-        for point in points
-            if point.type == DYNAMIC
-                for i in 1:3
-                    vec[vec_idx] = point.pos_w[i]
-                    vec_idx += 1
-                end
-                for i in 1:3 # TODO: add speed to init
-                    vec[vec_idx] = 0.0
-                    vec_idx += 1
-                end
-            end
-        end
-
-        for group in groups
-            if group.type == DYNAMIC
-                vec[vec_idx] = 0
-                vec_idx += 1
-                vec[vec_idx] = 0
-                vec_idx += 1
-            end
-        end
-
-        for pulley in pulleys
-            if pulley.type == DYNAMIC
-                vec[vec_idx] = segments[pulley.segments[1]].l0
-                vec_idx += 1
-                vec[vec_idx] = 0
-                vec_idx += 1
-            end
-        end
-    end
-
-    for winch in winches
-        vec[vec_idx] = winch.tether_length
-        vec_idx += 1
-        vec[vec_idx] = 0
-        vec_idx += 1
-    end
-
-    for i in 1:4
-        vec[vec_idx] = init_Q_b_w[i]
-        vec_idx += 1
-    end
-    for i in 1:3
-        vec[vec_idx] = 0
-        vec_idx += 1
-    end
-    for i in 1:3
-        vec[vec_idx] = init_kite_pos[i]
-        vec_idx += 1
-    end
-    for i in 1:3
-        vec[vec_idx] = 0
-        vec_idx += 1
-    end
-    non_observed && (vec_idx-1 != length(vec)) && 
-        throw(ArgumentError("Unknowns vec is of length $(length(vec)) but the last index is $(vec_idx-1)"))
-    nothing
-end
-
-function get_unknowns(s::RamAirKite)
-    vec = Num[]
-    vec = get_stiff_unknowns(s, vec)
-    vec = get_nonstiff_unknowns(s, vec)
-    !s.set.quasi_static && (length(vec) != length(s.integrator.u)) &&
-        throw(ArgumentError("Integrator unknowns of length $(length(s.integrator.u)) should equal vec of length $(length(vec))"))
-    return vec
-end
-
-function get_stiff_unknowns(s, vec=Num[])
-    @unpack points, groups, segments, pulleys, winches = s.point_system
-    for point in points
-        for i in 1:3
-            point.type == DYNAMIC && push!(vec, s.sys.pos[i, point.idx])
-        end
-        for i in 1:3 # TODO: add speed to init
-            point.type == DYNAMIC && push!(vec, s.sys.vel[i, point.idx])
-        end
-    end
-    for group in groups
-        group.type == DYNAMIC && push!(vec, s.sys.free_twist_angle[group.idx])
-        group.type == DYNAMIC && push!(vec, s.sys.twist_ω[group.idx])
-    end
-    for pulley in pulleys
-        pulley.type == DYNAMIC && push!(vec, s.sys.pulley_l0[pulley.idx])
-        pulley.type == DYNAMIC && push!(vec, s.sys.pulley_vel[pulley.idx])
-    end
-    return vec
-end
-
-function get_nonstiff_unknowns(s, vec=Num[])
-    @unpack points, groups, segments, pulleys, winches = s.point_system
-    for winch in winches
-        push!(vec, s.sys.tether_length[winch.idx])
-        push!(vec, s.sys.tether_vel[winch.idx])
-    end
-    [push!(vec, s.sys.Q_b_w[i]) for i in 1:4]
-    [push!(vec, s.sys.ω_b[i]) for i in 1:3]
-    [push!(vec, s.sys.kite_pos[i]) for i in 1:3]
-    [push!(vec, s.sys.kite_vel[i]) for i in 1:3]
-    return vec
-end
-
-
-"""
-    create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measurement; 
-               init_Q_b_w, init_kite_pos, init_va_b) -> Tuple
-
-Create the complete ODE system for the ram air kite model by combining force equations,
-aerodynamic equations, differential equations and scalar equations.
-
-The system is built up in stages:
-1. Force equations for springs, drag and pulleys
-2. Linearized aerodynamic equations using VSM
-3. Differential equations for kinematics and dynamics
-4. Scalar equations for angles and derived quantities
-
-# Arguments
-- `s::RamAirKite`: The kite system state object
-- `system::PointMassSystem`: The point mass representation of the kite system
-- `measure::Measurement`: Initial measurement data
-- `init_Q_b_w`: Initial quaternion orientation of kite body frame relative to world frame
-- `init_kite_pos`: Initial kite position vector in world frame
-- `init_va_b`: Initial apparent wind velocity vector in body frame
-
-# Returns 
-Tuple containing:
-- `sys::ODESystem`: The complete ModelingToolkit ODE system
-- `defaults::Vector{Pair{Num,Real}}`: Default values for state variables
-- `guesses::Vector{Pair{Num,Real}}`: Initial guesses for solver
-"""
-function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measurement; init_Q_b_w, init_kite_pos, init_va_b)
+function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measurement; init_va_b)
     eqs = []
     defaults = Pair{Num, Real}[]
     guesses = Pair{Num, Real}[]
 
+    init_set_values = measure.set_values
     @parameters begin
-        steady = false
-        # measured_sphere_pos[1:2, 1:2] = measure.sphere_pos
-        # measured_sphere_vel[1:2, 1:2] = measure.sphere_vel
-        # measured_sphere_acc[1:2, 1:2] = measure.sphere_acc
-        # measured_tether_length[1:3] = measure.tether_length
-        # measured_tether_vel[1:3]    = measure.tether_vel
-        # measured_tether_acc[1:3]    = measure.tether_acc
+        stabilize = false
+        fix_nonstiff = false
     end
     @variables begin
         # potential differential variables
+        set_values(t)[eachindex(system.winches)] = init_set_values
         kite_pos(t)[1:3] # xyz pos of kite in world frame
         kite_vel(t)[1:3]
         kite_acc(t)[1:3]
         ω_b(t)[1:3] # turn rate in principal frame
+        α_b(t)[1:3]
 
         # rotations and frames
         R_b_w(t)[1:3, 1:3] # rotation of the kite body frame relative to the world frame
@@ -923,6 +823,7 @@ function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measuremen
         aero_force_b(t)[1:3]
         aero_moment_b(t)[1:3]
         twist_angle(t)[eachindex(system.groups)]
+        twist_ω(t)[eachindex(system.groups)]
         group_aero_moment(t)[eachindex(system.groups)]
         wind_vec_gnd(t)[1:3]
         va_kite_b(t)[1:3]
@@ -930,11 +831,11 @@ function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measuremen
 
     eqs, defaults, guesses, tether_kite_force, tether_kite_moment = 
         force_eqs!(s, system, eqs, defaults, guesses; 
-            R_b_w, kite_pos, kite_vel, wind_vec_gnd, group_aero_moment, twist_angle, steady)
-    eqs = linear_vsm_eqs!(s, eqs; aero_force_b, aero_moment_b, group_aero_moment, init_va_b, twist_angle, va_kite_b, ω_b)
+            R_b_w, kite_pos, kite_vel, wind_vec_gnd, group_aero_moment, twist_angle, twist_ω, stabilize, set_values, fix_nonstiff)
+    eqs, guesses = linear_vsm_eqs!(s, eqs, guesses; aero_force_b, aero_moment_b, group_aero_moment, init_va_b, twist_angle, va_kite_b, ω_b)
     eqs, defaults = diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero_force_b, aero_moment_b, 
-        ω_b, R_b_w, kite_pos, kite_vel, kite_acc, init_Q_b_w, init_kite_pos, steady)
-    eqs = scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc)
+        ω_b, α_b, R_b_w, kite_pos, kite_vel, kite_acc, stabilize, fix_nonstiff)
+    eqs = scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc, twist_angle, twist_ω, ω_b, α_b)
     
     # te_I = (1/3 * (s.set.mass/8) * te_length^2)
     # # -damping / I * ω = α_damping
@@ -960,6 +861,14 @@ function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measuremen
     @info "Creating ODESystem"
     # @named sys = ODESystem(eqs, t; discrete_events)
     @time @named sys = ODESystem(eqs, t)
-    return sys, defaults, guesses
-end
 
+    defaults = [
+        defaults
+        [set_values[i] => [-50.0, -1.0, -1.0][i] for i in 1:3]
+    ]
+
+    s.defaults = defaults
+    s.guesses = guesses
+    s.full_sys = sys
+    return set_values
+end

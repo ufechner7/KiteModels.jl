@@ -34,7 +34,7 @@ DEPOWER = 0.47:-0.005:0.355
 elev = set.elevation
 i = 1
 set.v_wind = V_WIND # 25
-logger::Logger = Logger(set.segments + 1, STEPS)
+logger = Logger(set.segments + 1, STEPS)
 
 kcu::KCU = KCU(set)
 kps3::KPS3 = KPS3(kcu)

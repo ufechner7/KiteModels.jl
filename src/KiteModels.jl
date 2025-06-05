@@ -45,6 +45,7 @@ export calc_azimuth_north, calc_azimuth_east
 export winch_force, lift_drag, cl_cd, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
 export calculate_rotational_inertia!
 export kite_ref_frame, orient_euler, spring_forces, upwind_dir, copy_model_settings, menu2
+export create_ram_point_system, create_simple_ram_point_system
 import LinearAlgebra: norm
 
 set_zero_subnormals(true)       # required to avoid drastic slow down on Intel CPUs when numbers become very small
@@ -69,6 +70,7 @@ const SimFloat = Float64
 Basic 3-dimensional vector, stack allocated, mutable.
 """
 const KVec3    = MVector{3, SimFloat}
+const KVec4    = MVector{4, SimFloat}
 
 """
    const SVec3    = SVector{3, SimFloat}
@@ -99,11 +101,11 @@ function __init__()
 end
 
 include("KPS4.jl") # include code, specific for the four point kite model
-include("ram_air_kite.jl") # include code, specific for the four point 3 line kite model
+include("point_mass_system.jl")
+include("ram_air_kite.jl") # include code, specific for the ram air kite model
 include("mtk_model.jl")
 include("KPS3.jl") # include code, specific for the one point kite model
 include("init.jl") # functions to calculate the initial state vector, the initial masses and initial springs
-include("point_mass_system.jl")
 
 function menu2()
     Main.include("examples/menu2.jl")

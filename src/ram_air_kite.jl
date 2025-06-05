@@ -1,218 +1,6 @@
 # Copyright (c) 2024 Bart van de Lint and Uwe Fechner
 # SPDX-License-Identifier: MIT
 
-const MeasureFloat = Float32
-
-@with_kw mutable struct Measurement
-    set_values::MVector{3, MeasureFloat}    = [-50., -1., -1.]
-    tether_length::MVector{3, MeasureFloat} = [51., 51., 51.]
-    tether_vel::MVector{3, MeasureFloat}    = zeros(MeasureFloat, 3)
-    tether_acc::MVector{3, MeasureFloat}    = zeros(MeasureFloat, 3)
-    tether_force::MVector{3, MeasureFloat}  = [540., 3., 3.]
-    "elevation and azimuth in spherical coordinate system with columns (left, right) and rows (elevation, azimuth)"
-    sphere_pos::Matrix{MeasureFloat}            = deg2rad.([89.0 89.0; 1.0 -1.0])
-    sphere_vel::Matrix{MeasureFloat}            = zeros(MeasureFloat, 2, 2)
-    sphere_acc::Matrix{MeasureFloat}            = zeros(MeasureFloat, 2, 2)
-    "positive azimuth wind direction in right-handed ENU frame relative to east / x-axis"
-    wind_dir_gnd::MeasureFloat                  = zero(MeasureFloat)
-end
-
-function Base.getproperty(m::Measurement, val::Symbol)
-    if val === :elevation
-        sphere_pos = getfield(m, :sphere_pos)
-        return 0.5(sphere_pos[1, 1] + sphere_pos[1, 2])
-    elseif val === :azimuth
-        sphere_pos = getfield(m, :sphere_pos)
-        return 0.5(sphere_pos[2, 1] + sphere_pos[2, 2])
-    else
-        return getfield(m, val)
-    end
-end
-
-"""
-    SegmentType `POWER` `STEERING` `BRIDLE`
-
-Type of segment.
-
-# Elements
-- POWER: Belongs to a power line
-- STEERING: Belongs to a steering line
-- BRIDLE: Belongs to the bridle
-"""
-@enum SegmentType begin
-    POWER
-    STEERING
-    BRIDLE
-end
-
-"""
-    DynamicsType `DYNAMIC` `STATIC` `KITE` `WINCH`
-
-Enumeration of the models that are attached to a point.
-
-# Elements
-- DYNAMIC: Belongs to a dynamic tether model
-- STATIC: Belongs to a static tether model
-- KITE: Rigid body
-- WINCH: Winch
-"""
-@enum DynamicsType begin
-    DYNAMIC
-    STATIC
-    KITE
-    WINCH
-end
-
-"""
-    mutable struct Point
-
-A normal freely moving tether point.
-
-$(TYPEDFIELDS)
-"""
-mutable struct Point
-    idx::Int16
-    pos_b::KVec3 # pos relative to kite COM in body frame
-    pos_w::KVec3 # pos in world frame
-    type::DynamicsType
-end
-function Point(idx, pos_b, type)
-    Point(idx, pos_b, copy(pos_b), type)
-end
-
-"""
-    struct KitePointGroup
-
-Set of bridle lines that share the same twist angle and trailing edge angle.
-
-$(TYPEDFIELDS)
-"""
-struct KitePointGroup
-    idx::Int16
-    points::Vector{Int16}
-    fixed_index::Int16 # point which the group rotates around under kite deformation
-    chord::KVec3 # chord vector in body frame which the group rotates around under kite deformation
-    y_airf::KVec3 # spanwise vector in local panel frame which the group rotates around under kite deformation
-    type::DynamicsType
-end
-
-"""
-    mutable struct Segment
-
-A segment from one point index to another point index.
-
-$(TYPEDFIELDS)
-"""
-mutable struct Segment
-    idx::Int16
-    points::Tuple{Int16, Int16}
-    type::SegmentType
-    l0::SimFloat
-    diameter::SimFloat
-end
-function Segment(idx, points, type)
-    Segment(idx, points, type, zero(SimFloat), zero(SimFloat))
-end
-function Segment(idx, points, type, l0)
-    Segment(idx, points, type, l0, zero(SimFloat))
-end
-
-"""
-    mutable struct Pulley
-
-A pulley described by two segments with the common point of the segments being the pulley.
-
-$(TYPEDFIELDS)
-"""
-mutable struct Pulley
-    idx::Int16
-    segments::Tuple{Int16, Int16}
-    type::DynamicsType
-    sum_length::SimFloat
-    function Pulley(idx, segments, type)
-        new(idx, segments, type, zero(SimFloat))
-    end
-end
-
-"""
-    struct Tether
-
-A set of segments making a flexible tether. The winch point should only be part of one segment.
-
-$(TYPEDFIELDS)
-"""
-struct Tether
-    idx::Int16
-    segments::Vector{Int16}
-    winch_point::Int16
-end
-
-"""
-    mutable struct Winch
-
-A set of tethers or just one tether connected to a winch.
-
-$(TYPEDFIELDS)
-"""
-mutable struct Winch
-    idx::Int16
-    model::AbstractWinchModel
-    tethers::Vector{Int16}
-    tether_length::Float64
-    function Winch(idx, model, tethers)
-        new(idx, model, tethers, zero(Float64))
-    end
-end
-
-"""
-    struct PointMassSystem
-
-A discrete mass-spring-damper representation of a kite system, where point masses 
-connected by elastic segments model the kite and tether dynamics:
-
-- `points::Vector{Point}`: Point masses representing:
-  - Kite attachment points 
-  - Dynamic bridle/tether points
-  - Fixed ground anchor points
-- `groups::Vector{KitePointGroup}`: Collections of points that move together, 
-    according to kite deformation (twist and trailing edge deflection)
-- `segments::Vector{Segment}`: Spring-damper elements between points
-- `pulleys::Vector{Pulley}`: Elements that redistribute line lengths
-- `tethers::Vector{Tether}`: Groups of segments with a common unstretched length
-- `winches::Vector{Winch}`: Ground-based winches that control the tether lengths
-
-See also: [`Point`](@ref), [`Segment`](@ref), [`KitePointGroup`](@ref), [`Pulley`](@ref)
-"""
-struct PointMassSystem
-    points::Vector{Point}
-    groups::Vector{KitePointGroup}
-    segments::Vector{Segment}
-    pulleys::Vector{Pulley}
-    tethers::Vector{Tether}
-    winches::Vector{Winch}
-    function PointMassSystem(points, groups, segments, pulleys, tethers, winches)
-        for (i, point) in enumerate(points)
-            @assert point.idx == i
-        end
-        for (i, group) in enumerate(groups)
-            @assert group.idx == i
-        end
-        for (i, segment) in enumerate(segments)
-            @assert segment.idx == i
-        end
-        for (i, pulley) in enumerate(pulleys)
-            @assert pulley.idx == i
-        end
-        for (i, tether) in enumerate(tethers)
-            @assert tether.idx == i
-        end
-        for (i, winch) in enumerate(winches)
-            @assert winch.idx == i
-        end
-        new(points, groups, segments, pulleys, tethers, winches)
-    end
-end
-
 """
     mutable struct RamAirKite{S, V, P} <: AbstractKiteModel
 
@@ -265,6 +53,10 @@ $(TYPEDFIELDS)
     e_z::V =                 zeros(S, 3)
     "Simplified system of the mtk model"
     sys::Union{ModelingToolkit.ODESystem, Nothing} = nothing
+    "Unsimplified system of the mtk model"
+    full_sys::Union{ModelingToolkit.ODESystem, Nothing} = nothing
+    "Linearization function of the mtk model"
+    lin_prob::Union{ModelingToolkit.LinearizationProblem, Nothing} = nothing
     "Velocity of the kite"
     vel_kite::V =           zeros(S, 3)
     "Inertia around kite x y and z axis of the body frame"
@@ -288,19 +80,26 @@ $(TYPEDFIELDS)
     iter::Int64 = 0
 
     unknowns_vec::Vector{SimFloat} = zeros(SimFloat, 3)
+    defaults::Vector{Pair{Num, Real}} = Pair{Num, Real}[]
+    guesses::Vector{Pair{Num, Real}} = Pair{Num, Real}[]
 
     set_set_values::Function       = () -> nothing
     set_measure::Function          = () -> nothing
     set_vsm::Function              = () -> nothing
-    set_unknowns::Function             = () -> nothing
-
+    set_unknowns::Function         = () -> nothing
+    set_nonstiff::Function         = () -> nothing
+    set_lin_vsm::Function              = () -> nothing
+    set_lin_set_values::Function       = () -> nothing
+    set_lin_unknowns::Function          = () -> nothing
+    
+    get_vsm::Function              = () -> nothing
+    get_set_values::Function       = () -> nothing
+    get_unknowns::Function         = () -> nothing
     get_state::Function            = () -> nothing
     get_y::Function                = () -> nothing
 
     prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
-    init_prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
-    integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Sundials.CVODEIntegrator, Nothing} = nothing
-    init_integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Sundials.CVODEIntegrator, Nothing} = nothing
+    integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Nothing} = nothing
 end
 
 function RamAirKite(set::Settings, aero::BodyAerodynamics, vsm_solver::VortexStepMethod.Solver, point_system::PointMassSystem)
@@ -320,70 +119,90 @@ function RamAirKite(set::Settings, aero::BodyAerodynamics, vsm_solver::VortexSte
     return s
 end
 
+function RamAirKite(set::Settings)
+    wing = RamAirWing(set; prn=false)
+    aero = BodyAerodynamics([wing])
+    vsm_solver = Solver(aero; solver_type=NONLIN, atol=2e-8, rtol=2e-8)
+    point_system = PointMassSystem(set, wing)
+    return RamAirKite(set, aero, vsm_solver, point_system)
+end
+
 function update_sys_state!(ss::SysState, s::RamAirKite, zoom=1.0)
-    ss.time = s.t_0
-    pos, acc, Q_b_w, elevation, azimuth, course, heading, e_x, tether_vel, twist, kite_vel = s.get_state(s.integrator)
+    isnothing(s.integrator) && throw(ArgumentError("run init_sim!(s) first"))
+    ss.time = s.integrator.t # Use integrator time
+
+    # Get the extended state vector from the integrator
+    set_values, pos, acc_vec, Q_b_w, elevation, azimuth, course, heading_x, tether_length, tether_vel, winch_force,
+        twist_angle, kite_vel, aero_force_b, aero_moment_b, turn_rate, va_kite_b, wind_vec_gnd, wind_vel_kite = s.get_state(s.integrator)
+
     P = length(s.point_system.points)
     for i in 1:P
         ss.X[i] = pos[1, i] * zoom
         ss.Y[i] = pos[2, i] * zoom
         ss.Z[i] = pos[3, i] * zoom
     end
-    # TODO
-    # ss.kite_acc      .= kite_acc(s)
-    # ss.left_tether_vel = tether_vel[1]
-    # ss.right_tether_vel = tether_vel[2]
-    ss.acc = norm(acc)
+
+    # --- Populate SysState fields ---
+    ss.acc = norm(acc_vec) # Use the norm of the kite's acceleration vector
     ss.orient .= Q_b_w
+    ss.turn_rates .= turn_rate
     ss.elevation = elevation
     ss.azimuth = azimuth
-    ss.force .= 0
-    ss.heading = heading
+
+    # Handle potential size mismatch for tether/winch related arrays
+    num_winches = length(s.point_system.winches)
+    ss.l_tether[1:num_winches] .= tether_length
+    ss.v_reelout[1:num_winches] .= tether_vel
+    ss.force[1:num_winches] .= winch_force
+
+    # Depower and Steering from twist angles
+    num_groups = length(s.point_system.groups)
+    ss.twist_angles[1:num_groups] .= twist_angle
+    ss.depower = rad2deg(mean(twist_angle)) # Average twist for depower
+    ss.steering = rad2deg(twist_angle[end] - twist_angle[1])
+    ss.heading = heading_x # Use heading_x from MTK model
     ss.course = course
-    ss.l_tether.= [s.tether_lengths; 0]
-    ss.v_reelout = [tether_vel; 0]
-    ss.depower = rad2deg(mean(twist))
-    ss.steering = rad2deg(twist[end] - twist[1])
+    # Apparent Wind and Aerodynamics
+    ss.v_app = norm(va_kite_b)
+    ss.v_wind_gnd .= wind_vec_gnd
+    ss.v_wind_kite .= wind_vel_kite
+    # Calculate AoA and Side Slip from apparent wind in body frame
+    # AoA: angle between v_app projected onto xz-plane and x-axis
+    # Side Slip: angle between v_app and the xz-plane
+    if ss.v_app > 1e-6 # Avoid division by zero
+        ss.AoA = atan(va_kite_b[3], va_kite_b[1])
+        ss.side_slip = asin(va_kite_b[2] / ss.v_app)
+    else
+        ss.AoA = 0.0
+        ss.side_slip = 0.0
+    end
+    ss.aero_force_b .= aero_force_b
+    ss.aero_moment_b .= aero_moment_b
     ss.vel_kite .= kite_vel
+    # Calculate Roll, Pitch, Yaw from Quaternion
+    q = Q_b_w
+    # roll (x-axis rotation)
+    sinr_cosp = 2 * (q[1] * q[2] + q[3] * q[4])
+    cosr_cosp = 1 - 2 * (q[2] * q[2] + q[3] * q[3])
+    ss.roll = atan(sinr_cosp, cosr_cosp)
+    # pitch (y-axis rotation)
+    sinp = 2 * (q[1] * q[3] - q[4] * q[2])
+    if abs(sinp) >= 1
+        ss.pitch = copysign(pi / 2, sinp) # use 90 degrees if out of range
+    else
+        ss.pitch = asin(sinp)
+    end
+    # yaw (z-axis rotation)
+    siny_cosp = 2 * (q[1] * q[4] + q[2] * q[3])
+    cosy_cosp = 1 - 2 * (q[3] * q[3] + q[4] * q[4])
+    ss.yaw = atan(siny_cosp, cosy_cosp)
+    ss.set_torque[1:3] .= set_values
     nothing
 end
 
-function SysState(s::RamAirKite, zoom=1.0) # TODO: add left and right lines, stop using getters and setters
-    isnothing(s.integrator) && throw(ArgumentError("run init_sim!(s) first"))
-    pos, acc, Q_b_w, elevation, azimuth, course, heading, e_x, tether_vel, twist, kite_vel = s.get_state(s.integrator)
-    P = length(s.point_system.points)
-    X = zeros(MVector{P, MyFloat})
-    Y = zeros(MVector{P, MyFloat})
-    Z = zeros(MVector{P, MyFloat})
-    for i in 1:P
-        X[i] = pos[1, i] * zoom
-        Y[i] = pos[2, i] * zoom
-        Z[i] = pos[3, i] * zoom
-    end
-    
-    orient = MVector{4, Float32}(Q_b_w) # TODO: add Q_b_w
-    # forces = s.get_tether_force() # TODO: add tether force
-    forces = zeros(3)
-    t_sim = 0
-    depower = rad2deg(mean(twist))
-    steering = rad2deg(twist[end] - twist[1])
-    ss = SysState{P}()
-    ss.time = s.t_0
-    ss.t_sim = t_sim
-    ss.orient .= orient
-    ss.elevation = elevation
-    ss.azimuth = azimuth
-    ss.l_tether .= [s.tether_lengths; 0]
-    ss.v_reelout .= [tether_vel; 0]
-    ss.force .= [forces; 0]
-    ss.depower = depower
-    ss.steering = steering
-    ss.heading = heading
-    ss.course = course
-    ss.vel_kite .= kite_vel
-    ss.X = X
-    ss.Y = Y
-    ss.Z = Z
+function SysState(s::RamAirKite, zoom=1.0)
+    ss = SysState{length(s.point_system.points)}()
+    update_sys_state!(ss, s, zoom)
     ss
 end
 
@@ -415,35 +234,42 @@ and only update the state variables. Otherwise, it will create a new model from 
 # Returns
 `Nothing`
 """
-function init_sim!(s::RamAirKite, measure::Measurement; prn=true, precompile=false)
+function init_sim!(s::RamAirKite, measure::Measurement;
+    solver=ifelse(s.set.quasi_static, FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.4, max_iter=1000)), FBDF()), 
+    adaptive=true, prn=true, precompile=false, remake=false, reload=false, lin_outputs=Num[]
+)
     function init(s, measure)
-        init_Q_b_w, R_b_w = measure_to_q(measure)
-        init_kite_pos = init!(s.point_system, s.set, R_b_w)
+        init_Q_b_w, R_b_w = measure_to_q(measure, s.wing.R_cad_body)
+        init!(s.point_system, s.set, R_b_w, init_Q_b_w)
 
         init_va_b = R_b_w' * [s.set.v_wind, 0., 0.]
         
-        sys, defaults, guesses = create_sys!(s, s.point_system, measure; init_Q_b_w, init_kite_pos, init_va_b)
+        inputs = create_sys!(s, s.point_system, measure; init_va_b)
         prn && @info "Simplifying the system"
-        prn && @time sys = structural_simplify(sys; additional_passes=[ModelingToolkit.IfLifting])
-        !prn && (sys = structural_simplify(sys; additional_passes=[ModelingToolkit.IfLifting]))
+        prn ? (@time (sys, _) = structural_simplify(s.full_sys, (inputs, []))) :
+            ((sys, _) = structural_simplify(sys, (inputs, [])))
         s.sys = sys
         dt = SimFloat(1/s.set.sample_freq)
         if prn
             @info "Creating ODEProblem"
-            @time s.prob = ODEProblem(s.sys, defaults, (0.0, dt); guesses)
+            @time s.prob = ODEProblem(s.sys, s.defaults, (0.0, dt); s.guesses)
         else
-            s.prob = ODEProblem(s.sys, defaults, (0.0, dt); guesses)
+            s.prob = ODEProblem(s.sys, s.defaults, (0.0, dt); s.guesses)
         end
-        serialize(prob_path, s.prob)
+        if length(lin_outputs) > 0
+            lin_fun, _ = linearization_function(s.full_sys, [inputs...], lin_outputs; op=s.defaults, guesses=s.guesses)
+            s.lin_prob = LinearizationProblem(lin_fun, 0.0)
+        end
+        serialize(prob_path, (s.prob, s.full_sys, s.lin_prob, s.defaults, s.guesses))
         s.integrator = nothing
+        return nothing
     end
     prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set; precompile))
-    if !ispath(prob_path)
+    if !ispath(prob_path) || remake
         init(s, measure)
     end
-    try
-        reinit!(s, measure; precompile, prn)
-    catch e
+    success = reinit!(s, measure; solver, adaptive, precompile, reload, lin_outputs)
+    if !success
         rm(prob_path)
         @info "Rebuilding the system. This can take some minutes..."
         init(s, measure)
@@ -452,8 +278,17 @@ function init_sim!(s::RamAirKite, measure::Measurement; prn=true, precompile=fal
     return nothing
 end
 
+
 function init_sim!(::RamAirKite; prn=true)
     throw(ArgumentError("Use the function init_sim!(s::RamAirKite, measure::Measurement) instead."))
+end
+
+function linearize(s::RamAirKite; set_values=s.get_set_values(s.integrator))
+    isnothing(s.lin_prob) && throw(ArgumentError("Run init_sim! with remake=true and lin_outputs=..."))
+    s.set_lin_vsm(s.lin_prob, s.get_vsm(s.integrator))
+    s.set_lin_set_values(s.lin_prob, set_values)
+    s.set_lin_unknowns(s.lin_prob, s.get_unknowns(s.integrator))
+    return solve(s.lin_prob)
 end
 
 """
@@ -485,32 +320,37 @@ and only updates the state variables to match the current `measure`.
 # Throws
 - `ArgumentError`: If no serialized problem exists (run `init_sim!` first)
 """
-function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=true, precompile=false)
-    isnothing(s.point_system) && (s.point_system = PointMassSystem(s, s.wing))
+function reinit!(
+    s::RamAirKite, measure::Measurement; 
+    solver=ifelse(s.set.quasi_static, FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.4, max_iter=1000)), FBDF()),
+    adaptive=true,
+    prn=true, 
+    reload=true, 
+    precompile=false,
+    lin_outputs=Num[]
+)
+    isnothing(s.point_system) && throw(ArgumentError("PointMassSystem not defined"))
 
-    init_Q_b_w, R_b_w = measure_to_q(measure)
-    init_kite_pos = init!(s.point_system, s.set, R_b_w)
+    init_Q_b_w, R_b_w = measure_to_q(measure, s.wing.R_cad_body)
+    init!(s.point_system, s.set, R_b_w, init_Q_b_w)
     
-    if isnothing(s.prob)
+    if isnothing(s.prob) || reload
         prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set; precompile))
         !ispath(prob_path) && throw(ArgumentError("$prob_path not found. Run init_sim!(s::RamAirKite) first."))
         try
-            s.prob = deserialize(prob_path)
+            (s.prob, s.full_sys, s.lin_prob, s.defaults, s.guesses) = deserialize(prob_path)
+            length(lin_outputs) > 0 && isnothing(s.lin_prob) && throw(ArgumentError("lin_prob is nothing."))
         catch e
             @warn "Failure to deserialize $prob_path !"
-            throw(e)
+            return false
         end
     end
     if isnothing(s.integrator) || !successful_retcode(s.integrator.sol) || reload
         t = @elapsed begin
             dt = SimFloat(1/s.set.sample_freq)
-            if s.set.quasi_static
-                solver = FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.4, max_iter=1000))
-            else
-                solver = FBDF()
-            end
             s.sys = s.prob.f.sys
-            s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, save_everystep=false)
+            s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; 
+                adaptive, dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, save_everystep=false)
             sym_vec = get_unknowns(s)
             s.unknowns_vec = zeros(SimFloat, length(sym_vec))
             generate_getters!(s, sym_vec)
@@ -518,30 +358,52 @@ function reinit!(s::RamAirKite, measure::Measurement; prn=true, reload=true, pre
         prn && @info "Initialized integrator in $t seconds"
     end
 
-    init_unknowns_vec!(s, s.point_system, s.unknowns_vec, init_Q_b_w, init_kite_pos)
+    init_unknowns_vec!(s, s.point_system, s.unknowns_vec)
     s.set_unknowns(s.integrator, s.unknowns_vec)
-    set_t!(s.integrator, 0.0)
     OrdinaryDiffEqCore.reinit!(s.integrator, s.integrator.u; reinit_dae=true)
     linearize_vsm!(s)
-    return nothing
+    return true
 end
 
 function generate_getters!(s, sym_vec)
     sys = s.sys
     c = collect
-
-    set_set_values = setp(sys, sys.set_values)
-    set_measure = setp(sys, sys.measured_wind_dir_gnd)
-    set_vsm = setp(sys, c.([
+    vsm_sym = c.([
         sys.last_x,
         sys.last_y,
         sys.vsm_jac,
-    ]))
-    set_unknowns = setu(sys, sym_vec)
+    ])
 
-    get_state = getu(sys, 
-        [c(sys.pos), c(sys.acc), c(sys.Q_b_w), sys.elevation, sys.azimuth, sys.course, sys.heading_y, 
-        c(sys.e_x), c(sys.tether_vel), c(sys.twist_angle), c(sys.kite_vel)]
+    set_set_values = setp(sys, sys.set_values)
+    set_measure = setp(sys, sys.measured_wind_dir_gnd)
+    set_vsm = setp(sys, vsm_sym)
+    set_unknowns = setu(sys, sym_vec)
+    set_nonstiff = setu(sys, get_nonstiff_unknowns(s))
+    
+    get_vsm = getp(sys, vsm_sym)
+    get_set_values = getp(sys, sys.set_values)
+    get_unknowns = getu(sys, sym_vec)
+    get_state = getu(sys,
+        [c(sys.set_values),
+         c(sys.pos),             # Particle positions
+         c(sys.acc),             # Kite center acceleration vector (world frame)
+         c(sys.Q_b_w),           # Orientation quaternion
+         sys.elevation,          # Elevation angle
+         sys.azimuth,            # Azimuth angle
+         sys.course,             # Course angle
+         sys.heading_x,          # Heading angle (based on body x-axis projection)
+         c(sys.tether_length),   # Unstretched length per winch
+         c(sys.tether_vel),      # Reeling velocity per winch
+         c(sys.winch_force),     # Force at winch connection point per winch
+         c(sys.twist_angle),     # Twist angle per group
+         c(sys.kite_vel),        # Kite center velocity vector (world frame)
+         c(sys.aero_force_b),    # Aerodynamic force (body frame)
+         c(sys.aero_moment_b),   # Aerodynamic moment (body frame)
+         c(sys.turn_rate),             # Angular velocity (body frame)
+         c(sys.va_kite_b),       # Apparent wind velocity (body frame)
+         c(sys.wind_vec_gnd),    # Ground wind vector (world frame)
+         c(sys.wind_vel_kite)    # Wind vector at kite height (world frame)
+        ]
     )
     get_y = getu(sys, sys.y)
 
@@ -549,23 +411,37 @@ function generate_getters!(s, sym_vec)
     s.set_measure = (integ, val) -> set_measure(integ, val)
     s.set_vsm = (integ, val) -> set_vsm(integ, val)
     s.set_unknowns = (integ, val) -> set_unknowns(integ, val)
-
+    s.set_nonstiff = (integ, val) -> set_nonstiff(integ, val)
+    
+    s.get_vsm = (integ) -> get_vsm(integ)
+    s.get_set_values = (integ) -> get_set_values(integ)
+    s.get_unknowns = (integ) -> get_unknowns(integ)
     s.get_state = (integ) -> get_state(integ)
     s.get_y = (integ) -> get_y(integ)
+    
+    if !isnothing(s.lin_prob)
+        set_lin_set_values = setp(s.lin_prob, sys.set_values)
+        set_lin_unknowns = setu(s.lin_prob, Initial.(sym_vec))
+        set_lin_vsm = setp(s.lin_prob, vsm_sym)
+        
+        s.set_lin_set_values = (lin_prob, val) -> set_lin_set_values(lin_prob, val)
+        s.set_lin_unknowns = (lin_prob, val) -> set_lin_unknowns(lin_prob, val)
+        s.set_lin_vsm = (lin_prob, val) -> set_lin_vsm(lin_prob, val)
+    end
     nothing
 end
 
-function linearize_vsm!(s::RamAirKite)
-    y = s.get_y(s.integrator)
+function linearize_vsm!(s::RamAirKite, integ=s.integrator)
+    y = s.get_y(integ)
     jac, x = VortexStepMethod.linearize(
         s.vsm_solver, 
         s.aero, 
         y;
-        theta_idxs=1:4,
-        va_idxs=5:7,
-        omega_idxs=8:10,
-        moment_frac=s.bridle_fracs[s.point_system.groups[1].fixed_index])
-    s.set_vsm(s.integrator, [x, y, jac])
+        va_idxs=1:3, 
+        omega_idxs=4:6,
+        theta_idxs=7:6+length(s.point_system.groups),
+        moment_frac=s.point_system.groups[1].moment_frac)
+    s.set_vsm(integ, [x, y, jac])
     nothing
 end
 
@@ -592,15 +468,12 @@ end
 
 function get_prob_name(set::Settings; precompile=false)
     suffix = ""
-    ver = "$(VERSION.major).$(VERSION.minor)_"
+    ver = "$(VERSION.major).$(VERSION.minor)"
     if precompile
         suffix = ".default"
     end
-    if set.quasi_static
-        return "prob_static_" * ver * string(set.segments) * "_seg.bin" * suffix
-    else
-        return "prob_dynamic_" * ver * string(set.segments) * "_seg.bin" * suffix
-    end
+    dynamics_type = ifelse(set.quasi_static, "static", "dynamic")
+    return "prob_$(ver)_$(set.physical_model)_$(dynamics_type)_$(set.segments)_seg.bin$suffix"
 end
 
 """
@@ -614,4 +487,112 @@ function calc_aoa(s::RamAirKite)
     else
         return alpha_array[middle+1]
     end
+end
+
+function init_unknowns_vec!(
+    s::RamAirKite, 
+    system::PointMassSystem, 
+    vec::Vector{SimFloat}
+)
+    !s.set.quasi_static && (length(vec) != length(s.integrator.u)) && 
+        throw(ArgumentError("Unknowns of length $(length(s.integrator.u)) but vector provided of length $(length(vec))"))
+        
+    @unpack points, groups, segments, pulleys, winches, kite = system
+    vec_idx = 1
+    
+    for point in points
+        if point.type == DYNAMIC
+            for i in 1:3
+                vec[vec_idx] = point.pos_w[i]
+                vec_idx += 1
+            end
+            for i in 1:3
+                vec[vec_idx] = point.vel_w[i]
+                vec_idx += 1
+            end
+        end
+    end
+    for pulley in pulleys
+        if pulley.type == DYNAMIC
+            vec[vec_idx] = pulley.length
+            vec_idx += 1
+            vec[vec_idx] = pulley.vel
+            vec_idx += 1
+        end
+    end
+    for group in groups
+        if group.type == DYNAMIC
+            vec[vec_idx] = group.twist
+            vec_idx += 1
+            vec[vec_idx] = group.twist_vel
+            vec_idx += 1
+        end
+    end
+    for winch in winches
+        vec[vec_idx] = winch.tether_length
+        vec_idx += 1
+        vec[vec_idx] = winch.tether_vel
+        vec_idx += 1
+    end
+    for i in 1:4
+        vec[vec_idx] = kite.orient[i]
+        vec_idx += 1
+    end
+    for i in 1:3
+        vec[vec_idx] = kite.angular_vel[i]
+        vec_idx += 1
+    end
+    for i in 1:3
+        vec[vec_idx] = kite.pos[i]
+        vec_idx += 1
+    end
+    for i in 1:3
+        vec[vec_idx] = kite.vel[i]
+        vec_idx += 1
+    end
+
+    (vec_idx-1 != length(vec)) && 
+        throw(ArgumentError("Unknowns vec is of length $(length(vec)) but the last index is $(vec_idx-1)"))
+    nothing
+end
+
+function get_unknowns(s::RamAirKite)
+    vec = Num[]
+    @unpack points, groups, segments, pulleys, winches, kite = s.point_system
+    sys = s.sys
+    for point in points
+        for i in 1:3
+            point.type == DYNAMIC && push!(vec, sys.pos[i, point.idx])
+        end
+        for i in 1:3 # TODO: add speed to init
+            point.type == DYNAMIC && push!(vec, sys.vel[i, point.idx])
+        end
+    end
+    for pulley in pulleys
+        pulley.type == DYNAMIC && push!(vec, sys.pulley_l0[pulley.idx])
+        pulley.type == DYNAMIC && push!(vec, sys.pulley_vel[pulley.idx])
+    end
+    vec = get_nonstiff_unknowns(s, vec)
+    !s.set.quasi_static && (length(vec) != length(s.integrator.u)) &&
+        throw(ArgumentError("Integrator unknowns of length $(length(s.integrator.u)) should equal vec of length $(length(vec))"))
+    return vec
+end
+
+function get_nonstiff_unknowns(s::RamAirKite, vec=Num[])
+    @unpack points, groups, segments, pulleys, winches, kite = s.point_system
+    sys = s.sys
+
+    for group in groups
+        group.type == DYNAMIC && push!(vec, sys.free_twist_angle[group.idx])
+        group.type == DYNAMIC && push!(vec, sys.twist_ω[group.idx])
+    end
+    for winch in winches
+        push!(vec, sys.tether_length[winch.idx])
+        push!(vec, sys.tether_vel[winch.idx])
+    end
+    [push!(vec, sys.Q_b_w[i]) for i in 1:4]
+    [push!(vec, sys.ω_b[i]) for i in 1:3]
+    [push!(vec, sys.kite_pos[i]) for i in 1:3]
+    [push!(vec, sys.kite_vel[i]) for i in 1:3]
+    return vec
 end

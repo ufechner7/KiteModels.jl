@@ -1,4 +1,6 @@
-#!/bin/bash
+#!/bin/bash -eu
+# SPDX-FileCopyrightText: 2025 Uwe Fechner
+# SPDX-License-Identifier: MIT
 
 if [[ $(basename $(pwd)) == "bin" ]]; then
     cd ..
@@ -29,15 +31,15 @@ fi
 if [[ $branch != "" ]]; then
     if test -f "bin/kps-image-${julia_major}-${branch}.so"; then
         echo "Found system image!"
-        julia -J  bin/kps-image-${julia_major}-${branch}.so -t 1 $GCT --project -i -e 'using KiteModels'
+        julia +${julia_major} -J  bin/kps-image-${julia_major}-${branch}.so -t 1 $GCT --project -i -e 'using KiteModels'
     else
-        julia $GCT --project  -i # -e 'using KiteModels'
+        julia +${julia_major} $GCT --project  -i # -e 'using KiteModels'
     fi
 else
     if test -f "bin/kps-image-${julia_major}.so"; then
         echo "Found system image!"
-        julia -J  bin/kps-image-${julia_major}.so -t 1 $GCT --project -i -e 'using KiteModels'
+        julia +${julia_major} -J  bin/kps-image-${julia_major}.so -t 1 $GCT --project -i -e 'using KiteModels'
     else
-        julia $GCT --project -i # -e 'using KiteModels'
+        julia +${julia_major} $GCT --project -i # -e 'using KiteModels'
     fi
-fi 
+fi

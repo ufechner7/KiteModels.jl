@@ -1,16 +1,42 @@
 #!/bin/bash -eu
+# SPDX-FileCopyrightText: 2025 Uwe Fechner
+# SPDX-License-Identifier: MIT
 
 update=false
-if [[ $# -gt 0 ]]; then
-    if [[ $1 != "--update" ]]; then
-        echo "Invalid parameter! Use:"
-        echo "./create_sys_image"
-        echo "or"
-        echo "./create_sys_image --update"
-        exit 1
-    else
-        update=true
-    fi
+julia_version=""
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --update)
+            update=true
+            shift
+            ;;
+        --version)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: --version requires a version argument"
+                exit 1
+            fi
+            julia_version="$2"
+            shift 2
+            ;;
+        *)
+            echo "Invalid parameter! Use:"
+            echo "./create_sys_image"
+            echo "or"
+            echo "./create_sys_image --update"
+            echo "or"
+            echo "./create_sys_image --version 1.x"
+            exit 1
+            ;;
+    esac
+done
+
+# Remove the version switching code
+if [[ -n "$julia_version" ]]; then
+    JULIA_CMD="julia +$julia_version"
+else
+    JULIA_CMD="julia"
 fi
 
 if [[ $(basename $(pwd)) == "bin" ]]; then
@@ -68,7 +94,7 @@ if [[ $totalmem -lt 27000 ]]; then
     export JULIA_IMAGE_THREADS=1
 fi
 
-julia_version=$(julia --version | awk '{print($3)}')
+julia_version=$($JULIA_CMD --version | awk '{print($3)}')
 julia_major=${julia_version:0:3}
 if [[ $julia_major == "1.1" ]]; then
     julia_major=${julia_version:0:4} 
@@ -81,7 +107,7 @@ fi
 if test -f "kps-image-${julia_major}-${branch}.so"; then
     mv bin/kps-image-${julia_major}-${branch}.so kps-image-${julia_major}-${branch}.so.bak
 fi
-julia --startup-file=no -e "using Pkg; Pkg.add(\"TestEnv\")"
+$JULIA_CMD --startup-file=no -e "using Pkg; Pkg.add(\"TestEnv\")"
 
 if [[ $update == true ]]; then
     echo "Updating packages..."
@@ -98,11 +124,11 @@ if [[ $update == true ]]; then
             mv Manifest-v1.11.toml Manifest-v1.11.toml.bak
         fi
     fi
-    julia --startup-file=no --pkgimages=no --project -e "using TestEnv; TestEnv.activate(); using Pkg; Pkg.add(\"PyCall\"); Pkg.build(\"PyCall\")"
+    $JULIA_CMD --startup-file=no --pkgimages=no --project -e "using TestEnv; TestEnv.activate(); using Pkg; Pkg.add(\"PyCall\"); Pkg.build(\"PyCall\")"
     if [[ $PYTHON == "" ]]; then
-        julia --startup-file=no --pkgimages=no --project -e "using TestEnv; TestEnv.activate(); using Pkg; Pkg.add(\"Conda\"); using Conda; Conda.add(\"matplotlib\"); using ControlPlots"
+        $JULIA_CMD --startup-file=no --pkgimages=no --project -e "using TestEnv; TestEnv.activate(); using Pkg; Pkg.add(\"Conda\"); using Conda; Conda.add(\"matplotlib\"); using ControlPlots"
     fi
-    julia --startup-file=no --pkgimages=no --project -e "using Pkg; Pkg.update()"
+    $JULIA_CMD --startup-file=no --pkgimages=no --project -e "using Pkg; Pkg.update()"
     if [[ $julia_major == "1.10" ]]; then
         mv Manifest.toml Manifest-v1.10.toml
     else
@@ -118,10 +144,10 @@ else
     fi
 fi
 if [[ $update == true ]]; then
-    julia --startup-file=no --pkgimages=no --project -e "include(\"./test/create_sys_image.jl\");"
+    $JULIA_CMD --startup-file=no --pkgimages=no --project -e "include(\"./test/create_sys_image.jl\");"
 else
-    julia --startup-file=no --pkgimages=no --project -e "using Pkg; Pkg.instantiate();"
-    julia --startup-file=no --pkgimages=no --project -e "using TestEnv; TestEnv.activate(); include(\"./test/create_sys_image.jl\");"
+    $JULIA_CMD --startup-file=no --pkgimages=no --project -e "using Pkg; Pkg.instantiate();"
+    $JULIA_CMD --startup-file=no --pkgimages=no --project -e "using TestEnv; TestEnv.activate(); include(\"./test/create_sys_image.jl\");"
 fi
 
 if [[ $branch != "" ]]; then
@@ -133,19 +159,20 @@ if test -f $SOFILE; then
     mv $SOFILE $SOFILE.bak
 fi
 mv kps-image_tmp.so $SOFILE
-julia --startup-file=no  --project -e "using Pkg; Pkg.precompile(); Pkg.resolve()"
+$JULIA_CMD --startup-file=no  --project -e "using Pkg; Pkg.precompile(); Pkg.resolve()"
 if [ -d src ]; then
     cd src
     touch *.jl # make sure all modules get recompiled in the next step
     cd ..
 fi
-rm data/*.bin
-rm data/*.bin.default
+rm -f data/*.bin
+rm -f data/*.bin.default
 echo "Precompiling package KiteModels..."
-julia --startup-file=no --project -J $SOFILE -e "using KiteModels, KitePodModels, KiteUtils"
+$JULIA_CMD --startup-file=no --project -J $SOFILE -e "using KiteModels, KitePodModels, KiteUtils"
 echo "Precompiling package ControlPlots..."
 if [[ $branch != "" ]]; then
-    julia --startup-file=no --project -J $SOFILE -e "using TestEnv; TestEnv.activate(); using ControlPlots; using VortexStepMethod"
+    $JULIA_CMD --startup-file=no --project -J $SOFILE -e "using TestEnv; TestEnv.activate(); using ControlPlots; using VortexStepMethod"
 else
-    julia --startup-file=no --project -J $SOFILE -e "using ControlPlots; using VortexStepMethod"
+    $JULIA_CMD --startup-file=no --project -J $SOFILE -e "using ControlPlots; using VortexStepMethod"
 fi
+

@@ -1,0 +1,43 @@
+version = 1
+
+[[annotations]]
+path = "data/prob*"
+
+SPDX-FileCopyrightText = "2025 Bart van de Lint"
+SPDX-License-Identifier = "MPL-2.0"
+
+[[annotations]]
+path = "data/ram_air_kite*"
+
+SPDX-FileCopyrightText = "2025 Bart van de Lint"
+SPDX-License-Identifier = "MPL-2.0"
+
+[[annotations]]
+path = "Manifest*"
+
+SPDX-FileCopyrightText = "2025 Uwe Fechner, Bart van de Lint"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "Project.toml"
+
+SPDX-FileCopyrightText = "2025 Uwe Fechner, Bart van de Lint"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "CITATION.cff"
+
+SPDX-FileCopyrightText = "2025 Uwe Fechner"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = ".gitignore"
+
+SPDX-FileCopyrightText = "2025 Uwe Fechner, Bart van de Lint"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "docs/src/*.png"
+
+SPDX-FileCopyrightText = "2025 Uwe Fechner"
+SPDX-License-Identifier = "CC-BY-4.0"
