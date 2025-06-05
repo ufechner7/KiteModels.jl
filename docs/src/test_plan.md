@@ -16,10 +16,10 @@ juliaup default 1.11
 git checkout develop
 cd bin
 ./update_default_manifest
+./update_xz_file
 cd ..
 git commit -m "Update default manifest" Manifest-v1.11.toml.default
 git push
-rm data/prob_1.11*.bin
 jl
 ```
 Now in Julia:
@@ -49,44 +49,6 @@ Time elapsed: 211.095669066 s
 └   integrator_times_realtime = 60.411279264296
 ```
 
-### Update precompiled code
-```
-cd data
-cp prob_1.11_ram_dynamic_3_seg.bin prob_1.11_ram_dynamic_3_seg.bin.default
-cd ..
-echo " " >> src/precompile.jl 
-```
-
-## Test again
-```
-jl
-```
-```
-julia> include("examples/ram_air_kite.jl")
-```
-
-If the test pass, then compress, commit and push the new bin.default.xz file:
-```
-xz prob_1.11_ram_dynamic_3_seg.bin.default
-git commit -m "Update default bin file" data/prob_1.10_ram_dynamic_3_seg.bin.default.xz data/prob_1.11_ram_dynamic_3_seg.bin.default.xz
-```
-
-## Test fails
-```
-julia> include("examples/ram_air_kite.jl")
-[ Info: Loading packages 
-Time elapsed: 4.34900317 s
-[ Info: Creating wing, aero, vsm_solver, point_system and s:
-Time elapsed: 13.727787391 s
-[ Info: Initialized integrator in 31.38398519 seconds
-[ Info: System initialized at:
-Time elapsed: 58.8884844 s
-[ Info: Total time without plotting:
-Time elapsed: 76.945414839 s
-┌ Info: Performance:
-│   times_realtime = 8.291512918317258
-└   integrator_times_realtime = 67.49164493930638
-```
 
 ### Main branch
 ```
