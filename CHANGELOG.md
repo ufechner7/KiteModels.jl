@@ -3,6 +3,14 @@ SPDX-FileCopyrightText: 2025 Uwe Fechner, Bart van de Lint
 SPDX-License-Identifier: MIT
 -->
 
+### Unreleased
+#### Added
+- added licenses to each file, the command `pipx run reuse lint` succeeds now
+- add the command above to the CI scripts
+- the script `create_xz_file`
+#### Changed
+- the example `ram_air_kite.jl` can now be run like this `SIMPLE=true; include("examples/ram_air_kite.jl")`
+
 ### KiteModels v0.7.3 2025-05-05
 #### Fixed
 - fix function update_sys_state!()
