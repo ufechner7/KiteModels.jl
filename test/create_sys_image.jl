@@ -21,7 +21,7 @@ PackageCompiler.create_sysimage(
     [:Dierckx, :StaticArrays, :Parameters, :NLsolve, :DocStringExtensions, :Sundials, :KiteUtils, 
      :KitePodModels, :AtmosphericModels, :OrdinaryDiffEqCore, :OrdinaryDiffEqBDF,
      :OrdinaryDiffEqNonlinearSolve, :StatsBase, :PackageCompiler, :BenchmarkTools, :Documenter,
-     :ModelingToolkit, :JLD2, :Colors, :REPL, :VortexStepMethod, :NonlinearSolve, :DSP, DiscretePIDs];
+     :ModelingToolkit, :JLD2, :Colors, :REPL, :VortexStepMethod, :NonlinearSolve, :DSP, :DiscretePIDs];
     sysimage_path="kps-image_tmp.so",
     include_transitive_dependencies=true,
     precompile_execution_file=joinpath("test", "test_for_precompile.jl")
