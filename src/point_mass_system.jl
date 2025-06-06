@@ -389,44 +389,9 @@ function create_ram_point_system(set::Settings, wing::RamAirWing)
         return nothing
     end
 
-    # function create_tether(attach_point, type)
-    #     l0 = set.l_tether / set.segments
-    #     segment_idxs = Int16[]
-    #     winch_pos = find_z_axis_point(attach_point.pos_b, set.l_tether)
-    #     dir = winch_pos - attach_point.pos_b
-    #     for i in 1:set.segments
-    #         frac = i / set.segments
-    #         pos = attach_point.pos_b + frac * dir
-    #         i_pnt = length(points) # last point idx
-    #         i_seg = length(segments) # last segment idx
-    #         if i == 1
-    #             points = [points; Point(1+i_pnt, pos, dynamics_type)]
-    #             segments = [segments; Segment(1+i_seg, (attach_point.idx, 1+i_pnt), type)]
-    #         elseif i == set.segments
-    #             points = [points; Point(1+i_pnt, pos, WINCH)]
-    #             segments = [segments; Segment(1+i_seg, (i_pnt, 1+i_pnt), type)]
-    #         else
-    #             points = [points; Point(1+i_pnt, pos, dynamics_type)]
-    #             segments = [segments; Segment(1+i_seg, (i_pnt, 1+i_pnt), type)]
-    #         end
-    #         push!(segment_idxs, 1+i_seg)
-    #         i_pnt = length(points)
-    #     end
-    #     i_tether = length(tethers)
-    #     winch_point_idx = points[end].idx
-    #     tethers = [tethers; Tether(1+i_tether, segment_idxs, winch_point_idx)]
-    #     return tethers[end].idx
-    # end
-
     gammas = [-3/4, -1/4, 1/4, 3/4] * wing.gamma_tip
     create_bridle(bridle_top_left, gammas[[1,2]])
     create_bridle(bridle_top_right, gammas[[4,3]])
-
-
-    # left_power_idx = create_tether(attach_points[1], POWER)
-    # right_power_idx = create_tether(attach_points[3], POWER)
-    # left_steering_idx = create_tether(attach_points[2], STEERING)
-    # right_steering_idx = create_tether(attach_points[4], STEERING)
 
     points, segments, tethers, left_power_idx = create_tether(1, set, points, segments, tethers, attach_points[1], POWER, dynamics_type)
     points, segments, tethers, right_power_idx = create_tether(2, set, points, segments, tethers, attach_points[3], POWER, dynamics_type)
