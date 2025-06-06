@@ -46,9 +46,9 @@ end
     ver = "$(VERSION.major).$(VERSION.minor)_"
 
     prob_name   = "prob_" * ver * "ram_dynamic_3_seg.bin"
-    prob_file   = joinpath(path, "..", "data", prob_name)
-    output_file = joinpath(path, "..", "data", prob_name * ".default")
-    input_file  = joinpath(path, "..", "data", prob_name * ".default.xz")
+    prob_file   = normpath(joinpath(path, "..", "data", prob_name))
+    output_file = normpath(joinpath(path, "..", "data", prob_name * ".default"))
+    input_file  = normpath(joinpath(path, "..", "data", prob_name * ".default.xz"))
     if isfile(input_file) && ! isfile(output_file)
         using CodecXz
         decompress_binary(input_file, output_file)
