@@ -43,6 +43,9 @@ if [[ $(basename $(pwd)) == "bin" ]]; then
     cd ..
 fi
 
+rm -rf data/*.bin
+rm -rf data/*.bin.default
+
 export JULIA_PKG_SERVER_REGISTRY_PREFERENCE="eager"
 if [[ $HOSTNAME == "ufryzen" || $HOSTNAME == "framework" ]]; then
     export NO_MTK=true
