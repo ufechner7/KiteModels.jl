@@ -37,7 +37,13 @@ SPDX-FileCopyrightText = "2025 Uwe Fechner, Bart van de Lint"
 SPDX-License-Identifier = "MIT"
 
 [[annotations]]
-path = "docs/src/*.png"
+path = ["docs/src/*.png", "docs/src/*.md", "docs/src/kite_power_tools.drawio"]
 
 SPDX-FileCopyrightText = "2025 Uwe Fechner"
 SPDX-License-Identifier = "CC-BY-4.0"
+
+[[annotations]]
+path = ["docs/.gitignore", "docs/Project.toml"]
+
+SPDX-FileCopyrightText = "2025 Uwe Fechner"
+SPDX-License-Identifier = "MIT"
