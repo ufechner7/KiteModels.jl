@@ -8,7 +8,9 @@ tic()
 using KiteModels, LinearAlgebra, Statistics
 
 PLOT = true
-SIMPLE = false
+if ! @isdefined SIMPLE
+    SIMPLE = false
+end
 
 if PLOT
     using Pkg
