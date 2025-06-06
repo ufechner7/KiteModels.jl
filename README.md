@@ -86,7 +86,7 @@ where USERNAME is your github username.
 Then compile a system image:
 ```bash
 cd KiteModels.jl/bin
-./create_sys_image --update
+./create_sys_image
 ```
 If you know launch julia with:
 ```bash
