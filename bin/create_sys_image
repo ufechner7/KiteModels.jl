@@ -168,8 +168,6 @@ if [ -d src ]; then
     touch *.jl # make sure all modules get recompiled in the next step
     cd ..
 fi
-rm -f data/*.bin
-rm -f data/*.bin.default
 echo "Precompiling package KiteModels..."
 $JULIA_CMD --startup-file=no --project -J $SOFILE -e "using KiteModels, KitePodModels, KiteUtils"
 echo "Precompiling package ControlPlots..."

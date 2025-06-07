@@ -2,105 +2,30 @@
 # SPDX-FileCopyrightText: 2025 Uwe Fechner
 # SPDX-License-Identifier: MIT
 
-requested_julia_version="all"
-
-# Parse command line arguments
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --version)
-            if [[ $# -lt 2 ]]; then
-                echo "Error: --version requires a version argument (e.g., 1.10, 1.11, or all)"
-                exit 1
-            fi
-            requested_julia_version="$2"
-            shift 2
-            ;;
-        *)
-            echo "Invalid parameter! Use:"
-            echo "./update_default_manifest"
-            echo "or"
-            echo "./update_default_manifest --version [1.10|1.11|all]"
-            exit 1
-            ;;
-    esac
-done
-
-# Ensure we are in the project root directory
 if [[ $(basename $(pwd)) == "bin" ]]; then
     cd ..
 fi
 
-# --- Function to perform actions for a specific version ---
-perform_actions_for_version() {
-    local version_short=$1 # e.g., 1.10 or 1.11
-    local julia_cmd="julia${version_short}" # Construct command like julia1.10
+cd bin
+./create_sys_image --update
 
-    echo "--- Processing for Julia ${version_short} ---"
-
-    # 1. Update manifest using create_sys_image
-    echo "Updating manifest for ${version_short}..."
-    if ! bin/create_sys_image --update --version "${version_short}"; then
-        echo "Error: Failed to update manifest for ${version_short}. Skipping further actions for this version."
-        return 1
-    fi
-
-    # 2. Copy updated manifest to .default and clear cache
-    local manifest_file="Manifest-v${version_short}.toml"
-    local default_manifest_file="${manifest_file}.default"
-    local compiled_cache_path="$HOME/.julia/compiled/v${version_short}/KiteModels/"
-
-    echo "Copying ${manifest_file} to ${default_manifest_file} and clearing cache..."
-    if [[ -f "${manifest_file}" ]]; then
-        cp "${manifest_file}" "${default_manifest_file}"
-        if [[ -d "${compiled_cache_path}" ]]; then
-             rm -rf "${compiled_cache_path}"
-             echo "Cleared cache: ${compiled_cache_path}"
-        else
-             echo "Cache directory not found, skipping removal: ${compiled_cache_path}"
-        fi
-        echo "Updated ${default_manifest_file}!"
-    else
-        echo "Warning: ${manifest_file} not found after update. Cannot copy to default or clear cache."
-        return 1 # Indicate failure if manifest wasn't created/found
-    fi
-
-    # # 3. Run example script
-    # echo "Running examples/ram_air_kite.jl with Julia ${version_short}..."
-    # if command -v "${julia_cmd}" &> /dev/null; then
-    #     if ! "${julia_cmd}" examples/ram_air_kite.jl; then
-    #          echo "Error: Failed to run example script with ${julia_cmd}."
-    #          return 1
-    #     fi
-    # else
-    #     echo "Warning: ${julia_cmd} command not found. Skipping example run for ${version_short}."
-    #     # Decide if this should be a failure or just a warning
-    #     # return 1 # Uncomment if missing julia command should stop the process
-    # fi
-    echo "--- Finished processing for Julia ${version_short} ---"
-    return 0
-}
-
-# --- Main Execution Logic ---
-overall_success=true
-
-if [[ "$requested_julia_version" == "all" || "$requested_julia_version" == "1.10" ]]; then
-    if ! perform_actions_for_version "1.10"; then
-        overall_success=false
-    fi
+julia_version=$(julia --version | awk '{print($3)}')
+julia_major=${julia_version:0:3}
+if [[ $julia_major == "1.1" ]]; then
+    julia_major=${julia_version:0:4} 
 fi
 
-if [[ "$requested_julia_version" == "all" || "$requested_julia_version" == "1.11" ]]; then
-    if ! perform_actions_for_version "1.11"; then
-        overall_success=false
-    fi
-fi
+# TODO run tests
 
-echo "" # Newline for clarity
-if [[ "$overall_success" == true ]]; then
-    echo "Manifest update and example run process completed successfully for requested version(s)."
-    echo "Make sure to review the example output and run full tests before committing!"
-    exit 0
+cd ..
+if [[ $julia_major == "1.10" ]]; then
+    cp Manifest-v1.10.toml Manifest-v1.10.toml.default
+    rm -rf ~/.julia/compiled/v1.10/KiteModels/
+    echo "Updated Manifest-v1.10.toml.default !"
+    echo "Make sure to run the tests before committing the new version!"
 else
-    echo "Manifest update and example run process encountered errors for one or more versions."
-    exit 1
+    cp Manifest-v1.11.toml Manifest-v1.11.toml.default
+    rm -rf ~/.julia/compiled/v1.11/KiteModels/
+    echo "Updated Manifest-v1.11.toml.default !"
+    echo "Make sure to run the tests before committing the new version!"
 fi
