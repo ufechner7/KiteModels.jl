@@ -8,6 +8,7 @@ SPDX-License-Identifier: MIT
 - added licenses to each file, the command `pipx run reuse lint` succeeds now
 - add the command above to the CI scripts
 - the script `create_xz_file`
+- the option to linearize the RamAirKite system using ModelingToolkit
 #### Changed
 - the example `ram_air_kite.jl` can now be run like this `SIMPLE=true; include("examples/ram_air_kite.jl")`
 
