@@ -23,7 +23,7 @@ using VortexStepMethod
 @reexport using KitePodModels
 @reexport using WinchModels
 @reexport using AtmosphericModels
-@reexport using Rotations
+using Rotations
 import Base.zero
 import KiteUtils.calc_elevation
 import KiteUtils.calc_heading
