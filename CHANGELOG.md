@@ -12,6 +12,7 @@ SPDX-License-Identifier: MIT
 - a simplified ram air kite model for faster development and testing
 #### Changed
 - the example `ram_air_kite.jl` can now be run like this `SIMPLE=true; include("examples/ram_air_kite.jl")`
+- the package `Rotations` is no longer re-exported
 #### Fixed
 - small fixes of the RamAirKite model
 
