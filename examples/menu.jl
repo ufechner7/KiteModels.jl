@@ -1,3 +1,5 @@
+# Copyright (c) 2022, 2024 Uwe Fechner
+# SPDX-License-Identifier: MIT
 using REPL.TerminalMenus
 
 options = ["bench = include(\"bench.jl\")",
@@ -14,7 +16,8 @@ options = ["bench = include(\"bench.jl\")",
            "simulate_steering = include(\"simulate_steering.jl\")",
            "steering_test_1p = include(\"steering_test_1p.jl\")",
            "steering_test_4p = include(\"steering_test_4p.jl\")",
-           "ram_air_kite = include(\"ram_air_kite.jl\")",
+           "ram_air_kite = SIMPLE=false; include(\"ram_air_kite.jl\")",
+           "simple_ram_air_kite = SIMPLE=true; include(\"ram_air_kite.jl\")",
            "calc_spectrum = include(\"calc_spectrum.jl\")",
            "plot_spectrum_ = include(\"plot_spectrum.jl\")",
            "calculate_rotational_inertia = include(\"calculate_rotational_inertia.jl\")",

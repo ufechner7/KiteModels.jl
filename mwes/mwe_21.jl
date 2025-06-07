@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 Uwe Fechner
+#
+# SPDX-License-Identifier: MIT
+
 # generate test cases for the calculation of roll, pitch and yaw
 using LinearAlgebra, Rotations
 import ReferenceFrameRotations as RFR

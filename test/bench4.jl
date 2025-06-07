@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2022 Uwe Fechner
+# SPDX-License-Identifier: MIT
+
 using Pkg
 if ! ("PackageCompiler" ∈ keys(Pkg.project().dependencies))
     using TestEnv; TestEnv.activate()

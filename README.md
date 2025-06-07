@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2025 Uwe Fechner
+
+SPDX-License-Identifier: MIT
+-->
+
 # KiteModels
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://ufechner7.github.io/KiteModels.jl/stable)
@@ -35,18 +41,6 @@ This package is part of Julia Kite Power Tools, which consists of the following 
 - many unit tests added by a new contributor
 - many tests for model verification added; they can be accessed using the `menu2.jl` script
 - the documentation was improved
-#### August 2024
-- a new kite model, KPS3_3L was contributed. It uses three lines to the ground and three winches for steering a ram-air foil kite.
-- a first [ModelingToolkit](https://docs.sciml.ai/ModelingToolkit/stable/) based model was added, which shows a much better performance and easier to read code
-- a new KCU model was added which assumes a linear relationship between the depower settings and the depower angle and thus is easier to configure than the original model.
-- the drag of the KCU is now taken into account
-- the drag of the bridle is now taken into account correctly, also if the real kite has more bridle lines than the model
-- the function to find the initial state is now much more robust
-#### July 2024
-- a new groundstation / winch type is now supported, the `TorqueControlledMachine`. It can be configured in the section `winch` of the `settings.yaml` file. It uses a set torque as input.
-- a Python interface is now provided, see: [pykitemodels](https://github.com/ufechner7/pykitemodels)
-#### April 2024
-- added support for the native Julia DAE solver DFBDF. It is much more accurate and faster than the IDA solver that was used before.
 
 ## What to install
 If you want to run simulations and see the results in 3D, please install the meta package  [KiteSimulators](https://github.com/aenarete/KiteSimulators.jl) . If you are not interested in 3D visualization or control you can just install this package.
@@ -92,7 +86,7 @@ where USERNAME is your github username.
 Then compile a system image:
 ```bash
 cd KiteModels.jl/bin
-./create_sys_image --update
+./create_sys_image
 ```
 If you know launch julia with:
 ```bash
@@ -121,31 +115,31 @@ is varied. This does not translate into physics directly, but it avoids adding p
 Dyneema or similar high-strength materials for the tether the resulting system is very stiff which is a challenge for the solver.
 
 ## Further reading
-These models are described in detail in [Dynamic Model of a Pumping Kite Power System](http://arxiv.org/abs/1406.6218).
+The models KPS3 and KPS4 are described in detail in [Dynamic Model of a Pumping Kite Power System](http://arxiv.org/abs/1406.6218).
 
 ## Replaying log files
 If you want to replay old flight log files in 2D and 3D to understand and explain better how kite power systems work, please have a look at [KiteViewer](https://github.com/ufechner7/KiteViewer) . How new log files can be created and replayed is explained in the documentation of [KiteSimulators](https://github.com/aenarete/KiteSimulators.jl) .
 
 ## Licence
-This project is licensed under the MIT License. Please see the below WAIVER in association with the license.
+This project is licensed under the MIT License. Please see the below `Copyright notice` in association with the license
+that can be found in the file [LICENSE](LICENSE) in this folder.
 
 ## Copyright notice
 Technische Universiteit Delft hereby disclaims all copyright interest in the package “KiteModels.jl” (models for airborne wind energy systems) written by the Author(s).
 
 Prof.dr. H.G.C. (Henri) Werij, Dean of Aerospace Engineering, Technische Universiteit Delft.
 
+See the copyright notices in the source files, and the list of authors in [AUTHORS.md](AUTHORS.md).
+
 ## Donations
-If you like this software, please consider donating to [Flood in Kenya](https://www.climatejusticesolidarity.nl/solidarity/) .
+If you like this software, please consider donating to [Flood in Kenya](https://www.gofundme.com/f/climate-refugees-in-kenya) .
 
 ## See also
 - [Research Fechner](https://research.tudelft.nl/en/publications/?search=Fechner+wind&pageSize=50&ordering=rating&descending=true) for the scientic background of this code
 - The meta-package  [KiteSimulators](https://github.com/aenarete/KiteSimulators.jl)
 - the package [KiteUtils](https://github.com/ufechner7/KiteUtils.jl)
 - the packages [WinchModels](https://github.com/aenarete/WinchModels.jl) and [KitePodModels](https://github.com/aenarete/KitePodModels.jl) and [AtmosphericModels](https://github.com/aenarete/AtmosphericModels.jl)
-- the packages [KiteControllers](https://github.com/aenarete/KiteControllers.jl) and [KiteViewers](https://github.com/aenarete/KiteViewers.jl)
+- the packages [WinchControllers](https://github.com/OpenSourceAWE/WinchControllers.jl), [KiteControllers](https://github.com/aenarete/KiteControllers.jl) and [KiteViewers](https://github.com/aenarete/KiteViewers.jl)
 - the [VortexStepMethod](https://github.com/Albatross-Kite-Transport/VortexStepMethod.jl)
 
 **Documentation** [Stable Version](https://ufechner7.github.io/KiteModels.jl/stable) --- [Development Version](https://ufechner7.github.io/KiteModels.jl/dev)
-
-
-Authors: Uwe Fechner (uwe.fechner.msc@gmail.com), Bart van de Lint (bart@vandelint.net)

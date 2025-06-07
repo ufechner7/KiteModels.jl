@@ -1,4 +1,6 @@
 #!/bin/bash -eu
+# SPDX-FileCopyrightText: 2025 Uwe Fechner
+# SPDX-License-Identifier: MIT
 
 update=false
 julia_version=""
@@ -40,6 +42,9 @@ fi
 if [[ $(basename $(pwd)) == "bin" ]]; then
     cd ..
 fi
+
+rm -rf data/*.bin
+rm -rf data/*.bin.default
 
 export JULIA_PKG_SERVER_REGISTRY_PREFERENCE="eager"
 if [[ $HOSTNAME == "ufryzen" || $HOSTNAME == "framework" ]]; then

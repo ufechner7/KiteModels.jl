@@ -1,3 +1,6 @@
+# Copyright (c) 2024 Uwe Fechner
+# SPDX-License-Identifier: MIT
+
 # show a static kite for verification of roll, pitch and yaw
 # To run this script, use the following commands:
 # julia --project

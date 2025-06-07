@@ -1,3 +1,5 @@
+# Copyright (c) 2022, 2024 Uwe Fechner
+# SPDX-License-Identifier: MIT
 """
     ema_filter(measurement, last_measurement, cut_off_freq, dt)
 

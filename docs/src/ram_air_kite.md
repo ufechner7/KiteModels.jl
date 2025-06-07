@@ -23,7 +23,6 @@ PointMassSystem
 
 ## Private functions
 ```@docs
-create_sys!
 diff_eqs!
 reinit!
 scalar_eqs!

@@ -1,4 +1,7 @@
 # Steer the kite to the side and then back until heading is about zero.
+# Copyright (c) 2024 Uwe Fechner
+# SPDX-License-Identifier: MIT
+
 # To run this script, use the following commands:
 # julia --project
 # include("examples_3d/parking_4p.jl")

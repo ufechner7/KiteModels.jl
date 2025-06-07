@@ -1,11 +1,17 @@
+# Copyright (c) 2024, 2025 Bart van de Lint, Uwe Fechner
+# SPDX-License-Identifier: MIT
+
 using Timers
 tic()
 @info "Loading packages "
 
 using KiteModels, LinearAlgebra, Statistics
-# SteadyStateDiffEq, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqNonlinearSolve
 
 PLOT = true
+if ! @isdefined SIMPLE
+    SIMPLE = false
+end
+
 if PLOT
     using Pkg
     if ! ("LaTeXStrings" ∈ keys(Pkg.project().dependencies))
@@ -15,7 +21,6 @@ if PLOT
     import ControlPlots: plot
 end
 toc()
-
 
 include(joinpath(@__DIR__, "plotting.jl"))
 
@@ -34,7 +39,7 @@ set = load_settings("system_ram.yaml")
 set.segments = 3
 set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
 set.quasi_static = false
-set.physical_model = "ram"
+set.physical_model = SIMPLE ? "simple_ram" : "ram"
 
 @info "Creating wing, aero, vsm_solver, point_system and s:"
 s = RamAirKite(set)
@@ -49,8 +54,8 @@ toc()
 measure = Measurement()
 
 # Initialize at elevation
-# s.point_system.winches[2].tether_length += 0.2
-# s.point_system.winches[3].tether_length -= 0.2
+s.point_system.winches[2].tether_length += 0.2
+s.point_system.winches[3].tether_length += 0.2
 measure.sphere_pos .= deg2rad.([70.0 70.0; 1.0 -1.0])
 KiteModels.init_sim!(s, measure; remake=false, reload=true)
 sys = s.sys
@@ -58,18 +63,12 @@ sys = s.sys
 @info "System initialized at:"
 toc()
 
-# Stabilize system
-# steady_prob = SteadyStateProblem(s.prob)
-# steady_prob.ps[sys.stabilize] = true
-# sol = solve(steady_prob, DynamicSS(FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.9, max_iter=1000))); 
-#     abstol=0.01, reltol=0.01, save_everystep=false)
-# OrdinaryDiffEqCore.reinit!(s.integrator, sol.u; reinit_dae=false)
+# # Stabilize system
 s.integrator.ps[sys.stabilize] = true
 for i in 1:10÷dt
-    next_step!(s; dt, vsm_interval=0.05÷dt)
+    next_step!(s; dt, vsm_interval=1)
 end
 s.integrator.ps[sys.stabilize] = false
-t0 = s.integrator.t
 
 logger = Logger(length(s.point_system.points), steps)
 sys_state = KiteModels.SysState(s)
@@ -87,8 +86,10 @@ try
         # Calculate steering inputs based on cosine wave
         steering = steering_magnitude * cos(2π * steering_freq * t + bias)
         set_values = -s.set.drum_radius .* s.integrator[sys.winch_force]
+        _vsm_interval = 1
         if t > 1.0
             set_values .+= [0.0, steering, -steering]  # Opposite steering for left/right
+            _vsm_interval = vsm_interval
         end
 
         # Step simulation

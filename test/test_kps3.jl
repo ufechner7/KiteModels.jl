@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2025 Uwe Fechner
+# SPDX-License-Identifier: MIT
+
 using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils
 
 using KiteModels, KitePodModels
