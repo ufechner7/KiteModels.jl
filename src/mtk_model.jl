@@ -773,14 +773,8 @@ function linear_vsm_eqs!(s, eqs, guesses; aero_force_b, aero_moment_b, group_aer
     @assert length(s.point_system.groups) == length(sol.group_moment_dist)
 
     y_ = [init_va_b; zeros(length(s.point_system.groups)); zeros(3)]
-    jac_, x_ = VortexStepMethod.linearize(
-        s.vsm_solver, 
-        s.aero, 
-        y_;
-        va_idxs=1:3, 
-        omega_idxs=4:6,
-        theta_idxs=7:6+length(s.point_system.groups), 
-        moment_frac=s.point_system.groups[1].moment_frac)
+    x_ = zeros(3+3+length(s.point_system.groups))
+    jac_ = zeros(length(x_), length(y_))
 
     @parameters begin
         last_y[eachindex(y_)] = y_
