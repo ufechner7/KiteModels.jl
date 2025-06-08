@@ -266,9 +266,8 @@ function cad_to_body_frame(wing::RamAirWing, pos)
     return wing.R_cad_body * (pos + wing.T_cad_body)
 end
 
-"""
-Find the point on the z-axis with distance l from P in the negative direction
-"""
+# Find the point on the z-axis with distance l from P in the negative direction
+# TODO: rename P to pos
 function find_axis_point(P, l, v=[0,0,1])
     # Compute dot product v · P
     v ⋅ P = v[1] * P[1] + v[2] * P[2] + v[3] * P[3]

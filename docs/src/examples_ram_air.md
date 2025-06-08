@@ -65,3 +65,31 @@ In this example, the kite is first parked, and then a sinus-shaped steering inpu
 in the sky.
 
 ![Oscillating steering input response](oscillating_steering.png)
+
+## Running the second example
+```julia
+SIMPLE=true; include("examples/ram_air_kite.jl")
+```
+The simple model has a very simple bridle system without pulleys and with less attachment points on the wing. 
+While the default model has a [speed system](https://kiteboarding.com/proddetail.asp?prod=ozone-r1v4-pro-tune-speedsystem-complete) with pulleys and more attachment points on the wing.
+
+![Oscillating steering input response, simple system](oscillating_steering_simple.png)
+
+## Linearization
+The following example creates a nonlinear system model, finds a steady-state operating point, linearizes the model 
+around this operating point and compares the simulation results of the non-linear and linearized system:
+```julia
+include("examples/lin_ram_model.jl")
+```
+See: [`lin_ram_model.jl`](https://github.com/ufechner7/KiteModels.jl/blob/main/examples/lin_ram_model.jl)
+
+## How to create a RamAirKite
+The following code is a minimal example that shows how to create a ram air kite struct:
+```julia
+using KiteModels
+
+# Initialize model
+set = load_settings("system_ram.yaml")
+
+rak = RamAirKite(set)
+```
