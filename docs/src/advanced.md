@@ -17,9 +17,9 @@ After cloning the repo you can create a new system image:
 ```bash
 cd KiteModels.jl
 cd bin
-./create_sys_image --update
+./create_sys_image
 ```
-This will take about 6 min on a  Ryzen 7950X CPU. You should now see a new file in the bin folder:
+This will take about 12 min on a  Ryzen 7950X CPU. You should now see a new file in the bin folder:
 ```
 ~/repos/test/bin$ ls -lah kps*
 -rwxrwxr-x 1 ufechner ufechner 723M apr 18 18:23 kps-image-1.10-main.so
@@ -32,16 +32,16 @@ cd ..
 If you now run any of the examples the time-to-first-plot (TTFP) should be less than 10s:
 ```julia
 julia> @time include("examples/simulate_simple.jl")
-lift, drag  [N]: 597.47, 129.29
-Average number of callbacks per time step: 83.8866
-  9.370429 seconds (17.95 M allocations: 1.359 GiB, 4.26% gc time, 50.76% compilation time: 26% of which was recompilation)
+lift, drag  [N]: 597.47, 129.31
+Average number of callbacks per time step: 114.92
+  10.009223 seconds (29.83 M allocations: 1.727 GiB, 4.31% gc time, 50.81% compilation time)
 
 julia> 
 ```
-A second run of this command needs about 3.6 s which means the startup time (load and compilation time of the package and the libraries) has been reduced to about 5.77s.
+A second run of this command needs about 3.7 s which means the startup time (load and compilation time of the package and the libraries) has been reduced to about 6.3s.
 
-Without a system image the first time execution of the script "simulate_simple.jl" on the same computer is about 16.4 seconds
-while the time for the second execution is the same (3.6s). So now about 7s of time are saved after each restart.
+Without a system image the first time execution of the script "simulate_simple.jl" on the same computer is about 22.5 seconds
+while the time for the second execution is the same (3.9s). So now about 15s of time are saved after each restart.
 
 ## Hints for Developers
 ### Coding style
