@@ -445,6 +445,16 @@ function linearize_vsm!(s::RamAirKite, integ=s.integrator)
     nothing
 end
 
+function find_steady_state!(s::RamAirKite; dt=1/s.set.sample_freq)
+    old_state = s.integrator.ps[sys.stabilize]
+    s.integrator.ps[sys.stabilize] = true
+    for _ in 1:1÷dt
+        next_step!(s; dt, vsm_interval=1)
+    end
+    s.integrator.ps[sys.stabilize] = old_state
+    return nothing
+end
+
 function next_step!(s::RamAirKite, set_values=nothing; measure::Union{Measurement, Nothing}=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
     if (!isnothing(set_values)) 
         s.set_set_values(s.integrator, set_values)
