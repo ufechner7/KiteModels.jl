@@ -3,13 +3,19 @@ SPDX-FileCopyrightText: 2025 Uwe Fechner, Bart van de Lint
 SPDX-License-Identifier: MIT
 -->
 
-### Unreleased
+### KiteModels v0.7.4 2025-06-07
 #### Added
 - added licenses to each file, the command `pipx run reuse lint` succeeds now
 - add the command above to the CI scripts
 - the script `create_xz_file`
+- the option to linearize the RamAirKite system using ModelingToolkit
+- a simplified ram air kite model for faster development and testing
+- the example `lin_ram_model.jl` to show how to linearize a model
 #### Changed
 - the example `ram_air_kite.jl` can now be run like this `SIMPLE=true; include("examples/ram_air_kite.jl")`
+- the package `Rotations` is no longer re-exported
+#### Fixed
+- small fixes of the RamAirKite model
 
 ### KiteModels v0.7.3 2025-05-05
 #### Fixed

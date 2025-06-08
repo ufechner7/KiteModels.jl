@@ -54,3 +54,5 @@ data/prob_dynamic_3_seg.bin.default
 data/prob_dynamic_1.11_3_seg.bin.default
 data/prob_dynamic_1.10_3_seg.bin.default
 docs/src/.$kite_power_tools.drawio.bkp
+data/linear_model.arrow
+data/nonlinear_model.arrow

@@ -23,7 +23,7 @@ using VortexStepMethod
 @reexport using KitePodModels
 @reexport using WinchModels
 @reexport using AtmosphericModels
-@reexport using Rotations
+using Rotations
 import Base.zero
 import KiteUtils.calc_elevation
 import KiteUtils.calc_heading
@@ -696,6 +696,7 @@ function install_examples(add_packages=true)
         Pkg.add("LaTeXStrings")
         Pkg.add("StatsBase")
         Pkg.add("Timers")
+        Pkg.add("Rotations")
     end
 end
 
