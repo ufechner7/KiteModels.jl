@@ -75,6 +75,13 @@ While the default model has a [speed system](https://kiteboarding.com/proddetail
 
 ![Oscillating steering input response, simple system](oscillating_steering_simple.png)
 
+## Linearization
+The following example creates a nonlinear system model, finds a steady-state operating point, linearizes the model 
+around this operating point and compares the simulation results of the non-linear and linearized system:
+```julia
+include("examples/lin_ram_model.jl")
+```
+
 ## How to create a RamAirKite
 The following code is a minimal example that shows how to create a ram air kite struct:
 ```
