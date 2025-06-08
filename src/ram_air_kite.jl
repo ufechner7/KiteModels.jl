@@ -88,15 +88,22 @@ $(TYPEDFIELDS)
     set_vsm::Function              = () -> nothing
     set_unknowns::Function         = () -> nothing
     set_nonstiff::Function         = () -> nothing
-    set_lin_vsm::Function              = () -> nothing
-    set_lin_set_values::Function       = () -> nothing
-    set_lin_unknowns::Function          = () -> nothing
+    set_lin_vsm::Function          = () -> nothing
+    set_lin_set_values::Function   = () -> nothing
+    set_lin_unknowns::Function     = () -> nothing
+    set_stabilize::Function        = () -> nothing
     
     get_vsm::Function              = () -> nothing
     get_set_values::Function       = () -> nothing
     get_unknowns::Function         = () -> nothing
     get_state::Function            = () -> nothing
     get_y::Function                = () -> nothing
+    get_unstretched_length::Function = () -> nothing
+    get_tether_length::Function    = () -> nothing
+    get_kite_pos::Function         = () -> nothing
+    get_winch_force::Function      = () -> nothing
+    get_spring_force::Function     = () -> nothing
+    get_stabilize::Function        = () -> nothing
 
     prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
     integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Nothing} = nothing
@@ -379,6 +386,7 @@ function generate_getters!(s, sym_vec)
     set_vsm = setp(sys, vsm_sym)
     set_unknowns = setu(sys, sym_vec)
     set_nonstiff = setu(sys, get_nonstiff_unknowns(s))
+    set_stabilize = setp(sys, sys.stabilize)
     
     get_vsm = getp(sys, vsm_sym)
     get_set_values = getp(sys, sys.set_values)
@@ -406,18 +414,31 @@ function generate_getters!(s, sym_vec)
         ]
     )
     get_y = getu(sys, sys.y)
+    get_unstretched_length = getu(sys, sys.unstretched_length)
+    get_tether_length = getu(sys, sys.tether_length)
+    get_kite_pos = getu(sys, sys.kite_pos)
+    get_winch_force = getu(sys, sys.winch_force)
+    get_spring_force = getu(sys, sys.spring_force)
+    get_stabilize = getp(sys, sys.stabilize)
 
     s.set_set_values = (integ, val) -> set_set_values(integ, val)
     s.set_measure = (integ, val) -> set_measure(integ, val)
     s.set_vsm = (integ, val) -> set_vsm(integ, val)
     s.set_unknowns = (integ, val) -> set_unknowns(integ, val)
     s.set_nonstiff = (integ, val) -> set_nonstiff(integ, val)
+    s.set_stabilize = (integ, val) -> set_stabilize(integ, val)
     
     s.get_vsm = (integ) -> get_vsm(integ)
     s.get_set_values = (integ) -> get_set_values(integ)
     s.get_unknowns = (integ) -> get_unknowns(integ)
     s.get_state = (integ) -> get_state(integ)
     s.get_y = (integ) -> get_y(integ)
+    s.get_unstretched_length = (integ) -> get_unstretched_length(integ)
+    s.get_tether_length = (integ) -> get_tether_length(integ)
+    s.get_kite_pos = (integ) -> get_kite_pos(integ)
+    s.get_winch_force = (integ) -> get_winch_force(integ)
+    s.get_spring_force = (integ) -> get_spring_force(integ)
+    s.get_stabilize = (integ) -> get_stabilize(integ)
     
     if !isnothing(s.lin_prob)
         set_lin_set_values = setp(s.lin_prob, sys.set_values)
@@ -443,16 +464,6 @@ function linearize_vsm!(s::RamAirKite, integ=s.integrator)
         moment_frac=s.point_system.groups[1].moment_frac)
     s.set_vsm(integ, [x, y, jac])
     nothing
-end
-
-function find_steady_state!(s::RamAirKite; dt=1/s.set.sample_freq)
-    old_state = s.integrator.ps[sys.stabilize]
-    s.integrator.ps[sys.stabilize] = true
-    for _ in 1:1÷dt
-        next_step!(s; dt, vsm_interval=1)
-    end
-    s.integrator.ps[sys.stabilize] = old_state
-    return nothing
 end
 
 function next_step!(s::RamAirKite, set_values=nothing; measure::Union{Measurement, Nothing}=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
@@ -606,3 +617,19 @@ function get_nonstiff_unknowns(s::RamAirKite, vec=Num[])
     [push!(vec, sys.kite_vel[i]) for i in 1:3]
     return vec
 end
+
+function find_steady_state!(s::RamAirKite; dt=1/s.set.sample_freq)
+    old_state = s.get_stabilize(s.integrator)
+    s.set_stabilize(s.integrator, true)
+    for _ in 1:1÷dt
+        next_step!(s; dt, vsm_interval=1)
+    end
+    s.set_stabilize(s.integrator, old_state)
+    return nothing
+end
+
+unstretched_length(s::RamAirKite) = s.get_unstretched_length(s.integrator)
+tether_length(s::RamAirKite) = s.get_tether_length(s.integrator)
+calc_height(s::RamAirKite) = s.get_kite_pos(s.integrator)[3]
+winch_force(s::RamAirKite) = s.get_winch_force(s.integrator)
+spring_forces(s::RamAirKite) = s.get_spring_force(s.integrator)

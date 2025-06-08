@@ -507,6 +507,22 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             tether_vel[winch.idx] => 0
         ]
     end
+
+    # ==================== TETHERS ==================== #
+    @variables begin
+        unstretched_length(t)[eachindex(tethers)]
+    end
+    for tether in tethers
+        ulen = zero(Num)
+        for segment_idx in tether.segments
+            ulen += len[segment_idx]
+        end
+        eqs = [
+            eqs
+            unstretched_length[tether.idx] ~ ulen
+        ]
+    end
+
     return eqs, defaults, guesses, tether_kite_force, tether_kite_moment
 end
 

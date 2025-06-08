@@ -64,11 +64,7 @@ sys = s.sys
 toc()
 
 # Stabilize system
-s.integrator.ps[sys.stabilize] = true
-for i in 1:1÷dt
-    next_step!(s; dt, vsm_interval=1)
-end
-s.integrator.ps[sys.stabilize] = false
+find_steady_state!(s)
 
 logger = Logger(length(s.point_system.points), steps)
 sys_state = KiteModels.SysState(s)
