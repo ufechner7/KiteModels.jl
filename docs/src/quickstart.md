@@ -82,53 +82,24 @@ julia --project="."
 ```
 With the last command, we told Julia to create a new project in the current directory.
 
-Then we add the three required packages to our new project. By pressing the key "]"
-we enter the package manager mode where we can add or delete packages.
-```julia
-]
-add KiteUtils
-add KitePodModels
-add KiteModels
-add ControlPlots
-st
-<BACKSPACE>
-```
-The command "st" was not really required, but it is useful to display which versions
-of the packages we have in our project. Another important package manager command
-is the command "up", which updates all packages to the latest compatible versions.
-
-Then, copy the default configuration files and examples to your new project:
+You can copy the examples to your project with:
 ```julia
 using KiteModels
-copy_settings()
-copy_examples()
+KiteModels.install_examples()
 ```
-The first command copies the files `settings.yaml` and `system.yaml` to the folder data.
-They can be customized later. The second command creates an examples folder with some examples.
 
 Your folder structure should now look like this:
 ```
-shell> tree
-.
+shell> tree -d
 ├── data
-│   ├── kite.obj
-│   ├── settings.yaml
-│   └── system.yaml
 ├── examples
-│   ├── bench.jl
-│   ├── compare_kps3_kps4.jl
-│   ├── menu.jl
-│   ├── reel_out_1p.jl
-│   ├── reel_out_4p.jl
-│   ├── reel_out_4p_torque_control.jl
-│   ├── simulate_simple.jl
-│   └── simulate_steering.jl
-├── Manifest.toml
-└── Project.toml
+└── test
+    ├── data
+    └── examples
 
-2 directories, 7 files
+5 directories
 ```
-You can access the operating system command line by typing the character ";", you then get a "shell" prompt and can enter operating system commands. To leave shell mode, type \<BACKSLASH\>. 
+You can access the operating system command line by typing the character ";", you then get a "shell" prompt and can enter operating system commands. To leave shell mode, type <BACKSLASH>. 
 On windows you need to type ```tree /f``` instead of ```tree``` to see the files.
 
 ## Executing the first example
@@ -140,8 +111,8 @@ On Windows you need to type "\\\\" instead of "/":
 ```
 include("examples\\simulate_simple.jl")
 ```
-You will see the 4-point kite fly for 30s. If you want to change the settings of the simulation, open the file `simulate_simple.jl`` in your favorite text editor, modify the settings at the beginning of the file and execute the include command again.
-You can use the <TAB> key for autocompletion, for example ```include("ex<TAB>``` completes to ```include("examples\``` which can save a lot of typing. If you type <TAB> again you get a list of files to choose from.
+You will see the 4-point kite fly for 30s. If you want to change the settings of the simulation, open the file `simulate_simple.jl` in your favorite text editor, modify the settings at the beginning of the file and execute the include command again.
+You can use the <TAB> key for autocompletion, for example `include("ex<TAB>` completes to `include("examples\` which can save a lot of typing. If you type <TAB> again you get a list of files to choose from.
 
 Try out changing the following default settings:
 ```
