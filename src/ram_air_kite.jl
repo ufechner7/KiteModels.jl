@@ -27,55 +27,16 @@ $(TYPEDFIELDS)
     point_system::PointMassSystem
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
-    "tether positions"
-    pos::Matrix{S} = zeros(S, 3, P)
-    "unstressed segment lengths of the three tethers [m]"
-    segment_lengths::V =           zeros(S, 3)
     "relative start time of the current time interval"
     t_0::S =               0.0
-    "unstretched tether length"
-    tether_lengths::V =          zeros(S, 3)
-    "air density at the height of the kite"
-    rho::S =               0.0
-    "tether masses"
-    masses::V         = zeros(S, P)
-    "unit spring coefficient"
-    c_spring::V = zeros(S, 3)
-    "unit damping coefficient"
-    damping::V = zeros(S, 3)
     "whether or not to use torque control instead of speed control"
     torque_control::Bool = false
-    "x vector of kite reference frame"
-    e_x::V =                 zeros(S, 3)
-    "y vector of kite reference frame"
-    e_y::V =                 zeros(S, 3)
-    "z vector of kite reference frame"
-    e_z::V =                 zeros(S, 3)
     "Simplified system of the mtk model"
     sys::Union{ModelingToolkit.ODESystem, Nothing} = nothing
     "Unsimplified system of the mtk model"
     full_sys::Union{ModelingToolkit.ODESystem, Nothing} = nothing
     "Linearization function of the mtk model"
     lin_prob::Union{ModelingToolkit.LinearizationProblem, Nothing} = nothing
-    "Velocity of the kite"
-    vel_kite::V =           zeros(S, 3)
-    "Inertia around kite x y and z axis of the body frame"
-    I_b::V = zeros(S, 3)
-    "Initialization values for kite state"
-    u0map::Union{Vector{Pair{Num, S}}, Nothing} = nothing
-    "Initialization values for kite parameters"
-    p0map::Union{Vector{Pair{Num, S}}, Nothing} = nothing
-    "X coordinate on normalized 2d foil of bridle attachments"
-    bridle_fracs::V = [0.088, 0.31, 0.58, 0.93]
-    crease_frac::S = 0.82
-    "The top bridle points that are not on the kite, in CAD frame"
-    top_bridle_points::Vector{V} = [[0.290199, 0.784697, -2.61305], [0.392683, 0.785271, -2.61201], [0.498202, 0.786175, -2.62148], [0.535543, 0.786175, -2.62148]]
-    "Tether diameter of tethers in bridle system [mm]"
-    bridle_tether_diameter::SimFloat = 2.
-    "Tether diameter of the power tethers [mm]"
-    power_tether_diameter::SimFloat = 2.
-    "Tether diameter of the steering tethers [mm]"
-    steering_tether_diameter::SimFloat = 1.
     "Number of solve! calls"
     iter::Int64 = 0
 
