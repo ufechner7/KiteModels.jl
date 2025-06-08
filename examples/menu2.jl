@@ -7,6 +7,7 @@ options = ["plot_cl_cd_plate = include(\"plot_cl_cd_plate.jl\")",
            "steering_test_4p = include(\"steering_test_4p.jl\")",
            "plot_parking_test = include(\"plot_parking_test.jl\")",
            "calculate_rot_inertia = include(\"calculate_rotational_inertia.jl\")",
+           "build_docu = include(\"../scripts/build_docu.jl\")",
            "quit"]
 
 function extra_menu()
