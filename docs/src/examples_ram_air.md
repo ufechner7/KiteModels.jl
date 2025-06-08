@@ -59,7 +59,7 @@ Time elapsed: 75.475794933 s
 │   times_realtime = 5.038873691119553
 └   integrator_times_realtime = 16.40954043592023
 ```
-You can save another 40s when checking out the code with git and run the example from the checked out repository.
+You can save another 45s when checking out the code with git, create a system image and run the example from the checked out repository.
 
 In this example, the kite is first parked, and then a sinus-shaped steering input is applied such that is dancing
 in the sky.
