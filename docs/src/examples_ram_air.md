@@ -65,3 +65,14 @@ In this example, the kite is first parked, and then a sinus-shaped steering inpu
 in the sky.
 
 ![Oscillating steering input response](oscillating_steering.png)
+
+## How to create a RamAirKite
+The following code is a minimal example that shows how to create a ram air kite struct:
+```
+using KiteModels
+
+# Initialize model
+set = load_settings("system_ram.yaml")
+
+rak = RamAirKite(set)
+```
