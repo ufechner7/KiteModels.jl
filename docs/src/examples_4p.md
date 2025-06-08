@@ -7,32 +7,16 @@ CurrentModule = KiteModels
 ```bash
 mkdir test
 cd test
-julia --project="."
+julia --project=.
 ```
+Don't forget to type the dot at the end of the last line.
 With the last command, we told Julia to create a new project in the current directory.
 
-Then we add the three required packages to our new project. By pressing the key "]"
-we enter the package manager mode where we can add or delete packages.
-```julia
-]
-add KiteUtils
-add KitePodModels
-add KiteModels
-st
-<BACKSPACE>
-```
-The command "st" was not really required, but it is useful to display which versions
-of the packages we have in our project. Another important package manager command
-is the command "up", which updates all packages to the latest compatible versions.
-
-Then, copy the default configuration files and examples to your new project:
+You can copy the examples to your project with:
 ```julia
 using KiteModels
-copy_settings()
-copy_examples()
+KiteModels.install_examples()
 ```
-The first command copies the files settings.yaml and system.yaml to the folder data.
-They can be customized later. The second command creates an examples folder with some examples.
 
 ## Plotting the initial state
 First, an instance of the model of the kite control unit (KCU) is created which is needed by the Kite Power System model KPS3. Then we create a kps instance, passing the kcu model as parameter. We need to declare these variables as const to achieve a decent performance.
@@ -89,10 +73,10 @@ julia> unstretched_length(kps)
 150.0
 
 julia> tether_length(kps)
-153.28916318946136
+152.24467154884996
 
 julia> calc_height(kps)
-152.22064860101747
+152.18828499538841
 ```
 Because of the the stiffness_factor of 0.035 we have a longer tether-length then when using
 the 1 point kite model. 
@@ -100,25 +84,25 @@ the 1 point kite model.
 Print the force at the winch (groundstation, in Newton) and at each tether segment:
 ```julia
 julia> winch_force(kps)
-471.70242280223385
+321.91887139903304
 
 julia> spring_forces(kps)
 15-element Vector{Float64}:
- 471.6945339755092
- 471.690450982437
- 471.6880774303635
- 471.68627774821994
- 471.68477542957345
- 471.68345917403485
-  95.87508612176553
- -58.70207142208335
- -50.06490404375146
- 226.23422847228494
- 215.8389386786939
- 215.8389386786939
- 226.23422847228494
- -58.70207142208335
-  99.72953663093385
+ 321.90741146969305
+ 321.90394881639793
+ 321.90117644298266
+ 321.8991487686265
+ 321.89747937647513
+ 321.8960226182887
+  48.63781489453856
+ -44.13400039648584
+ -38.834017666472626
+ 128.20126839800218
+ 149.28336751268995
+ 149.28336751268995
+ 128.20126839800218
+ -44.13400039648584
+  51.39155976906608
 ```
 Some of the forces are negative which means the segments are getting compressed. This is acceptable for
 the kite itself (not for the tether).
@@ -126,16 +110,16 @@ the kite itself (not for the tether).
 Print the lift and drag forces of the kite (in Newton) and the lift-over-drag ratio:
 ```julia
 julia> lift, drag = lift_drag(kps)
-(382.18880762331327, 117.58827293691883)
+(402.1444777567862, 117.73620926656395)
 
 julia> lift_over_drag(kps)
-3.250228939312184
+3.4156397616497047
 ```
 Print the wind speed vector at the kite:
 ```julia
 julia> v_wind_kite(kps)
 3-element StaticArrays.MVector{3, Float64} with indices SOneTo(3):
- 12.542508333667467
+ 12.603056847417106
   0.0
   0.0
 ```

@@ -26,6 +26,7 @@ makedocs(;
         "Parameters" => "parameters.md",
         "Examples_1p" => "examples.md",
         "Examples_4p" => "examples_4p.md",
+        "Example_RamAirKite" => "examples_ram_air.md",
         "Quickstart" => "quickstart.md",
         "Advanced usage" => "advanced.md",
     ],

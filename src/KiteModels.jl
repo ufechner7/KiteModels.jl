@@ -689,14 +689,8 @@ function install_examples(add_packages=true)
     copy_settings()
     copy_model_settings()
     if add_packages
-        Pkg.add("KiteUtils")
-        Pkg.add("KitePodModels")
-        Pkg.add("WinchModels")
-        Pkg.add("ControlPlots")
-        Pkg.add("LaTeXStrings")
-        Pkg.add("StatsBase")
-        Pkg.add("Timers")
-        Pkg.add("Rotations")
+        Pkg.add(["KiteUtils", "KitePodModels", "WinchModels", "ControlPlots", 
+                 "LaTeXStrings", "StatsBase", "Timers", "Rotations"])
     end
 end
 
