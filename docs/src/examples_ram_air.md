@@ -84,7 +84,7 @@ include("examples/lin_ram_model.jl")
 
 ## How to create a RamAirKite
 The following code is a minimal example that shows how to create a ram air kite struct:
-```
+```julia
 using KiteModels
 
 # Initialize model
