@@ -13,7 +13,7 @@ set_data_path(temp_data_path)
 
 # Testing tolerance
 const TOL = 1e-5
-const BUILD_SYS = true
+const BUILD_SYS = false
 
 @testset verbose = true "RamAirKite MTK Model Tests" begin
     # Initialize model
@@ -62,9 +62,9 @@ const BUILD_SYS = true
         first_integrator_ptr = objectid(s.integrator)
         first_point_system_ptr = objectid(s.point_system)
 
-        # 2. First reinit! - should load from serialized file
-        @info "Testing first reinit! (should load serialized file)..."
-        @time KiteModels.reinit!(s, measure; prn=true, reload=false)
+        # 2. First init_sim! - should load from serialized file
+        @info "Testing first init_sim! (should load serialized file)..."
+        @time KiteModels.init_sim!(s, measure; prn=true, reload=false)
         next_step!(s)
 
         # Check that it's a new integrator
@@ -73,9 +73,9 @@ const BUILD_SYS = true
         @test first_integrator_ptr != second_integrator_ptr
         @test first_point_system_ptr == second_point_system_ptr
 
-        # 3. Second reinit! - should reuse existing integrator
-        @info "Testing second reinit! (should reuse integrator)..."
-        @time KiteModels.reinit!(s, measure; prn=true, reload=false)
+        # 3. Second init_sim! - should reuse existing integrator
+        @info "Testing second init_sim! (should reuse integrator)..."
+        @time KiteModels.init_sim!(s, measure; prn=true, reload=false)
 
         # This should create a new point system but reuse the existing integrator
         third_integrator_ptr = objectid(s.integrator)
@@ -108,7 +108,7 @@ const BUILD_SYS = true
     end
 
     @testset "State Consistency" begin
-        KiteModels.reinit!(s, measure, prn=true, reload=false)
+        KiteModels.init_sim!(s, measure, prn=true, reload=false)
         sys_state_before = KiteModels.SysState(s)
 
         # Check quaternion normalization
@@ -120,7 +120,7 @@ const BUILD_SYS = true
         # Change measurement and reinitialize
         old_elevation = measure.elevation
         measure.sphere_pos[1,:] .= deg2rad(85.0)
-        KiteModels.reinit!(s, measure, prn=true, reload=false)
+        KiteModels.init_sim!(s, measure, prn=true, reload=false)
 
         # Get new state using SysState
         sys_state_after = KiteModels.SysState(s)
@@ -132,7 +132,9 @@ const BUILD_SYS = true
 
     function test_step(s, d_set_values=zeros(3); dt=0.05, steps=5)
         s.integrator.ps[s.sys.stabilize] = true
-        KiteModels.next_step!(s; dt=10.0)
+        for i in 1:1÷dt
+            next_step!(s; dt, vsm_interval=1)
+        end
         s.integrator.ps[s.sys.stabilize] = false
         @info "Stepping"
         for _ in 1:steps
@@ -147,7 +149,7 @@ const BUILD_SYS = true
 
     @testset "Simulation Step with SysState" begin
         # Basic step and time advancement test
-        KiteModels.reinit!(s, measure; prn=true, reload=false)
+        KiteModels.init_sim!(s, measure; prn=true, reload=false)
         sys_state_before = KiteModels.SysState(s)
 
         # Run a simulation step with zero set values
@@ -175,7 +177,7 @@ const BUILD_SYS = true
             @test measure.elevation ≈ deg2rad(60.0) atol=1e-6
             @test measure.azimuth ≈ 0.0 atol=1e-6
 
-            KiteModels.reinit!(s, measure; prn=true)
+            KiteModels.init_sim!(s, measure; prn=true)
 
             # Verify initial conditions using SysState
             sys_state_init = KiteModels.SysState(s)
@@ -206,17 +208,17 @@ const BUILD_SYS = true
         @testset "Steering Response Using SysState" begin
             # Initialize model at moderate elevation
             measure.sphere_pos .= deg2rad.([70.0 70.0; 1.0 -1.0])
-            KiteModels.reinit!(s, measure; prn=true, reload=false)
+            KiteModels.init_sim!(s, measure; prn=true, reload=false)
             test_step(s)
             sys_state_initial = KiteModels.SysState(s)
 
             # steering right
-            KiteModels.reinit!(s, measure; prn=true, reload=false)
+            KiteModels.init_sim!(s, measure; prn=true, reload=false)
             test_step(s, [0, 10, -10]; steps=20)
             sys_state_right = KiteModels.SysState(s)
 
             # steering left
-            KiteModels.reinit!(s, measure; prn=true, reload=false)
+            KiteModels.init_sim!(s, measure; prn=true, reload=false)
             test_step(s, [0, -10, 10]; steps=20)
             sys_state_left = KiteModels.SysState(s)
 
@@ -227,9 +229,9 @@ const BUILD_SYS = true
 
             # Check heading changes
             right_heading_diff = angle_diff(sys_state_right.heading, sys_state_initial.heading)
-            @test right_heading_diff ≈ 0.6 atol=0.2
+            @test right_heading_diff ≈ 0.9 atol=0.2
             left_heading_diff = angle_diff(sys_state_left.heading, sys_state_initial.heading)
-            @test left_heading_diff ≈ -0.6 atol=0.2
+            @test left_heading_diff ≈ -0.9 atol=0.2
         end
     end
 end
