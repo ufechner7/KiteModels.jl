@@ -66,6 +66,15 @@ in the sky.
 
 ![Oscillating steering input response](oscillating_steering.png)
 
+## Running the second example
+```julia
+SIMPLE=true; include("examples/ram_air_kite.jl")
+```
+The simple model has a very simple bridle system without pulleys and with less attachment points on the wing. 
+While the default model has a [speed system](https://kiteboarding.com/proddetail.asp?prod=ozone-r1v4-pro-tune-speedsystem-complete) with pulleys and more attachment points on the wing.
+
+![Oscillating steering input response, simple system](oscillating_steering_simple.png)
+
 ## How to create a RamAirKite
 The following code is a minimal example that shows how to create a ram air kite struct:
 ```
