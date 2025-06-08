@@ -271,12 +271,13 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         inertia = 1/3 * (s.set.mass/length(groups)) * (norm(group.chord))^2 # plate inertia around leading edge
         @assert !(inertia ≈ 0.0)
         @parameters twist_damp = 50
+        @parameters max_twist = deg2rad(90)
 
         eqs = [
             eqs
             group_tether_moment[group.idx] ~ sum(tether_moment[group.idx, :])
             twist_α[group.idx] ~ (group_aero_moment[group.idx] + group_tether_moment[group.idx]) / inertia
-            twist_angle[group.idx] ~ clamp(free_twist_angle[group.idx], -π/2, π/2)
+            twist_angle[group.idx] ~ clamp(free_twist_angle[group.idx], -max_twist, max_twist)
         ]
         if group.type == DYNAMIC
             eqs = [
@@ -618,6 +619,20 @@ function diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero
     return eqs, defaults
 end
 
+function calc_R_v_w(kite_pos, e_x)
+    z = sym_normalize(kite_pos)
+    y = sym_normalize(z × e_x)
+    x = y × z
+    return [x y z]
+end
+
+function calc_R_t_w(elevation, azimuth)
+    x = rotate_around_z(rotate_around_y([0, 0, -1], -elevation), azimuth)
+    z = rotate_around_z(rotate_around_y([1, 0, 0], -elevation), azimuth)
+    y = z × x
+    return [x y z]
+end
+
 """
     scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc, twist_angle, twist_ω)
 
@@ -663,7 +678,7 @@ function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, 
         va_kite_b ~ R_b_w' * va_kite
     ]
     @variables begin
-        heading_x(t)
+        heading(t)
         turn_rate(t)[1:3]
         turn_acc(t)[1:3]
         azimuth(t)
@@ -682,9 +697,7 @@ function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, 
         simple_twist_angle(t)[1:2]
         simple_twist_ω(t)[1:2]
         R_v_w(t)[1:3, 1:3]
-        view_z(t)[1:3]
-        view_y(t)[1:3]
-        view_x(t)[1:3]
+        R_t_w(t)[1:3, 1:3]
         distance(t)
         distance_vel(t)
         distance_acc(t)
@@ -695,21 +708,18 @@ function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, 
     x´´, y´´, z´´ = kite_acc
 
     half_len = length(twist_angle)÷2
+    heading_vec = R_t_w' * R_v_w[:,1]
 
     eqs = [
         eqs
-        view_z          ~ sym_normalize(kite_pos)
-        view_y          ~ view_z × e_y
-        view_x          ~ view_y × view_z
-        R_v_w[:,1]      ~ view_x
-        R_v_w[:,2]      ~ view_y
-        R_v_w[:,3]      ~ view_z
-        heading_x       ~ calc_heading(e_x)
+        vec(R_v_w)     .~ vec(calc_R_v_w(kite_pos, e_x))
+        vec(R_t_w)     .~ vec(calc_R_t_w(elevation, azimuth))
+        heading         ~ atan(heading_vec[2], heading_vec[1])
         turn_rate       ~ R_v_w' * (R_b_w * ω_b) # Project angular velocity onto view frame
         turn_acc        ~ R_v_w' * (R_b_w * α_b)
         distance        ~ norm(kite_pos)
-        distance_vel    ~ kite_vel ⋅ view_z
-        distance_acc    ~ kite_acc ⋅ view_z
+        distance_vel    ~ kite_vel ⋅ R_v_w[:,3]
+        distance_acc    ~ kite_acc ⋅ R_v_w[:,3]
 
         elevation           ~ atan(z / x)
         # elevation_vel = d/dt(atan(z/x)) = (x*ż' - z*ẋ')/(x^2 + z^2) according to wolframalpha
@@ -721,9 +731,9 @@ function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, 
         azimuth_vel         ~ (-y*x´ + x*y´) / 
                                 (x^2 + y^2)
         azimuth_acc         ~ ((x^2 + y^2)*(-y*x´´ + x*y´´) + 2(y*x´ - x*y´)*(x*x´ + y*y´))/(x^2 + y^2)^2
+        course              ~ atan(-azimuth_vel, elevation_vel)
         x_acc               ~ kite_acc ⋅ e_x
         y_acc               ~ kite_acc ⋅ e_y
-        course              ~ atan(-azimuth_vel, elevation_vel)
 
         angle_of_attack     ~ calc_angle_of_attack(va_kite_b) + 0.5twist_angle[half_len] + 0.5twist_angle[half_len+1]
         simple_twist_angle[1] ~ sum(twist_angle[1:half_len]) / half_len
@@ -763,14 +773,8 @@ function linear_vsm_eqs!(s, eqs, guesses; aero_force_b, aero_moment_b, group_aer
     @assert length(s.point_system.groups) == length(sol.group_moment_dist)
 
     y_ = [init_va_b; zeros(length(s.point_system.groups)); zeros(3)]
-    jac_, x_ = VortexStepMethod.linearize(
-        s.vsm_solver, 
-        s.aero, 
-        y_;
-        va_idxs=1:3, 
-        omega_idxs=4:6,
-        theta_idxs=7:6+length(s.point_system.groups), 
-        moment_frac=s.point_system.groups[1].moment_frac)
+    x_ = zeros(3+3+length(s.point_system.groups))
+    jac_ = zeros(length(x_), length(y_))
 
     @parameters begin
         last_y[eachindex(y_)] = y_

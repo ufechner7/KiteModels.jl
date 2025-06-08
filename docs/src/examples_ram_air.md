@@ -74,3 +74,14 @@ The simple model has a very simple bridle system without pulleys and with less a
 While the default model has a [speed system](https://kiteboarding.com/proddetail.asp?prod=ozone-r1v4-pro-tune-speedsystem-complete) with pulleys and more attachment points on the wing.
 
 ![Oscillating steering input response, simple system](oscillating_steering_simple.png)
+
+## How to create a RamAirKite
+The following code is a minimal example that shows how to create a ram air kite struct:
+```
+using KiteModels
+
+# Initialize model
+set = load_settings("system_ram.yaml")
+
+rak = RamAirKite(set)
+```

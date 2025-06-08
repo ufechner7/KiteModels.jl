@@ -26,7 +26,7 @@ include(joinpath(@__DIR__, "plotting.jl"))
 
 # Simulation parameters
 dt = 0.05
-total_time = 10  # Longer simulation to see oscillations
+total_time = 10.0  # Longer simulation to see oscillations
 vsm_interval = 3
 steps = Int(round(total_time / dt))
 
@@ -47,25 +47,25 @@ s.set.abs_tol = 1e-2
 s.set.rel_tol = 1e-2
 toc()
 
+measure = Measurement()
+measure.sphere_pos .= deg2rad.([70.0 70.0; 1.0 -1.0])
+
 # init_Q_b_w, R_b_w = KiteModels.measure_to_q(measure)
 # init_kite_pos = init!(s.point_system, s.set, R_b_w, init_Q_b_w)
-# plot(s.point_system, 0.0; zoom=false, front=true)
-
-measure = Measurement()
+# plot(s.point_system, 0.0; zoom=false, front=false)
 
 # Initialize at elevation
 s.point_system.winches[2].tether_length += 0.2
 s.point_system.winches[3].tether_length += 0.2
-measure.sphere_pos .= deg2rad.([70.0 70.0; 1.0 -1.0])
 KiteModels.init_sim!(s, measure; remake=false, reload=true)
 sys = s.sys
 
 @info "System initialized at:"
 toc()
 
-# # Stabilize system
+# Stabilize system
 s.integrator.ps[sys.stabilize] = true
-for i in 1:10÷dt
+for i in 1:1÷dt
     next_step!(s; dt, vsm_interval=1)
 end
 s.integrator.ps[sys.stabilize] = false
@@ -75,7 +75,8 @@ sys_state = KiteModels.SysState(s)
 t = 0.0
 runtime = 0.0
 integ_runtime = 0.0
-bias = 0.5
+bias = 0.35
+t0 = s.integrator.t
 
 try
     while t < total_time
@@ -84,7 +85,7 @@ try
         PLOT && plot(s, t; zoom=false, front=false)
         
         # Calculate steering inputs based on cosine wave
-        steering = steering_magnitude * cos(2π * steering_freq * t+bias)
+        steering = steering_magnitude * cos(2π * steering_freq * t + bias)
         set_values = -s.set.drum_radius .* s.integrator[sys.winch_force]
         _vsm_interval = 1
         if t > 1.0
@@ -93,8 +94,8 @@ try
         end
 
         # Step simulation
-        steptime = @elapsed (t_new, integ_steptime) = next_step!(s, set_values; dt, vsm_interval=_vsm_interval)
-        t = t_new - 10.0  # Adjust for initial stabilization time
+        steptime = @elapsed (t_new, integ_steptime) = next_step!(s, set_values; dt, vsm_interval=vsm_interval)
+        t = t_new - t0  # Adjust for initial stabilization time
 
         # Track performance after initial transient
         if (t > total_time/2)
@@ -105,6 +106,7 @@ try
 
         # Log state variables
         KiteModels.update_sys_state!(sys_state, s)
+        sys_state.time = t
         log!(logger, sys_state)
     end
 catch e
@@ -129,15 +131,15 @@ sl = lg.syslog
 turn_rates_deg = rad2deg.(hcat(sl.turn_rates...))
 v_reelout_23 = [sl.v_reelout[i][2] for i in eachindex(sl.v_reelout)], [sl.v_reelout[i][3] for i in eachindex(sl.v_reelout)] # Winch 2 and 3
 aero_force_z = [sl.aero_force_b[i][3] for i in eachindex(sl.aero_force_b)]
-aero_moment_y = [sl.aero_moment_b[i][2] for i in eachindex(sl.aero_moment_b)]
+aero_moment_z = [sl.aero_moment_b[i][3] for i in eachindex(sl.aero_moment_b)]
 twist_angles_deg = rad2deg.(hcat(sl.twist_angles...))
 AoA_deg = rad2deg.(sl.AoA)
 heading_deg = rad2deg.(sl.heading)
 
-p = plotx(sl.time .- 10,
+p = plotx(sl.time,
     [turn_rates_deg[1,:], turn_rates_deg[2,:], turn_rates_deg[3,:]],
     v_reelout_23,
-    [aero_force_z, aero_moment_y],
+    [aero_force_z, aero_moment_z],
     [twist_angles_deg[1,:], twist_angles_deg[2,:], twist_angles_deg[3,:], twist_angles_deg[4,:]],
     [AoA_deg],
     [heading_deg];
@@ -146,7 +148,7 @@ p = plotx(sl.time .- 10,
     labels=[
         [L"\omega_x", L"\omega_y", L"\omega_z"],
         ["v_ro[2]", "v_ro[3]"],
-        [L"F_{aero,z}", L"M_{aero,y}"],
+        [L"F_{aero,z}", L"M_{aero,z}"],
         ["twist[1]", "twist[2]", "twist[3]", "twist[4]"],
         ["AoA"],
         ["heading"]
