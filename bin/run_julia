@@ -1,36 +1,17 @@
 #!/bin/bash -eu
-# SPDX-FileCopyrightText: 2025 Uwe Fechner, Bart van de Lint
+# SPDX-FileCopyrightText: 2025 Uwe Fechner
 # SPDX-License-Identifier: MIT
 
-if [[ $(basename "$(pwd)") == "bin" ]]; then
+if [[ $(basename $(pwd)) == "bin" ]]; then
     cd ..
 fi
 
 export JULIA_PKG_SERVER_REGISTRY_PREFERENCE=eager
 
-# Variables to store the determined Julia version parts
-julia_major="" # For image filename, e.g., 1.10 or 1.9
-julia_cmd_version_specifier="" # For Julia command, e.g., +1.10 or +1.9
-
-# Check if a specific Julia version is provided as the first argument
-if [ -n "${1+x}" ] && [[ -n "$1" && "$1" == \+* ]]; then
-    julia_cmd_version_specifier="$1" # e.g., +1.10
-    julia_major="${1#+}"   # Remove '+', e.g., 1.10
-    echo "Using specified Julia version: $julia_major (from argument $1)"
-    shift # Remove the version argument, so it's not passed to Julia script
-else
-    # Auto-detect Julia version
-    julia_version_full=$(julia --version | awk '{print($3)}')
-    # Extract major.minor (e.g., 1.10 from 1.10.0 or 1.9 from 1.9.3)
-    # First, try to get x.y (e.g., 1.9 from 1.9.3)
-    julia_major_temp=${julia_version_full:0:3}
-    if [[ $julia_major_temp == "1.1" ]]; then # Handles versions like 1.10, 1.11
-        julia_major=${julia_version_full:0:4} # e.g., 1.10
-    else
-        julia_major=$julia_major_temp # e.g., 1.9
-    fi
-    julia_cmd_version_specifier="+${julia_major}" # e.g., +1.10 or +1.9
-    echo "Using auto-detected Julia version: $julia_major (full version: $julia_version_full)"
+julia_version=$(julia --version | awk '{print($3)}')
+julia_major=${julia_version:0:3} 
+if [[ $julia_major == "1.1" ]]; then
+    julia_major=${julia_version:0:4} 
 fi
 
 if [ -d .git ] || git rev-parse --git-dir > /dev/null 2>&1 ; then
@@ -50,15 +31,15 @@ fi
 if [[ $branch != "" ]]; then
     if test -f "bin/kps-image-${julia_major}-${branch}.so"; then
         echo "Found system image!"
-        julia "${julia_cmd_version_specifier}" -J "bin/kps-image-${julia_major}-${branch}.so" -t 1 $GCT --project -i -e 'using KiteModels'
+        julia +${julia_major} -J  bin/kps-image-${julia_major}-${branch}.so -t 1 $GCT --project -i -e 'using KiteModels'
     else
-        julia "${julia_cmd_version_specifier}" $GCT --project -i
+        julia +${julia_major} $GCT --project  -i # -e 'using KiteModels'
     fi
 else
     if test -f "bin/kps-image-${julia_major}.so"; then
         echo "Found system image!"
-        julia "${julia_cmd_version_specifier}" -J "bin/kps-image-${julia_major}.so" -t 1 $GCT --project -i -e 'using KiteModels'
+        julia +${julia_major} -J  bin/kps-image-${julia_major}.so -t 1 $GCT --project -i -e 'using KiteModels'
     else
-        julia "${julia_cmd_version_specifier}" $GCT --project -i
+        julia +${julia_major} $GCT --project -i # -e 'using KiteModels'
     fi
 fi
