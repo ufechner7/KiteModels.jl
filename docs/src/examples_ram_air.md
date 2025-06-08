@@ -81,6 +81,7 @@ around this operating point and compares the simulation results of the non-linea
 ```julia
 include("examples/lin_ram_model.jl")
 ```
+See: [`lin_ram_model.jl`](https://github.com/ufechner7/KiteModels.jl/blob/main/examples/lin_ram_model.jl)
 
 ## How to create a RamAirKite
 The following code is a minimal example that shows how to create a ram air kite struct:
