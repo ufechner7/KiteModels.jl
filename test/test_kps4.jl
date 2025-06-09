@@ -21,7 +21,7 @@ poss, vels = nothing, nothing
 
 function set_defaults()
     KiteModels.clear!(kps4)
-    kps4.set.l_tether = 150.0
+    kps4.set.l_tethers[1] = 150.0
     kps4.set.elevation = 60.0
     kps4.set.area = 20.0
     kps4.set.rel_side_area = 50.0
@@ -35,7 +35,7 @@ end
 
 function init_392()
     KiteModels.clear!(kps4)
-    kps4.set.l_tether = 392.0
+    kps4.set.l_tethers[1] = 392.0
     kps4.set.elevation = 70.0
     kps4.set.area = 10.0
     kps4.set.rel_side_area = 50.0
@@ -46,7 +46,7 @@ end
 
 function init_150()
     KiteModels.clear!(kps4)
-    kps4.set.l_tether = 150.0
+    kps4.set.l_tethers[1] = 150.0
     kps4.set.elevation = 70.0
     kps4.set.area = 10.18
     kps4.set.rel_side_area = 30.6
@@ -61,7 +61,7 @@ end
 function init3()
     kps4.set.alpha =  0.08163
     KiteModels.clear!(kps4)
-    kps4.set.l_tether = 150.0 # - kps4.set.height_k - kps4.set.h_bridle
+    kps4.set.l_tethers[1] = 150.0 # - kps4.set.height_k - kps4.set.h_bridle
     kps4.set.area = 10.18
     kps4.set.rel_side_area = 30.6
     kps4.set.mass = 6.21

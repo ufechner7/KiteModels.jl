@@ -18,7 +18,7 @@ end
 
 function set_defaults()
     KiteModels.clear!(kps)
-    kps.set.l_tether = 150.0
+    kps.set.l_tethers[1] = 150.0
     kps.set.elevation = 60.0
     kps.set.area = 20.0
     kps.set.rel_side_area = 50.0
@@ -31,7 +31,7 @@ end
 
 function init_392()
     KiteModels.clear!(kps)
-    kps.set.l_tether = 392.0
+    kps.set.l_tethers[1] = 392.0
     kps.set.elevation = 70.0
     kps.set.area = 10.0
     kps.set.rel_side_area = 50.0
@@ -243,7 +243,7 @@ z= nothing
     res = test_initial_condition(initial_x)
 
     my_state = kps
-    kps.set.l_tether = 392.0
+    kps.set.l_tethers[1] = 392.0
     kps.set.elevation = 70.0
     kps.set.area = 10.0
     kps.set.v_wind = 9.1

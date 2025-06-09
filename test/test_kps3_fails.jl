@@ -25,7 +25,7 @@ end
 
 function set_defaults()
     KiteModels.clear!(kps)
-    kps.set.l_tether = 150.0
+    kps.set.l_tethers[1] = 150.0
     kps.set.elevation = 60.0
     kps.set.area = 20.0
     kps.set.rel_side_area = 50.0
