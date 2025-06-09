@@ -674,7 +674,7 @@ Generate equations for scalar quantities like elevation, azimuth, heading and co
     """
 function scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc, twist_angle, twist_ω, ω_b, α_b)
     @parameters wind_scale_gnd = s.set.v_wind
-    @parameters wind_dir_gnd = s.set.wind_dir_gnd
+    @parameters upwind_dir = deg2rad(s.set.upwind_dir)
     @variables begin
         e_x(t)[1:3]
         e_y(t)[1:3]
@@ -687,7 +687,7 @@ function scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel,
         e_x     ~ R_b_w[:,1]
         e_y     ~ R_b_w[:,2]
         e_z     ~ R_b_w[:,3]
-        wind_vec_gnd ~ wind_scale_gnd * rotate_around_z([1, 0, 0], wind_dir_gnd)
+        wind_vec_gnd ~ wind_scale_gnd * rotate_around_z([0, -1, 0], -upwind_dir)
         wind_vel_kite ~ AtmosphericModels.calc_wind_factor(s.am, kite_pos[3], s.set.profile_law) * wind_vec_gnd
         va_kite ~ wind_vel_kite - kite_vel
         va_kite_b ~ R_b_w' * va_kite

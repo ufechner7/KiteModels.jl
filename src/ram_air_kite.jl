@@ -338,7 +338,7 @@ function generate_getters!(s, sym_vec)
     ])
 
     set_set_values = setp(sys, sys.set_values)
-    set_wind_dir = setp(sys, sys.measured_wind_dir_gnd)
+    set_wind_dir = setp(sys, sys.upwind_dir)
     set_vsm = setp(sys, vsm_sym)
     set_unknowns = setu(sys, sym_vec)
     set_nonstiff = setu(sys, get_nonstiff_unknowns(s))
@@ -424,12 +424,12 @@ function linearize_vsm!(s::RamAirKite, integ=s.integrator)
     nothing
 end
 
-function next_step!(s::RamAirKite, set_values=nothing; wind_dir_gnd=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
+function next_step!(s::RamAirKite, set_values=nothing; upwind_dir=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
     if (!isnothing(set_values)) 
         s.set_set_values(s.integrator, set_values)
     end
-    if (!isnothing(wind_dir_gnd))
-        s.set_wind_dir(s.integrator, wind_dir_gnd)
+    if (!isnothing(upwind_dir))
+        s.set_wind_dir(s.integrator, upwind_dir)
     end
     if vsm_interval != 0 && s.iter % vsm_interval == 0
         linearize_vsm!(s)
