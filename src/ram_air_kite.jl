@@ -204,7 +204,7 @@ and only update the state variables. Otherwise, it will create a new model from 
 `Nothing`
 """
 function init_sim!(s::RamAirKite, measure::Measurement;
-    solver=ifelse(s.set.quasi_static, FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.4, max_iter=1000)), FBDF()), 
+    solver=ifelse(s.set.quasi_static, FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.6)), FBDF()), 
     adaptive=true, prn=true, precompile=false, remake=false, reload=false, lin_outputs=Num[]
 )
     function init(s, measure)

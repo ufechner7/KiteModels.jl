@@ -71,7 +71,7 @@ sys_state = KiteModels.SysState(s)
 t = 0.0
 runtime = 0.0
 integ_runtime = 0.0
-bias = 0.35
+bias = set.quasi_static ? 0.45 : 0.35
 t0 = s.integrator.t
 
 try
