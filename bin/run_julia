@@ -9,28 +9,46 @@ fi
 export JULIA_PKG_SERVER_REGISTRY_PREFERENCE=eager
 
 # Variables to store the determined Julia version parts
-julia_major="" # For image filename, e.g., 1.10 or 1.9
-julia_cmd_version_specifier="" # For Julia command, e.g., +1.10 or +1.9
+julia_version=""
 
-# Check if a specific Julia version is provided as the first argument
-if [ -n "${1+x}" ] && [[ -n "$1" && "$1" == \+* ]]; then
-    julia_cmd_version_specifier="$1" # e.g., +1.10
-    julia_major="${1#+}"   # Remove '+', e.g., 1.10
-    echo "Using specified Julia version: $julia_major (from argument $1)"
-    shift # Remove the version argument, so it's not passed to Julia script
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --update)
+            update=true
+            shift
+            ;;
+        --version)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: --version requires a version argument"
+                exit 1
+            fi
+            julia_version="$2"
+            shift 2
+            ;;
+        \+*)
+            julia_version="${1#+}"
+            shift
+            ;;
+        *)
+            echo "Invalid parameter! Use:"
+            echo "./create_sys_image"
+            echo "or"
+            echo "./create_sys_image --update"
+            echo "or"
+            echo "./create_sys_image --version 1.x"
+            echo "or"
+            echo "./create_sys_image +1.x"
+            exit 1
+            ;;
+    esac
+done
+
+# Remove the version switching code
+if [[ -n "$julia_version" ]]; then
+    JULIA_CMD="julia +$julia_version"
 else
-    # Auto-detect Julia version
-    julia_version_full=$(julia --version | awk '{print($3)}')
-    # Extract major.minor (e.g., 1.10 from 1.10.0 or 1.9 from 1.9.3)
-    # First, try to get x.y (e.g., 1.9 from 1.9.3)
-    julia_major_temp=${julia_version_full:0:3}
-    if [[ $julia_major_temp == "1.1" ]]; then # Handles versions like 1.10, 1.11
-        julia_major=${julia_version_full:0:4} # e.g., 1.10
-    else
-        julia_major=$julia_major_temp # e.g., 1.9
-    fi
-    julia_cmd_version_specifier="+${julia_major}" # e.g., +1.10 or +1.9
-    echo "Using auto-detected Julia version: $julia_major (full version: $julia_version_full)"
+    JULIA_CMD="julia"
 fi
 
 if [ -d .git ] || git rev-parse --git-dir > /dev/null 2>&1 ; then
@@ -48,17 +66,17 @@ else
 fi
 
 if [[ $branch != "" ]]; then
-    if test -f "bin/kps-image-${julia_major}-${branch}.so"; then
+    if test -f "bin/kps-image-${julia_version}-${branch}.so"; then
         echo "Found system image!"
-        julia "${julia_cmd_version_specifier}" -J "bin/kps-image-${julia_major}-${branch}.so" -t 1 $GCT --project -i -e 'using KiteModels'
+        ${JULIA_CMD} -J "bin/kps-image-${julia_version}-${branch}.so" -t 1 $GCT --project -i -e 'using KiteModels'
     else
-        julia "${julia_cmd_version_specifier}" $GCT --project -i
+        ${JULIA_CMD} $GCT --project -i
     fi
 else
-    if test -f "bin/kps-image-${julia_major}.so"; then
+    if test -f "bin/kps-image-${julia_version}.so"; then
         echo "Found system image!"
-        julia "${julia_cmd_version_specifier}" -J "bin/kps-image-${julia_major}.so" -t 1 $GCT --project -i -e 'using KiteModels'
+        ${JULIA_CMD} -J "bin/kps-image-${julia_version}.so" -t 1 $GCT --project -i -e 'using KiteModels'
     else
-        julia "${julia_cmd_version_specifier}" $GCT --project -i
+        ${JULIA_CMD} $GCT --project -i
     fi
 fi
