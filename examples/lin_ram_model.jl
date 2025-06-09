@@ -57,16 +57,13 @@ s.set.abs_tol = 1e-2
 s.set.rel_tol = 1e-2
 toc()
 
-measure = Measurement()
-
 # Define outputs for linearization - angular velocities
 @variables ω_b(ModelingToolkit.t_nounits)[1:3]
 
 # Initialize at elevation with linearization outputs
 s.point_system.winches[2].tether_length += 0.2
 s.point_system.winches[3].tether_length += 0.2
-measure.sphere_pos .= deg2rad.([65.0 65.0; 1.0 -1.0])
-KiteModels.init_sim!(s, measure; 
+KiteModels.init_sim!(s; 
     remake=false,
     reload=true,
     lin_outputs=[ω_b...]  # Specify which outputs to track in linear model

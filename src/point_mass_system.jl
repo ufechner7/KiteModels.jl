@@ -493,58 +493,14 @@ function init!(system::PointMassSystem, set::Settings, R_b_w, Q_b_w)
     return nothing
 end
 
-# function update!(system::PointMassSystem, measure::Measurement)
-#     @unpack points, groups, segments, pulleys, tethers, winches, kite = system
-
-#     kite.pos .= R_b_w * [0.0, 0.0, -min_z]
-#     kite.orient .= Q_b_w
-#     kite.vel .= 0.0
-#     kite.angular_vel .= 0.0
-    
-#     for (winch, tether_length, tether_vel) in zip(winches, measure.tether_length, measure.tether_vel)
-#         winch.tether_length = tether_length
-#         winch.tether_vel = tether_vel
-#     end
-
-#     return nothing
-# end
-
-const MeasureFloat = Float32
-
-@with_kw mutable struct Measurement
-    set_values::MVector{3, MeasureFloat}    = [-50., -1., -1.]
-    tether_length::MVector{3, MeasureFloat} = [51., 51., 51.]
-    tether_vel::MVector{3, MeasureFloat}    = zeros(MeasureFloat, 3)
-    tether_acc::MVector{3, MeasureFloat}    = zeros(MeasureFloat, 3)
-    "elevation and azimuth in spherical coordinate system with columns (left, right) and rows (elevation, azimuth)"
-    sphere_pos::Matrix{MeasureFloat}            = deg2rad.([80.0 80.0; 1.0 -1.0])
-    sphere_vel::Matrix{MeasureFloat}            = zeros(MeasureFloat, 2, 2)
-    sphere_acc::Matrix{MeasureFloat}            = zeros(MeasureFloat, 2, 2)
-    "positive azimuth wind direction in right-handed ENU frame relative to east / x-axis"
-    wind_dir_gnd::MeasureFloat                  = zero(MeasureFloat)
-end
-
-function Base.getproperty(m::Measurement, val::Symbol)
-    if val === :elevation
-        sphere_pos = getfield(m, :sphere_pos)
-        return 0.5(sphere_pos[1, 1] + sphere_pos[1, 2])
-    elseif val === :azimuth
-        sphere_pos = getfield(m, :sphere_pos)
-        return 0.5(sphere_pos[2, 1] + sphere_pos[2, 2])
-    else
-        return getfield(m, val)
-    end
-end
-
-function measure_to_q(measure::Measurement, R_cad_body=I(3))
+function initial_orient(set::Settings, R_cad_body=I(3))
     x = [0, 0, -1] # laying flat along x axis
     z = [1, 0, 0] # laying flat along x axis
-    x = rotate_around_y(x, -measure.elevation)
-    z = rotate_around_y(z, -measure.elevation)
-    x = rotate_around_z(x, measure.azimuth)
-    z = rotate_around_z(z, measure.azimuth)
+    x = rotate_around_y(x, -deg2rad(set.elevation))
+    z = rotate_around_y(z, -deg2rad(set.elevation))
+    x = rotate_around_z(x, deg2rad(set.azimuth))
+    z = rotate_around_z(z, deg2rad(set.azimuth))
     R_b_w = R_cad_body' * hcat(x, z × x, z)
     Q_b_w = rotation_matrix_to_quaternion(R_b_w)
     return Q_b_w, R_b_w
 end
-

@@ -45,7 +45,7 @@ $(TYPEDFIELDS)
     guesses::Vector{Pair{Num, Real}} = Pair{Num, Real}[]
 
     set_set_values::Function       = () -> nothing
-    set_measure::Function          = () -> nothing
+    set_wind_dir::Function          = () -> nothing
     set_vsm::Function              = () -> nothing
     set_unknowns::Function         = () -> nothing
     set_nonstiff::Function         = () -> nothing
@@ -176,7 +176,7 @@ function SysState(s::RamAirKite, zoom=1.0)
 end
 
 """
-    init_sim!(s::RamAirKite, measure::Measurement; prn=true, precompile=false) -> Nothing
+    init_sim!(s::RamAirKite; prn=true, precompile=false) -> Nothing
 
 Initialize a kite power system model. 
 
@@ -186,7 +186,7 @@ and only update the state variables. Otherwise, it will create a new model from 
 # Fast path (serialized model exists):
 1. Loads existing ODEProblem from disk
 2. Calls `reinit!` to update state variables
-3. Sets up integrator with current measurements
+3. Sets up integrator with initial settings
 
 # Slow path (no serialized model):
 1. Creates symbolic MTK system with all equations
@@ -196,24 +196,23 @@ and only update the state variables. Otherwise, it will create a new model from 
 
 # Arguments
 - `s::RamAirKite`: The kite system state object  
-- `measure::Measurement`: Initial state measurements
 - `prn::Bool=true`: Whether to print progress information
 - `precompile::Bool=false`: Whether to build problem for precompilation
 
 # Returns
 `Nothing`
 """
-function init_sim!(s::RamAirKite, measure::Measurement;
+function init_sim!(s::RamAirKite;
     solver=ifelse(s.set.quasi_static, FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.6)), FBDF()), 
     adaptive=true, prn=true, precompile=false, remake=false, reload=false, lin_outputs=Num[]
 )
-    function init(s, measure)
-        init_Q_b_w, R_b_w = measure_to_q(measure, s.wing.R_cad_body)
+    function init(s)
+        init_Q_b_w, R_b_w = initial_orient(s.set, s.wing.R_cad_body)
         init!(s.point_system, s.set, R_b_w, init_Q_b_w)
 
         init_va_b = R_b_w' * [s.set.v_wind, 0., 0.]
         
-        inputs = create_sys!(s, s.point_system, measure; init_va_b)
+        inputs = create_sys!(s, s.point_system; init_va_b)
         prn && @info "Simplifying the system"
         prn ? (@time (sys, _) = structural_simplify(s.full_sys, (inputs, []))) :
             ((sys, _) = structural_simplify(sys, (inputs, [])))
@@ -235,21 +234,16 @@ function init_sim!(s::RamAirKite, measure::Measurement;
     end
     prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set; precompile))
     if !ispath(prob_path) || remake
-        init(s, measure)
+        init(s)
     end
-    success = reinit!(s, measure; solver, adaptive, precompile, reload, lin_outputs)
+    success = reinit!(s; solver, adaptive, precompile, reload, lin_outputs)
     if !success
         rm(prob_path)
         @info "Rebuilding the system. This can take some minutes..."
-        init(s, measure)
-        reinit!(s, measure; precompile, prn)
+        init(s)
+        reinit!(s; precompile, prn)
     end
     return nothing
-end
-
-
-function init_sim!(::RamAirKite; prn=true)
-    throw(ArgumentError("Use the function init_sim!(s::RamAirKite, measure::Measurement) instead."))
 end
 
 function linearize(s::RamAirKite; set_values=s.get_set_values(s.integrator))
@@ -270,14 +264,14 @@ This function performs the following operations:
    - Loads a serialized ODEProblem from disk
    - Initializes a new ODE integrator 
    - Generates getter/setter functions for the system
-2. Converts measurement data to quaternion orientation
+2. Converts initial settings to quaternion orientation
 3. Initializes the point mass system with new positions
 4. Sets initial values for all state variables
 5. Reinitializes the ODE integrator
 6. Updates the linearized aerodynamic model
 
 This is more efficient than `init!` as it reuses the existing model structure
-and only updates the state variables to match the current `measure`.
+and only updates the state variables to match the current initial settings.
 
 # Arguments
 - `s::RamAirKite`: The kite power system state object
@@ -290,7 +284,7 @@ and only updates the state variables to match the current `measure`.
 - `ArgumentError`: If no serialized problem exists (run `init_sim!` first)
 """
 function reinit!(
-    s::RamAirKite, measure::Measurement; 
+    s::RamAirKite; 
     solver=ifelse(s.set.quasi_static, FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.4, max_iter=1000)), FBDF()),
     adaptive=true,
     prn=true, 
@@ -300,7 +294,7 @@ function reinit!(
 )
     isnothing(s.point_system) && throw(ArgumentError("PointMassSystem not defined"))
 
-    init_Q_b_w, R_b_w = measure_to_q(measure, s.wing.R_cad_body)
+    init_Q_b_w, R_b_w = initial_orient(s.set, s.wing.R_cad_body)
     init!(s.point_system, s.set, R_b_w, init_Q_b_w)
     
     if isnothing(s.prob) || reload
@@ -344,7 +338,7 @@ function generate_getters!(s, sym_vec)
     ])
 
     set_set_values = setp(sys, sys.set_values)
-    set_measure = setp(sys, sys.measured_wind_dir_gnd)
+    set_wind_dir = setp(sys, sys.measured_wind_dir_gnd)
     set_vsm = setp(sys, vsm_sym)
     set_unknowns = setu(sys, sym_vec)
     set_nonstiff = setu(sys, get_nonstiff_unknowns(s))
@@ -385,7 +379,7 @@ function generate_getters!(s, sym_vec)
     get_pos = getu(sys, sys.pos)
 
     s.set_set_values = (integ, val) -> set_set_values(integ, val)
-    s.set_measure = (integ, val) -> set_measure(integ, val)
+    s.set_wind_dir = (integ, val) -> set_wind_dir(integ, val)
     s.set_vsm = (integ, val) -> set_vsm(integ, val)
     s.set_unknowns = (integ, val) -> set_unknowns(integ, val)
     s.set_nonstiff = (integ, val) -> set_nonstiff(integ, val)
@@ -430,12 +424,12 @@ function linearize_vsm!(s::RamAirKite, integ=s.integrator)
     nothing
 end
 
-function next_step!(s::RamAirKite, set_values=nothing; measure::Union{Measurement, Nothing}=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
+function next_step!(s::RamAirKite, set_values=nothing; wind_dir_gnd=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
     if (!isnothing(set_values)) 
         s.set_set_values(s.integrator, set_values)
     end
-    if (!isnothing(measure))
-        s.set_measure(s.integrator, measure.wind_dir_gnd)
+    if (!isnothing(wind_dir_gnd))
+        s.set_wind_dir(s.integrator, wind_dir_gnd)
     end
     if vsm_interval != 0 && s.iter % vsm_interval == 0
         linearize_vsm!(s)

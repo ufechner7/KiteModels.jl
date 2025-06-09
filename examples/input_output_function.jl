@@ -59,15 +59,10 @@ s.set.abs_tol = 1e-2
 s.set.rel_tol = 1e-2
 toc()
 
-# init_Q_b_w, R_b_w = KiteModels.measure_to_q(measure)
-# init_kite_pos = init!(s.point_system, s.set, R_b_w)
-# plot(s.point_system, 0.0; zoom=false, front=true)
-
-measure = Measurement()
+set_values = [-50.0, 0.0, 0.0]
 
 # Initialize at elevation
-measure.sphere_pos .= deg2rad.([70.0 70.0; 1.0 -1.0])
-KiteModels.init_sim!(s, measure; 
+KiteModels.init_sim!(s; 
     adaptive=false, remake=false, reload=true, 
     solver=FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.8, max_iter=1000))
 )
@@ -163,14 +158,14 @@ function plot_input_output_relations(step_fn, suffix)
 
     # Test steering input vs omega
     @info "Testing steering input response for $suffix..."
-    _, ω_steer_left, _ = test_response(s, steer_range, 2, step_fn, measure.set_values, ω_idxs)
-    _, ω_steer_right, _ = test_response(s, steer_range, 3, step_fn, measure.set_values, ω_idxs)
+    _, ω_steer_left, _ = test_response(s, steer_range, 2, step_fn, set_values, ω_idxs)
+    _, ω_steer_right, _ = test_response(s, steer_range, 3, step_fn, set_values, ω_idxs)
 
     # Test twist angle vs omega
     @info "Testing twist angle response for $suffix..."
     function step_with_twist(x, twist_val, _, p)
         p[5][twist_idx] = twist_val[1]  # Set twist angle directly in stiff state vector copy
-        return step_fn(x, measure.set_values, nothing, p)
+        return step_fn(x, set_values, nothing, p)
     end
     _, ω_twist, _ = test_response(s, twist_range, 1, step_with_twist, zeros(3), ω_idxs) # u0 is zeros(3) here, seems ok
 
