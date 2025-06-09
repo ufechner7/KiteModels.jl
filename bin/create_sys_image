@@ -20,6 +20,10 @@ while [[ $# -gt 0 ]]; do
             julia_version="$2"
             shift 2
             ;;
+        \+*)
+            julia_version="${1#+}"
+            shift
+            ;;
         *)
             echo "Invalid parameter! Use:"
             echo "./create_sys_image"
@@ -27,6 +31,8 @@ while [[ $# -gt 0 ]]; do
             echo "./create_sys_image --update"
             echo "or"
             echo "./create_sys_image --version 1.x"
+            echo "or"
+            echo "./create_sys_image +1.x"
             exit 1
             ;;
     esac
