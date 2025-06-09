@@ -65,6 +65,7 @@ $(TYPEDFIELDS)
     get_winch_force::Function      = () -> nothing
     get_spring_force::Function     = () -> nothing
     get_stabilize::Function        = () -> nothing
+    get_pos::Function              = () -> nothing
 
     prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
     integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Nothing} = nothing
@@ -381,6 +382,7 @@ function generate_getters!(s, sym_vec)
     get_winch_force = getu(sys, sys.winch_force)
     get_spring_force = getu(sys, sys.spring_force)
     get_stabilize = getp(sys, sys.stabilize)
+    get_pos = getu(sys, sys.pos)
 
     s.set_set_values = (integ, val) -> set_set_values(integ, val)
     s.set_measure = (integ, val) -> set_measure(integ, val)
@@ -400,6 +402,7 @@ function generate_getters!(s, sym_vec)
     s.get_winch_force = (integ) -> get_winch_force(integ)
     s.get_spring_force = (integ) -> get_spring_force(integ)
     s.get_stabilize = (integ) -> get_stabilize(integ)
+    s.get_pos = (integ) -> get_pos(integ)
     
     if !isnothing(s.lin_prob)
         set_lin_set_values = setp(s.lin_prob, sys.set_values)
@@ -594,3 +597,7 @@ tether_length(s::RamAirKite) = s.get_tether_length(s.integrator)
 calc_height(s::RamAirKite) = s.get_kite_pos(s.integrator)[3]
 winch_force(s::RamAirKite) = s.get_winch_force(s.integrator)
 spring_forces(s::RamAirKite) = s.get_spring_force(s.integrator)
+function pos(s::RamAirKite)
+    pos = s.get_pos(s.integrator)
+    return [pos[:,i] for i in eachindex(pos[1,:])]
+end
