@@ -65,7 +65,7 @@ lin_outputs = @variables heading(t)
 s.point_system.winches[2].tether_length += 0.2
 s.point_system.winches[3].tether_length += 0.2
 KiteModels.init_sim!(s; 
-    remake=true,
+    remake=false,
     reload=true,
     lin_outputs  # Specify which outputs to track in linear model
 )
@@ -94,4 +94,6 @@ s.integrator.ps[sys.stabilize] = false
 @info "System linearized with matrix dimensions:" A=size(A) B=size(B) C=size(C) D=size(D)
 
 sys = ss(A,B,C,D)
-bode_plot(sys[2,1]) # bode plot from left steering tether to heading
+bode_plot(sys[1,1]; from=1e-4)
+bode_plot(sys[1,2]; from=1e-4)
+bode_plot(sys[1,3]; from=1e-4)
