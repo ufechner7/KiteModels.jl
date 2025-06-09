@@ -6,24 +6,58 @@ if [[ $(basename $(pwd)) == "bin" ]]; then
     cd ..
 fi
 
-cd bin
-./create_sys_image --update
-
 julia_version=$(julia --version | awk '{print($3)}')
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --update)
+            update=true
+            shift
+            ;;
+        --version)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: --version requires a version argument"
+                exit 1
+            fi
+            julia_version="$2"
+            shift 2
+            ;;
+        \+*)
+            julia_version="${1#+}"
+            shift
+            ;;
+        *)
+            echo "Invalid parameter! Use:"
+            echo "./create_sys_image"
+            echo "or"
+            echo "./create_sys_image --update"
+            echo "or"
+            echo "./create_sys_image --version 1.x"
+            echo "or"
+            echo "./create_sys_image +1.x"
+            exit 1
+            ;;
+    esac
+done
+
 julia_major=${julia_version:0:3}
 if [[ $julia_major == "1.1" ]]; then
     julia_major=${julia_version:0:4} 
 fi
 
+./bin/create_sys_image --update --version "$julia_major"
+
 # TODO run tests
 
-cd ..
 if [[ $julia_major == "1.10" ]]; then
+    echo "Updating for version 1.10"
     cp Manifest-v1.10.toml Manifest-v1.10.toml.default
     rm -rf ~/.julia/compiled/v1.10/KiteModels/
     echo "Updated Manifest-v1.10.toml.default !"
     echo "Make sure to run the tests before committing the new version!"
 else
+    echo "Updating for version 1.11"
     cp Manifest-v1.11.toml Manifest-v1.11.toml.default
     rm -rf ~/.julia/compiled/v1.11/KiteModels/
     echo "Updated Manifest-v1.11.toml.default !"
