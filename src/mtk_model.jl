@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MPL-2.0
 
 # ==================== mtk model functions ================================================
-# Implementation of the ram air kite model using ModelingToolkit.jl
+# Implementation of the ram air wing model using ModelingToolkit.jl
 
 function calc_speed_acc(winch::AsyncMachine, tether_vel, norm_, set_speed)
     calc_acceleration(winch, tether_vel, norm_; set_speed, set_torque=nothing, use_brake=false) # TODO: add brake setting
@@ -15,8 +15,8 @@ function calc_heading(e_x)
     return atan(e_x[2], e_x[1])
 end
 
-function calc_angle_of_attack(va_kite_b)
-    return atan(va_kite_b[3], va_kite_b[1])
+function calc_angle_of_attack(va_wing_b)
+    return atan(va_wing_b[3], va_wing_b[1])
 end
 
 function sym_normalize(vec)
@@ -68,18 +68,18 @@ end
 """
     force_eqs!(s, system, eqs, defaults, guesses; kwargs...)
 
-Generate the force equations for the kite system including spring forces, drag forces,
+Generate the force equations for the wing system including spring forces, drag forces,
 pulley dynamics and winch forces.
 
 # Arguments
-- `s::SymbolicAWESystem`: The kite system state
+- `s::SymbolicAWESystem`: The wing system state
 - `system::PointMassSystem`: The point mass representation
 - `eqs`: Current system equations
 - `defaults`: Default values for variables
 - `guesses`: Initial guesses for variables
 - `R_b_w`: Body to world rotation matrix
-- `kite_pos`: Kite position vector
-- `kite_vel`: Kite velocity vector  
+- `wing_pos`: Kite position vector
+- `wing_vel`: Kite velocity vector  
 - `wind_vec_gnd`: Ground wind vector
 - `group_aero_moment`: Aerodynamic moments per group
 - `twist_angle`: Twist angles per group
@@ -90,11 +90,11 @@ Tuple containing:
 - Updated equations
 - Updated defaults
 - Updated guesses
-- Tether forces on kite
-- Tether moments on kite
+- Tether forces on wing
+- Tether moments on wing
 """
 function force_eqs!(s, system, eqs, defaults, guesses; 
-        R_b_w, kite_pos, kite_vel, wind_vec_gnd, group_aero_moment, twist_angle, twist_ω, stabilize, set_values, fix_nonstiff)
+        R_b_w, wing_pos, wing_vel, wind_vec_gnd, group_aero_moment, twist_angle, twist_ω, stabilize, set_values, fix_nonstiff)
 
     @parameters acc_multiplier = 1
 
@@ -107,8 +107,8 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         vel(t)[1:3, eachindex(points)]
         acc(t)[1:3, eachindex(points)]
         point_force(t)[1:3, eachindex(points)]
-        tether_kite_force(t)[1:3, eachindex(points)]
-        tether_kite_moment(t)[1:3, eachindex(points)]
+        tether_wing_force(t)[1:3, eachindex(points)]
+        tether_wing_moment(t)[1:3, eachindex(points)]
         tether_r(t)[1:3, eachindex(points)]
         point_mass(t)[eachindex(points)]
 
@@ -154,8 +154,8 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         if point.type !== KITE
             eqs = [
                 eqs
-                tether_kite_force[:, point.idx] ~ zeros(3)
-                tether_kite_moment[:, point.idx] ~ zeros(3)
+                tether_wing_force[:, point.idx] ~ zeros(3)
+                tether_wing_moment[:, point.idx] ~ zeros(3)
             ]
         end
 
@@ -179,21 +179,21 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                 pos_b = fixed_pos + cos(twist_angle[group_idx]) * chord_b - sin(twist_angle[group_idx]) * normal
                 eqs = [
                     eqs
-                    tether_kite_moment[:, point.idx] ~ zeros(3)
+                    tether_wing_moment[:, point.idx] ~ zeros(3)
                 ]
             else
                 pos_b = point.pos_b
                 eqs = [
                     eqs
-                    tether_r[:, point.idx] ~ pos[:, point.idx] - kite_pos
-                    tether_kite_moment[:, point.idx] ~ tether_r[:, point.idx] × tether_kite_force[:, point.idx]
+                    tether_r[:, point.idx] ~ pos[:, point.idx] - wing_pos
+                    tether_wing_moment[:, point.idx] ~ tether_r[:, point.idx] × tether_wing_force[:, point.idx]
                 ]
             end
             
             eqs = [
                 eqs
-                tether_kite_force[:, point.idx] ~ point_force[:, point.idx]
-                pos[:, point.idx]    ~ kite_pos + R_b_w * pos_b
+                tether_wing_force[:, point.idx] ~ point_force[:, point.idx]
+                pos[:, point.idx]    ~ wing_pos + R_b_w * pos_b
                 vel[:, point.idx]    ~ zeros(3)
                 acc[:, point.idx]    ~ zeros(3)
             ]
@@ -206,7 +206,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             ]
         elseif point.type == DYNAMIC
             p = pos[:, point.idx]
-            n = sym_normalize(kite_pos)
+            n = sym_normalize(wing_pos)
             n = n * (p ⋅ n)
             r = (p - n) # https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line#Vector_formulation
             @parameters bridle_damp = 1.0
@@ -214,7 +214,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             eqs = [
                 eqs
                 D(pos[:, point.idx]) ~ vel[:, point.idx]
-                D(vel[:, point.idx]) ~ acc_multiplier * acc[:, point.idx] - in_bridle * bridle_damp * (vel[:, point.idx] - kite_vel)
+                D(vel[:, point.idx]) ~ acc_multiplier * acc[:, point.idx] - in_bridle * bridle_damp * (vel[:, point.idx] - wing_vel)
                 acc[:, point.idx]    ~ point_force[:, point.idx] / mass + 
                                         [0, 0, -G_EARTH] + 
                                         ifelse.(stabilize==true, r * norm(measured_ω_z)^2, zeros(3)) # TODO: add other stabilize accelerations
@@ -523,51 +523,51 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         ]
     end
 
-    return eqs, defaults, guesses, tether_kite_force, tether_kite_moment
+    return eqs, defaults, guesses, tether_wing_force, tether_wing_moment
 end
 
 """
-    kite_eqs!(s, eqs, defaults; kwargs...)
+    wing_eqs!(s, eqs, defaults; kwargs...)
 
-Generate the differential equations for kite dynamics including quaternion kinematics,
+Generate the differential equations for wing dynamics including quaternion kinematics,
 angular velocities and accelerations, and forces/moments.
 
 # Arguments
-- `s::SymbolicAWESystem`: The kite system state
+- `s::SymbolicAWESystem`: The wing system state
 - `eqs`: Current system equations  
 - `defaults`: Default values for variables
-- `tether_kite_force`: Forces from tethers on kite
-- `tether_kite_moment`: Moments from tethers on kite
+- `tether_wing_force`: Forces from tethers on wing
+- `tether_wing_moment`: Moments from tethers on wing
 - `aero_force_b`: Aerodynamic forces in body frame
 - `aero_moment_b`: Aerodynamic moments in body frame
 - `ω_b`: Angular velocity in body frame
 - `R_b_w`: Body to world rotation matrix
-- `kite_pos`: Kite position vector
-- `kite_vel`: Kite velocity vector
-- `kite_acc`: Kite acceleration vector
+- `wing_pos`: Kite position vector
+- `wing_vel`: Kite velocity vector
+- `wing_acc`: Kite acceleration vector
 - `stabilize`: Whether in stabilize mode
 
 # Returns
 Tuple of updated equations and defaults
 """
-function kite_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero_force_b, 
-    aero_moment_b, ω_b, α_b, R_b_w, kite_pos, kite_vel, kite_acc, stabilize, fix_nonstiff
+function wing_eqs!(s, eqs, defaults; tether_wing_force, tether_wing_moment, aero_force_b, 
+    aero_moment_b, ω_b, α_b, R_b_w, wing_pos, wing_vel, wing_acc, stabilize, fix_nonstiff
 )
-    kites = s.point_system.kites
+    wings = s.point_system.wings
     @variables begin
         # potential differential variables
-        kite_acc_b(t)[eachindex(kites), 1:3]
-        α_b_damped(t)[eachindex(kites), 1:3]
-        ω_b_stable(t)[eachindex(kites), 1:3]
+        wing_acc_b(t)[eachindex(wings), 1:3]
+        α_b_damped(t)[eachindex(wings), 1:3]
+        ω_b_stable(t)[eachindex(wings), 1:3]
 
         # rotations and frames
-        Q_b_w(t)[eachindex(kites), 1:4] # quaternion orientation of the kite body frame relative to the world frame
-        Q_vel(t)[eachindex(kites), 1:4] # quaternion rate of change
+        Q_b_w(t)[eachindex(wings), 1:4] # quaternion orientation of the wing body frame relative to the world frame
+        Q_vel(t)[eachindex(wings), 1:4] # quaternion rate of change
 
         # rest: forces, moments, vectors and scalar values
-        moment_b(t)[eachindex(kites), 1:3] # moment in principal frame
-        total_tether_kite_force(t)[eachindex(kites), 1:3]
-        total_tether_kite_moment(t)[eachindex(kites), 1:3]
+        moment_b(t)[eachindex(wings), 1:3] # moment in principal frame
+        total_tether_wing_force(t)[eachindex(wings), 1:3]
+        total_tether_wing_moment(t)[eachindex(wings), 1:3]
     end
     @parameters ω_damp = 150
 
@@ -576,10 +576,10 @@ function kite_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero
             ω[2]   -ω[3]   0      ω[1];
             ω[3]    ω[2]  -ω[1]   0]
 
-    for kite in kites
-        I_b = [s.wings[kite.idx].inertia_tensor[1,1], s.wings[kite.idx].inertia_tensor[2,2], s.wings[kite.idx].inertia_tensor[3,3]]
+    for wing in wings
+        I_b = [s.wings[wing.idx].inertia_tensor[1,1], s.wings[wing.idx].inertia_tensor[2,2], s.wings[wing.idx].inertia_tensor[3,3]]
         @assert !(s.set.mass ≈ 0)
-        axis = sym_normalize(kite_pos)
+        axis = sym_normalize(wing_pos)
         axis_b = R_b_w' * axis
         eqs = [
             eqs
@@ -606,40 +606,40 @@ function kite_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero
             α_b[1] ~ (moment_b[1] + (I_b[2] - I_b[3]) * ω_b[2] * ω_b[3]) / I_b[1]
             α_b[2] ~ (moment_b[2] + (I_b[3] - I_b[1]) * ω_b[3] * ω_b[1]) / I_b[2]
             α_b[3] ~ (moment_b[3] + (I_b[1] - I_b[2]) * ω_b[1] * ω_b[2]) / I_b[3]
-            total_tether_kite_moment ~ [sum(tether_kite_moment[i, :]) for i in 1:3]
-            moment_b ~ aero_moment_b + R_b_w' * total_tether_kite_moment
+            total_tether_wing_moment ~ [sum(tether_wing_moment[i, :]) for i in 1:3]
+            moment_b ~ aero_moment_b + R_b_w' * total_tether_wing_moment
             
-            D(kite_pos) ~ ifelse.(fix_nonstiff==true,
+            D(wing_pos) ~ ifelse.(fix_nonstiff==true,
                 zeros(3),
                 ifelse.(stabilize==true,
-                    kite_vel ⋅ axis * axis,
-                    kite_vel
+                    wing_vel ⋅ axis * axis,
+                    wing_vel
                 )
             )
-            D(kite_vel) ~ ifelse.(fix_nonstiff==true,
+            D(wing_vel) ~ ifelse.(fix_nonstiff==true,
                 zeros(3),
                 ifelse.(stabilize==true,
-                    kite_acc ⋅ axis * axis,
-                    kite_acc
+                    wing_acc ⋅ axis * axis,
+                    wing_acc
                 )
             )
-            kite_acc ~ (total_tether_kite_force + R_b_w * aero_force_b) / s.set.mass
-            total_tether_kite_force ~ [sum(tether_kite_force[i, :]) for i in 1:3]
+            wing_acc ~ (total_tether_wing_force + R_b_w * aero_force_b) / s.set.mass
+            total_tether_wing_force ~ [sum(tether_wing_force[i, :]) for i in 1:3]
         ]
         defaults = [
             defaults
-            [Q_b_w[i] => kite.orient[i] for i in 1:4]
-            [ω_b[i] => kite.angular_vel[i] for i in 1:3]
-            [kite_pos[i] => kite.pos[i] for i in 1:3]
-            [kite_vel[i] => kite.vel[i] for i in 1:3]
+            [Q_b_w[i] => wing.orient[i] for i in 1:4]
+            [ω_b[i] => wing.angular_vel[i] for i in 1:3]
+            [wing_pos[i] => wing.pos[i] for i in 1:3]
+            [wing_vel[i] => wing.vel[i] for i in 1:3]
         ]
     end
     
     return eqs, defaults
 end
 
-function calc_R_v_w(kite_pos, e_x)
-    z = sym_normalize(kite_pos)
+function calc_R_v_w(wing_pos, e_x)
+    z = sym_normalize(wing_pos)
     y = sym_normalize(z × e_x)
     x = y × z
     return [x y z]
@@ -653,19 +653,19 @@ function calc_R_t_w(elevation, azimuth)
 end
 
 """
-    scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc, twist_angle, twist_ω)
+    scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_wing_b, wing_pos, wing_vel, wing_acc, twist_angle, twist_ω)
 
 Generate equations for scalar quantities like elevation, azimuth, heading and course angles.
     
     # Arguments
-    - `s::SymbolicAWESystem`: The kite system state
+    - `s::SymbolicAWESystem`: The wing system state
     - `eqs`: Current system equations
     - `R_b_w`: Body to world rotation matrix
     - `wind_vec_gnd`: Ground wind vector
-    - `va_kite_b`: Apparent wind velocity in body frame
-    - `kite_pos`: Kite position vector
-    - `kite_vel`: Kite velocity vector
-    - `kite_acc`: Kite acceleration vector
+    - `va_wing_b`: Apparent wind velocity in body frame
+    - `wing_pos`: Kite position vector
+    - `wing_vel`: Kite velocity vector
+    - `wing_acc`: Kite acceleration vector
     
     # Returns
     - Updated system equations including:
@@ -675,15 +675,15 @@ Generate equations for scalar quantities like elevation, azimuth, heading and co
     - Course angle
     - Angular velocities and accelerations
     """
-function scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc, twist_angle, twist_ω, ω_b, α_b)
+function scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_wing_b, wing_pos, wing_vel, wing_acc, twist_angle, twist_ω, ω_b, α_b)
     @parameters wind_scale_gnd = s.set.v_wind
     @parameters upwind_dir = deg2rad(s.set.upwind_dir)
     @variables begin
         e_x(t)[1:3]
         e_y(t)[1:3]
         e_z(t)[1:3]
-        wind_vel_kite(t)[1:3]
-        va_kite(t)[1:3]
+        wind_vel_wing(t)[1:3]
+        va_wing(t)[1:3]
     end
     eqs = [
         eqs
@@ -691,9 +691,9 @@ function scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel,
         e_y     ~ R_b_w[:,2]
         e_z     ~ R_b_w[:,3]
         wind_vec_gnd ~ wind_scale_gnd * rotate_around_z([0, -1, 0], -upwind_dir)
-        wind_vel_kite ~ AtmosphericModels.calc_wind_factor(s.am, kite_pos[3], s.set.profile_law) * wind_vec_gnd
-        va_kite ~ wind_vel_kite - kite_vel
-        va_kite_b ~ R_b_w' * va_kite
+        wind_vel_wing ~ AtmosphericModels.calc_wind_factor(s.am, wing_pos[3], s.set.profile_law) * wind_vec_gnd
+        va_wing ~ wind_vel_wing - wing_vel
+        va_wing_b ~ R_b_w' * va_wing
     ]
     @variables begin
         heading(t)
@@ -721,23 +721,23 @@ function scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel,
         distance_acc(t)
     end
 
-    x, y, z = kite_pos
-    x´, y´, z´ = kite_vel
-    x´´, y´´, z´´ = kite_acc
+    x, y, z = wing_pos
+    x´, y´, z´ = wing_vel
+    x´´, y´´, z´´ = wing_acc
 
     half_len = length(twist_angle)÷2
     heading_vec = R_t_w' * R_v_w[:,1]
 
     eqs = [
         eqs
-        vec(R_v_w)     .~ vec(calc_R_v_w(kite_pos, e_x))
+        vec(R_v_w)     .~ vec(calc_R_v_w(wing_pos, e_x))
         vec(R_t_w)     .~ vec(calc_R_t_w(elevation, azimuth))
         heading         ~ atan(heading_vec[2], heading_vec[1])
         turn_rate       ~ R_v_w' * (R_b_w * ω_b) # Project angular velocity onto view frame
         turn_acc        ~ R_v_w' * (R_b_w * α_b)
-        distance        ~ norm(kite_pos)
-        distance_vel    ~ kite_vel ⋅ R_v_w[:,3]
-        distance_acc    ~ kite_acc ⋅ R_v_w[:,3]
+        distance        ~ norm(wing_pos)
+        distance_vel    ~ wing_vel ⋅ R_v_w[:,3]
+        distance_acc    ~ wing_acc ⋅ R_v_w[:,3]
 
         elevation           ~ atan(z / x)
         # elevation_vel = d/dt(atan(z/x)) = (x*ż' - z*ẋ')/(x^2 + z^2) according to wolframalpha
@@ -750,10 +750,10 @@ function scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel,
                                 (x^2 + y^2)
         azimuth_acc         ~ ((x^2 + y^2)*(-y*x´´ + x*y´´) + 2(y*x´ - x*y´)*(x*x´ + y*y´))/(x^2 + y^2)^2
         course              ~ atan(-azimuth_vel, elevation_vel)
-        x_acc               ~ kite_acc ⋅ e_x
-        y_acc               ~ kite_acc ⋅ e_y
+        x_acc               ~ wing_acc ⋅ e_x
+        y_acc               ~ wing_acc ⋅ e_y
 
-        angle_of_attack     ~ calc_angle_of_attack(va_kite_b) + 0.5twist_angle[half_len] + 0.5twist_angle[half_len+1]
+        angle_of_attack     ~ calc_angle_of_attack(va_wing_b) + 0.5twist_angle[half_len] + 0.5twist_angle[half_len+1]
         simple_twist_angle[1] ~ sum(twist_angle[1:half_len]) / half_len
         simple_twist_angle[2] ~ sum(twist_angle[half_len+1:end]) / half_len
         simple_twist_ω[1] ~ sum(twist_ω[1:half_len]) / half_len
@@ -763,21 +763,21 @@ function scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel,
 end
 
 """
-linear_vsm_eqs!(s, eqs; aero_force_b, aero_moment_b, group_aero_moment, init_va_b, twist_angle, va_kite_b, ω_b)
+linear_vsm_eqs!(s, eqs; aero_force_b, aero_moment_b, group_aero_moment, init_va_b, twist_angle, va_wing_b, ω_b)
 
 Generate linearized aerodynamic equations using the Vortex Step Method (VSM).
 Uses linearization around current operating point to approximate aerodynamic forces
 and moments. The Jacobian is computed using the VSM solver.
 
 # Arguments
-- `s::SymbolicAWESystem`: The kite system state
+- `s::SymbolicAWESystem`: The wing system state
 - `eqs`: Current system equations
 - `aero_force_b`: Aerodynamic forces in body frame
 - `aero_moment_b`: Aerodynamic moments in body frame 
 - `group_aero_moment`: Aerodynamic moments per group
 - `init_va_b`: Initial apparent wind velocity
 - `twist_angle`: Twist angles per group
-- `va_kite_b`: Apparent wind velocity in body frame
+- `va_wing_b`: Apparent wind velocity in body frame
 - `ω_b`: Angular velocity in body frame
 
 # Returns
@@ -786,8 +786,8 @@ and moments. The Jacobian is computed using the VSM solver.
 - Group moment distributions
 - Jacobian matrix for state derivatives
 """
-function linear_vsm_eqs!(s, eqs, guesses; aero_force_b, aero_moment_b, group_aero_moment, init_va_b, twist_angle, va_kite_b, ω_b)
-    sol = s.vsm_solver.sol
+function linear_vsm_eqs!(s, eqs, guesses; aero_force_b, aero_moment_b, group_aero_moment, init_va_b, twist_angle, va_wing_b, ω_b)
+    sol = s.vsm_solvers[1].sol
     @assert length(s.point_system.groups) == length(sol.group_moment_dist)
 
     y_ = [init_va_b; zeros(length(s.point_system.groups)); zeros(3)]
@@ -807,7 +807,7 @@ function linear_vsm_eqs!(s, eqs, guesses; aero_force_b, aero_moment_b, group_aer
 
     eqs = [
         eqs
-        y ~ [va_kite_b; ω_b; twist_angle]
+        y ~ [va_wing_b; ω_b; twist_angle]
         dy ~ y - last_y
         [aero_force_b; aero_moment_b; group_aero_moment] ~ last_x + vsm_jac * dy
     ]
@@ -831,14 +831,14 @@ function create_sys!(s::SymbolicAWESystem, system::PointMassSystem; init_va_b)
     @variables begin
         # potential differential variables
         set_values(t)[eachindex(system.winches)] = zeros(length(system.winches))
-        kite_pos(t)[1:3] # xyz pos of kite in world frame
-        kite_vel(t)[1:3]
-        kite_acc(t)[1:3]
+        wing_pos(t)[1:3] # xyz pos of wing in world frame
+        wing_vel(t)[1:3]
+        wing_acc(t)[1:3]
         ω_b(t)[1:3] # turn rate in principal frame
         α_b(t)[1:3]
 
         # rotations and frames
-        R_b_w(t)[1:3, 1:3] # rotation of the kite body frame relative to the world frame
+        R_b_w(t)[1:3, 1:3] # rotation of the wing body frame relative to the world frame
 
         # rest: forces, moments, vectors and scalar values
         aero_force_b(t)[1:3]
@@ -847,16 +847,16 @@ function create_sys!(s::SymbolicAWESystem, system::PointMassSystem; init_va_b)
         twist_ω(t)[eachindex(system.groups)]
         group_aero_moment(t)[eachindex(system.groups)]
         wind_vec_gnd(t)[1:3]
-        va_kite_b(t)[1:3]
+        va_wing_b(t)[1:3]
     end
 
-    eqs, defaults, guesses, tether_kite_force, tether_kite_moment = 
+    eqs, defaults, guesses, tether_wing_force, tether_wing_moment = 
         force_eqs!(s, system, eqs, defaults, guesses; 
-            R_b_w, kite_pos, kite_vel, wind_vec_gnd, group_aero_moment, twist_angle, twist_ω, stabilize, set_values, fix_nonstiff)
-    eqs, guesses = linear_vsm_eqs!(s, eqs, guesses; aero_force_b, aero_moment_b, group_aero_moment, init_va_b, twist_angle, va_kite_b, ω_b)
-    eqs, defaults = kite_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero_force_b, aero_moment_b, 
-        ω_b, α_b, R_b_w, kite_pos, kite_vel, kite_acc, stabilize, fix_nonstiff)
-    eqs = scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc, twist_angle, twist_ω, ω_b, α_b)
+            R_b_w, wing_pos, wing_vel, wind_vec_gnd, group_aero_moment, twist_angle, twist_ω, stabilize, set_values, fix_nonstiff)
+    eqs, guesses = linear_vsm_eqs!(s, eqs, guesses; aero_force_b, aero_moment_b, group_aero_moment, init_va_b, twist_angle, va_wing_b, ω_b)
+    eqs, defaults = wing_eqs!(s, eqs, defaults; tether_wing_force, tether_wing_moment, aero_force_b, aero_moment_b, 
+        ω_b, α_b, R_b_w, wing_pos, wing_vel, wing_acc, stabilize, fix_nonstiff)
+    eqs = scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_wing_b, wing_pos, wing_vel, wing_acc, twist_angle, twist_ω, ω_b, α_b)
     
     # te_I = (1/3 * (s.set.mass/8) * te_length^2)
     # # -damping / I * ω = α_damping

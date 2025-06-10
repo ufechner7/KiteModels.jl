@@ -35,7 +35,7 @@ Enumeration of the models that are attached to a point.
 # Elements
 - DYNAMIC: Belongs to a dynamic tether model
 - QUASI_STATIC: Belongs to a quasi static tether model
-- KITE: Connected to the rigid kite body
+- KITE: Connected to the rigid wing body
 - STATIC: Does not change position
 """
 @enum DynamicsType begin
@@ -54,13 +54,14 @@ $(TYPEDFIELDS)
 """
 mutable struct Point
     idx::Int16
-    pos_b::KVec3 # pos relative to kite COM in body frame
+    pos_b::KVec3 # pos relative to wing COM in body frame
     pos_w::KVec3 # pos in world frame
     vel_w::KVec3 # vel in world frame
     type::DynamicsType
+    wing::Int16
 end
-function Point(idx, pos_b, type, vel_w=zeros(KVec3))
-    Point(idx, pos_b, copy(pos_b), vel_w, type)
+function Point(idx, pos_b, type; vel_w=zeros(KVec3), wing=1)
+    Point(idx, pos_b, copy(pos_b), vel_w, type, wing)
 end
 
 """
@@ -73,9 +74,9 @@ $(TYPEDFIELDS)
 mutable struct Group
     idx::Int16
     points::Vector{Int16}
-    le_pos::KVec3 # point which the group rotates around under kite deformation
-    chord::KVec3 # chord vector in body frame which the group rotates around under kite deformation
-    y_airf::KVec3 # spanwise vector in local panel frame which the group rotates around under kite deformation
+    le_pos::KVec3 # point which the group rotates around under wing deformation
+    chord::KVec3 # chord vector in body frame which the group rotates around under wing deformation
+    y_airf::KVec3 # spanwise vector in local panel frame which the group rotates around under wing deformation
     type::DynamicsType
     moment_frac::SimFloat
     twist::SimFloat
@@ -103,7 +104,7 @@ mutable struct Segment
     compression_frac::SimFloat
     diameter::SimFloat
 end
-function Segment(idx, points, type, l0=zero(SimFloat), compression_frac=0.1)
+function Segment(idx, points, type; l0=zero(SimFloat), compression_frac=0.1)
     Segment(idx, points, type, l0, compression_frac, zero(SimFloat))
 end
 
@@ -157,7 +158,8 @@ mutable struct Winch
     end
 end
 
-@with_kw struct Kite
+@with_kw struct Wing
+    idx::Int16
     orient::KVec4 = zeros(KVec4)
     angular_vel::KVec3 = zeros(KVec3)
     pos::KVec3 = zeros(KVec3)
@@ -171,11 +173,11 @@ A discrete mass-spring-damper representation of a kite system, where point masse
 connected by elastic segments model the kite and tether dynamics:
 
 - `points::Vector{Point}`: Point masses representing:
-  - Kite attachment points 
+  - Wing attachment points 
   - Dynamic bridle/tether points
   - Fixed ground anchor points
 - `groups::Vector{Group}`: Collections of points that move together, 
-    according to kite deformation (twist and trailing edge deflection)
+    according to wing deformation (twist and trailing edge deflection)
 - `segments::Vector{Segment}`: Spring-damper elements between points
 - `pulleys::Vector{Pulley}`: Elements that redistribute line lengths
 - `tethers::Vector{Tether}`: Groups of segments with a common unstretched length
@@ -191,7 +193,7 @@ struct PointMassSystem
     pulleys::Vector{Pulley}
     tethers::Vector{Tether}
     winches::Vector{Winch}
-    kites::Vector{Kite}
+    wings::Vector{Wing}
     function PointMassSystem(name; 
             points=Point[], 
             groups=Group[], 
@@ -199,7 +201,7 @@ struct PointMassSystem
             pulleys=Pulley[], 
             tethers=Tether[], 
             winches=Winch[], 
-            kites=Kite[Kite()]
+            kites=Wing[Wing(1)]
         )
         for (i, point) in enumerate(points)
             @assert point.idx == i
@@ -491,24 +493,34 @@ function init!(system::PointMassSystem, set::Settings, R_b_w, Q_b_w)
         end
     end
     for point in points
-        point.pos_w .= R_b_w * (point.pos_b .- min_point)
+        point.pos_w .= R_b_w[point.wing] * (point.pos_b .- min_point)
         point.vel_w .= 0.0
     end
-    kite.pos .= R_b_w * -min_point
-    kite.orient .= Q_b_w
-    kite.vel .= 0.0
-    kite.angular_vel .= 0.0
+    for wing in wings
+        wing.pos .= R_b_w[wing.idx] * -min_point
+        wing.orient .= Q_b_w[wing.idx]
+        wing.vel .= 0.0
+        wing.angular_vel .= 0.0
+    end
     return nothing
 end
 
-function initial_orient(set::Settings, R_cad_body=I(3))
-    x = [0, 0, -1] # laying flat along x axis
-    z = [1, 0, 0] # laying flat along x axis
-    x = rotate_around_y(x, -deg2rad(set.elevation))
-    z = rotate_around_y(z, -deg2rad(set.elevation))
-    x = rotate_around_z(x, deg2rad(set.azimuth))
-    z = rotate_around_z(z, deg2rad(set.azimuth))
-    R_b_w = R_cad_body' * hcat(x, z × x, z)
-    Q_b_w = rotation_matrix_to_quaternion(R_b_w)
-    return Q_b_w, R_b_w
+function initial_orient(s::RamAirKite)
+    s.set, s.wings[1].R_cad_body
+    set = s.set
+    wings = s.point_system.wings
+    R_b_w = [zeros(3,3) for _ in eachindex(wings)]
+    Q_b_w = [zeros(4) for _ in eachindex(wings)]
+    for wing in wings
+        R_cad_body = wing.R_cad_body
+        x = [0, 0, -1] # laying flat along x axis
+        z = [1, 0, 0] # laying flat along x axis
+        x = rotate_around_y(x, -deg2rad(set.elevation))
+        z = rotate_around_y(z, -deg2rad(set.elevation))
+        x = rotate_around_z(x, deg2rad(set.azimuth))
+        z = rotate_around_z(z, deg2rad(set.azimuth))
+        R_b_w[wing.idx] = R_cad_body' * hcat(x, z × x, z)
+        Q_b_w[wing.idx] = rotation_matrix_to_quaternion(R_b_w)
+    end
+    return Q_b_w
 end

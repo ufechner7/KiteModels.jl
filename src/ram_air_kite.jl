@@ -18,11 +18,11 @@ $(TYPEDFIELDS)
     "Reference to the settings struct"
     set::Settings
     "Reference to the geometric wing model"
-    wing::VortexStepMethod.RamAirWing
+    wings::Vector{VortexStepMethod.RamAirWing}
     "Reference to the aerodynamic wing model"
-    aero::VortexStepMethod.BodyAerodynamics
+    aeros::Vector{VortexStepMethod.BodyAerodynamics}
     "Reference to the VSM aerodynamics solver"
-    vsm_solver::VortexStepMethod.Solver
+    vsm_solvers::Vector{VortexStepMethod.Solver}
     "Reference to the point mass system with points, segments, pulleys and tethers"
     point_system::PointMassSystem
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
@@ -207,7 +207,7 @@ function init_sim!(s::SymbolicAWESystem;
     adaptive=true, prn=true, precompile=false, remake=false, reload=false, lin_outputs=Num[]
 )
     function init(s)
-        init_Q_b_w, R_b_w = initial_orient(s.set, s.wing.R_cad_body)
+        init_Q_b_w, R_b_w = initial_orient(s)
         init!(s.point_system, s.set, R_b_w, init_Q_b_w)
 
         init_va_b = R_b_w' * [s.set.v_wind, 0., 0.]
@@ -294,7 +294,7 @@ function reinit!(
 )
     isnothing(s.point_system) && throw(ArgumentError("PointMassSystem not defined"))
 
-    init_Q_b_w, R_b_w = initial_orient(s.set, s.wing.R_cad_body)
+    init_Q_b_w, R_b_w = initial_orient(s)
     init!(s.point_system, s.set, R_b_w, init_Q_b_w)
     
     if isnothing(s.prob) || reload
@@ -413,8 +413,8 @@ end
 function linearize_vsm!(s::SymbolicAWESystem, integ=s.integrator)
     y = s.get_y(integ)
     jac, x = VortexStepMethod.linearize(
-        s.vsm_solver, 
-        s.aero, 
+        s.vsm_solvers[1], 
+        s.aeros[1], 
         y;
         va_idxs=1:3, 
         omega_idxs=4:6,
@@ -459,7 +459,7 @@ end
 Calculate and return the angle of attack in rad
 """
 function calc_aoa(s::SymbolicAWESystem)
-    alpha_array = s.vsm_solver.sol.alpha_array
+    alpha_array = s.vsm_solvers[1].sol.alpha_array
     middle = length(alpha_array) ÷ 2
     if iseven(length(alpha_array))
         return 0.5alpha_array[middle] + 0.5alpha_array[middle+1]
