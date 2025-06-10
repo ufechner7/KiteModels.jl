@@ -12,7 +12,7 @@ system:
 initial:
     l_tethers: [50.0, 50.0, 50.0]  # initial tether length       [m]
     elevation: 70.8                # initial elevation angle   [deg]
-    v_reel_out: 0.0                # initial reel out speed    [m/s]
+    v_reel_outs: [0.0, 0.0, 0.0]   # initial reel out speed    [m/s]
 
 solver:
     abs_tol: 0.01          # absolute tolerance of the DAE solver [m, m/s]
