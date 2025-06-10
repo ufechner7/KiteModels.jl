@@ -27,55 +27,16 @@ $(TYPEDFIELDS)
     point_system::PointMassSystem
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
-    "tether positions"
-    pos::Matrix{S} = zeros(S, 3, P)
-    "unstressed segment lengths of the three tethers [m]"
-    segment_lengths::V =           zeros(S, 3)
     "relative start time of the current time interval"
     t_0::S =               0.0
-    "unstretched tether length"
-    tether_lengths::V =          zeros(S, 3)
-    "air density at the height of the kite"
-    rho::S =               0.0
-    "tether masses"
-    masses::V         = zeros(S, P)
-    "unit spring coefficient"
-    c_spring::V = zeros(S, 3)
-    "unit damping coefficient"
-    damping::V = zeros(S, 3)
     "whether or not to use torque control instead of speed control"
     torque_control::Bool = false
-    "x vector of kite reference frame"
-    e_x::V =                 zeros(S, 3)
-    "y vector of kite reference frame"
-    e_y::V =                 zeros(S, 3)
-    "z vector of kite reference frame"
-    e_z::V =                 zeros(S, 3)
     "Simplified system of the mtk model"
     sys::Union{ModelingToolkit.ODESystem, Nothing} = nothing
     "Unsimplified system of the mtk model"
     full_sys::Union{ModelingToolkit.ODESystem, Nothing} = nothing
     "Linearization function of the mtk model"
     lin_prob::Union{ModelingToolkit.LinearizationProblem, Nothing} = nothing
-    "Velocity of the kite"
-    vel_kite::V =           zeros(S, 3)
-    "Inertia around kite x y and z axis of the body frame"
-    I_b::V = zeros(S, 3)
-    "Initialization values for kite state"
-    u0map::Union{Vector{Pair{Num, S}}, Nothing} = nothing
-    "Initialization values for kite parameters"
-    p0map::Union{Vector{Pair{Num, S}}, Nothing} = nothing
-    "X coordinate on normalized 2d foil of bridle attachments"
-    bridle_fracs::V = [0.088, 0.31, 0.58, 0.93]
-    crease_frac::S = 0.82
-    "The top bridle points that are not on the kite, in CAD frame"
-    top_bridle_points::Vector{V} = [[0.290199, 0.784697, -2.61305], [0.392683, 0.785271, -2.61201], [0.498202, 0.786175, -2.62148], [0.535543, 0.786175, -2.62148]]
-    "Tether diameter of tethers in bridle system [mm]"
-    bridle_tether_diameter::SimFloat = 2.
-    "Tether diameter of the power tethers [mm]"
-    power_tether_diameter::SimFloat = 2.
-    "Tether diameter of the steering tethers [mm]"
-    steering_tether_diameter::SimFloat = 1.
     "Number of solve! calls"
     iter::Int64 = 0
 
@@ -84,19 +45,27 @@ $(TYPEDFIELDS)
     guesses::Vector{Pair{Num, Real}} = Pair{Num, Real}[]
 
     set_set_values::Function       = () -> nothing
-    set_measure::Function          = () -> nothing
+    set_wind_dir::Function          = () -> nothing
     set_vsm::Function              = () -> nothing
     set_unknowns::Function         = () -> nothing
     set_nonstiff::Function         = () -> nothing
-    set_lin_vsm::Function              = () -> nothing
-    set_lin_set_values::Function       = () -> nothing
-    set_lin_unknowns::Function          = () -> nothing
+    set_lin_vsm::Function          = () -> nothing
+    set_lin_set_values::Function   = () -> nothing
+    set_lin_unknowns::Function     = () -> nothing
+    set_stabilize::Function        = () -> nothing
     
     get_vsm::Function              = () -> nothing
     get_set_values::Function       = () -> nothing
     get_unknowns::Function         = () -> nothing
     get_state::Function            = () -> nothing
     get_y::Function                = () -> nothing
+    get_unstretched_length::Function = () -> nothing
+    get_tether_length::Function    = () -> nothing
+    get_kite_pos::Function         = () -> nothing
+    get_winch_force::Function      = () -> nothing
+    get_spring_force::Function     = () -> nothing
+    get_stabilize::Function        = () -> nothing
+    get_pos::Function              = () -> nothing
 
     prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
     integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Nothing} = nothing
@@ -207,7 +176,7 @@ function SysState(s::RamAirKite, zoom=1.0)
 end
 
 """
-    init_sim!(s::RamAirKite, measure::Measurement; prn=true, precompile=false) -> Nothing
+    init_sim!(s::RamAirKite; prn=true, precompile=false) -> Nothing
 
 Initialize a kite power system model. 
 
@@ -217,7 +186,7 @@ and only update the state variables. Otherwise, it will create a new model from 
 # Fast path (serialized model exists):
 1. Loads existing ODEProblem from disk
 2. Calls `reinit!` to update state variables
-3. Sets up integrator with current measurements
+3. Sets up integrator with initial settings
 
 # Slow path (no serialized model):
 1. Creates symbolic MTK system with all equations
@@ -227,24 +196,23 @@ and only update the state variables. Otherwise, it will create a new model from 
 
 # Arguments
 - `s::RamAirKite`: The kite system state object  
-- `measure::Measurement`: Initial state measurements
 - `prn::Bool=true`: Whether to print progress information
 - `precompile::Bool=false`: Whether to build problem for precompilation
 
 # Returns
 `Nothing`
 """
-function init_sim!(s::RamAirKite, measure::Measurement;
-    solver=ifelse(s.set.quasi_static, FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.4, max_iter=1000)), FBDF()), 
+function init_sim!(s::RamAirKite;
+    solver=ifelse(s.set.quasi_static, FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.6)), FBDF()), 
     adaptive=true, prn=true, precompile=false, remake=false, reload=false, lin_outputs=Num[]
 )
-    function init(s, measure)
-        init_Q_b_w, R_b_w = measure_to_q(measure, s.wing.R_cad_body)
+    function init(s)
+        init_Q_b_w, R_b_w = initial_orient(s.set, s.wing.R_cad_body)
         init!(s.point_system, s.set, R_b_w, init_Q_b_w)
 
         init_va_b = R_b_w' * [s.set.v_wind, 0., 0.]
         
-        inputs = create_sys!(s, s.point_system, measure; init_va_b)
+        inputs = create_sys!(s, s.point_system; init_va_b)
         prn && @info "Simplifying the system"
         prn ? (@time (sys, _) = structural_simplify(s.full_sys, (inputs, []))) :
             ((sys, _) = structural_simplify(sys, (inputs, [])))
@@ -266,21 +234,16 @@ function init_sim!(s::RamAirKite, measure::Measurement;
     end
     prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set; precompile))
     if !ispath(prob_path) || remake
-        init(s, measure)
+        init(s)
     end
-    success = reinit!(s, measure; solver, adaptive, precompile, reload, lin_outputs)
+    success = reinit!(s; solver, adaptive, precompile, reload, lin_outputs)
     if !success
         rm(prob_path)
         @info "Rebuilding the system. This can take some minutes..."
-        init(s, measure)
-        reinit!(s, measure; precompile, prn)
+        init(s)
+        reinit!(s; precompile, prn)
     end
     return nothing
-end
-
-
-function init_sim!(::RamAirKite; prn=true)
-    throw(ArgumentError("Use the function init_sim!(s::RamAirKite, measure::Measurement) instead."))
 end
 
 function linearize(s::RamAirKite; set_values=s.get_set_values(s.integrator))
@@ -301,14 +264,14 @@ This function performs the following operations:
    - Loads a serialized ODEProblem from disk
    - Initializes a new ODE integrator 
    - Generates getter/setter functions for the system
-2. Converts measurement data to quaternion orientation
+2. Converts initial settings to quaternion orientation
 3. Initializes the point mass system with new positions
 4. Sets initial values for all state variables
 5. Reinitializes the ODE integrator
 6. Updates the linearized aerodynamic model
 
 This is more efficient than `init!` as it reuses the existing model structure
-and only updates the state variables to match the current `measure`.
+and only updates the state variables to match the current initial settings.
 
 # Arguments
 - `s::RamAirKite`: The kite power system state object
@@ -321,7 +284,7 @@ and only updates the state variables to match the current `measure`.
 - `ArgumentError`: If no serialized problem exists (run `init_sim!` first)
 """
 function reinit!(
-    s::RamAirKite, measure::Measurement; 
+    s::RamAirKite; 
     solver=ifelse(s.set.quasi_static, FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.4, max_iter=1000)), FBDF()),
     adaptive=true,
     prn=true, 
@@ -331,7 +294,7 @@ function reinit!(
 )
     isnothing(s.point_system) && throw(ArgumentError("PointMassSystem not defined"))
 
-    init_Q_b_w, R_b_w = measure_to_q(measure, s.wing.R_cad_body)
+    init_Q_b_w, R_b_w = initial_orient(s.set, s.wing.R_cad_body)
     init!(s.point_system, s.set, R_b_w, init_Q_b_w)
     
     if isnothing(s.prob) || reload
@@ -375,10 +338,11 @@ function generate_getters!(s, sym_vec)
     ])
 
     set_set_values = setp(sys, sys.set_values)
-    set_measure = setp(sys, sys.measured_wind_dir_gnd)
+    set_wind_dir = setp(sys, sys.upwind_dir)
     set_vsm = setp(sys, vsm_sym)
     set_unknowns = setu(sys, sym_vec)
     set_nonstiff = setu(sys, get_nonstiff_unknowns(s))
+    set_stabilize = setp(sys, sys.stabilize)
     
     get_vsm = getp(sys, vsm_sym)
     get_set_values = getp(sys, sys.set_values)
@@ -406,18 +370,33 @@ function generate_getters!(s, sym_vec)
         ]
     )
     get_y = getu(sys, sys.y)
+    get_unstretched_length = getu(sys, sys.unstretched_length)
+    get_tether_length = getu(sys, sys.tether_length)
+    get_kite_pos = getu(sys, sys.kite_pos)
+    get_winch_force = getu(sys, sys.winch_force)
+    get_spring_force = getu(sys, sys.spring_force)
+    get_stabilize = getp(sys, sys.stabilize)
+    get_pos = getu(sys, sys.pos)
 
     s.set_set_values = (integ, val) -> set_set_values(integ, val)
-    s.set_measure = (integ, val) -> set_measure(integ, val)
+    s.set_wind_dir = (integ, val) -> set_wind_dir(integ, val)
     s.set_vsm = (integ, val) -> set_vsm(integ, val)
     s.set_unknowns = (integ, val) -> set_unknowns(integ, val)
     s.set_nonstiff = (integ, val) -> set_nonstiff(integ, val)
+    s.set_stabilize = (integ, val) -> set_stabilize(integ, val)
     
     s.get_vsm = (integ) -> get_vsm(integ)
     s.get_set_values = (integ) -> get_set_values(integ)
     s.get_unknowns = (integ) -> get_unknowns(integ)
     s.get_state = (integ) -> get_state(integ)
     s.get_y = (integ) -> get_y(integ)
+    s.get_unstretched_length = (integ) -> get_unstretched_length(integ)
+    s.get_tether_length = (integ) -> get_tether_length(integ)
+    s.get_kite_pos = (integ) -> get_kite_pos(integ)
+    s.get_winch_force = (integ) -> get_winch_force(integ)
+    s.get_spring_force = (integ) -> get_spring_force(integ)
+    s.get_stabilize = (integ) -> get_stabilize(integ)
+    s.get_pos = (integ) -> get_pos(integ)
     
     if !isnothing(s.lin_prob)
         set_lin_set_values = setp(s.lin_prob, sys.set_values)
@@ -445,12 +424,12 @@ function linearize_vsm!(s::RamAirKite, integ=s.integrator)
     nothing
 end
 
-function next_step!(s::RamAirKite, set_values=nothing; measure::Union{Measurement, Nothing}=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
+function next_step!(s::RamAirKite, set_values=nothing; upwind_dir=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
     if (!isnothing(set_values)) 
         s.set_set_values(s.integrator, set_values)
     end
-    if (!isnothing(measure))
-        s.set_measure(s.integrator, measure.wind_dir_gnd)
+    if (!isnothing(upwind_dir))
+        s.set_wind_dir(s.integrator, upwind_dir)
     end
     if vsm_interval != 0 && s.iter % vsm_interval == 0
         linearize_vsm!(s)
@@ -595,4 +574,24 @@ function get_nonstiff_unknowns(s::RamAirKite, vec=Num[])
     [push!(vec, sys.kite_pos[i]) for i in 1:3]
     [push!(vec, sys.kite_vel[i]) for i in 1:3]
     return vec
+end
+
+function find_steady_state!(s::RamAirKite; dt=1/s.set.sample_freq)
+    old_state = s.get_stabilize(s.integrator)
+    s.set_stabilize(s.integrator, true)
+    for _ in 1:1÷dt
+        next_step!(s; dt, vsm_interval=1)
+    end
+    s.set_stabilize(s.integrator, old_state)
+    return nothing
+end
+
+unstretched_length(s::RamAirKite) = s.get_unstretched_length(s.integrator)
+tether_length(s::RamAirKite) = s.get_tether_length(s.integrator)
+calc_height(s::RamAirKite) = s.get_kite_pos(s.integrator)[3]
+winch_force(s::RamAirKite) = s.get_winch_force(s.integrator)
+spring_forces(s::RamAirKite) = s.get_spring_force(s.integrator)
+function pos(s::RamAirKite)
+    pos = s.get_pos(s.integrator)
+    return [pos[:,i] for i in eachindex(pos[1,:])]
 end

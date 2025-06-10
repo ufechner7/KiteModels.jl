@@ -47,35 +47,28 @@ s.set.abs_tol = 1e-2
 s.set.rel_tol = 1e-2
 toc()
 
-measure = Measurement()
-measure.sphere_pos .= deg2rad.([70.0 70.0; 1.0 -1.0])
-
-# init_Q_b_w, R_b_w = KiteModels.measure_to_q(measure)
+# init_Q_b_w, R_b_w = KiteModels.initial_orient(s.set)
 # init_kite_pos = init!(s.point_system, s.set, R_b_w, init_Q_b_w)
 # plot(s.point_system, 0.0; zoom=false, front=false)
 
 # Initialize at elevation
 s.point_system.winches[2].tether_length += 0.2
 s.point_system.winches[3].tether_length += 0.2
-KiteModels.init_sim!(s, measure; remake=false, reload=true)
+KiteModels.init_sim!(s; remake=false, reload=true)
 sys = s.sys
 
 @info "System initialized at:"
 toc()
 
 # Stabilize system
-s.integrator.ps[sys.stabilize] = true
-for i in 1:1÷dt
-    next_step!(s; dt, vsm_interval=1)
-end
-s.integrator.ps[sys.stabilize] = false
+find_steady_state!(s)
 
 logger = Logger(length(s.point_system.points), steps)
 sys_state = KiteModels.SysState(s)
 t = 0.0
 runtime = 0.0
 integ_runtime = 0.0
-bias = 0.35
+bias = set.quasi_static ? 0.45 : 0.35
 t0 = s.integrator.t
 
 try

@@ -26,12 +26,11 @@ const BUILD_SYS = true
     @info "Creating s:"
     @time s = RamAirKite(set)
 
-    measure = Measurement()
     s.set.abs_tol = 1e-2
     s.set.rel_tol = 1e-2
 
     # Initialize at elevation
-    measure.sphere_pos .= deg2rad.([80.0 80.0; 1.0 -1.0])
+    set.elevation = 80.0
 
     @testset "Model Initialization Chain" begin
         if BUILD_SYS
@@ -45,7 +44,7 @@ const BUILD_SYS = true
 
             # 1. First time initialization - should create new model
             @info "Testing initial init! (should create new model)..."
-            @time KiteModels.init_sim!(s, measure; prn=true)
+            @time KiteModels.init_sim!(s; prn=true)
 
             # Check that serialization worked
             @test isfile(prob_path)
@@ -64,7 +63,7 @@ const BUILD_SYS = true
 
         # 2. First init_sim! - should load from serialized file
         @info "Testing first init_sim! (should load serialized file)..."
-        @time KiteModels.init_sim!(s, measure; prn=true, reload=false)
+        @time KiteModels.init_sim!(s; prn=true, reload=false)
         next_step!(s)
 
         # Check that it's a new integrator
@@ -75,7 +74,7 @@ const BUILD_SYS = true
 
         # 3. Second init_sim! - should reuse existing integrator
         @info "Testing second init_sim! (should reuse integrator)..."
-        @time KiteModels.init_sim!(s, measure; prn=true, reload=false)
+        @time KiteModels.init_sim!(s; prn=true, reload=false)
 
         # This should create a new point system but reuse the existing integrator
         third_integrator_ptr = objectid(s.integrator)
@@ -108,19 +107,19 @@ const BUILD_SYS = true
     end
 
     @testset "State Consistency" begin
-        KiteModels.init_sim!(s, measure, prn=true, reload=false)
+        KiteModels.init_sim!(s, prn=true, reload=false)
         sys_state_before = KiteModels.SysState(s)
 
         # Check quaternion normalization
         @test isapprox(norm(s.integrator[s.sys.Q_b_w]), 1.0, atol=TOL)
 
         # Check elevation matches measurement
-        @test isapprox(sys_state_before.elevation, measure.elevation, atol=1e-2)
+        @test isapprox(sys_state_before.elevation, deg2rad(set.elevation), atol=1e-2)
 
         # Change measurement and reinitialize
-        old_elevation = measure.elevation
-        measure.sphere_pos[1,:] .= deg2rad(85.0)
-        KiteModels.init_sim!(s, measure, prn=true, reload=false)
+        old_elevation = set.elevation
+        set.elevation = 85.0
+        KiteModels.init_sim!(s, prn=true, reload=false)
 
         # Get new state using SysState
         sys_state_after = KiteModels.SysState(s)
@@ -149,7 +148,7 @@ const BUILD_SYS = true
 
     @testset "Simulation Step with SysState" begin
         # Basic step and time advancement test
-        KiteModels.init_sim!(s, measure; prn=true, reload=false)
+        KiteModels.init_sim!(s; prn=true, reload=false)
         sys_state_before = KiteModels.SysState(s)
 
         # Run a simulation step with zero set values
@@ -173,16 +172,14 @@ const BUILD_SYS = true
 
         @testset "Course Direction at 60 Degrees Elevation" begin # Corrected description
             # Initialize at 60 degrees elevation
-            measure.sphere_pos[1,:] .= deg2rad(60.0)
-            @test measure.elevation ≈ deg2rad(60.0) atol=1e-6
-            @test measure.azimuth ≈ 0.0 atol=1e-6
+            set.elevation = 60.0
 
-            KiteModels.init_sim!(s, measure; prn=true)
+            KiteModels.init_sim!(s; prn=true)
 
             # Verify initial conditions using SysState
             sys_state_init = KiteModels.SysState(s)
-            @test sys_state_init.elevation ≈ measure.elevation atol=1e-2 # Use relaxed tolerance consistent with other tests
-            @test sys_state_init.azimuth ≈ measure.azimuth atol=1e-2
+            @test sys_state_init.elevation ≈ deg2rad(set.elevation) atol=1e-2 # Use relaxed tolerance consistent with other tests
+            @test sys_state_init.azimuth ≈ deg2rad(set.azimuth) atol=1e-2
 
             # Run simulation steps
             test_step(s)
@@ -207,18 +204,18 @@ const BUILD_SYS = true
 
         @testset "Steering Response Using SysState" begin
             # Initialize model at moderate elevation
-            measure.sphere_pos .= deg2rad.([70.0 70.0; 1.0 -1.0])
-            KiteModels.init_sim!(s, measure; prn=true, reload=false)
+            set.elevation = 70.0
+            KiteModels.init_sim!(s; prn=true, reload=false)
             test_step(s)
             sys_state_initial = KiteModels.SysState(s)
 
             # steering right
-            KiteModels.init_sim!(s, measure; prn=true, reload=false)
+            KiteModels.init_sim!(s; prn=true, reload=false)
             test_step(s, [0, 10, -10]; steps=20)
             sys_state_right = KiteModels.SysState(s)
 
             # steering left
-            KiteModels.init_sim!(s, measure; prn=true, reload=false)
+            KiteModels.init_sim!(s; prn=true, reload=false)
             test_step(s, [0, -10, 10]; steps=20)
             sys_state_left = KiteModels.SysState(s)
 

@@ -507,6 +507,22 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             tether_vel[winch.idx] => 0
         ]
     end
+
+    # ==================== TETHERS ==================== #
+    @variables begin
+        unstretched_length(t)[eachindex(tethers)]
+    end
+    for tether in tethers
+        ulen = zero(Num)
+        for segment_idx in tether.segments
+            ulen += len[segment_idx]
+        end
+        eqs = [
+            eqs
+            unstretched_length[tether.idx] ~ ulen
+        ]
+    end
+
     return eqs, defaults, guesses, tether_kite_force, tether_kite_moment
 end
 
@@ -634,14 +650,13 @@ function calc_R_t_w(elevation, azimuth)
 end
 
 """
-    scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc, twist_angle, twist_ω)
+    scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc, twist_angle, twist_ω)
 
 Generate equations for scalar quantities like elevation, azimuth, heading and course angles.
     
     # Arguments
     - `s::RamAirKite`: The kite system state
     - `eqs`: Current system equations
-    - `measure::Measurement`: Current measurement data
     - `R_b_w`: Body to world rotation matrix
     - `wind_vec_gnd`: Ground wind vector
     - `va_kite_b`: Apparent wind velocity in body frame
@@ -657,9 +672,9 @@ Generate equations for scalar quantities like elevation, azimuth, heading and co
     - Course angle
     - Angular velocities and accelerations
     """
-function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc, twist_angle, twist_ω, ω_b, α_b)
+function scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc, twist_angle, twist_ω, ω_b, α_b)
     @parameters wind_scale_gnd = s.set.v_wind
-    @parameters measured_wind_dir_gnd = measure.wind_dir_gnd
+    @parameters upwind_dir = deg2rad(s.set.upwind_dir)
     @variables begin
         e_x(t)[1:3]
         e_y(t)[1:3]
@@ -672,7 +687,7 @@ function scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, 
         e_x     ~ R_b_w[:,1]
         e_y     ~ R_b_w[:,2]
         e_z     ~ R_b_w[:,3]
-        wind_vec_gnd ~ wind_scale_gnd * rotate_around_z([1, 0, 0], measured_wind_dir_gnd)
+        wind_vec_gnd ~ wind_scale_gnd * rotate_around_z([0, -1, 0], -upwind_dir)
         wind_vel_kite ~ AtmosphericModels.calc_wind_factor(s.am, kite_pos[3], s.set.profile_law) * wind_vec_gnd
         va_kite ~ wind_vel_kite - kite_vel
         va_kite_b ~ R_b_w' * va_kite
@@ -801,19 +816,18 @@ function linear_vsm_eqs!(s, eqs, guesses; aero_force_b, aero_moment_b, group_aer
     return eqs, guesses
 end
 
-function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measurement; init_va_b)
+function create_sys!(s::RamAirKite, system::PointMassSystem; init_va_b)
     eqs = []
     defaults = Pair{Num, Real}[]
     guesses = Pair{Num, Real}[]
 
-    init_set_values = measure.set_values
     @parameters begin
         stabilize = false
         fix_nonstiff = false
     end
     @variables begin
         # potential differential variables
-        set_values(t)[eachindex(system.winches)] = init_set_values
+        set_values(t)[eachindex(system.winches)] = zeros(length(system.winches))
         kite_pos(t)[1:3] # xyz pos of kite in world frame
         kite_vel(t)[1:3]
         kite_acc(t)[1:3]
@@ -839,7 +853,7 @@ function create_sys!(s::RamAirKite, system::PointMassSystem, measure::Measuremen
     eqs, guesses = linear_vsm_eqs!(s, eqs, guesses; aero_force_b, aero_moment_b, group_aero_moment, init_va_b, twist_angle, va_kite_b, ω_b)
     eqs, defaults = diff_eqs!(s, eqs, defaults; tether_kite_force, tether_kite_moment, aero_force_b, aero_moment_b, 
         ω_b, α_b, R_b_w, kite_pos, kite_vel, kite_acc, stabilize, fix_nonstiff)
-    eqs = scalar_eqs!(s, eqs, measure; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc, twist_angle, twist_ω, ω_b, α_b)
+    eqs = scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_kite_b, kite_pos, kite_vel, kite_acc, twist_angle, twist_ω, ω_b, α_b)
     
     # te_I = (1/3 * (s.set.mass/8) * te_length^2)
     # # -damping / I * ω = α_damping

@@ -1,5 +1,5 @@
 system:
-    log_file: "data/log_8700W_8ms" # filename without extension  [replay only]
+    log_file: "data/ram_air_kite"  # filename without extension  [replay only]
                                    #   use / as path delimiter, even on Windows 
     time_lapse:   1.0              # relative replay speed
     sim_time:   100.0              # simulation time             [sim only]
@@ -10,17 +10,13 @@ system:
     fixed_font: ""                 # name or filepath+filename of alternative fixed pitch font
 
 initial:
-    l_tether: 50.0        # initial tether length       [m]
-    elevation: 70.8        # initial elevation angle   [deg]
-    v_reel_out: 0.0        # initial reel out speed    [m/s]
+    l_tethers: [50.0, 50.0, 50.0]  # initial tether length       [m]
+    elevation: 70.8                # initial elevation angle   [deg]
+    v_reel_out: 0.0                # initial reel out speed    [m/s]
 
 solver:
-    abs_tol: 0.01        # absolute tolerance of the DAE solver [m, m/s]
-    rel_tol: 0.01         # relative tolerance of the DAE solver [-]
-    solver: "DFBDF"        # DAE solver, IDA or DImplicitEuler, DFBDF
-    linear_solver: "GMRES" # can be GMRES or Dense or LapackDense (only for IDA)
-    max_order: 4           # maximal order, usually between 3 and 5
-    max_iter:  10000         # max number of iterations of the steady-state-solver
+    abs_tol: 0.01          # absolute tolerance of the DAE solver [m, m/s]
+    rel_tol: 0.01          # relative tolerance of the DAE solver [-]
 
 kite:
     model: "data/ram_air_kite_body.obj"     # 3D model of the kite
@@ -49,7 +45,7 @@ tether:
                            # SK75: 109 to 132 GPa according to datasheet
 
 winch:
-    winch_model: "AsyncMachine" # or TorqueControlledMachine
+    winch_model: "TorqueControlledMachine" # or AsynchMachine
     max_force: 4000        # maximal (nominal) tether force; short overload allowed [N]
     v_ro_max:  8.0         # maximal reel-out speed                          [m/s]
     v_ro_min: -8.0         # minimal reel-out speed (=max reel-in speed)     [m/s]

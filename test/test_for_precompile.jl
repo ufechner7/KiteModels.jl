@@ -111,8 +111,7 @@ if ! haskey(ENV, "NO_MTK")
     set.segments = 2
     set_values = [-50, -1.1, -1.1]
     mtk_kite = RamAirKite(set)
-    measure = Measurement()
-    KiteModels.init_sim!(mtk_kite, measure)
+    KiteModels.init_sim!(mtk_kite)
     logger = Logger(length(mtk_kite.point_system.points), 5)
 
     for i in 1:5
