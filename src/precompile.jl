@@ -40,7 +40,7 @@ end
     set_data_path(joinpath(path, "..", "data"))
 
     set = se("system.yaml")
-    set.kcu_diameter = 0
+    set.kcu_diameter = 0.0
     kps4_::KPS4 = KPS4(KCU(set))
     kps3_::KPS3 = KPS3(KCU(se("system.yaml")))
     ver = "$(VERSION.major).$(VERSION.minor)_"

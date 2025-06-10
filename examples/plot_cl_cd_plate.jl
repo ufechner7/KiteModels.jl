@@ -18,7 +18,7 @@ end
 using ControlPlots, LaTeXStrings
 plt.close("all")
 
-set.v_wind = 14 # 25
+set.v_wind = 14.0 # 25
 kcu::KCU = KCU(set)
 kps4::KPS4 = KPS4(kcu)
 
