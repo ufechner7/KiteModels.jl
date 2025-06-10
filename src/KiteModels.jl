@@ -192,7 +192,7 @@ Return the vector of the wind speed at the height of the kite.
 function v_wind_kite(s::AKM) s.v_wind end
 
 """
-    set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind; upwind_dir=0.0)
+    set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind; upwind_dir=-pi/2)
 
 Set the vector of the wind-velocity at the height of the kite. As parameter the height,
 the ground wind speed [m/s] and the upwind direction [radians] are needed.
