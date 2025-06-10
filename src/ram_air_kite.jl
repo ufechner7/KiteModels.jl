@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 """
-    mutable struct RamAirKite{S, V, P} <: AbstractKiteModel
+    mutable struct SymbolicAWESystem{S, V, P} <: AbstractKiteModel
 
 State of the kite power system, using a quaternion kite model and three steering lines to the ground. Parameters:
 - S: Scalar type, e.g. SimFloat
@@ -14,7 +14,7 @@ use the input and output functions instead.
 
 $(TYPEDFIELDS)
 """
-@with_kw mutable struct RamAirKite{S, V, P} <: AbstractKiteModel
+@with_kw mutable struct SymbolicAWESystem{S, V, P} <: AbstractKiteModel
     "Reference to the settings struct"
     set::Settings
     "Reference to the geometric wing model"
@@ -71,16 +71,16 @@ $(TYPEDFIELDS)
     integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Nothing} = nothing
 end
 
-function RamAirKite(set::Settings, aero::BodyAerodynamics, vsm_solver::VortexStepMethod.Solver, point_system::PointMassSystem)
+function SymbolicAWESystem(set::Settings, aero::BodyAerodynamics, vsm_solver::VortexStepMethod.Solver, point_system::PointMassSystem)
     length(aero.wings) > 1 && throw(ArgumentError("Just one wing allowed in BodyAerodynamics object"))
     wing = aero.wings[1]
     if set.winch_model == "TorqueControlledMachine"
-        s = RamAirKite{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
+        s = SymbolicAWESystem{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
             ; set, wing, aero, vsm_solver, point_system
             )
         s.torque_control = true
     else
-        s = RamAirKite{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
+        s = SymbolicAWESystem{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
             ; set, wing, aero, vsm_solver, point_system
             )
         s.torque_control = false
@@ -88,15 +88,15 @@ function RamAirKite(set::Settings, aero::BodyAerodynamics, vsm_solver::VortexSte
     return s
 end
 
-function RamAirKite(set::Settings)
+function SymbolicAWESystem(set::Settings)
     wing = RamAirWing(set; prn=false)
     aero = BodyAerodynamics([wing])
     vsm_solver = Solver(aero; solver_type=NONLIN, atol=2e-8, rtol=2e-8)
     point_system = PointMassSystem(set, wing)
-    return RamAirKite(set, aero, vsm_solver, point_system)
+    return SymbolicAWESystem(set, aero, vsm_solver, point_system)
 end
 
-function update_sys_state!(ss::SysState, s::RamAirKite, zoom=1.0)
+function update_sys_state!(ss::SysState, s::SymbolicAWESystem, zoom=1.0)
     isnothing(s.integrator) && throw(ArgumentError("run init_sim!(s) first"))
     ss.time = s.integrator.t # Use integrator time
 
@@ -169,14 +169,14 @@ function update_sys_state!(ss::SysState, s::RamAirKite, zoom=1.0)
     nothing
 end
 
-function SysState(s::RamAirKite, zoom=1.0)
+function SysState(s::SymbolicAWESystem, zoom=1.0)
     ss = SysState{length(s.point_system.points)}()
     update_sys_state!(ss, s, zoom)
     ss
 end
 
 """
-    init_sim!(s::RamAirKite; prn=true, precompile=false) -> Nothing
+    init_sim!(s::SymbolicAWESystem; prn=true, precompile=false) -> Nothing
 
 Initialize a kite power system model. 
 
@@ -195,14 +195,14 @@ and only update the state variables. Otherwise, it will create a new model from 
 4. Proceeds with fast path
 
 # Arguments
-- `s::RamAirKite`: The kite system state object  
+- `s::SymbolicAWESystem`: The kite system state object  
 - `prn::Bool=true`: Whether to print progress information
 - `precompile::Bool=false`: Whether to build problem for precompilation
 
 # Returns
 `Nothing`
 """
-function init_sim!(s::RamAirKite;
+function init_sim!(s::SymbolicAWESystem;
     solver=ifelse(s.set.quasi_static, FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.6)), FBDF()), 
     adaptive=true, prn=true, precompile=false, remake=false, reload=false, lin_outputs=Num[]
 )
@@ -246,7 +246,7 @@ function init_sim!(s::RamAirKite;
     return nothing
 end
 
-function linearize(s::RamAirKite; set_values=s.get_set_values(s.integrator))
+function linearize(s::SymbolicAWESystem; set_values=s.get_set_values(s.integrator))
     isnothing(s.lin_prob) && throw(ArgumentError("Run init_sim! with remake=true and lin_outputs=..."))
     s.set_lin_vsm(s.lin_prob, s.get_vsm(s.integrator))
     s.set_lin_set_values(s.lin_prob, set_values)
@@ -255,7 +255,7 @@ function linearize(s::RamAirKite; set_values=s.get_set_values(s.integrator))
 end
 
 """
-    reinit!(s::RamAirKite; prn=true, precompile=false) -> Nothing
+    reinit!(s::SymbolicAWESystem; prn=true, precompile=false) -> Nothing
 
 Reinitialize an existing kite power system model with new state values.
 
@@ -274,7 +274,7 @@ This is more efficient than `init!` as it reuses the existing model structure
 and only updates the state variables to match the current initial settings.
 
 # Arguments
-- `s::RamAirKite`: The kite power system state object
+- `s::SymbolicAWESystem`: The kite power system state object
 - `prn::Bool=true`: Whether to print progress information
 
 # Returns
@@ -284,7 +284,7 @@ and only updates the state variables to match the current initial settings.
 - `ArgumentError`: If no serialized problem exists (run `init_sim!` first)
 """
 function reinit!(
-    s::RamAirKite; 
+    s::SymbolicAWESystem; 
     solver=ifelse(s.set.quasi_static, FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.4, max_iter=1000)), FBDF()),
     adaptive=true,
     prn=true, 
@@ -299,7 +299,7 @@ function reinit!(
     
     if isnothing(s.prob) || reload
         prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set; precompile))
-        !ispath(prob_path) && throw(ArgumentError("$prob_path not found. Run init_sim!(s::RamAirKite) first."))
+        !ispath(prob_path) && throw(ArgumentError("$prob_path not found. Run init_sim!(s::SymbolicAWESystem) first."))
         try
             (s.prob, s.full_sys, s.lin_prob, s.defaults, s.guesses) = deserialize(prob_path)
             length(lin_outputs) > 0 && isnothing(s.lin_prob) && throw(ArgumentError("lin_prob is nothing."))
@@ -410,7 +410,7 @@ function generate_getters!(s, sym_vec)
     nothing
 end
 
-function linearize_vsm!(s::RamAirKite, integ=s.integrator)
+function linearize_vsm!(s::SymbolicAWESystem, integ=s.integrator)
     y = s.get_y(integ)
     jac, x = VortexStepMethod.linearize(
         s.vsm_solver, 
@@ -424,7 +424,7 @@ function linearize_vsm!(s::RamAirKite, integ=s.integrator)
     nothing
 end
 
-function next_step!(s::RamAirKite, set_values=nothing; upwind_dir=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
+function next_step!(s::SymbolicAWESystem, set_values=nothing; upwind_dir=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
     if (!isnothing(set_values)) 
         s.set_set_values(s.integrator, set_values)
     end
@@ -458,7 +458,7 @@ end
 """
 Calculate and return the angle of attack in rad
 """
-function calc_aoa(s::RamAirKite)
+function calc_aoa(s::SymbolicAWESystem)
     alpha_array = s.vsm_solver.sol.alpha_array
     middle = length(alpha_array) ÷ 2
     if iseven(length(alpha_array))
@@ -469,7 +469,7 @@ function calc_aoa(s::RamAirKite)
 end
 
 function init_unknowns_vec!(
-    s::RamAirKite, 
+    s::SymbolicAWESystem, 
     system::PointMassSystem, 
     vec::Vector{SimFloat}
 )
@@ -535,7 +535,7 @@ function init_unknowns_vec!(
     nothing
 end
 
-function get_unknowns(s::RamAirKite)
+function get_unknowns(s::SymbolicAWESystem)
     vec = Num[]
     @unpack points, groups, segments, pulleys, winches, kite = s.point_system
     sys = s.sys
@@ -557,7 +557,7 @@ function get_unknowns(s::RamAirKite)
     return vec
 end
 
-function get_nonstiff_unknowns(s::RamAirKite, vec=Num[])
+function get_nonstiff_unknowns(s::SymbolicAWESystem, vec=Num[])
     @unpack points, groups, segments, pulleys, winches, kite = s.point_system
     sys = s.sys
 
@@ -576,7 +576,7 @@ function get_nonstiff_unknowns(s::RamAirKite, vec=Num[])
     return vec
 end
 
-function find_steady_state!(s::RamAirKite; dt=1/s.set.sample_freq)
+function find_steady_state!(s::SymbolicAWESystem; dt=1/s.set.sample_freq)
     old_state = s.get_stabilize(s.integrator)
     s.set_stabilize(s.integrator, true)
     for _ in 1:1÷dt
@@ -586,12 +586,12 @@ function find_steady_state!(s::RamAirKite; dt=1/s.set.sample_freq)
     return nothing
 end
 
-unstretched_length(s::RamAirKite) = s.get_unstretched_length(s.integrator)
-tether_length(s::RamAirKite) = s.get_tether_length(s.integrator)
-calc_height(s::RamAirKite) = s.get_kite_pos(s.integrator)[3]
-winch_force(s::RamAirKite) = s.get_winch_force(s.integrator)
-spring_forces(s::RamAirKite) = s.get_spring_force(s.integrator)
-function pos(s::RamAirKite)
+unstretched_length(s::SymbolicAWESystem) = s.get_unstretched_length(s.integrator)
+tether_length(s::SymbolicAWESystem) = s.get_tether_length(s.integrator)
+calc_height(s::SymbolicAWESystem) = s.get_kite_pos(s.integrator)[3]
+winch_force(s::SymbolicAWESystem) = s.get_winch_force(s.integrator)
+spring_forces(s::SymbolicAWESystem) = s.get_spring_force(s.integrator)
+function pos(s::SymbolicAWESystem)
     pos = s.get_pos(s.integrator)
     return [pos[:,i] for i in eachindex(pos[1,:])]
 end

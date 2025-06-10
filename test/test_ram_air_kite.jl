@@ -15,7 +15,7 @@ set_data_path(temp_data_path)
 const TOL = 1e-5
 const BUILD_SYS = true
 
-@testset verbose = true "RamAirKite MTK Model Tests" begin
+@testset verbose = true "SymbolicAWESystem MTK Model Tests" begin
     # Initialize model
     set = se("system_ram.yaml")
     set.segments = 3
@@ -24,7 +24,7 @@ const BUILD_SYS = true
     set.physical_model = "ram"
 
     @info "Creating s:"
-    @time s = RamAirKite(set)
+    @time s = SymbolicAWESystem(set)
 
     s.set.abs_tol = 1e-2
     s.set.rel_tol = 1e-2
@@ -99,7 +99,7 @@ const BUILD_SYS = true
             @test isapprox(norm(point_pos), norm(sys_state_pos), rtol=1e-2)
 
             # Positions should not be zero (except ground points)
-            if point.type != KiteModels.WINCH  # Skip ground points which might be at origin
+            if point.type != KiteModels.STATIC  # Skip ground points which might be at origin
                 @test norm(point_pos) > 0.1
                 @test norm(sys_state_pos) > 0.1
             end

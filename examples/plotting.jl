@@ -21,7 +21,7 @@ function plot(sys::PointMassSystem, reltime; kite_pos=nothing, e_z=zeros(3), zoo
     ControlPlots.plot2d(pos, seg, reltime; zoom, front, xlim, ylim, dz_zoom=0.6)
 end
 
-function plot(s::RamAirKite, reltime; kwargs...)
+function plot(s::SymbolicAWESystem, reltime; kwargs...)
     pos = s.integrator[s.sys.pos]
     kite_pos = s.integrator[s.sys.kite_pos]
     for (i, point) in enumerate(s.point_system.points)

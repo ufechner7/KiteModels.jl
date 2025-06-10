@@ -28,21 +28,21 @@ Type of segment.
 end
 
 """
-    DynamicsType `DYNAMIC` `STATIC` `KITE` `WINCH`
+    DynamicsType `DYNAMIC` `QUASI_STATIC` `KITE` `STATIC`
 
 Enumeration of the models that are attached to a point.
 
 # Elements
 - DYNAMIC: Belongs to a dynamic tether model
-- STATIC: Belongs to a static tether model
-- KITE: Rigid body
-- WINCH: Winch
+- QUASI_STATIC: Belongs to a quasi static tether model
+- KITE: Connected to the rigid kite body
+- STATIC: Does not change position
 """
 @enum DynamicsType begin
     DYNAMIC
-    STATIC
+    QUASI_STATIC
     KITE
-    WINCH
+    STATIC
 end
 
 """
@@ -64,13 +64,13 @@ function Point(idx, pos_b, type, vel_w=zeros(KVec3))
 end
 
 """
-    struct KitePointGroup
+    struct Group
 
 Set of bridle lines that share the same twist angle and trailing edge angle.
 
 $(TYPEDFIELDS)
 """
-mutable struct KitePointGroup
+mutable struct Group
     idx::Int16
     points::Vector{Int16}
     le_pos::KVec3 # point which the group rotates around under kite deformation
@@ -81,11 +81,11 @@ mutable struct KitePointGroup
     twist::SimFloat
     twist_vel::SimFloat
 end
-function KitePointGroup(idx, points, wing, gamma, type, moment_frac)
+function Group(idx, points, wing, gamma, type, moment_frac)
     le_pos = [wing.le_interp[i](gamma) for i in 1:3]
     chord = [wing.te_interp[i](gamma) for i in 1:3] .- le_pos
     y_airf = normalize([wing.le_interp[i](gamma-0.01) for i in 1:3] - le_pos)
-    KitePointGroup(idx, points, le_pos, chord, y_airf, type, moment_frac, 0.0, 0.0)
+    Group(idx, points, le_pos, chord, y_airf, type, moment_frac, 0.0, 0.0)
 end
 
 """
@@ -174,25 +174,33 @@ connected by elastic segments model the kite and tether dynamics:
   - Kite attachment points 
   - Dynamic bridle/tether points
   - Fixed ground anchor points
-- `groups::Vector{KitePointGroup}`: Collections of points that move together, 
+- `groups::Vector{Group}`: Collections of points that move together, 
     according to kite deformation (twist and trailing edge deflection)
 - `segments::Vector{Segment}`: Spring-damper elements between points
 - `pulleys::Vector{Pulley}`: Elements that redistribute line lengths
 - `tethers::Vector{Tether}`: Groups of segments with a common unstretched length
 - `winches::Vector{Winch}`: Ground-based winches that control the tether lengths
 
-See also: [`Point`](@ref), [`Segment`](@ref), [`KitePointGroup`](@ref), [`Pulley`](@ref)
+See also: [`Point`](@ref), [`Segment`](@ref), [`Group`](@ref), [`Pulley`](@ref)
 """
 struct PointMassSystem
     name::String
     points::Vector{Point}
-    groups::Vector{KitePointGroup}
+    groups::Vector{Group}
     segments::Vector{Segment}
     pulleys::Vector{Pulley}
     tethers::Vector{Tether}
     winches::Vector{Winch}
-    kite::Kite
-    function PointMassSystem(name, points, groups, segments, pulleys, tethers, winches, kite=Kite())
+    kites::Vector{Kite}
+    function PointMassSystem(name; 
+            points=Point[], 
+            groups=Group[], 
+            segments=Segment[], 
+            pulleys=Pulley[], 
+            tethers=Tether[], 
+            winches=Winch[], 
+            kites=Kite[Kite()]
+        )
         for (i, point) in enumerate(points)
             @assert point.idx == i
         end
@@ -211,7 +219,7 @@ struct PointMassSystem
         for (i, winch) in enumerate(winches)
             @assert winch.idx == i
         end
-        return new(name, points, groups, segments, pulleys, tethers, winches, kite)
+        return new(name, points, groups, segments, pulleys, tethers, winches, kites)
     end
 end
 
@@ -248,7 +256,7 @@ function create_tether(idx, set, points, segments, tethers, attach_point, type, 
             points = [points; Point(1+i_pnt, pos, dynamics_type)]
             segments = [segments; Segment(1+i_seg, (attach_point.idx, 1+i_pnt), type)]
         elseif i == set.segments
-            points = [points; Point(1+i_pnt, pos, WINCH)]
+            points = [points; Point(1+i_pnt, pos, STATIC)]
             segments = [segments; Segment(1+i_seg, (i_pnt, 1+i_pnt), type)]
         else
             points = [points; Point(1+i_pnt, pos, dynamics_type)]
@@ -282,7 +290,7 @@ end
 
 function create_ram_point_system(set::Settings, wing::RamAirWing)
     points = Point[]
-    groups = KitePointGroup[]
+    groups = Group[]
     segments = Segment[]
     pulleys = Pulley[]
     tethers = Tether[]
@@ -293,7 +301,7 @@ function create_ram_point_system(set::Settings, wing::RamAirWing)
     bridle_top_left = [cad_to_body_frame(wing, set.top_bridle_points[i]) for i in eachindex(set.top_bridle_points)]
     bridle_top_right = [bridle_top_left[i] .* [1, -1, 1] for i in eachindex(set.top_bridle_points)]
 
-    dynamics_type = set.quasi_static ? STATIC : DYNAMIC
+    dynamics_type = set.quasi_static ? QUASI_STATIC : DYNAMIC
     z = wing.R_cad_body[:,3]
 
     function create_bridle(bridle_top, gammas)
@@ -315,8 +323,8 @@ function create_ram_point_system(set::Settings, wing::RamAirWing)
         ]
         groups = [
             groups
-            KitePointGroup(1+i_grp, [1+i_pnt, 2+i_pnt, 3+i_pnt], wing, gammas[1], DYNAMIC, set.bridle_fracs[2])
-            KitePointGroup(2+i_grp, [4+i_pnt, 5+i_pnt, 6+i_pnt], wing, gammas[2], DYNAMIC, set.bridle_fracs[2])
+            Group(1+i_grp, [1+i_pnt, 2+i_pnt, 3+i_pnt], wing, gammas[1], DYNAMIC, set.bridle_fracs[2])
+            Group(2+i_grp, [4+i_pnt, 5+i_pnt, 6+i_pnt], wing, gammas[2], DYNAMIC, set.bridle_fracs[2])
         ]
 
         # ==================== CREATE PULLEY BRIDLE SYSTEM ==================== #
@@ -386,13 +394,13 @@ end
 
 function create_simple_ram_point_system(set::Settings, wing::RamAirWing)
     points = Point[]
-    groups = KitePointGroup[]
+    groups = Group[]
     segments = Segment[]
     pulleys = Pulley[]
     tethers = Tether[]
     winches = Winch[]
 
-    dynamics_type = set.quasi_static ? STATIC : DYNAMIC
+    dynamics_type = set.quasi_static ? QUASI_STATIC : DYNAMIC
     gammas = [-3/4, -1/4, 1/4, 3/4] * wing.gamma_tip
     
     bridle_top_left = [wing.R_cad_body * (set.top_bridle_points[i] + wing.T_cad_body) for i in eachindex(set.top_bridle_points)] # cad to kite frame
@@ -408,10 +416,10 @@ function create_simple_ram_point_system(set::Settings, wing::RamAirWing)
     ]
     groups = [
         groups
-        KitePointGroup(1, [1], wing, gammas[1], DYNAMIC, set.bridle_fracs[2])
-        KitePointGroup(2, [2], wing, gammas[2], DYNAMIC, set.bridle_fracs[2])
-        KitePointGroup(3, [3], wing, gammas[3], DYNAMIC, set.bridle_fracs[2])
-        KitePointGroup(4, [4], wing, gammas[4], DYNAMIC, set.bridle_fracs[2])
+        Group(1, [1], wing, gammas[1], DYNAMIC, set.bridle_fracs[2])
+        Group(2, [2], wing, gammas[2], DYNAMIC, set.bridle_fracs[2])
+        Group(3, [3], wing, gammas[3], DYNAMIC, set.bridle_fracs[2])
+        Group(4, [4], wing, gammas[4], DYNAMIC, set.bridle_fracs[2])
     ]
     # ==================== CREATE PULLEY BRIDLE SYSTEM ==================== #
     points = [

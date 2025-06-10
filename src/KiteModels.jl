@@ -36,7 +36,7 @@ using ModelingToolkit: t_nounits as t, D_nounits as D
 using ADTypes: AutoFiniteDiff
 import ModelingToolkit.SciMLBase: successful_retcode
 
-export KPS3, KPS4, RamAirKite, KVec3, SimFloat, PointMassSystem, ProfileLaw, EXP, LOG, EXPLOG     # constants and types
+export KPS3, KPS4, SymbolicAWESystem, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG     # constants and types
 export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                            # helper functions
 export clear!, find_steady_state!, residual!                                                  # low level workers
 export init_sim!, init!, reinit!, next_step!, init_pos_vel                                    # high level workers
@@ -47,6 +47,9 @@ export calculate_rotational_inertia!
 export kite_ref_frame, orient_euler, spring_forces, upwind_dir, copy_model_settings, menu2
 export create_ram_point_system, create_simple_ram_point_system
 import LinearAlgebra: norm
+export PointMassSystem, Point, Group, Segment, Pulley, Tether, Winch, Kite
+export DynamicsType, DYNAMIC, QUASI_STATIC, KITE, STATIC
+export SegmentType, POWER, STEERING, BRIDLE
 
 set_zero_subnormals(true)       # required to avoid drastic slow down on Intel CPUs when numbers become very small
 

@@ -54,7 +54,7 @@ include("examples/menu.jl")
 - a new 5-point model based on ModelingToolkit (MTK) is in development;  
   this will allow to create linearized models around any operation point and to do analysis in the frequency domain.
 #### April 2025
-- a new model `RamAirKite` was contributed, based on the package [VortexStepMethod](https://github.com/Albatross-Kite-Transport/VortexStepMethod.jl)
+- a new model `SymbolicAWESystem` was contributed, based on the package [VortexStepMethod](https://github.com/Albatross-Kite-Transport/VortexStepMethod.jl)
 #### November 2024
 - the four point kite model KPS4 was extended to include aerodynamic damping of pitch oscillations;
   for this purpose, the parameters `cmq` and `cord_length` must be defined in `settings.yaml`
@@ -69,7 +69,7 @@ include("examples/menu.jl")
 - the documentation was improved
 
 ## Provides
-The type [`AbstractKiteModel`](@ref) with the implementation [`KPS3`](@ref), [`KPS4`](@ref) and [`RamAirKite`](@ref), representing the one point, the four point kite model and the ram air kite model, together with the high level simulation interface consisting of the functions [`init_sim!`](@ref) and [`next_step!`](@ref). Other kite models can be added inside or outside of this package by implementing the non-generic methods required for an AbstractKiteModel.
+The type [`AbstractKiteModel`](@ref) with the implementation [`KPS3`](@ref), [`KPS4`](@ref) and [`SymbolicAWESystem`](@ref), representing the one point, the four point kite model and the ram air kite model, together with the high level simulation interface consisting of the functions [`init_sim!`](@ref) and [`next_step!`](@ref). Other kite models can be added inside or outside of this package by implementing the non-generic methods required for an AbstractKiteModel.
 
 Additional functions to provide inputs and outputs of the model on each time step. In particular the constructor [`SysState`](@ref) can be called once per time step to create a SysState struct for
 logging or for displaying the state in a viewer. For the KPS3 and KPS4 model, once per time step the [`residual!`](@ref) function is called as many times as needed to find the solution at the end
