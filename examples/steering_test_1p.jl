@@ -10,7 +10,7 @@ set = deepcopy(load_settings("system.yaml"))
 set.abs_tol=0.00006
 set.rel_tol=0.000001
 set.cs_4p = 1.0
-set.v_wind = 12
+set.v_wind = 12.0
 set.elevation = 69.4
 set.l_tethers[1] = 200
 set.depower = set.depower_offset # fully powered kite
@@ -35,7 +35,7 @@ STATISTIC = false
 
 dt = 1/set.sample_freq
 particles = set.segments + 1
-logger::Logger = Logger(particles, STEPS)
+logger = Logger(particles, STEPS)
 
 kcu::KCU = KCU(set)
 kps3::KPS3 = KPS3(kcu)
@@ -92,7 +92,8 @@ function simulate(integrator, steps; plot=false)
         
         if plot
             if mod(i, 5) == 1
-                plot2d(kps3.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=set.segments)                       
+                plot2d(kps3.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=set.segments,
+                       fig="steering_test_1p")                       
             end
         end
     end

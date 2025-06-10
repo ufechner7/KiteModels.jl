@@ -13,9 +13,9 @@ end
 
 set.abs_tol=0.00006
 set.rel_tol=0.000001
-set.v_wind = 10
+set.v_wind = 10.0
 set.elevation = 69.4
-set.l_tethers[1] = 200
+set.l_tether = 200.0
 set.depower = set.depower_offset # fully powered kite
 # set.kcu_mass = 8.4
 # set.v_steering = 0.2*6
@@ -39,7 +39,7 @@ STATISTIC = false
 
 dt = 1/set.sample_freq
 particles = set.segments + 5
-logger::Logger = Logger(particles, STEPS)
+logger = Logger(particles, STEPS)
 
 kcu::KCU = KCU(set)
 kps4::KPS4 = KPS4(kcu)
@@ -96,7 +96,8 @@ function simulate(integrator, steps; plot=false)
         
         if plot
             if mod(i, 5) == 1
-                plot2d(kps4.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=set.segments)                       
+                plot2d(kps4.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=set.segments,
+                       fig="steering_test_4p")                       
             end
         end
     end
