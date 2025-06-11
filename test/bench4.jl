@@ -137,6 +137,7 @@ msg = String[]
     # Julia 1.10 on Ryzen: 787.0 ns 6000 RAM
     # Julia 1.10 on Laptop on battery: 1047ns
     # Julia 1.11 on Laptop on battery: 1035ns
+    # Julia 1.11 on Laptop on battery: 1779ns (using KiteUtils 0.10.10)
 end
 printstyled("Benchmark results for KPS4:\n"; bold = true)
 for i in eachindex(msg)
