@@ -474,7 +474,7 @@ This function performs the following steps:
 # Returns
 - `Tuple{SimFloat, Float64}`: A tuple containing the current simulation time and the time taken for the step.
 """
-function next_step!(s::RamAirKite, integrator::ODEIntegrator; set_values=nothing, upwind_dir=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
+function next_step!(s::RamAirKite, integrator::OrdinaryDiffEqCore.ODEIntegrator; set_values=nothing, upwind_dir=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
     !(s.integrator === integrator) && error("The ODEIntegrator doesn't belong to the RamAirKite")
     next_step!(s; set_values, upwind_dir, dt, vsm_interval)
 end
