@@ -5,3 +5,4 @@ using KiteModels
 
 set = load_settings("system_ram.yaml")
 rak = RamAirKite(set)
+KiteModels.init_sim!(rak; remake=false, reload=false)
