@@ -87,7 +87,7 @@ try
         end
 
         # Step simulation
-        steptime = @elapsed (t_new, integ_steptime) = next_step!(s, set_values; dt, vsm_interval=vsm_interval)
+        steptime = @elapsed (t_new, integ_steptime) = next_step!(s; set_values, dt, vsm_interval=vsm_interval)
         t = t_new - t0  # Adjust for initial stabilization time
 
         # Track performance after initial transient
