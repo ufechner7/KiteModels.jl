@@ -71,6 +71,8 @@ $(TYPEDFIELDS)
     integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Nothing} = nothing
 end
 
+const SAS = SymbolicAWESystem
+
 function SymbolicAWESystem(set::Settings, aero::BodyAerodynamics, vsm_solver::VortexStepMethod.Solver, point_system::PointMassSystem)
     length(aero.wings) > 1 && throw(ArgumentError("Just one wing allowed in BodyAerodynamics object"))
     wing = aero.wings[1]
@@ -96,7 +98,7 @@ function SymbolicAWESystem(set::Settings)
     return SymbolicAWESystem(set, aero, vsm_solver, point_system)
 end
 
-function update_sys_state!(ss::SysState, s::SymbolicAWESystem, zoom=1.0)
+function update_sys_state!(ss::SysState, s::SAS, zoom=1.0)
     isnothing(s.integrator) && throw(ArgumentError("run init_sim!(s) first"))
     ss.time = s.integrator.t # Use integrator time
 
@@ -169,7 +171,7 @@ function update_sys_state!(ss::SysState, s::SymbolicAWESystem, zoom=1.0)
     nothing
 end
 
-function SysState(s::SymbolicAWESystem, zoom=1.0)
+function SysState(s::SAS, zoom=1.0)
     ss = SysState{length(s.point_system.points)}()
     update_sys_state!(ss, s, zoom)
     ss
@@ -202,15 +204,13 @@ and only update the state variables. Otherwise, it will create a new model from 
 # Returns
 `Nothing`
 """
-function init_sim!(s::SymbolicAWESystem;
+function init_sim!(s::SAS;
     solver=ifelse(s.set.quasi_static, FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.6)), FBDF()), 
     adaptive=true, prn=true, precompile=false, remake=false, reload=false, lin_outputs=Num[]
 )
     function init(s)
-        init_Q_b_w, R_b_w = initial_orient(s)
+        init_Q_b_w, R_b_w, init_va_b = initial_orient(s)
         init!(s.point_system, s.set, R_b_w, init_Q_b_w)
-
-        init_va_b = R_b_w' * [s.set.v_wind, 0., 0.]
         
         inputs = create_sys!(s, s.point_system; init_va_b)
         prn && @info "Simplifying the system"
@@ -246,7 +246,7 @@ function init_sim!(s::SymbolicAWESystem;
     return nothing
 end
 
-function linearize(s::SymbolicAWESystem; set_values=s.get_set_values(s.integrator))
+function linearize(s::SAS; set_values=s.get_set_values(s.integrator))
     isnothing(s.lin_prob) && throw(ArgumentError("Run init_sim! with remake=true and lin_outputs=..."))
     s.set_lin_vsm(s.lin_prob, s.get_vsm(s.integrator))
     s.set_lin_set_values(s.lin_prob, set_values)
@@ -284,7 +284,7 @@ and only updates the state variables to match the current initial settings.
 - `ArgumentError`: If no serialized problem exists (run `init_sim!` first)
 """
 function reinit!(
-    s::SymbolicAWESystem; 
+    s::SAS; 
     solver=ifelse(s.set.quasi_static, FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.4, max_iter=1000)), FBDF()),
     adaptive=true,
     prn=true, 
@@ -410,7 +410,7 @@ function generate_getters!(s, sym_vec)
     nothing
 end
 
-function linearize_vsm!(s::SymbolicAWESystem, integ=s.integrator)
+function linearize_vsm!(s::SAS, integ=s.integrator)
     y = s.get_y(integ)
     jac, x = VortexStepMethod.linearize(
         s.vsm_solvers[1], 
@@ -424,7 +424,7 @@ function linearize_vsm!(s::SymbolicAWESystem, integ=s.integrator)
     nothing
 end
 
-function next_step!(s::SymbolicAWESystem, set_values=nothing; upwind_dir=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
+function next_step!(s::SAS, set_values=nothing; upwind_dir=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
     if (!isnothing(set_values)) 
         s.set_set_values(s.integrator, set_values)
     end
@@ -458,7 +458,7 @@ end
 """
 Calculate and return the angle of attack in rad
 """
-function calc_aoa(s::SymbolicAWESystem)
+function calc_aoa(s::SAS)
     alpha_array = s.vsm_solvers[1].sol.alpha_array
     middle = length(alpha_array) ÷ 2
     if iseven(length(alpha_array))
@@ -469,7 +469,7 @@ function calc_aoa(s::SymbolicAWESystem)
 end
 
 function init_unknowns_vec!(
-    s::SymbolicAWESystem, 
+    s::SAS, 
     system::PointMassSystem, 
     vec::Vector{SimFloat}
 )
@@ -535,7 +535,7 @@ function init_unknowns_vec!(
     nothing
 end
 
-function get_unknowns(s::SymbolicAWESystem)
+function get_unknowns(s::SAS)
     vec = Num[]
     @unpack points, groups, segments, pulleys, winches, kite = s.point_system
     sys = s.sys
@@ -557,7 +557,7 @@ function get_unknowns(s::SymbolicAWESystem)
     return vec
 end
 
-function get_nonstiff_unknowns(s::SymbolicAWESystem, vec=Num[])
+function get_nonstiff_unknowns(s::SAS, vec=Num[])
     @unpack points, groups, segments, pulleys, winches, kite = s.point_system
     sys = s.sys
 
@@ -576,7 +576,7 @@ function get_nonstiff_unknowns(s::SymbolicAWESystem, vec=Num[])
     return vec
 end
 
-function find_steady_state!(s::SymbolicAWESystem; dt=1/s.set.sample_freq)
+function find_steady_state!(s::SAS; dt=1/s.set.sample_freq)
     old_state = s.get_stabilize(s.integrator)
     s.set_stabilize(s.integrator, true)
     for _ in 1:1÷dt
@@ -586,12 +586,34 @@ function find_steady_state!(s::SymbolicAWESystem; dt=1/s.set.sample_freq)
     return nothing
 end
 
-unstretched_length(s::SymbolicAWESystem) = s.get_unstretched_length(s.integrator)
-tether_length(s::SymbolicAWESystem) = s.get_tether_length(s.integrator)
-calc_height(s::SymbolicAWESystem) = s.get_kite_pos(s.integrator)[3]
-winch_force(s::SymbolicAWESystem) = s.get_winch_force(s.integrator)
-spring_forces(s::SymbolicAWESystem) = s.get_spring_force(s.integrator)
-function pos(s::SymbolicAWESystem)
+function initial_orient(s::SAS)
+    s.set, s.wings[1].R_cad_body
+    set = s.set
+    wings = s.point_system.wings
+    R_b_w = zeros(length(wings), 3, 3)
+    Q_b_w = zeros(length(wings), 4)
+    init_va_b = zeros(length(wings), 3)
+    for wing in wings
+        R_cad_body = wing.R_cad_body
+        x = [0, 0, -1] # laying flat along x axis
+        z = [1, 0, 0] # laying flat along x axis
+        x = rotate_around_y(x, -deg2rad(set.elevation))
+        z = rotate_around_y(z, -deg2rad(set.elevation))
+        x = rotate_around_z(x, deg2rad(set.azimuth))
+        z = rotate_around_z(z, deg2rad(set.azimuth))
+        R_b_w[wing.idx, :, :] .= R_cad_body' * hcat(x, z × x, z)
+        Q_b_w[wing.idx, :] .= rotation_matrix_to_quaternion(R_b_w)
+        init_va_b[wing.idx, :] .= R_b_w[wing.idx, :, :]' * [s.set.v_wind, 0., 0.]
+    end
+    return Q_b_w, R_b_w, init_va_b
+end
+
+unstretched_length(s::SAS) = s.get_unstretched_length(s.integrator)
+tether_length(s::SAS) = s.get_tether_length(s.integrator)
+calc_height(s::SAS) = s.get_kite_pos(s.integrator)[3]
+winch_force(s::SAS) = s.get_winch_force(s.integrator)
+spring_forces(s::SAS) = s.get_spring_force(s.integrator)
+function pos(s::SAS)
     pos = s.get_pos(s.integrator)
     return [pos[:,i] for i in eachindex(pos[1,:])]
-end
+end    

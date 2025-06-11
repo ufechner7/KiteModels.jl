@@ -28,20 +28,20 @@ Type of segment.
 end
 
 """
-    DynamicsType `DYNAMIC` `QUASI_STATIC` `KITE` `STATIC`
+    DynamicsType `DYNAMIC` `QUASI_STATIC` `WING` `STATIC`
 
 Enumeration of the models that are attached to a point.
 
 # Elements
 - DYNAMIC: Belongs to a dynamic tether model
 - QUASI_STATIC: Belongs to a quasi static tether model
-- KITE: Connected to the rigid wing body
+- WING: Connected to the rigid wing body
 - STATIC: Does not change position
 """
 @enum DynamicsType begin
     DYNAMIC
     QUASI_STATIC
-    KITE
+    WING
     STATIC
 end
 
@@ -54,14 +54,14 @@ $(TYPEDFIELDS)
 """
 mutable struct Point
     idx::Int16
+    group_idx::Union{Int16, Nothing}
     pos_b::KVec3 # pos relative to wing COM in body frame
     pos_w::KVec3 # pos in world frame
     vel_w::KVec3 # vel in world frame
     type::DynamicsType
-    wing::Int16
 end
-function Point(idx, pos_b, type; vel_w=zeros(KVec3), wing=1)
-    Point(idx, pos_b, copy(pos_b), vel_w, type, wing)
+function Point(idx, pos_b, type; vel_w=zeros(KVec3))
+    Point(idx, pos_b, copy(pos_b), vel_w, type)
 end
 
 """
@@ -73,7 +73,7 @@ $(TYPEDFIELDS)
 """
 mutable struct Group
     idx::Int16
-    points::Vector{Int16}
+    wing_idx::Int16
     le_pos::KVec3 # point which the group rotates around under wing deformation
     chord::KVec3 # chord vector in body frame which the group rotates around under wing deformation
     y_airf::KVec3 # spanwise vector in local panel frame which the group rotates around under wing deformation
@@ -82,11 +82,14 @@ mutable struct Group
     twist::SimFloat
     twist_vel::SimFloat
 end
-function Group(idx, points, wing, gamma, type, moment_frac)
-    le_pos = [wing.le_interp[i](gamma) for i in 1:3]
-    chord = [wing.te_interp[i](gamma) for i in 1:3] .- le_pos
-    y_airf = normalize([wing.le_interp[i](gamma-0.01) for i in 1:3] - le_pos)
-    Group(idx, points, le_pos, chord, y_airf, type, moment_frac, 0.0, 0.0)
+function Group(idx, vsm_wing::RamAirWing, gamma, type, moment_frac; wing_idx=1)
+    le_pos = [vsm_wing.le_interp[i](gamma) for i in 1:3]
+    chord = [vsm_wing.te_interp[i](gamma) for i in 1:3] .- le_pos
+    y_airf = normalize([vsm_wing.le_interp[i](gamma-0.01) for i in 1:3] - le_pos)
+    Group(idx, wing_idx, le_pos, chord, y_airf, type, moment_frac, 0.0, 0.0)
+end
+function Group(idx, le_pos, chord, y_airf, type, moment_frac; wing_idx=1)
+    Group(idx, wing_idx, le_pos, chord, y_airf, type, moment_frac, 0.0, 0.0)
 end
 
 """
@@ -98,14 +101,15 @@ $(TYPEDFIELDS)
 """
 mutable struct Segment
     idx::Int16
-    points::Tuple{Int16, Int16}
+    point_idxs::Tuple{Int16, Int16}
     type::SegmentType
+    tether_idx::Union{Int16, Nothing}
     l0::SimFloat
     compression_frac::SimFloat
     diameter::SimFloat
 end
-function Segment(idx, points, type; l0=zero(SimFloat), compression_frac=0.1)
-    Segment(idx, points, type, l0, compression_frac, zero(SimFloat))
+function Segment(idx, point_idxs, type; tether_idx=nothing, l0=zero(SimFloat), compression_frac=0.1)
+    Segment(idx, point_idxs, type, tether_idx, l0, compression_frac, zero(SimFloat))
 end
 
 """
@@ -117,13 +121,13 @@ $(TYPEDFIELDS)
 """
 mutable struct Pulley
     idx::Int16
-    segments::Tuple{Int16, Int16}
+    segment_idxs::Tuple{Int16, Int16}
     type::DynamicsType
     sum_length::SimFloat
     length::SimFloat
     vel::SimFloat
-    function Pulley(idx, segments, type)
-        new(idx, segments, type, 0.0, 0.0, 0.0)
+    function Pulley(idx, segment_idxs, type)
+        new(idx, segment_idxs, type, 0.0, 0.0, 0.0)
     end
 end
 
@@ -136,8 +140,7 @@ $(TYPEDFIELDS)
 """
 struct Tether
     idx::Int16
-    segments::Vector{Int16}
-    winch_point::Int16
+    winch_point_idx::Int16
 end
 
 """
@@ -150,11 +153,11 @@ $(TYPEDFIELDS)
 mutable struct Winch
     idx::Int16
     model::AbstractWinchModel
-    tethers::Vector{Int16}
+    tether_idxs::Vector{Int16}
     tether_length::SimFloat
     tether_vel::SimFloat
-    function Winch(idx, model, tethers, tether_length, tether_vel=0.0)
-        new(idx, model, tethers, tether_length, tether_vel)
+    function Winch(idx, model, tether_idxs, tether_length, tether_vel=0.0)
+        new(idx, model, tether_idxs, tether_length, tether_vel)
     end
 end
 
@@ -245,8 +248,7 @@ function calc_pos(wing::RamAirWing, gamma, frac)
     return pos
 end
 
-function create_tether(idx, set, points, segments, tethers, attach_point, type, dynamics_type, z=[0,0,1])
-    segment_idxs = Int16[]
+function create_tether(tether_idx, set, points, segments, tethers, attach_point, type, dynamics_type, z=[0,0,1])
     winch_pos = find_axis_point(attach_point.pos_b, set.l_tether, z)
     dir = winch_pos - attach_point.pos_b
     for i in 1:set.segments
@@ -256,19 +258,18 @@ function create_tether(idx, set, points, segments, tethers, attach_point, type, 
         i_seg = length(segments) # last segment idx
         if i == 1
             points = [points; Point(1+i_pnt, pos, dynamics_type)]
-            segments = [segments; Segment(1+i_seg, (attach_point.idx, 1+i_pnt), type)]
+            segments = [segments; Segment(1+i_seg, (attach_point.idx, 1+i_pnt), type; tether_idx)]
         elseif i == set.segments
             points = [points; Point(1+i_pnt, pos, STATIC)]
-            segments = [segments; Segment(1+i_seg, (i_pnt, 1+i_pnt), type)]
+            segments = [segments; Segment(1+i_seg, (i_pnt, 1+i_pnt), type; tether_idx)]
         else
             points = [points; Point(1+i_pnt, pos, dynamics_type)]
-            segments = [segments; Segment(1+i_seg, (i_pnt, 1+i_pnt), type)]
+            segments = [segments; Segment(1+i_seg, (i_pnt, 1+i_pnt), type; tether_idx)]
         end
-        push!(segment_idxs, 1+i_seg)
         i_pnt = length(points)
     end
     winch_point_idx = points[end].idx
-    tethers = [tethers; Tether(idx, segment_idxs, winch_point_idx)]
+    tethers = [tethers; Tether(tether_idx, winch_point_idx)]
     return points, segments, tethers, tethers[end].idx
 end
 
@@ -312,16 +313,16 @@ function create_ram_point_system(set::Settings, wing::RamAirWing)
         i_pul = length(pulleys) # last pulley idx
         i_grp = length(groups) # last group idx
 
-        # ==================== CREATE DEFORMING KITE GROUPS ==================== #
+        # ==================== CREATE DEFORMING WING GROUPS ==================== #
         points = [
             points
-            Point(1+i_pnt, calc_pos(wing, gammas[1], set.bridle_fracs[1]), KITE)
-            Point(2+i_pnt, calc_pos(wing, gammas[1], set.bridle_fracs[3]), KITE)
-            Point(3+i_pnt, calc_pos(wing, gammas[1], set.bridle_fracs[4]), KITE)
+            Point(1+i_pnt, calc_pos(wing, gammas[1], set.bridle_fracs[1]), WING)
+            Point(2+i_pnt, calc_pos(wing, gammas[1], set.bridle_fracs[3]), WING)
+            Point(3+i_pnt, calc_pos(wing, gammas[1], set.bridle_fracs[4]), WING)
 
-            Point(4+i_pnt, calc_pos(wing, gammas[2], set.bridle_fracs[1]), KITE)
-            Point(5+i_pnt, calc_pos(wing, gammas[2], set.bridle_fracs[3]), KITE)
-            Point(6+i_pnt, calc_pos(wing, gammas[2], set.bridle_fracs[4]), KITE)
+            Point(4+i_pnt, calc_pos(wing, gammas[2], set.bridle_fracs[1]), WING)
+            Point(5+i_pnt, calc_pos(wing, gammas[2], set.bridle_fracs[3]), WING)
+            Point(6+i_pnt, calc_pos(wing, gammas[2], set.bridle_fracs[4]), WING)
         ]
         groups = [
             groups
@@ -334,7 +335,7 @@ function create_ram_point_system(set::Settings, wing::RamAirWing)
         points = [
             points
             Point(7+i_pnt, bridle_top[1], dynamics_type)
-            Point(8+i_pnt, bridle_top[2], KITE)
+            Point(8+i_pnt, bridle_top[2], WING)
             Point(9+i_pnt, bridle_top[3], dynamics_type)
             Point(10+i_pnt, bridle_top[4], dynamics_type)
 
@@ -356,17 +357,17 @@ function create_ram_point_system(set::Settings, wing::RamAirWing)
             Segment(5+i_seg, (5+i_pnt, 9+i_pnt), BRIDLE)
             Segment(6+i_seg, (6+i_pnt, 10+i_pnt), BRIDLE)
 
-            Segment(7+i_seg, (7+i_pnt, 12+i_pnt), BRIDLE, 2)
-            Segment(8+i_seg, (8+i_pnt, 11+i_pnt), BRIDLE, 1)
-            Segment(9+i_seg, (9+i_pnt, 13+i_pnt), BRIDLE, 2)
-            Segment(10+i_seg, (10+i_pnt, 15+i_pnt), BRIDLE, 4)
+            Segment(7+i_seg, (7+i_pnt, 12+i_pnt), BRIDLE; l0=2)
+            Segment(8+i_seg, (8+i_pnt, 11+i_pnt), BRIDLE; l0=1)
+            Segment(9+i_seg, (9+i_pnt, 13+i_pnt), BRIDLE; l0=2)
+            Segment(10+i_seg, (10+i_pnt, 15+i_pnt), BRIDLE; l0=4)
             
-            Segment(11+i_seg, (11+i_pnt, 12+i_pnt), BRIDLE, 1)
-            Segment(12+i_seg, (11+i_pnt, 13+i_pnt), BRIDLE, 1)
+            Segment(11+i_seg, (11+i_pnt, 12+i_pnt), BRIDLE; l0=1)
+            Segment(12+i_seg, (11+i_pnt, 13+i_pnt), BRIDLE; l0=1)
             
-            Segment(13+i_seg, (12+i_pnt, 14+i_pnt), BRIDLE, 2)
-            Segment(14+i_seg, (13+i_pnt, 14+i_pnt), BRIDLE, 2)
-            Segment(15+i_seg, (13+i_pnt, 15+i_pnt), BRIDLE, 2)
+            Segment(13+i_seg, (12+i_pnt, 14+i_pnt), BRIDLE; l0=2)
+            Segment(14+i_seg, (13+i_pnt, 14+i_pnt), BRIDLE; l0=2)
+            Segment(15+i_seg, (13+i_pnt, 15+i_pnt), BRIDLE; l0=2)
         ]
         pulleys = [
             pulleys
@@ -408,13 +409,13 @@ function create_simple_ram_point_system(set::Settings, wing::RamAirWing)
     bridle_top_left = [wing.R_cad_body * (set.top_bridle_points[i] + wing.T_cad_body) for i in eachindex(set.top_bridle_points)] # cad to kite frame
     bridle_top_right = [bridle_top_left[i] .* [1, -1, 1] for i in eachindex(set.top_bridle_points)]
 
-    # ==================== CREATE DEFORMING KITE GROUPS ==================== #
+    # ==================== CREATE DEFORMING WING GROUPS ==================== #
     points = [
         points
-        Point(1, calc_pos(wing, gammas[1], set.bridle_fracs[4]), KITE)
-        Point(2, calc_pos(wing, gammas[2], set.bridle_fracs[4]), KITE)
-        Point(3, calc_pos(wing, gammas[3], set.bridle_fracs[4]), KITE)
-        Point(4, calc_pos(wing, gammas[4], set.bridle_fracs[4]), KITE)
+        Point(1, calc_pos(wing, gammas[1], set.bridle_fracs[4]), WING)
+        Point(2, calc_pos(wing, gammas[2], set.bridle_fracs[4]), WING)
+        Point(3, calc_pos(wing, gammas[3], set.bridle_fracs[4]), WING)
+        Point(4, calc_pos(wing, gammas[4], set.bridle_fracs[4]), WING)
     ]
     groups = [
         groups
@@ -426,9 +427,9 @@ function create_simple_ram_point_system(set::Settings, wing::RamAirWing)
     # ==================== CREATE PULLEY BRIDLE SYSTEM ==================== #
     points = [
         points
-        Point(5, bridle_top_left[2], KITE)
+        Point(5, bridle_top_left[2], WING)
         Point(6, bridle_top_left[4], dynamics_type)
-        Point(7, bridle_top_right[2], KITE)
+        Point(7, bridle_top_right[2], WING)
         Point(8, bridle_top_right[4], dynamics_type)
     ]
 
@@ -503,24 +504,4 @@ function init!(system::PointMassSystem, set::Settings, R_b_w, Q_b_w)
         wing.angular_vel .= 0.0
     end
     return nothing
-end
-
-function initial_orient(s::RamAirKite)
-    s.set, s.wings[1].R_cad_body
-    set = s.set
-    wings = s.point_system.wings
-    R_b_w = [zeros(3,3) for _ in eachindex(wings)]
-    Q_b_w = [zeros(4) for _ in eachindex(wings)]
-    for wing in wings
-        R_cad_body = wing.R_cad_body
-        x = [0, 0, -1] # laying flat along x axis
-        z = [1, 0, 0] # laying flat along x axis
-        x = rotate_around_y(x, -deg2rad(set.elevation))
-        z = rotate_around_y(z, -deg2rad(set.elevation))
-        x = rotate_around_z(x, deg2rad(set.azimuth))
-        z = rotate_around_z(z, deg2rad(set.azimuth))
-        R_b_w[wing.idx] = R_cad_body' * hcat(x, z × x, z)
-        Q_b_w[wing.idx] = rotation_matrix_to_quaternion(R_b_w)
-    end
-    return Q_b_w
 end

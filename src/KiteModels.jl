@@ -48,7 +48,7 @@ export kite_ref_frame, orient_euler, spring_forces, upwind_dir, copy_model_setti
 export create_ram_point_system, create_simple_ram_point_system
 import LinearAlgebra: norm
 export PointMassSystem, Point, Group, Segment, Pulley, Tether, Winch, Kite
-export DynamicsType, DYNAMIC, QUASI_STATIC, KITE, STATIC
+export DynamicsType, DYNAMIC, QUASI_STATIC, WING, STATIC
 export SegmentType, POWER, STEERING, BRIDLE
 
 set_zero_subnormals(true)       # required to avoid drastic slow down on Intel CPUs when numbers become very small
@@ -56,7 +56,6 @@ set_zero_subnormals(true)       # required to avoid drastic slow down on Intel C
 # Constants
 const G_EARTH = 9.81            # gravitational acceleration
 const BRIDLE_DRAG = 1.1         # should probably be removed
-const SYS_3L = "system_3l.yaml" # default system project for the 3L model
 
 # Type definitions
 """
