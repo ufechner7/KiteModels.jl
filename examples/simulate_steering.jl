@@ -50,7 +50,7 @@ function simulate(integrator, steps, plot=false)
         end
 
 
-        KiteModels.next_step!(kps3, integrator; set_speed=0, dt)
+        next_step!(kps3, integrator; set_speed=0, dt)
         iter += kps3.iter
 
         if plot

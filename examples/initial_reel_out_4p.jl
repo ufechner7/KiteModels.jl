@@ -52,7 +52,7 @@ function simulate(integrator, steps, plot=false)
         v_time[i] = kps4.t_0
         v_speed[i] = kps4.v_reel_out
         v_force[i] = winch_force(kps4)
-        KiteModels.next_step!(kps4, integrator; set_speed, dt)
+        next_step!(kps4, integrator; set_speed, dt)
         iter += kps4.iter
         if i < 15*20
             println(round(kps4.t_0, digits=2), ": ", norm(kps4.vel[7]))

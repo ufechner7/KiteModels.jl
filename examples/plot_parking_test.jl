@@ -76,7 +76,7 @@ function simulate(kps4, integrator, logger, steps)
         r = set.drum_radius
         n = set.gear_ratio
         set_torque = -r/n * force
-        KiteModels.next_step!(kps4, integrator; set_torque, dt)
+        next_step!(kps4, integrator; set_torque, dt)
         sys_state = KiteModels.SysState(kps4)
         aoa = kps4.alpha_2
         sys_state.var_01 = aoa

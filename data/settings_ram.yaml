@@ -15,6 +15,7 @@ initial:
     v_reel_outs: [0.0, 0.0, 0.0]   # initial reel out speed    [m/s]
 
 solver:
+    solver: "FBDF"
     abs_tol: 0.01          # absolute tolerance of the DAE solver [m, m/s]
     rel_tol: 0.01          # relative tolerance of the DAE solver [-]
 
