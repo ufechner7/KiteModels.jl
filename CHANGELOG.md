@@ -45,7 +45,7 @@ SPDX-License-Identifier: MIT
 #### Added
 - added `mwe_26.jl` for debugging the initial state solver 
 - the example `ram_air_kite.jl`
-- the struct `PointMassSystem` for easy definition of the kite power system
+- the struct `SystemStructure` for easy definition of the kite power system
 #### Changed
 - BREAKING: the model KPS_3L was renamed to RamAirKite
 - the RamAirKite model is using the **VortexStepMethod** with a deforming wing now

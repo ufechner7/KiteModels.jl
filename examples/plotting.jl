@@ -1,10 +1,10 @@
 # Copyright (c) 2022, 2024 Uwe Fechner
 # SPDX-License-Identifier: MIT
 
-function plot(sys::PointMassSystem, reltime; kite_pos=nothing, e_z=zeros(3), zoom=false, front=false)
+function plot(sys::SystemStructure, reltime; wing_pos=nothing, e_z=zeros(3), zoom=false, front=false)
     pos = [sys.points[i].pos_w for i in eachindex(sys.points)]
-    !isnothing(kite_pos) && (pos = [pos..., kite_pos])
-    seg = [[sys.segments[i].points[1], sys.segments[i].points[2]] for i in eachindex(sys.segments)]
+    !isnothing(wing_pos) && (pos = [pos..., wing_pos])
+    seg = [[sys.segments[i].point_idxs[1], sys.segments[i].point_idxs[2]] for i in eachindex(sys.segments)]
     if zoom && !front
         xlim = (pos[end][1] - 6, pos[end][1]+6)
         ylim = (pos[end][3] - 10, pos[end][3]+2)
@@ -23,10 +23,10 @@ end
 
 function plot(s::SymbolicAWESystem, reltime; kwargs...)
     pos = s.integrator[s.sys.pos]
-    kite_pos = s.integrator[s.sys.kite_pos]
+    wing_pos = s.integrator[s.sys.wing_pos]
     for (i, point) in enumerate(s.point_system.points)
         point.pos_w .= pos[:, i]
     end
     e_z = s.integrator[s.sys.e_z]
-    plot(s.point_system, reltime; kite_pos, e_z, kwargs...)
+    plot(s.point_system, reltime; wing_pos, e_z, kwargs...)
 end

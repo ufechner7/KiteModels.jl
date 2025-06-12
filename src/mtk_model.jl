@@ -73,7 +73,7 @@ pulley dynamics and winch forces.
 
 # Arguments
 - `s::SymbolicAWESystem`: The wing system state
-- `system::PointMassSystem`: The point mass representation
+- `system::SystemStructure`: The point mass representation
 - `eqs`: Current system equations
 - `defaults`: Default values for variables
 - `guesses`: Initial guesses for variables
@@ -831,7 +831,7 @@ function linear_vsm_eqs!(s, eqs, guesses; aero_force_b, aero_moment_b, group_aer
     return eqs, guesses
 end
 
-function create_sys!(s::SymbolicAWESystem, system::PointMassSystem; init_va_b)
+function create_sys!(s::SymbolicAWESystem, system::SystemStructure; init_va_b)
     eqs = []
     defaults = Pair{Num, Real}[]
     guesses = Pair{Num, Real}[]

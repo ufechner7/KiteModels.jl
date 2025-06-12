@@ -18,7 +18,7 @@ Segment
 Tether
 Winch
 Group
-PointMassSystem
+SystemStructure
 ```
 
 ## Private functions

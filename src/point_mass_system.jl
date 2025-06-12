@@ -174,7 +174,7 @@ function Wing(idx, group_idxs)
 end
 
 """
-    struct PointMassSystem
+    struct SystemStructure
 
 A discrete mass-spring-damper representation of a kite system, where point masses 
 connected by elastic segments model the kite and tether dynamics:
@@ -192,7 +192,7 @@ connected by elastic segments model the kite and tether dynamics:
 
 See also: [`Point`](@ref), [`Segment`](@ref), [`Group`](@ref), [`Pulley`](@ref)
 """
-struct PointMassSystem
+struct SystemStructure
     name::String
     points::Vector{Point}
     groups::Vector{Group}
@@ -201,7 +201,10 @@ struct PointMassSystem
     tethers::Vector{Tether}
     winches::Vector{Winch}
     wings::Vector{Wing}
-    function PointMassSystem(name; 
+    y::Array{Float64, 2}
+    x::Array{Float64, 2}
+    jac::Array{Float64, 3}
+    function SystemStructure(name; 
             points=Point[], 
             groups=Group[], 
             segments=Segment[], 
@@ -228,12 +231,22 @@ struct PointMassSystem
         for (i, winch) in enumerate(winches)
             @assert winch.idx == i
         end
-        return new(name, points, groups, segments, pulleys, tethers, winches, wings)
+        if length(wings) > 0
+            ny = 3+length(wings[1].group_idxs)+3
+            nx = 3+3+length(wings[1].group_idxs)
+        else
+            ny = 0
+            nx = 0
+        end
+        y = zeros(length(wings), ny)
+        x = zeros(length(wings), nx)
+        jac = zeros(length(wings), nx, ny)
+        return new(name, points, groups, segments, pulleys, tethers, winches, wings, y, x, jac)
     end
 end
 
 
-function PointMassSystem(set::Settings, wing::RamAirWing)
+function SystemStructure(set::Settings, wing::RamAirWing)
     length(set.bridle_fracs) != 4 && throw(ArgumentError("4 bridle fracs should be provided for all models."))
 
     if set.physical_model == "ram"
@@ -400,7 +413,7 @@ function create_ram_point_system(set::Settings, vsm_wing::RamAirWing)
 
     wings = [Wing(1, [1,2,3,4])]
     
-    return PointMassSystem(set.physical_model; points, groups, segments, pulleys, tethers, winches, wings)
+    return SystemStructure(set.physical_model; points, groups, segments, pulleys, tethers, winches, wings)
 end
 
 function create_simple_ram_point_system(set::Settings, wing::RamAirWing)
@@ -458,11 +471,11 @@ function create_simple_ram_point_system(set::Settings, wing::RamAirWing)
     winches = [winches; Winch(2, TorqueControlledMachine(set), [left_steering_idx], set.l_tether)]
     winches = [winches; Winch(3, TorqueControlledMachine(set), [right_steering_idx], set.l_tether)]
 
-    return PointMassSystem(set.physical_model, points, groups, segments, pulleys, tethers, winches)
+    return SystemStructure(set.physical_model, points, groups, segments, pulleys, tethers, winches)
 end
 
 
-function init!(system::PointMassSystem, set::Settings, R_b_w, Q_b_w)
+function init!(system::SystemStructure, set::Settings, R_b_w, Q_b_w)
     @unpack points, groups, segments, pulleys, tethers, winches, wings = system
 
     for segment in segments

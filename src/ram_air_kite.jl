@@ -24,7 +24,7 @@ $(TYPEDFIELDS)
     "Reference to the VSM aerodynamics solver"
     vsm_solvers::Vector{VortexStepMethod.Solver}
     "Reference to the point mass system with points, segments, pulleys and tethers"
-    point_system::PointMassSystem
+    point_system::SystemStructure
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
     "relative start time of the current time interval"
@@ -61,7 +61,7 @@ $(TYPEDFIELDS)
     get_y::Function                = () -> nothing
     get_unstretched_length::Function = () -> nothing
     get_tether_length::Function    = () -> nothing
-    get_kite_pos::Function         = () -> nothing
+    get_wing_pos::Function         = () -> nothing
     get_winch_force::Function      = () -> nothing
     get_spring_force::Function     = () -> nothing
     get_stabilize::Function        = () -> nothing
@@ -71,9 +71,8 @@ $(TYPEDFIELDS)
     integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Nothing} = nothing
 end
 
-const SAS = SymbolicAWESystem
 
-function SymbolicAWESystem(set::Settings, aero::BodyAerodynamics, vsm_solver::VortexStepMethod.Solver, point_system::PointMassSystem)
+function SymbolicAWESystem(set::Settings, aero::BodyAerodynamics, vsm_solver::VortexStepMethod.Solver, point_system::SystemStructure)
     length(aero.wings) > 1 && throw(ArgumentError("Just one wing allowed in BodyAerodynamics object"))
     vsm_wings = aero.wings
     if set.winch_model == "TorqueControlledMachine"
@@ -94,17 +93,17 @@ function SymbolicAWESystem(set::Settings)
     wing = RamAirWing(set; prn=false)
     aero = BodyAerodynamics([wing])
     vsm_solver = Solver(aero; solver_type=NONLIN, atol=2e-8, rtol=2e-8)
-    point_system = PointMassSystem(set, wing)
+    point_system = SystemStructure(set, wing)
     return SymbolicAWESystem(set, aero, vsm_solver, point_system)
 end
 
-function update_sys_state!(ss::SysState, s::SAS, zoom=1.0)
+function update_sys_state!(ss::SysState, s::SymbolicAWESystem, zoom=1.0)
     isnothing(s.integrator) && throw(ArgumentError("run init_sim!(s) first"))
     ss.time = s.integrator.t # Use integrator time
 
     # Get the extended state vector from the integrator
     set_values, pos, acc_vec, Q_b_w, elevation, azimuth, course, heading, tether_length, tether_vel, winch_force,
-        twist_angle, kite_vel, aero_force_b, aero_moment_b, turn_rate, va_kite_b, wind_vec_gnd, wind_vel_kite = s.get_state(s.integrator)
+        twist_angle, wing_vel, aero_force_b, aero_moment_b, turn_rate, va_wing_b, wind_vec_gnd, wind_vel_wing = s.get_state(s.integrator)
 
     P = length(s.point_system.points)
     for i in 1:P
@@ -114,11 +113,11 @@ function update_sys_state!(ss::SysState, s::SAS, zoom=1.0)
     end
 
     # --- Populate SysState fields ---
-    ss.acc = norm(acc_vec) # Use the norm of the kite's acceleration vector
-    ss.orient .= Q_b_w
-    ss.turn_rates .= turn_rate
-    ss.elevation = elevation
-    ss.azimuth = azimuth
+    ss.acc = norm(acc_vec) # Use the norm of the wing's acceleration vector
+    ss.orient .= Q_b_w[1, :]
+    ss.turn_rates .= turn_rate[1, :]
+    ss.elevation = elevation[1]
+    ss.azimuth = azimuth[1]
 
     # Handle potential size mismatch for tether/winch related arrays
     num_winches = length(s.point_system.winches)
@@ -127,31 +126,31 @@ function update_sys_state!(ss::SysState, s::SAS, zoom=1.0)
     ss.force[1:num_winches] .= winch_force
 
     # Depower and Steering from twist angles
-    num_groups = length(s.point_system.groups)
-    ss.twist_angles[1:num_groups] .= twist_angle
-    ss.depower = rad2deg(mean(twist_angle)) # Average twist for depower
-    ss.steering = rad2deg(twist_angle[end] - twist_angle[1])
-    ss.heading = heading # Use heading from MTK model
-    ss.course = course
+    num_groups = length(s.point_system.wings[1].group_idxs)
+    ss.twist_angles[1:num_groups] .= twist_angle[1:num_groups]
+    ss.depower = rad2deg(mean(ss.twist_angles)) # Average twist for depower
+    ss.steering = rad2deg(ss.twist_angles[num_groups] - ss.twist_angles[1])
+    ss.heading = heading[1] # Use heading from MTK model
+    ss.course = course[1]
     # Apparent Wind and Aerodynamics
-    ss.v_app = norm(va_kite_b)
+    ss.v_app = norm(va_wing_b[1, :])
     ss.v_wind_gnd .= wind_vec_gnd
-    ss.v_wind_kite .= wind_vel_kite
+    ss.v_wind_kite .= wind_vel_wing[1, :]
     # Calculate AoA and Side Slip from apparent wind in body frame
     # AoA: angle between v_app projected onto xz-plane and x-axis
     # Side Slip: angle between v_app and the xz-plane
     if ss.v_app > 1e-6 # Avoid division by zero
-        ss.AoA = atan(va_kite_b[3], va_kite_b[1])
-        ss.side_slip = asin(va_kite_b[2] / ss.v_app)
+        ss.AoA = atan(va_wing_b[1, 3], va_wing_b[1, 1])
+        ss.side_slip = asin(va_wing_b[1, 2] / ss.v_app)
     else
         ss.AoA = 0.0
         ss.side_slip = 0.0
     end
-    ss.aero_force_b .= aero_force_b
-    ss.aero_moment_b .= aero_moment_b
-    ss.vel_kite .= kite_vel
+    ss.aero_force_b .= aero_force_b[1, :]
+    ss.aero_moment_b .= aero_moment_b[1, :]
+    ss.vel_kite .= wing_vel[1, :]
     # Calculate Roll, Pitch, Yaw from Quaternion
-    q = Q_b_w
+    q = Q_b_w[1, :]
     # roll (x-axis rotation)
     sinr_cosp = 2 * (q[1] * q[2] + q[3] * q[4])
     cosr_cosp = 1 - 2 * (q[2] * q[2] + q[3] * q[3])
@@ -171,7 +170,7 @@ function update_sys_state!(ss::SysState, s::SAS, zoom=1.0)
     nothing
 end
 
-function SysState(s::SAS, zoom=1.0)
+function SysState(s::SymbolicAWESystem, zoom=1.0)
     ss = SysState{length(s.point_system.points)}()
     update_sys_state!(ss, s, zoom)
     ss
@@ -204,7 +203,7 @@ and only update the state variables. Otherwise, it will create a new model from 
 # Returns
 `Nothing`
 """
-function init_sim!(s::SAS;
+function init_sim!(s::SymbolicAWESystem;
     solver=ifelse(s.set.quasi_static, FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.6)), FBDF()), 
     adaptive=true, prn=true, precompile=false, remake=false, reload=false, lin_outputs=Num[]
 )
@@ -246,7 +245,7 @@ function init_sim!(s::SAS;
     return nothing
 end
 
-function linearize(s::SAS; set_values=s.get_set_values(s.integrator))
+function linearize(s::SymbolicAWESystem; set_values=s.get_set_values(s.integrator))
     isnothing(s.lin_prob) && throw(ArgumentError("Run init_sim! with remake=true and lin_outputs=..."))
     s.set_lin_vsm(s.lin_prob, s.get_vsm(s.integrator))
     s.set_lin_set_values(s.lin_prob, set_values)
@@ -284,7 +283,7 @@ and only updates the state variables to match the current initial settings.
 - `ArgumentError`: If no serialized problem exists (run `init_sim!` first)
 """
 function reinit!(
-    s::SAS; 
+    s::SymbolicAWESystem; 
     solver=ifelse(s.set.quasi_static, FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.4, max_iter=1000)), FBDF()),
     adaptive=true,
     prn=true, 
@@ -292,7 +291,7 @@ function reinit!(
     precompile=false,
     lin_outputs=Num[]
 )
-    isnothing(s.point_system) && throw(ArgumentError("PointMassSystem not defined"))
+    isnothing(s.point_system) && throw(ArgumentError("SystemStructure not defined"))
 
     init_Q_b_w, R_b_w = initial_orient(s)
     init!(s.point_system, s.set, R_b_w, init_Q_b_w)
@@ -348,31 +347,32 @@ function generate_getters!(s, sym_vec)
     get_set_values = getp(sys, sys.set_values)
     get_unknowns = getu(sys, sym_vec)
     get_state = getu(sys,
-        [c(sys.set_values),
-         c(sys.pos),             # Particle positions
-         c(sys.acc),             # Kite center acceleration vector (world frame)
-         c(sys.Q_b_w),           # Orientation quaternion
+        c.([
+         sys.set_values,
+         sys.pos,             # Particle positions
+         sys.acc,             # Kite center acceleration vector (world frame)
+         sys.Q_b_w,           # Orientation quaternion
          sys.elevation,          # Elevation angle
          sys.azimuth,            # Azimuth angle
          sys.course,             # Course angle
          sys.heading,          # Heading angle (based on body x-axis projection)
-         c(sys.tether_length),   # Unstretched length per winch
-         c(sys.tether_vel),      # Reeling velocity per winch
-         c(sys.winch_force),     # Force at winch connection point per winch
-         c(sys.twist_angle),     # Twist angle per group
-         c(sys.kite_vel),        # Kite center velocity vector (world frame)
-         c(sys.aero_force_b),    # Aerodynamic force (body frame)
-         c(sys.aero_moment_b),   # Aerodynamic moment (body frame)
-         c(sys.turn_rate),             # Angular velocity (body frame)
-         c(sys.va_kite_b),       # Apparent wind velocity (body frame)
-         c(sys.wind_vec_gnd),    # Ground wind vector (world frame)
-         c(sys.wind_vel_kite)    # Wind vector at kite height (world frame)
-        ]
+         sys.tether_length,   # Unstretched length per winch
+         sys.tether_vel,      # Reeling velocity per winch
+         sys.winch_force,     # Force at winch connection point per winch
+         sys.twist_angle,     # Twist angle per group
+         sys.wing_vel,        # Kite center velocity vector (world frame)
+         sys.aero_force_b,    # Aerodynamic force (body frame)
+         sys.aero_moment_b,   # Aerodynamic moment (body frame)
+         sys.turn_rate,             # Angular velocity (body frame)
+         sys.va_wing_b,       # Apparent wind velocity (body frame)
+         sys.wind_vec_gnd,    # Ground wind vector (world frame)
+         sys.wind_vel_wing    # Wind vector at wing height (world frame)
+        ])
     )
     get_y = getu(sys, sys.y)
     get_unstretched_length = getu(sys, sys.unstretched_length)
     get_tether_length = getu(sys, sys.tether_length)
-    get_kite_pos = getu(sys, sys.kite_pos)
+    get_wing_pos = getu(sys, sys.wing_pos)
     get_winch_force = getu(sys, sys.winch_force)
     get_spring_force = getu(sys, sys.spring_force)
     get_stabilize = getp(sys, sys.stabilize)
@@ -392,7 +392,7 @@ function generate_getters!(s, sym_vec)
     s.get_y = (integ) -> get_y(integ)
     s.get_unstretched_length = (integ) -> get_unstretched_length(integ)
     s.get_tether_length = (integ) -> get_tether_length(integ)
-    s.get_kite_pos = (integ) -> get_kite_pos(integ)
+    s.get_wing_pos = (integ) -> get_wing_pos(integ)
     s.get_winch_force = (integ) -> get_winch_force(integ)
     s.get_spring_force = (integ) -> get_spring_force(integ)
     s.get_stabilize = (integ) -> get_stabilize(integ)
@@ -410,21 +410,27 @@ function generate_getters!(s, sym_vec)
     nothing
 end
 
-function linearize_vsm!(s::SAS, integ=s.integrator)
-    y = s.get_y(integ)
-    jac, x = VortexStepMethod.linearize(
-        s.vsm_solvers[1], 
-        s.aeros[1], 
-        y;
-        va_idxs=1:3, 
-        omega_idxs=4:6,
-        theta_idxs=7:6+length(s.point_system.groups),
-        moment_frac=s.point_system.groups[1].moment_frac)
+function linearize_vsm!(s::SymbolicAWESystem, integ=s.integrator)
+    @unpack wings, y, x, jac = s.point_system
+    y .= s.get_y(integ)
+    for wing in wings
+        res = VortexStepMethod.linearize(
+            s.vsm_solvers[wing.idx], 
+            s.vsm_aeros[wing.idx], 
+            y[wing.idx, :];
+            va_idxs=1:3, 
+            omega_idxs=4:6,
+            theta_idxs=7:6+length(s.point_system.groups),
+            moment_frac=s.point_system.groups[1].moment_frac
+        )
+        jac[wing.idx, :, :] .= res[1]
+        x[wing.idx, :] .= res[2]
+    end
     s.set_vsm(integ, [x, y, jac])
     nothing
 end
 
-function next_step!(s::SAS, set_values=nothing; upwind_dir=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
+function next_step!(s::SymbolicAWESystem, set_values=nothing; upwind_dir=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
     if (!isnothing(set_values)) 
         s.set_set_values(s.integrator, set_values)
     end
@@ -458,7 +464,7 @@ end
 """
 Calculate and return the angle of attack in rad
 """
-function calc_aoa(s::SAS)
+function calc_aoa(s::SymbolicAWESystem)
     alpha_array = s.vsm_solvers[1].sol.alpha_array
     middle = length(alpha_array) ÷ 2
     if iseven(length(alpha_array))
@@ -469,14 +475,14 @@ function calc_aoa(s::SAS)
 end
 
 function init_unknowns_vec!(
-    s::SAS, 
-    system::PointMassSystem, 
+    s::SymbolicAWESystem, 
+    system::SystemStructure, 
     vec::Vector{SimFloat}
 )
     !s.set.quasi_static && (length(vec) != length(s.integrator.u)) && 
         throw(ArgumentError("Unknowns of length $(length(s.integrator.u)) but vector provided of length $(length(vec))"))
         
-    @unpack points, groups, segments, pulleys, winches, kite = system
+    @unpack points, groups, segments, pulleys, winches, wings = system
     vec_idx = 1
     
     for point in points
@@ -513,21 +519,24 @@ function init_unknowns_vec!(
         vec[vec_idx] = winch.tether_vel
         vec_idx += 1
     end
-    for i in 1:4
-        vec[vec_idx] = kite.orient[i]
-        vec_idx += 1
-    end
-    for i in 1:3
-        vec[vec_idx] = kite.angular_vel[i]
-        vec_idx += 1
-    end
-    for i in 1:3
-        vec[vec_idx] = kite.pos[i]
-        vec_idx += 1
-    end
-    for i in 1:3
-        vec[vec_idx] = kite.vel[i]
-        vec_idx += 1
+
+    for wing in wings
+        for i in 1:4
+            vec[vec_idx] = wing.orient[i]
+            vec_idx += 1
+        end
+        for i in 1:3
+            vec[vec_idx] = wing.angular_vel[i]
+            vec_idx += 1
+        end
+        for i in 1:3
+            vec[vec_idx] = wing.pos[i]
+            vec_idx += 1
+        end
+        for i in 1:3
+            vec[vec_idx] = wing.vel[i]
+            vec_idx += 1
+        end
     end
 
     (vec_idx-1 != length(vec)) && 
@@ -535,7 +544,7 @@ function init_unknowns_vec!(
     nothing
 end
 
-function get_unknowns(s::SAS)
+function get_unknowns(s::SymbolicAWESystem)
     vec = Num[]
     @unpack points, groups, segments, pulleys, winches, wings = s.point_system
     sys = s.sys
@@ -557,7 +566,7 @@ function get_unknowns(s::SAS)
     return vec
 end
 
-function get_nonstiff_unknowns(s::SAS, vec=Num[])
+function get_nonstiff_unknowns(s::SymbolicAWESystem, vec=Num[])
     @unpack points, groups, segments, pulleys, winches, wings = s.point_system
     sys = s.sys
 
@@ -569,14 +578,16 @@ function get_nonstiff_unknowns(s::SAS, vec=Num[])
         push!(vec, sys.tether_length[winch.idx])
         push!(vec, sys.tether_vel[winch.idx])
     end
-    [push!(vec, sys.Q_b_w[i]) for i in 1:4]
-    [push!(vec, sys.ω_b[i]) for i in 1:3]
-    [push!(vec, sys.kite_pos[i]) for i in 1:3]
-    [push!(vec, sys.kite_vel[i]) for i in 1:3]
+    for wing in wings
+        [push!(vec, sys.Q_b_w[wing.idx, i]) for i in 1:4]
+        [push!(vec, sys.ω_b[wing.idx, i]) for i in 1:3]
+        [push!(vec, sys.wing_pos[wing.idx, i]) for i in 1:3]
+        [push!(vec, sys.wing_vel[wing.idx, i]) for i in 1:3]
+    end
     return vec
 end
 
-function find_steady_state!(s::SAS; dt=1/s.set.sample_freq)
+function find_steady_state!(s::SymbolicAWESystem; dt=1/s.set.sample_freq)
     old_state = s.get_stabilize(s.integrator)
     s.set_stabilize(s.integrator, true)
     for _ in 1:1÷dt
@@ -586,7 +597,7 @@ function find_steady_state!(s::SAS; dt=1/s.set.sample_freq)
     return nothing
 end
 
-function initial_orient(s::SAS)
+function initial_orient(s::SymbolicAWESystem)
     set = s.set
     wings = s.point_system.wings
     R_b_w = zeros(length(wings), 3, 3)
@@ -607,12 +618,12 @@ function initial_orient(s::SAS)
     return Q_b_w, R_b_w, init_va_b
 end
 
-unstretched_length(s::SAS) = s.get_unstretched_length(s.integrator)
-tether_length(s::SAS) = s.get_tether_length(s.integrator)
-calc_height(s::SAS) = s.get_kite_pos(s.integrator)[3]
-winch_force(s::SAS) = s.get_winch_force(s.integrator)
-spring_forces(s::SAS) = s.get_spring_force(s.integrator)
-function pos(s::SAS)
+unstretched_length(s::SymbolicAWESystem) = s.get_unstretched_length(s.integrator)
+tether_length(s::SymbolicAWESystem) = s.get_tether_length(s.integrator)
+calc_height(s::SymbolicAWESystem) = s.get_wing_pos(s.integrator)[3]
+winch_force(s::SymbolicAWESystem) = s.get_winch_force(s.integrator)
+spring_forces(s::SymbolicAWESystem) = s.get_spring_force(s.integrator)
+function pos(s::SymbolicAWESystem)
     pos = s.get_pos(s.integrator)
     return [pos[:,i] for i in eachindex(pos[1,:])]
 end    
