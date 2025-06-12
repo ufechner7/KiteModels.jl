@@ -11,7 +11,7 @@ Bart van de Lint joined the project in 2024. His major contribution is the first
 
 ## Developers
 - Uwe Fechner, Delft/ Den Haag, The Netherlands -  original author of the `KPS3` and `KPS4` kite models
-- Bart van de Lint, Trondheim, Norway - author of the `SymbolicAWESystem` model
+- Bart van de Lint, Trondheim, Norway - author of the `SymbolicAWEModel` model
 
 ## Contributors
 - Daan van Wolffelaar, Delft, The Netherlands - contributed the scripts 

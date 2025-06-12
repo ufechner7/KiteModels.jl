@@ -83,7 +83,7 @@ include("examples/lin_ram_model.jl")
 ```
 See: [`lin_ram_model.jl`](https://github.com/ufechner7/KiteModels.jl/blob/main/examples/lin_ram_model.jl)
 
-## How to create a SymbolicAWESystem
+## How to create a SymbolicAWEModel
 The following code is a minimal example that shows how to create a ram air kite struct:
 ```julia
 using KiteModels
@@ -91,5 +91,5 @@ using KiteModels
 # Initialize model
 set = load_settings("system_ram.yaml")
 
-rak = SymbolicAWESystem(set)
+rak = SymbolicAWEModel(set)
 ```

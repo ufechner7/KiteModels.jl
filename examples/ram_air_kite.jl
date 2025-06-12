@@ -42,7 +42,7 @@ set.quasi_static = false
 set.physical_model = SIMPLE ? "simple_ram" : "ram"
 
 @info "Creating wing, aero, vsm_solver, point_system and s:"
-s = SymbolicAWESystem(set)
+s = SymbolicAWEModel(set)
 s.set.abs_tol = 1e-2
 s.set.rel_tol = 1e-2
 toc()

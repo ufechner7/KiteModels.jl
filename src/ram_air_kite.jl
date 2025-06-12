@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 """
-    mutable struct SymbolicAWESystem{S, V, P} <: AbstractKiteModel
+    mutable struct SymbolicAWEModel{S, V, P} <: AbstractKiteModel
 
 State of the kite power system, using a quaternion kite model and three steering lines to the ground. Parameters:
 - S: Scalar type, e.g. SimFloat
@@ -14,7 +14,7 @@ use the input and output functions instead.
 
 $(TYPEDFIELDS)
 """
-@with_kw mutable struct SymbolicAWESystem{S, V, P} <: AbstractKiteModel
+@with_kw mutable struct SymbolicAWEModel{S, V, P} <: AbstractKiteModel
     "Reference to the settings struct"
     set::Settings
     "Reference to the geometric wing model"
@@ -72,32 +72,36 @@ $(TYPEDFIELDS)
 end
 
 
-function SymbolicAWESystem(set::Settings, aero::BodyAerodynamics, vsm_solver::VortexStepMethod.Solver, point_system::SystemStructure)
-    length(aero.wings) > 1 && throw(ArgumentError("Just one wing allowed in BodyAerodynamics object"))
-    vsm_wings = aero.wings
+function SymbolicAWEModel(
+    set::Settings, 
+    vsm_aeros::Vector{BodyAerodynamics}, 
+    vsm_solvers::Vector{VortexStepMethod.Solver}, 
+    point_system::SystemStructure
+)
+    vsm_wings = [aero.wings[1] for aero in vsm_aeros]
     if set.winch_model == "TorqueControlledMachine"
-        s = SymbolicAWESystem{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
-            ; set, vsm_wings, vsm_aeros=[aero], vsm_solvers=[vsm_solver], point_system
+        s = SymbolicAWEModel{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
+            ; set, vsm_wings, vsm_aeros, vsm_solvers, point_system
             )
         s.torque_control = true
     else
-        s = SymbolicAWESystem{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
-            ; set, vsm_wings, vsm_aeros=[aero], vsm_solvers=[vsm_solver], point_system
+        s = SymbolicAWEModel{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
+            ; set, vsm_wings, vsm_aeros, vsm_solvers, point_system
             )
         s.torque_control = false
     end
     return s
 end
 
-function SymbolicAWESystem(set::Settings)
+function SymbolicAWEModel(set::Settings)
     wing = RamAirWing(set; prn=false)
     aero = BodyAerodynamics([wing])
     vsm_solver = Solver(aero; solver_type=NONLIN, atol=2e-8, rtol=2e-8)
     point_system = SystemStructure(set, wing)
-    return SymbolicAWESystem(set, aero, vsm_solver, point_system)
+    return SymbolicAWEModel(set, aero, vsm_solver, point_system)
 end
 
-function update_sys_state!(ss::SysState, s::SymbolicAWESystem, zoom=1.0)
+function update_sys_state!(ss::SysState, s::SymbolicAWEModel, zoom=1.0)
     isnothing(s.integrator) && throw(ArgumentError("run init_sim!(s) first"))
     ss.time = s.integrator.t # Use integrator time
 
@@ -170,14 +174,14 @@ function update_sys_state!(ss::SysState, s::SymbolicAWESystem, zoom=1.0)
     nothing
 end
 
-function SysState(s::SymbolicAWESystem, zoom=1.0)
+function SysState(s::SymbolicAWEModel, zoom=1.0)
     ss = SysState{length(s.point_system.points)}()
     update_sys_state!(ss, s, zoom)
     ss
 end
 
 """
-    init_sim!(s::SymbolicAWESystem; prn=true, precompile=false) -> Nothing
+    init_sim!(s::SymbolicAWEModel; prn=true, precompile=false) -> Nothing
 
 Initialize a kite power system model. 
 
@@ -196,14 +200,14 @@ and only update the state variables. Otherwise, it will create a new model from 
 4. Proceeds with fast path
 
 # Arguments
-- `s::SymbolicAWESystem`: The kite system state object  
+- `s::SymbolicAWEModel`: The kite system state object  
 - `prn::Bool=true`: Whether to print progress information
 - `precompile::Bool=false`: Whether to build problem for precompilation
 
 # Returns
 `Nothing`
 """
-function init_sim!(s::SymbolicAWESystem;
+function init_sim!(s::SymbolicAWEModel;
     solver=ifelse(s.set.quasi_static, FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.6)), FBDF()), 
     adaptive=true, prn=true, precompile=false, remake=false, reload=false, lin_outputs=Num[]
 )
@@ -245,7 +249,7 @@ function init_sim!(s::SymbolicAWESystem;
     return nothing
 end
 
-function linearize(s::SymbolicAWESystem; set_values=s.get_set_values(s.integrator))
+function linearize(s::SymbolicAWEModel; set_values=s.get_set_values(s.integrator))
     isnothing(s.lin_prob) && throw(ArgumentError("Run init_sim! with remake=true and lin_outputs=..."))
     s.set_lin_vsm(s.lin_prob, s.get_vsm(s.integrator))
     s.set_lin_set_values(s.lin_prob, set_values)
@@ -254,7 +258,7 @@ function linearize(s::SymbolicAWESystem; set_values=s.get_set_values(s.integrato
 end
 
 """
-    reinit!(s::SymbolicAWESystem; prn=true, precompile=false) -> Nothing
+    reinit!(s::SymbolicAWEModel; prn=true, precompile=false) -> Nothing
 
 Reinitialize an existing kite power system model with new state values.
 
@@ -273,7 +277,7 @@ This is more efficient than `init!` as it reuses the existing model structure
 and only updates the state variables to match the current initial settings.
 
 # Arguments
-- `s::SymbolicAWESystem`: The kite power system state object
+- `s::SymbolicAWEModel`: The kite power system state object
 - `prn::Bool=true`: Whether to print progress information
 
 # Returns
@@ -283,7 +287,7 @@ and only updates the state variables to match the current initial settings.
 - `ArgumentError`: If no serialized problem exists (run `init_sim!` first)
 """
 function reinit!(
-    s::SymbolicAWESystem; 
+    s::SymbolicAWEModel; 
     solver=ifelse(s.set.quasi_static, FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.4, max_iter=1000)), FBDF()),
     adaptive=true,
     prn=true, 
@@ -298,7 +302,7 @@ function reinit!(
     
     if isnothing(s.prob) || reload
         prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set; precompile))
-        !ispath(prob_path) && throw(ArgumentError("$prob_path not found. Run init_sim!(s::SymbolicAWESystem) first."))
+        !ispath(prob_path) && throw(ArgumentError("$prob_path not found. Run init_sim!(s::SymbolicAWEModel) first."))
         try
             (s.prob, s.full_sys, s.lin_prob, s.defaults, s.guesses) = deserialize(prob_path)
             length(lin_outputs) > 0 && isnothing(s.lin_prob) && throw(ArgumentError("lin_prob is nothing."))
@@ -410,7 +414,7 @@ function generate_getters!(s, sym_vec)
     nothing
 end
 
-function linearize_vsm!(s::SymbolicAWESystem, integ=s.integrator)
+function linearize_vsm!(s::SymbolicAWEModel, integ=s.integrator)
     @unpack wings, y, x, jac = s.point_system
     y .= s.get_y(integ)
     for wing in wings
@@ -430,7 +434,7 @@ function linearize_vsm!(s::SymbolicAWESystem, integ=s.integrator)
     nothing
 end
 
-function next_step!(s::SymbolicAWESystem, set_values=nothing; upwind_dir=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
+function next_step!(s::SymbolicAWEModel, set_values=nothing; upwind_dir=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
     if (!isnothing(set_values)) 
         s.set_set_values(s.integrator, set_values)
     end
@@ -464,7 +468,7 @@ end
 """
 Calculate and return the angle of attack in rad
 """
-function calc_aoa(s::SymbolicAWESystem)
+function calc_aoa(s::SymbolicAWEModel)
     alpha_array = s.vsm_solvers[1].sol.alpha_array
     middle = length(alpha_array) ÷ 2
     if iseven(length(alpha_array))
@@ -475,7 +479,7 @@ function calc_aoa(s::SymbolicAWESystem)
 end
 
 function init_unknowns_vec!(
-    s::SymbolicAWESystem, 
+    s::SymbolicAWEModel, 
     system::SystemStructure, 
     vec::Vector{SimFloat}
 )
@@ -544,7 +548,7 @@ function init_unknowns_vec!(
     nothing
 end
 
-function get_unknowns(s::SymbolicAWESystem)
+function get_unknowns(s::SymbolicAWEModel)
     vec = Num[]
     @unpack points, groups, segments, pulleys, winches, wings = s.point_system
     sys = s.sys
@@ -566,7 +570,7 @@ function get_unknowns(s::SymbolicAWESystem)
     return vec
 end
 
-function get_nonstiff_unknowns(s::SymbolicAWESystem, vec=Num[])
+function get_nonstiff_unknowns(s::SymbolicAWEModel, vec=Num[])
     @unpack points, groups, segments, pulleys, winches, wings = s.point_system
     sys = s.sys
 
@@ -587,7 +591,7 @@ function get_nonstiff_unknowns(s::SymbolicAWESystem, vec=Num[])
     return vec
 end
 
-function find_steady_state!(s::SymbolicAWESystem; dt=1/s.set.sample_freq)
+function find_steady_state!(s::SymbolicAWEModel; dt=1/s.set.sample_freq)
     old_state = s.get_stabilize(s.integrator)
     s.set_stabilize(s.integrator, true)
     for _ in 1:1÷dt
@@ -597,7 +601,7 @@ function find_steady_state!(s::SymbolicAWESystem; dt=1/s.set.sample_freq)
     return nothing
 end
 
-function initial_orient(s::SymbolicAWESystem)
+function initial_orient(s::SymbolicAWEModel)
     set = s.set
     wings = s.point_system.wings
     R_b_w = zeros(length(wings), 3, 3)
@@ -618,12 +622,12 @@ function initial_orient(s::SymbolicAWESystem)
     return Q_b_w, R_b_w, init_va_b
 end
 
-unstretched_length(s::SymbolicAWESystem) = s.get_unstretched_length(s.integrator)
-tether_length(s::SymbolicAWESystem) = s.get_tether_length(s.integrator)
-calc_height(s::SymbolicAWESystem) = s.get_wing_pos(s.integrator)[3]
-winch_force(s::SymbolicAWESystem) = s.get_winch_force(s.integrator)
-spring_forces(s::SymbolicAWESystem) = s.get_spring_force(s.integrator)
-function pos(s::SymbolicAWESystem)
+unstretched_length(s::SymbolicAWEModel) = s.get_unstretched_length(s.integrator)
+tether_length(s::SymbolicAWEModel) = s.get_tether_length(s.integrator)
+calc_height(s::SymbolicAWEModel) = s.get_wing_pos(s.integrator)[3]
+winch_force(s::SymbolicAWEModel) = s.get_winch_force(s.integrator)
+spring_forces(s::SymbolicAWEModel) = s.get_spring_force(s.integrator)
+function pos(s::SymbolicAWEModel)
     pos = s.get_pos(s.integrator)
     return [pos[:,i] for i in eachindex(pos[1,:])]
 end    

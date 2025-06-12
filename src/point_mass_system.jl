@@ -140,7 +140,6 @@ $(TYPEDFIELDS)
 struct Tether
     idx::Int16
     segment_idxs::Vector{Int16}
-    winch_point_idx::Int16
 end
 
 """
@@ -286,8 +285,7 @@ function create_tether(tether_idx, set, points, segments, tethers, attach_point,
         end
         push!(segment_idxs, segment_idx)
     end
-    winch_point_idx = points[end].idx
-    tethers = [tethers; Tether(tether_idx, segment_idxs, winch_point_idx)]
+    tethers = [tethers; Tether(tether_idx, segment_idxs)]
     return points, segments, tethers, tethers[end].idx
 end
 
@@ -501,7 +499,7 @@ function init!(system::SystemStructure, set::Settings, R_b_w, Q_b_w)
         @assert !(winch.tether_length ≈ 0)
     end
 
-    first_moment_frac = groups[1].moment_frac
+    (length(groups) > 0) && (first_moment_frac = groups[1].moment_frac)
     for group in groups
         group.twist = 0.0
         group.twist_vel = 0.0
@@ -515,7 +513,12 @@ function init!(system::SystemStructure, set::Settings, R_b_w, Q_b_w)
         end
     end
     for point in points
-        point.pos_w .= R_b_w[point.wing_idx, :, :] * (point.pos_b .- min_point)
+        if point.wing_idx == 0
+            R = I(3)
+        else
+            R = R_b_w[point.wing_idx, :, :]
+        end
+        point.pos_w .= R * (point.pos_b .- min_point)
         point.vel_w .= 0.0
     end
     for wing in wings

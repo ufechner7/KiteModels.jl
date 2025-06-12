@@ -21,7 +21,7 @@ solver:
 kite:
     model: "data/ram_air_kite_body.obj"     # 3D model of the kite
     foil_file: "data/ram_air_kite_foil.dat" # filename for the foil shape
-    physical_model: "ram"            # name of the kite model to use (KPS3, KPS4 or SymbolicAWESystem)
+    physical_model: "ram"            # name of the kite model to use (KPS3, KPS4 or SymbolicAWEModel)
     top_bridle_points:                      # top bridle points that are not on the kite body in CAD frame
         - [0.290199, 0.784697, -2.61305]
         - [0.392683, 0.785271, -2.61201]

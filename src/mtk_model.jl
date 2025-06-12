@@ -72,7 +72,7 @@ Generate the force equations for the wing system including spring forces, drag f
 pulley dynamics and winch forces.
 
 # Arguments
-- `s::SymbolicAWESystem`: The wing system state
+- `s::SymbolicAWEModel`: The wing system state
 - `system::SystemStructure`: The point mass representation
 - `eqs`: Current system equations
 - `defaults`: Default values for variables
@@ -200,10 +200,15 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             # r = (p - n) # https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line#Vector_formulation
             @parameters bridle_damp = 1.0
             @parameters measured_ω_z = 0.6
+            if in_bridle
+                bridle_damp_vec = bridle_damp * (vel[:, point.idx] - wing_vel[point.wing_idx, :])
+            else
+                bridle_damp_vec = zeros(Num, 3)
+            end
             eqs = [
                 eqs
                 D(pos[:, point.idx]) ~ vel[:, point.idx]
-                D(vel[:, point.idx]) ~ acc_multiplier * acc[:, point.idx] - in_bridle * bridle_damp * (vel[:, point.idx] - wing_vel[point.wing_idx, :])
+                D(vel[:, point.idx]) ~ acc_multiplier * acc[:, point.idx] - bridle_damp_vec
                 acc[:, point.idx]    ~ point_force[:, point.idx] / mass + [0, 0, -G_EARTH]
                                         # ifelse.(stabilize==true, r * norm(measured_ω_z)^2, zeros(3))
             ]
@@ -231,15 +236,17 @@ function force_eqs!(s, system, eqs, defaults, guesses;
     end
 
     # ==================== GROUPS ==================== #
-    @variables begin
-        trailing_edge_angle(t)[eachindex(groups)] # angle left / right
-        trailing_edge_ω(t)[eachindex(groups)] # angular rate
-        trailing_edge_α(t)[eachindex(groups)] # angular acc
-        free_twist_angle(t)[eachindex(groups)]
-        twist_α(t)[eachindex(groups)] # angular acc
-        group_tether_moment(t)[eachindex(groups)]
-        tether_force(t)[eachindex(groups), eachindex(groups[1].point_idxs)]
-        tether_moment(t)[eachindex(groups), eachindex(groups[1].point_idxs)]
+    if length(groups) > 0
+        @variables begin
+            trailing_edge_angle(t)[eachindex(groups)] # angle left / right
+            trailing_edge_ω(t)[eachindex(groups)] # angular rate
+            trailing_edge_α(t)[eachindex(groups)] # angular acc
+            free_twist_angle(t)[eachindex(groups)]
+            twist_α(t)[eachindex(groups)] # angular acc
+            group_tether_moment(t)[eachindex(groups)]
+            tether_force(t)[eachindex(groups), eachindex(groups[1].point_idxs)]
+            tether_moment(t)[eachindex(groups), eachindex(groups[1].point_idxs)]
+        end
     end
     
     for group in groups
@@ -378,13 +385,20 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                             in_winch += 1
                         end
                     end
-                    (in_winch != 1) && error("Tether number $(tether.idx) is part of
-                        $(in_winch) winches, and should be part of exactly 1 winch.")
+                    !(in_winch in [0,1]) && error("Tether number $(tether.idx) is part of
+                        $(in_winch) winches, and should be part of exactly 0 or 1 winch.")
 
-                    eqs = [
-                        eqs
-                        l0[segment.idx] ~ tether_length[winch_idx] / length(tether.segment_idxs)
-                    ]
+                    if in_winch == 1
+                        eqs = [
+                            eqs
+                            l0[segment.idx] ~ tether_length[winch_idx] / length(tether.segment_idxs)
+                        ]
+                    elseif in_winch == 0
+                        eqs = [
+                            eqs
+                            l0[segment.idx] ~ segment.l0
+                        ]
+                    end
                     in_tether += 1
                 end
             end
@@ -487,7 +501,15 @@ function force_eqs!(s, system, eqs, defaults, guesses;
     for winch in winches
         F = zero(Num)
         for tether_idx in winch.tether_idxs
-            point_idx = tethers[tether_idx].winch_point_idx # TODO: just use the static point
+            found = 0
+            point_idx = 0
+            for point_idx_ in tethers[tether_idx].point_idxs
+                if points[point_idx_].type == STATIC
+                    found += 1
+                    point_idx = point_idx_
+                end
+            end
+            (found != 1) && error("Tether number $tether_idx has $found static points and should have exactly 1 static point.")
             F += norm(point_force[:, point_idx])
         end
         eqs = [
@@ -534,7 +556,7 @@ Generate the differential equations for wing dynamics including quaternion kinem
 angular velocities and accelerations, and forces/moments.
 
 # Arguments
-- `s::SymbolicAWESystem`: The wing system state
+- `s::SymbolicAWEModel`: The wing system state
 - `eqs`: Current system equations  
 - `defaults`: Default values for variables
 - `tether_wing_force`: Forces from tethers on wing
@@ -656,7 +678,7 @@ end
 Generate equations for scalar quantities like elevation, azimuth, heading and course angles.
     
     # Arguments
-    - `s::SymbolicAWESystem`: The wing system state
+    - `s::SymbolicAWEModel`: The wing system state
     - `eqs`: Current system equations
     - `R_b_w`: Body to world rotation matrix
     - `wind_vec_gnd`: Ground wind vector
@@ -775,7 +797,7 @@ Uses linearization around current operating point to approximate aerodynamic for
 and moments. The Jacobian is computed using the VSM solver.
 
 # Arguments
-- `s::SymbolicAWESystem`: The wing system state
+- `s::SymbolicAWEModel`: The wing system state
 - `eqs`: Current system equations
 - `aero_force_b`: Aerodynamic forces in body frame
 - `aero_moment_b`: Aerodynamic moments in body frame 
@@ -793,6 +815,10 @@ and moments. The Jacobian is computed using the VSM solver.
 """
 function linear_vsm_eqs!(s, eqs, guesses; aero_force_b, aero_moment_b, group_aero_moment, init_va_b, twist_angle, va_wing_b, ω_b)
     @unpack groups, wings = s.point_system
+    if length(wings) == 0
+        return eqs, guesses
+    end
+
     ny = 3+length(wings[1].group_idxs)+3
     nx = 3+3+length(wings[1].group_idxs)
     y_ = zeros(length(wings), ny)
@@ -827,11 +853,10 @@ function linear_vsm_eqs!(s, eqs, guesses; aero_force_b, aero_moment_b, group_aer
             guesses = [guesses; [y[wing.idx, i] => y_[wing.idx, i] for i in 1:ny]]
         end
     end
-
     return eqs, guesses
 end
 
-function create_sys!(s::SymbolicAWESystem, system::SystemStructure; init_va_b)
+function create_sys!(s::SymbolicAWEModel, system::SystemStructure; init_va_b)
     eqs = []
     defaults = Pair{Num, Real}[]
     guesses = Pair{Num, Real}[]
@@ -899,7 +924,7 @@ function create_sys!(s::SymbolicAWESystem, system::SystemStructure; init_va_b)
 
     defaults = [
         defaults
-        [set_values[i] => [-50.0, -1.0, -1.0][i] for i in 1:3]
+        [set_values[i] => [-50.0, -1.0, -1.0][i] for i in eachindex(winches)]
     ]
 
     s.defaults = defaults

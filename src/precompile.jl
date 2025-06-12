@@ -86,7 +86,7 @@ end
             set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
             set.quasi_static = false
             set.physical_model = "ram"
-            s = SymbolicAWESystem(set)
+            s = SymbolicAWEModel(set)
 
             # Initialize at elevation
             KiteModels.init_sim!(s; prn=false, precompile=true)
@@ -95,4 +95,4 @@ end
         end
         nothing
     end
-end
+end 

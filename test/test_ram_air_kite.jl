@@ -15,7 +15,7 @@ set_data_path(temp_data_path)
 const TOL = 1e-5
 const BUILD_SYS = true
 
-@testset verbose = true "SymbolicAWESystem MTK Model Tests" begin
+@testset verbose = true "SymbolicAWEModel MTK Model Tests" begin
     # Initialize model
     set = se("system_ram.yaml")
     set.segments = 3
@@ -24,7 +24,7 @@ const BUILD_SYS = true
     set.physical_model = "ram"
 
     @info "Creating s:"
-    @time s = SymbolicAWESystem(set)
+    @time s = SymbolicAWEModel(set)
 
     s.set.abs_tol = 1e-2
     s.set.rel_tol = 1e-2

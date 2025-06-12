@@ -3,7 +3,7 @@
 
 #=
 This example demonstrates linearized model accuracy by comparing:
-1. Nonlinear SymbolicAWESystem model simulation 
+1. Nonlinear SymbolicAWEModel model simulation 
 2. Linearized state-space model simulation
 
 Both models start from the same operating point and are subjected
@@ -52,8 +52,8 @@ set_values = [-50.0, 0.0, 0.0]  # Set values of the torques of the three winches
 set.quasi_static = false
 set.physical_model = "simple_ram"
 
-@info "Creating SymbolicAWESystem model..."
-s = SymbolicAWESystem(set)
+@info "Creating SymbolicAWEModel model..."
+s = SymbolicAWEModel(set)
 s.set.abs_tol = 1e-2
 s.set.rel_tol = 1e-2
 toc()
