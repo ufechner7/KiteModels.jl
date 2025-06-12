@@ -282,6 +282,8 @@ end
     reinit!(s::RamAirKite; prn=true, precompile=false) -> Nothing
 
 Reinitialize an existing kite power system model with new state values.
+The new state is coming from the init section of the settings, stored
+in the struct `s.set`.
 
 This function performs the following operations:
 1. If no integrator exists yet:
