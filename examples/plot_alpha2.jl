@@ -51,7 +51,7 @@ function simulate(integrator, steps, offset=0)
             println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
         end
 
-        KiteModels.next_step!(kps4, integrator; set_speed, dt=dt)
+        next_step!(kps4, integrator; set_speed, dt=dt)
         iter += kps4.iter
     end
     iter / steps

@@ -59,7 +59,7 @@ function simulate(kps4, integrator, logger, steps)
     cl = 0.0
     cd = 0.0
     for i in 1:steps
-        KiteModels.next_step!(kps4, integrator; set_speed=0, dt)
+        next_step!(kps4, integrator; set_speed=0, dt)
         sys_state = KiteModels.SysState(kps4)
         log!(logger, sys_state)
         iter += kps4.iter

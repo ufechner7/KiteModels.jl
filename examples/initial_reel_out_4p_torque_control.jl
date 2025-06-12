@@ -63,7 +63,7 @@ function simulate(integrator, steps, plot=false)
         v_speed[i] = kps4.v_reel_out
         v_force[i] = winch_force(kps4)
 
-        KiteModels.next_step!(kps4, integrator; set_torque, dt)
+        next_step!(kps4, integrator; set_torque, dt)
         if ! SciMLBase.successful_retcode(integrator.sol)
             println("Solver failed at time $(integrator.t)")
             force = norm(kps4.forces[1])

@@ -86,7 +86,7 @@ function simulate(integrator, steps; plot=false)
             end
         end
 
-        KiteModels.next_step!(kps4, integrator; set_speed=0, dt)
+        next_step!(kps4, integrator; set_speed=0, dt)
         iter += kps4.iter
         sys_state = SysState(kps4)
         sys_state.var_15 = rad2deg(heading - last_heading) / dt

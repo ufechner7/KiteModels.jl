@@ -42,7 +42,7 @@ function simulate(s, integrator, steps, plot=false; fig="")
             println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
         end
 
-        KiteModels.next_step!(s, integrator; set_speed=0, dt=dt)
+        next_step!(s, integrator; set_speed=0, dt=dt)
         iter += s.iter
         
         if plot

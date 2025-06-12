@@ -48,7 +48,7 @@ function simulate(integrator, steps, plot=false)
         v_time[i] = kps3.t_0
         v_speed[i] = kps3.v_reel_out
         v_force[i] = winch_force(kps3)
-        KiteModels.next_step!(kps3, integrator; set_speed, dt)
+        next_step!(kps3, integrator; set_speed, dt)
         iter += kps3.iter
         if plot 
             reltime = i*dt-dt
