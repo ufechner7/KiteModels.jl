@@ -120,9 +120,9 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         mass = 0.0
         in_bridle = false
         for segment in segments
-            if point.idx in segment.points
+            if point.idx in segment.point_idxs
                 mass_per_meter = s.set.rho_tether * π * (segment.diameter/2)^2
-                inverted = segment.points[2] == point.idx
+                inverted = segment.point_idxs[2] == point.idx
                 if inverted
                     F .-= spring_force_vec[:, segment.idx]
                 else
@@ -142,45 +142,47 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             point_force[:, point.idx]  ~ F
         ]
 
-        winch_point = false
-        for tether in tethers
-            if point.idx == tether.winch_point
-                winch_point = true
-                break
-            end
-        end
-
         if point.type == WING
             found = 0
-            group_idx = 0
-            for group in groups
-                if point.idx in group.points
-                    group_idx = group.idx
+            group = nothing
+            for group_ in groups
+                if point.idx in group_.point_idxs
+                    group = group_
                     found += 1
                 end
             end
             !(found in [0,1]) && error("Kite point number $(point.idx) is part of $found groups, 
                 and should be part of exactly 0 or 1 groups.")
-                
+
             if found == 1
-                group = groups[group_idx]
+                found = 0
+                wing = nothing
+                for wing_ in wings
+                    if group.idx in wing_.group_idxs
+                        wing = wing_
+                        found += 1
+                    end
+                end
+                !(found == 1) && error("Kite group number $(group.idx) is part of $found wings, 
+                    and should be part of exactly 1 wing.")
+
                 fixed_pos = group.le_pos
                 chord_b = point.pos_b - fixed_pos
                 normal = chord_b × group.y_airf
-                pos_b = fixed_pos + cos(twist_angle[group.wing, group_idx]) * chord_b - sin(twist_angle[group.wing, group_idx]) * normal
+                pos_b = fixed_pos + cos(twist_angle[group.idx]) * chord_b - sin(twist_angle[group.idx]) * normal
             else
                 pos_b = point.pos_b
                 eqs = [
                     eqs
-                    tether_r[:, point.idx] ~ pos[:, point.idx] - wing_pos
+                    tether_r[:, point.idx] ~ pos[:, point.idx] - wing_pos[point.wing_idx, :]
                 ]
-                tether_wing_moment[group.wing, :] .+= tether_r[:, point.idx] × point_force[:, point.idx]
+                tether_wing_moment[point.wing_idx, :] .+= tether_r[:, point.idx] × point_force[:, point.idx]
             end
-            tether_wing_force[group.wing, :] .+= point_force[:, point.idx]
+            tether_wing_force[point.wing_idx, :] .+= point_force[:, point.idx]
             
             eqs = [
                 eqs
-                pos[:, point.idx]    ~ wing_pos + R_b_w * pos_b
+                pos[:, point.idx]    ~ wing_pos[point.wing_idx, :] + R_b_w[point.wing_idx, :, :] * pos_b
                 vel[:, point.idx]    ~ zeros(3)
                 acc[:, point.idx]    ~ zeros(3)
             ]
@@ -192,19 +194,18 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                 acc[:, point.idx]    ~ zeros(3)
             ]
         elseif point.type == DYNAMIC
-            p = pos[:, point.idx]
-            n = sym_normalize(wing_pos)
-            n = n * (p ⋅ n)
-            r = (p - n) # https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line#Vector_formulation
+            # p = pos[:, point.idx]
+            # n = sym_normalize(wing_pos)
+            # n = n * (p ⋅ n)
+            # r = (p - n) # https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line#Vector_formulation
             @parameters bridle_damp = 1.0
             @parameters measured_ω_z = 0.6
             eqs = [
                 eqs
                 D(pos[:, point.idx]) ~ vel[:, point.idx]
-                D(vel[:, point.idx]) ~ acc_multiplier * acc[:, point.idx] - in_bridle * bridle_damp * (vel[:, point.idx] - wing_vel)
-                acc[:, point.idx]    ~ point_force[:, point.idx] / mass + 
-                                        [0, 0, -G_EARTH] + 
-                                        ifelse.(stabilize==true, r * norm(measured_ω_z)^2, zeros(3)) # TODO: add other stabilize accelerations
+                D(vel[:, point.idx]) ~ acc_multiplier * acc[:, point.idx] - in_bridle * bridle_damp * (vel[:, point.idx] - wing_vel[point.wing_idx, :])
+                acc[:, point.idx]    ~ point_force[:, point.idx] / mass + [0, 0, -G_EARTH]
+                                        # ifelse.(stabilize==true, r * norm(measured_ω_z)^2, zeros(3))
             ]
             defaults = [
                 defaults
@@ -237,22 +238,33 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         free_twist_angle(t)[eachindex(groups)]
         twist_α(t)[eachindex(groups)] # angular acc
         group_tether_moment(t)[eachindex(groups)]
-        tether_force(t)[eachindex(groups), eachindex(groups[1].points)]
-        tether_moment(t)[eachindex(groups), eachindex(groups[1].points)]
+        tether_force(t)[eachindex(groups), eachindex(groups[1].point_idxs)]
+        tether_moment(t)[eachindex(groups), eachindex(groups[1].point_idxs)]
     end
     
     for group in groups
-        tether_wing_moment[group.idx] == zeros(Num, 3) && 
+        found = 0
+        wing = nothing
+        for wing_ in wings
+            if group.idx in wing_.group_idxs
+                wing = wing_
+                found += 1
+            end
+        end
+        !(found == 1) && error("Kite group number $(group.idx) is part of $found wings, 
+            and should be part of exactly 1 wing.")
+
+        all(iszero.(tether_wing_moment[wing.idx, :])) && 
             error("Tether wing moment is zero. At least one of the wing connection points should not be part of a deforming group.")
 
         x_airf = normalize(group.chord)
         init_z_airf = x_airf × group.y_airf
-        z_airf = x_airf * sin(twist_angle[group.wing, group.idx]) + init_z_airf * cos(twist_angle[group.wing, group.idx])
-        for (i, point_idx) in enumerate(group.points)
+        z_airf = x_airf * sin(twist_angle[group.idx]) + init_z_airf * cos(twist_angle[group.idx])
+        for (i, point_idx) in enumerate(group.point_idxs)
             r = (points[point_idx].pos_b - (group.le_pos + group.moment_frac*group.chord)) ⋅ normalize(group.chord)
             eqs = [
                 eqs
-                tether_force[group.idx, i] ~ (point_force[:, point_idx] ⋅ (R_b_w[group.wing, :, :] * -z_airf))
+                tether_force[group.idx, i] ~ (point_force[:, point_idx] ⋅ (R_b_w[wing.idx, :, :] * -z_airf))
                 tether_moment[group.idx, i] ~ r * tether_force[group.idx, i]
             ]
         end
@@ -320,7 +332,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         tether_length(t)[eachindex(winches)]
     end
     for segment in segments
-        p1, p2 = segment.points[1], segment.points[2]
+        p1, p2 = segment.point_idxs[1], segment.point_idxs[2]
         if s.set.quasi_static
             guesses = [
                 guesses
@@ -331,14 +343,14 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         if segment.type == BRIDLE
             in_pulley = 0
             for pulley in pulleys
-                if segment.idx == pulley.segments[1] # each bridle segment has to be part of no pulley or one pulley
+                if segment.idx == pulley.segment_idxs[1] # each bridle segment has to be part of no pulley or one pulley
                     eqs = [
                         eqs
                         l0[segment.idx] ~ pulley_l0[pulley.idx]
                     ]
                     in_pulley += 1
                 end
-                if segment.idx == pulley.segments[2]
+                if segment.idx == pulley.segment_idxs[2]
                     eqs = [
                         eqs
                         l0[segment.idx] ~ pulley.sum_length - pulley_l0[pulley.idx]
@@ -357,11 +369,11 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         elseif segment.type == POWER || segment.type == STEERING
             in_tether = 0
             for tether in tethers
-                if segment.idx in tether.segments # each tether segment has to be part of exactly one tether
+                if segment.idx in tether.segment_idxs # each tether segment has to be part of exactly one tether
                     in_winch = 0
                     winch_idx = 0
                     for winch in winches
-                        if tether.idx in winch.tethers
+                        if tether.idx in winch.tether_idxs
                             winch_idx = winch.idx
                             in_winch += 1
                         end
@@ -371,7 +383,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
 
                     eqs = [
                         eqs
-                        l0[segment.idx] ~ tether_length[winch_idx] / length(tether.segments)
+                        l0[segment.idx] ~ tether_length[winch_idx] / length(tether.segment_idxs)
                     ]
                     in_tether += 1
                 end
@@ -431,13 +443,13 @@ function force_eqs!(s, system, eqs, defaults, guesses;
     end
     @parameters pulley_damp = 1.0
     for pulley in pulleys
-        segment = segments[pulley.segments[1]]
+        segment = segments[pulley.segment_idxs[1]]
         mass_per_meter = s.set.rho_tether * π * (segment.diameter/2)^2
         mass = pulley.sum_length * mass_per_meter
         @assert !(mass ≈ 0.0)
         eqs = [
             eqs
-            pulley_force[pulley.idx]    ~ spring_force[pulley.segments[1]] - spring_force[pulley.segments[2]]
+            pulley_force[pulley.idx]    ~ spring_force[pulley.segment_idxs[1]] - spring_force[pulley.segment_idxs[2]]
             pulley_acc[pulley.idx]      ~ pulley_force[pulley.idx] / mass
         ]
         if pulley.type == DYNAMIC
@@ -448,7 +460,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             ]
             defaults = [
                 defaults
-                pulley_l0[pulley.idx] => segments[pulley.segments[1]].l0
+                pulley_l0[pulley.idx] => segments[pulley.segment_idxs[1]].l0
                 pulley_vel[pulley.idx] => 0
             ]
         elseif pulley.type == QUASI_STATIC
@@ -459,7 +471,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             ]
             guesses = [
                 guesses
-                pulley_l0[pulley.idx] => segments[pulley.segments[1]].l0
+                pulley_l0[pulley.idx] => segments[pulley.segment_idxs[1]].l0
             ]
         else
             error("Wrong pulley type")
@@ -474,8 +486,8 @@ function force_eqs!(s, system, eqs, defaults, guesses;
     end
     for winch in winches
         F = zero(Num)
-        for tether_idx in winch.tethers
-            point_idx = tethers[tether_idx].winch_point
+        for tether_idx in winch.tether_idxs
+            point_idx = tethers[tether_idx].winch_point_idx # TODO: just use the static point
             F += norm(point_force[:, point_idx])
         end
         eqs = [
@@ -503,7 +515,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
     end
     for tether in tethers
         ulen = zero(Num)
-        for segment_idx in tether.segments
+        for segment_idx in tether.segment_idxs
             ulen += len[segment_idx]
         end
         eqs = [
@@ -564,10 +576,11 @@ function wing_eqs!(s, eqs, defaults; tether_wing_force, tether_wing_moment, aero
             ω[3]    ω[2]  -ω[1]   0]
 
     for wing in wings
-        I_b = [s.wings[wing.idx].inertia_tensor[1,1], s.wings[wing.idx].inertia_tensor[2,2], s.wings[wing.idx].inertia_tensor[3,3]]
+        vsm_wing = s.vsm_wings[wing.idx]
+        I_b = [vsm_wing.inertia_tensor[1,1], vsm_wing.inertia_tensor[2,2], vsm_wing.inertia_tensor[3,3]]
         @assert !(s.set.mass ≈ 0)
         axis = sym_normalize(wing_pos[wing.idx, :])
-        axis_b = R_b_w' * axis
+        axis_b = R_b_w[wing.idx, :, :]' * axis
         eqs = [
             eqs
             [D(Q_b_w[wing.idx, i]) ~ Q_vel[wing.idx, i] for i in 1:4]
@@ -586,7 +599,7 @@ function wing_eqs!(s, eqs, defaults; tether_wing_force, tether_wing_moment, aero
                     α_b_damped[wing.idx, :]
                 )
             )
-            α_b_damped[wing.idx, :] ~ [α_b[1], α_b[2] - ω_damp*ω_b[wing.idx, 2], α_b[wing.idx, 3]]
+            α_b_damped[wing.idx, :] ~ [α_b[wing.idx, 1], α_b[wing.idx, 2] - ω_damp*ω_b[wing.idx, 2], α_b[wing.idx, 3]]
     
             [R_b_w[wing.idx, :, i] ~ quaternion_to_rotation_matrix(Q_b_w[wing.idx, :])[:, i] for i in 1:3]
             
@@ -595,21 +608,21 @@ function wing_eqs!(s, eqs, defaults; tether_wing_force, tether_wing_moment, aero
             α_b[wing.idx, 3] ~ (moment_b[wing.idx, 3] + (I_b[1] - I_b[2]) * ω_b[wing.idx, 1] * ω_b[wing.idx, 2]) / I_b[3]
             moment_b[wing.idx, :] ~ aero_moment_b[wing.idx, :] + R_b_w[wing.idx, :, :]' * tether_wing_moment[wing.idx, :]
             
-            D(wing_pos) ~ ifelse.(fix_nonstiff==true,
+            D(wing_pos[wing.idx, :]) ~ ifelse.(fix_nonstiff==true,
                 zeros(3),
                 ifelse.(stabilize==true,
                     wing_vel[wing.idx, :] ⋅ axis * axis,
                     wing_vel[wing.idx, :]
                 )
             )
-            D(wing_vel) ~ ifelse.(fix_nonstiff==true,
+            D(wing_vel[wing.idx, :]) ~ ifelse.(fix_nonstiff==true,
                 zeros(3),
                 ifelse.(stabilize==true,
                     wing_acc[wing.idx, :] ⋅ axis * axis,
                     wing_acc[wing.idx, :]
                 )
             )
-            wing_acc[wing.idx, :] ~ (tether_wing_force[wing.idx, :] + R_b_w * aero_force_b) / s.set.mass
+            wing_acc[wing.idx, :] ~ (tether_wing_force[wing.idx, :] + R_b_w[wing.idx, :, :] * aero_force_b[wing.idx, :]) / s.set.mass
         ]
         defaults = [
             defaults
@@ -661,6 +674,7 @@ Generate equations for scalar quantities like elevation, azimuth, heading and co
     - Angular velocities and accelerations
     """
 function scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_wing_b, wing_pos, wing_vel, wing_acc, twist_angle, twist_ω, ω_b, α_b)
+    @unpack wings = s.point_system
     @parameters wind_scale_gnd = s.set.v_wind
     @parameters upwind_dir = deg2rad(s.set.upwind_dir)
     @variables begin
@@ -717,10 +731,10 @@ function scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_wing_b, wing_pos, wing_vel,
         x´´, y´´, z´´ = wing_acc[wing.idx, :]
 
         half_len = length(twist_angle)÷2
-        heading_vec = R_t_w' * R_v_w[:,1]
+        heading_vec = R_t_w[wing.idx, :, :]' * R_v_w[wing.idx, :, 1]
 
-        eqs = [
-            eqs
+        # eqs = [
+        #     eqs
             vec(R_v_w[wing.idx, :, :])     .~ vec(calc_R_v_w(wing_pos[wing.idx, :], e_x[wing.idx, :]))
             vec(R_t_w[wing.idx, :, :])     .~ vec(calc_R_t_w(elevation[wing.idx], azimuth[wing.idx]))
             heading[wing.idx]         ~ atan(heading_vec[wing.idx, 2], heading_vec[wing.idx, 1])
@@ -749,9 +763,13 @@ function scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_wing_b, wing_pos, wing_vel,
             simple_twist_angle[2] ~ sum(twist_angle[half_len+1:end]) / half_len
             simple_twist_ω[1] ~ sum(twist_ω[1:half_len]) / half_len
             simple_twist_ω[2] ~ sum(twist_ω[half_len+1:end]) / half_len
-        ]
+        # ]
     end
     return eqs
+end
+
+function Base.getindex(x::ModelingToolkit.Symbolics.SymArray, idxs::Vector{Int16})
+    Num[Base.getindex(x, idx) for idx in idxs]
 end
 
 """
@@ -780,13 +798,13 @@ and moments. The Jacobian is computed using the VSM solver.
 """
 function linear_vsm_eqs!(s, eqs, guesses; aero_force_b, aero_moment_b, group_aero_moment, init_va_b, twist_angle, va_wing_b, ω_b)
     @unpack groups, wings = s.point_system
-    ny = 3+length(groups)+3
-    nx = 3+3+length(groups)
+    ny = 3+length(wings[1].group_idxs)+3
+    nx = 3+3+length(wings[1].group_idxs)
     y_ = zeros(length(wings), ny)
     x_ = zeros(length(wings), nx)
     jac_ = zeros(length(wings), nx, ny)
     for wing in wings
-        y_[wing.idx, :] .= [init_va_b; zeros(length(groups)); zeros(3)]
+        y_[wing.idx, :] .= [init_va_b[wing.idx, :]; zeros(length(wing.group_idxs)); zeros(3)]
     end
     @parameters begin
         last_y[eachindex(wings), 1:ny] = y_
@@ -795,17 +813,20 @@ function linear_vsm_eqs!(s, eqs, guesses; aero_force_b, aero_moment_b, group_aer
     end
 
     @variables begin
-        y(t)[eachindex(wings), eachindex(y_)]
-        dy(t)[eachindex(wings), eachindex(y_)]
+        y(t)[eachindex(wings), 1:ny]
+        dy(t)[eachindex(wings), 1:ny]
     end
 
     for wing in wings
-    
+        @show typeof(y_)
+        last_y_ = [last_y[wing.idx, i] for i in 1:ny] # https://github.com/SciML/ModelingToolkit.jl/issues/3730
+        last_x_ = [last_x[wing.idx, i] for i in 1:nx]
+        vsm_jac_ = [vsm_jac[wing.idx, i, j] for i in 1:nx, j in 1:ny]
         eqs = [
             eqs
-            y[wing.idx, :] ~ [va_wing_b; ω_b; twist_angle]
-            dy[wing.idx, :] ~ y[wing.idx, :] - last_y[wing.idx, :]
-            [aero_force_b; aero_moment_b; group_aero_moment] ~ last_x[wing.idx, :] + vsm_jac[wing.idx, :, :] * dy[wing.idx, :]
+            y[wing.idx, :] ~ [va_wing_b[wing.idx, :]; ω_b[wing.idx, :]; twist_angle[wing.group_idxs]]
+            dy[wing.idx, :] ~ y[wing.idx, :] - last_y_
+            [aero_force_b[wing.idx, :]; aero_moment_b[wing.idx, :]; group_aero_moment[wing.group_idxs]] ~ last_x_ + vsm_jac_ * dy[wing.idx, :]
         ]
     
         if s.set.quasi_static
@@ -821,13 +842,15 @@ function create_sys!(s::SymbolicAWESystem, system::PointMassSystem; init_va_b)
     defaults = Pair{Num, Real}[]
     guesses = Pair{Num, Real}[]
 
+    @unpack wings, groups, winches = system
+
     @parameters begin
         stabilize = false
         fix_nonstiff = false
     end
     @variables begin
         # potential differential variables
-        set_values(t)[eachindex(system.winches)] = zeros(length(system.winches))
+        set_values(t)[eachindex(winches)] = zeros(length(winches))
         wing_pos(t)[eachindex(wings), 1:3] # xyz pos of wing in world frame
         wing_vel(t)[eachindex(wings), 1:3]
         wing_acc(t)[eachindex(wings), 1:3]
@@ -840,9 +863,9 @@ function create_sys!(s::SymbolicAWESystem, system::PointMassSystem; init_va_b)
         # rest: forces, moments, vectors and scalar values
         aero_force_b(t)[eachindex(wings), 1:3]
         aero_moment_b(t)[eachindex(wings), 1:3]
-        twist_angle(t)[eachindex(wings), eachindex(system.groups)]
-        twist_ω(t)[eachindex(wings), eachindex(system.groups)]
-        group_aero_moment(t)[eachindex(wings), eachindex(system.groups)]
+        twist_angle(t)[eachindex(groups)]
+        twist_ω(t)[eachindex(groups)]
+        group_aero_moment(t)[eachindex(groups)]
         wind_vec_gnd(t)[1:3]
         va_wing_b(t)[eachindex(wings), 1:3]
     end
@@ -872,7 +895,7 @@ function create_sys!(s::SymbolicAWESystem, system::PointMassSystem; init_va_b)
     # discrete_events = [
     #     true => [
     #         [Q_b_w[i] ~ normalize(Q_b_w)[i] for i in 1:4]
-    #         [twist_angle[i] ~ clamp(twist_angle[i], -π/2, π/2) for i in eachindex(s.point_system.groups)]
+    #         [twist_angle[i] ~ clamp(twist_angle[i], -π/2, π/2) for i in eachindex(s.point_groups)]
     #         ]
     #     ]
 

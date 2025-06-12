@@ -18,9 +18,9 @@ $(TYPEDFIELDS)
     "Reference to the settings struct"
     set::Settings
     "Reference to the geometric wing model"
-    wings::Vector{VortexStepMethod.RamAirWing}
+    vsm_wings::Vector{VortexStepMethod.RamAirWing}
     "Reference to the aerodynamic wing model"
-    aeros::Vector{VortexStepMethod.BodyAerodynamics}
+    vsm_aeros::Vector{VortexStepMethod.BodyAerodynamics}
     "Reference to the VSM aerodynamics solver"
     vsm_solvers::Vector{VortexStepMethod.Solver}
     "Reference to the point mass system with points, segments, pulleys and tethers"
@@ -75,15 +75,15 @@ const SAS = SymbolicAWESystem
 
 function SymbolicAWESystem(set::Settings, aero::BodyAerodynamics, vsm_solver::VortexStepMethod.Solver, point_system::PointMassSystem)
     length(aero.wings) > 1 && throw(ArgumentError("Just one wing allowed in BodyAerodynamics object"))
-    wing = aero.wings[1]
+    vsm_wings = aero.wings
     if set.winch_model == "TorqueControlledMachine"
         s = SymbolicAWESystem{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
-            ; set, wing, aero, vsm_solver, point_system
+            ; set, vsm_wings, vsm_aeros=[aero], vsm_solvers=[vsm_solver], point_system
             )
         s.torque_control = true
     else
         s = SymbolicAWESystem{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
-            ; set, wing, aero, vsm_solver, point_system
+            ; set, vsm_wings, vsm_aeros=[aero], vsm_solvers=[vsm_solver], point_system
             )
         s.torque_control = false
     end
@@ -537,7 +537,7 @@ end
 
 function get_unknowns(s::SAS)
     vec = Num[]
-    @unpack points, groups, segments, pulleys, winches, kite = s.point_system
+    @unpack points, groups, segments, pulleys, winches, wings = s.point_system
     sys = s.sys
     for point in points
         for i in 1:3
@@ -558,7 +558,7 @@ function get_unknowns(s::SAS)
 end
 
 function get_nonstiff_unknowns(s::SAS, vec=Num[])
-    @unpack points, groups, segments, pulleys, winches, kite = s.point_system
+    @unpack points, groups, segments, pulleys, winches, wings = s.point_system
     sys = s.sys
 
     for group in groups
@@ -587,14 +587,13 @@ function find_steady_state!(s::SAS; dt=1/s.set.sample_freq)
 end
 
 function initial_orient(s::SAS)
-    s.set, s.wings[1].R_cad_body
     set = s.set
     wings = s.point_system.wings
     R_b_w = zeros(length(wings), 3, 3)
     Q_b_w = zeros(length(wings), 4)
     init_va_b = zeros(length(wings), 3)
     for wing in wings
-        R_cad_body = wing.R_cad_body
+        R_cad_body = s.vsm_wings[wing.idx].R_cad_body
         x = [0, 0, -1] # laying flat along x axis
         z = [1, 0, 0] # laying flat along x axis
         x = rotate_around_y(x, -deg2rad(set.elevation))
@@ -602,7 +601,7 @@ function initial_orient(s::SAS)
         x = rotate_around_z(x, deg2rad(set.azimuth))
         z = rotate_around_z(z, deg2rad(set.azimuth))
         R_b_w[wing.idx, :, :] .= R_cad_body' * hcat(x, z × x, z)
-        Q_b_w[wing.idx, :] .= rotation_matrix_to_quaternion(R_b_w)
+        Q_b_w[wing.idx, :] .= rotation_matrix_to_quaternion(R_b_w[wing.idx, :, :])
         init_va_b[wing.idx, :] .= R_b_w[wing.idx, :, :]' * [s.set.v_wind, 0., 0.]
     end
     return Q_b_w, R_b_w, init_va_b
