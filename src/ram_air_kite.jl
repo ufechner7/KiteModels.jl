@@ -260,12 +260,12 @@ function init_sim!(s::RamAirKite;
     if !ispath(prob_path) || remake
         init(s)
     end
-    _, success = reinit!(s; solver, adaptive, precompile, reload, lin_outputs)
+    _, success = reinit!(s, solver; adaptive, precompile, reload, lin_outputs)
     if !success
         rm(prob_path)
         @info "Rebuilding the system. This can take some minutes..."
         init(s)
-        reinit!(s; precompile, prn)
+        reinit!(s, solver; precompile, prn)
     end
     return s.integrator
 end
@@ -279,7 +279,7 @@ function linearize(s::RamAirKite; set_values=s.get_set_values(s.integrator))
 end
 
 """
-    reinit!(s::RamAirKite; prn=true, precompile=false) -> Nothing
+    reinit!(s::RamAirKite, solver; prn=true, precompile=false) -> Nothing
 
 Reinitialize an existing kite power system model with new state values.
 The new state is coming from the init section of the settings, stored
@@ -301,6 +301,7 @@ and only updates the state variables to match the current initial settings.
 
 # Arguments
 - `s::RamAirKite`: The kite power system state object
+- `solver`: The solver to be used
 - `prn::Bool=true`: Whether to print progress information
 
 # Returns
@@ -310,8 +311,8 @@ and only updates the state variables to match the current initial settings.
 - `ArgumentError`: If no serialized problem exists (run `init_sim!` first)
 """
 function reinit!(
-    s::RamAirKite; 
-    solver=ifelse(s.set.quasi_static, FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.4, max_iter=1000)), FBDF()),
+    s::RamAirKite,
+    solver;
     adaptive=true,
     prn=true, 
     reload=true, 
