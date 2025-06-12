@@ -18,6 +18,7 @@ solver:
     solver: "FBDF"
     abs_tol: 0.01          # absolute tolerance of the DAE solver [m, m/s]
     rel_tol: 0.01          # relative tolerance of the DAE solver [-]
+    relaxation: 0.6        # relaxation factor of inner linear Newton solver, needed for quasi-steady solver
 
 kite:
     model: "data/ram_air_kite_body.obj"     # 3D model of the kite

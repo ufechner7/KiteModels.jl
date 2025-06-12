@@ -219,7 +219,7 @@ function init_sim!(s::RamAirKite;
     if isnothing(solver)
         solver = if s.set.solver == "FBDF"
             if s.set.quasi_static
-                FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.6))
+                FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=s.set.relaxation))
             else
                 FBDF()
             end
