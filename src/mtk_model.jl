@@ -716,8 +716,6 @@ function scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_wing_b, wing_pos, wing_vel,
         sphere_vel(t)[eachindex(wings), 1:2, 1:2]
         sphere_acc(t)[eachindex(wings), 1:2, 1:2]
         angle_of_attack(t)[eachindex(wings)]
-        simple_twist_angle(t)[eachindex(wings), 1:2]
-        simple_twist_ω(t)[eachindex(wings), 1:2]
         R_v_w(t)[eachindex(wings), 1:3, 1:3]
         R_t_w(t)[eachindex(wings), 1:3, 1:3]
         distance(t)[eachindex(wings)]
@@ -730,16 +728,16 @@ function scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_wing_b, wing_pos, wing_vel,
         x´, y´, z´ = wing_vel[wing.idx, :]
         x´´, y´´, z´´ = wing_acc[wing.idx, :]
 
-        half_len = length(twist_angle)÷2
+        half_len = wing.group_idxs[1] + length(wing.group_idxs)÷2 - 1
         heading_vec = R_t_w[wing.idx, :, :]' * R_v_w[wing.idx, :, 1]
 
-        # eqs = [
-        #     eqs
+        eqs = [
+            eqs
             vec(R_v_w[wing.idx, :, :])     .~ vec(calc_R_v_w(wing_pos[wing.idx, :], e_x[wing.idx, :]))
             vec(R_t_w[wing.idx, :, :])     .~ vec(calc_R_t_w(elevation[wing.idx], azimuth[wing.idx]))
-            heading[wing.idx]         ~ atan(heading_vec[wing.idx, 2], heading_vec[wing.idx, 1])
-            turn_rate[wing.idx]       ~ R_v_w[wing.idx, :, :]' * (R_b_w[wing.idx, :, :] * ω_b[wing.idx, :]) # Project angular velocity onto view frame
-            turn_acc[wing.idx]        ~ R_v_w[wing.idx, :, :]' * (R_b_w[wing.idx, :, :] * α_b[wing.idx, :])
+            heading[wing.idx]         ~ atan(heading_vec[2], heading_vec[1])
+            turn_rate[wing.idx, :]       ~ R_v_w[wing.idx, :, :]' * (R_b_w[wing.idx, :, :] * ω_b[wing.idx, :]) # Project angular velocity onto view frame
+            turn_acc[wing.idx, :]        ~ R_v_w[wing.idx, :, :]' * (R_b_w[wing.idx, :, :] * α_b[wing.idx, :])
             distance[wing.idx]        ~ norm(wing_pos[wing.idx, :])
             distance_vel[wing.idx]    ~ wing_vel[wing.idx, :] ⋅ R_v_w[wing.idx, :, 3]
             distance_acc[wing.idx]    ~ wing_acc[wing.idx, :] ⋅ R_v_w[wing.idx, :, 3]
@@ -758,12 +756,9 @@ function scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_wing_b, wing_pos, wing_vel,
             x_acc[wing.idx]               ~ wing_acc ⋅ e_x
             y_acc[wing.idx]               ~ wing_acc ⋅ e_y
 
-            angle_of_attack[wing.idx]     ~ calc_angle_of_attack(va_wing_b[wing.idx, :]) + 0.5twist_angle[half_len] + 0.5twist_angle[half_len+1]
-            simple_twist_angle[1] ~ sum(twist_angle[1:half_len]) / half_len
-            simple_twist_angle[2] ~ sum(twist_angle[half_len+1:end]) / half_len
-            simple_twist_ω[1] ~ sum(twist_ω[1:half_len]) / half_len
-            simple_twist_ω[2] ~ sum(twist_ω[half_len+1:end]) / half_len
-        # ]
+            angle_of_attack[wing.idx]     ~ calc_angle_of_attack(va_wing_b[wing.idx, :]) + 
+                                            0.5twist_angle[half_len] + 0.5twist_angle[half_len+1]
+        ]
     end
     return eqs
 end
@@ -818,7 +813,6 @@ function linear_vsm_eqs!(s, eqs, guesses; aero_force_b, aero_moment_b, group_aer
     end
 
     for wing in wings
-        @show typeof(y_)
         last_y_ = [last_y[wing.idx, i] for i in 1:ny] # https://github.com/SciML/ModelingToolkit.jl/issues/3730
         last_x_ = [last_x[wing.idx, i] for i in 1:nx]
         vsm_jac_ = [vsm_jac[wing.idx, i, j] for i in 1:nx, j in 1:ny]
