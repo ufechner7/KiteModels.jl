@@ -8,17 +8,14 @@ if ("TestEnv" ∈ keys(Pkg.project().dependencies))
         using TestEnv; TestEnv.activate()
     end
 end
-using ControlPlots
+using ControlPlots, VortexStepMethod
 using KiteModels
 using Documenter
 
 DocMeta.setdocmeta!(KiteModels, :DocTestSetup, :(using KitePodSimulator); recursive=true)
 
 makedocs(;
-    modules=[KiteModels,
-             isdefined(Base, :get_extension) ? 
-             Base.get_extension(KiteModels, :KiteModelsControlPlotsExt) :
-             KiteModels.KiteModelsControlPlotsExt],
+    modules=[KiteModels],
     authors="Uwe Fechner <fechner@aenarete.eu>, Bart van de Lint <bart@vandelint.net> and contributors",
     repo="https://github.com/ufechner7/KiteModels.jl/blob/{commit}{path}#{line}",
     sitename="KiteModels.jl",
@@ -32,11 +29,12 @@ makedocs(;
         "Home" => "index.md",
         "Types" => "types.md",
         "Functions" => "functions.md",
-        "RamAirKite" => "ram_air_kite.md",
+        "SymbolicAWEModel" => "ram_air_kite.md",
         "Parameters" => "parameters.md",
         "Examples 1p" => "examples.md",
         "Examples 4p" => "examples_4p.md",
-        "Examples RamAirKite" => "examples_ram_air.md",
+        "Examples SymbolicAWEModel" => "examples_ram_air.md",
+        "SystemStructure for custom models" => "tutorial_system_structure.md",
         "Quickstart" => "quickstart.md",
         "Advanced usage" => "advanced.md",
     ],

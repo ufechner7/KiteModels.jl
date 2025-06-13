@@ -2,7 +2,7 @@
 CurrentModule = KiteModels
 ```
 ## Introduction
-The [`RamAirKite`](@ref) is based on ModelingToolkit, which allows to define the differential algebraic equations in symbolic form. It does not use a KCU. Instead, the kite is controlled from the ground (e.g. a ship) using three winches and four tethers.
+The [`SymbolicAWEModel`](@ref) is based on ModelingToolkit, which allows to define the differential algebraic equations in symbolic form. It does not use a KCU. Instead, the kite is controlled from the ground (e.g. a ship) using three winches and four tethers.
 
 ## Private enumerations
 ```@docs
@@ -17,13 +17,13 @@ Pulley
 Segment
 Tether
 Winch
-KitePointGroup
-PointMassSystem
+Group
+SystemStructure
 ```
 
 ## Private functions
 ```@docs
-diff_eqs!
+wing_eqs!
 reinit!
 scalar_eqs!
 linear_vsm_eqs!

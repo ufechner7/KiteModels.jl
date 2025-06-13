@@ -26,15 +26,15 @@ set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. 
 set.quasi_static = false
 set.physical_model = "ram"
 
-@info "Creating wing, aero, vsm_solver, point_system and s:"
-s = RamAirKite(set)
+@info "Creating wing, aero, vsm_solver, system_structure and s:"
+s = SymbolicAWEModel(set)
 s.set.abs_tol = 1e-2
 s.set.rel_tol = 1e-2
 toc()
 
 # Initialize at elevation
-s.point_system.winches[2].tether_length += 0.2
-s.point_system.winches[3].tether_length += 0.2
+s.system_structure.winches[2].tether_length += 0.2
+s.system_structure.winches[3].tether_length += 0.2
 KiteModels.init_sim!(s; remake=false, reload=true)
 sys = s.sys
 

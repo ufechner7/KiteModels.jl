@@ -26,7 +26,7 @@ Expected output for first run:
 ```
 [ Info: Loading packages 
 Time elapsed: 7.483472342 s
-[ Info: Creating wing, aero, vsm_solver, point_system and s:
+[ Info: Creating wing, aero, vsm_solver, system_structure and s:
 Time elapsed: 15.341197455 s
 [ Info: Creating ODESystem
   4.316010 seconds (8.72 M allocations: 222.606 MiB, 1.42% gc time, 25.46% compilation time: 14% of which was recompilation)
@@ -48,7 +48,7 @@ file in the `data` folder:
 ```
 [ Info: Loading packages 
 Time elapsed: 7.396961284 s
-[ Info: Creating wing, aero, vsm_solver, point_system and s:
+[ Info: Creating wing, aero, vsm_solver, system_structure and s:
 Time elapsed: 15.387790726 s
 [ Info: Initialized integrator in 29.545349428 seconds
 [ Info: System initialized at:
@@ -83,7 +83,7 @@ include("examples/lin_ram_model.jl")
 ```
 See: [`lin_ram_model.jl`](https://github.com/ufechner7/KiteModels.jl/blob/main/examples/lin_ram_model.jl)
 
-## How to create a RamAirKite
+## How to create a SymbolicAWEModel
 The following code is a minimal example that shows how to create a ram air kite struct:
 ```julia
 using KiteModels
@@ -91,5 +91,5 @@ using KiteModels
 # Initialize model
 set = load_settings("system_ram.yaml")
 
-rak = RamAirKite(set)
+sam = SymbolicAWEModel(set)
 ```

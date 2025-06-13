@@ -110,9 +110,9 @@ if ! haskey(ENV, "NO_MTK")
     set = se("system_ram.yaml")
     set.segments = 2
     set_values = [-50, -1.1, -1.1]
-    mtk_kite = RamAirKite(set)
+    mtk_kite = SymbolicAWEModel(set)
     KiteModels.init_sim!(mtk_kite)
-    logger = Logger(length(mtk_kite.point_system.points), 5)
+    logger = Logger(length(mtk_kite.system_structure.points), 5)
 
     for i in 1:5
         next_step!(mtk_kite, set_values)

@@ -16,7 +16,7 @@ set_data_path(temp_data_path)
 const TOL = 1e-5
 const BUILD_SYS = true
 
-@testset verbose = true "RamAirKite MTK Model Tests" begin
+@testset verbose = true "SymbolicAWEModel MTK Model Tests" begin
     # Initialize model
     set = se("system_ram.yaml")
     set.segments = 3
@@ -25,7 +25,7 @@ const BUILD_SYS = true
     set.physical_model = "ram"
 
     @info "Creating s:"
-    @time s = RamAirKite(set)
+    @time s = SymbolicAWEModel(set)
 
     s.set.abs_tol = 1e-2
     s.set.rel_tol = 1e-2
@@ -53,14 +53,14 @@ const BUILD_SYS = true
             # Check initialization results
             @test !isnothing(s.integrator)
             @test !isnothing(s.sys)
-            @test !isnothing(s.point_system)
+            @test !isnothing(s.system_structure)
         end
         s.integrator = nothing
         s.sys = nothing
 
         # Keep references to first integrator and point system
         first_integrator_ptr = objectid(s.integrator)
-        first_point_system_ptr = objectid(s.point_system)
+        first_system_structure_ptr = objectid(s.system_structure)
 
         # 2. First init_sim! - should load from serialized file
         @info "Testing first init_sim! (should load serialized file)..."
@@ -69,9 +69,9 @@ const BUILD_SYS = true
 
         # Check that it's a new integrator
         second_integrator_ptr = objectid(s.integrator)
-        second_point_system_ptr = objectid(s.point_system)
+        second_system_structure_ptr = objectid(s.system_structure)
         @test first_integrator_ptr != second_integrator_ptr
-        @test first_point_system_ptr == second_point_system_ptr
+        @test first_system_structure_ptr == second_system_structure_ptr
 
         # 3. Second init_sim! - should reuse existing integrator
         @info "Testing second init_sim! (should reuse integrator)..."
@@ -79,19 +79,19 @@ const BUILD_SYS = true
 
         # This should create a new point system but reuse the existing integrator
         third_integrator_ptr = objectid(s.integrator)
-        third_point_system_ptr = objectid(s.point_system)
+        third_system_structure_ptr = objectid(s.system_structure)
         @test second_integrator_ptr == third_integrator_ptr # Should be the same
-        @test second_point_system_ptr == third_point_system_ptr
+        @test second_system_structure_ptr == third_system_structure_ptr
 
         # Get positions using SysState
         sys_state = KiteModels.SysState(s)
 
         # Check dimension consistency
-        # Note: pos_integrator is no longer directly fetched, comparing SysState to point_system
-        @test length(sys_state.X) == length(s.point_system.points)
+        # Note: pos_integrator is no longer directly fetched, comparing SysState to system_structure
+        @test length(sys_state.X) == length(s.system_structure.points)
 
         # Compare positions in different representations
-        for (i, point) in enumerate(s.point_system.points)
+        for (i, point) in enumerate(s.system_structure.points)
             # Points' world positions should match SysState positions
             point_pos = point.pos_w
             sys_state_pos = [sys_state.X[i], sys_state.Y[i], sys_state.Z[i]]
@@ -100,7 +100,7 @@ const BUILD_SYS = true
             @test isapprox(norm(point_pos), norm(sys_state_pos), rtol=1e-2)
 
             # Positions should not be zero (except ground points)
-            if point.type != KiteModels.WINCH  # Skip ground points which might be at origin
+            if point.type != KiteModels.STATIC  # Skip ground points which might be at origin
                 @test norm(point_pos) > 0.1
                 @test norm(sys_state_pos) > 0.1
             end
@@ -233,7 +233,7 @@ const BUILD_SYS = true
         end
     end
 
-    @testset "Plotting of RamAirKite" begin
+    @testset "Plotting of SymbolicAWEModel" begin
         plt.figure("Kite")
         lines, sc, txt = plot(s, 0.0)
         plt.show(block=false)
