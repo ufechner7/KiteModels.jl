@@ -503,10 +503,13 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         for tether_idx in winch.tether_idxs
             found = 0
             point_idx = 0
-            for point_idx_ in tethers[tether_idx].point_idxs
-                if points[point_idx_].type == STATIC
-                    found += 1
-                    point_idx = point_idx_
+            for segment_idx in tethers[tether_idx].segment_idxs
+                segment = segments[segment_idx]
+                for point_idx_ in segment.point_idxs
+                    if points[point_idx_].type == STATIC && point_idx != point_idx_
+                        found += 1
+                        point_idx = point_idx_
+                    end
                 end
             end
             (found != 1) && error("Tether number $tether_idx has $found static points and should have exactly 1 static point.")

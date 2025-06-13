@@ -73,22 +73,21 @@ $(TYPEDFIELDS)
     integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Nothing} = nothing
 end
 
-
 function SymbolicAWEModel(
     set::Settings, 
-    vsm_aeros::Vector{BodyAerodynamics}, 
-    vsm_solvers::Vector{VortexStepMethod.Solver}, 
-    system_structure::SystemStructure
+    system_structure::SystemStructure,
+    vsm_aeros::Vector{<:BodyAerodynamics}=BodyAerodynamics[], 
+    vsm_solvers::Vector{<:VortexStepMethod.Solver}=VortexStepMethod.Solver[]
 )
     vsm_wings = [aero.wings[1] for aero in vsm_aeros]
     if set.winch_model == "TorqueControlledMachine"
         s = SymbolicAWEModel{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
-            ; set, vsm_wings, vsm_aeros, vsm_solvers, system_structure
+            ; set, system_structure, vsm_wings, vsm_aeros, vsm_solvers
             )
         s.torque_control = true
     else
         s = SymbolicAWEModel{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
-            ; set, vsm_wings, vsm_aeros, vsm_solvers, system_structure
+            ; set, system_structure, vsm_wings, vsm_aeros, vsm_solvers
             )
         s.torque_control = false
     end
@@ -100,7 +99,7 @@ function SymbolicAWEModel(set::Settings)
     aero = BodyAerodynamics([wing])
     vsm_solver = Solver(aero; solver_type=NONLIN, atol=2e-8, rtol=2e-8)
     system_structure = SystemStructure(set, wing)
-    return SymbolicAWEModel(set, aero, vsm_solver, system_structure)
+    return SymbolicAWEModel(set, system_structure, [aero], [vsm_solver])
 end
 
 function update_sys_state!(ss::SysState, s::SymbolicAWEModel, zoom=1.0)
@@ -234,7 +233,7 @@ function init_sim!(s::SymbolicAWEModel;
             @warn "This solver is not tested."
             QNDF()
         else
-            error("Unavailable solver for RamAirKite: $(s.set.solver).")
+            error("Unavailable solver for SymbolicAWEModel: $(s.set.solver).")
         end
     end
     function init(s)
@@ -487,7 +486,7 @@ function linearize_vsm!(s::SymbolicAWEModel, integ=s.integrator)
 end
 
 """
-    next_step!(s::RamAirKite, integrator::ODEIntegrator; set_values=nothing, upwind_dir=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
+    next_step!(s::SymbolicAWEModel, integrator::ODEIntegrator; set_values=nothing, upwind_dir=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
 
 Take a simulation step, using the internal integrator.
 
@@ -500,7 +499,7 @@ This function performs the following steps:
 6. Increment the iteration counter
 
 # Arguments
-- `s::RamAirKite`: The kite power system state object
+- `s::SymbolicAWEModel`: The kite power system state object
 - `integrator::ODEIntegrator`: The ODE integrator to use
 
 # Keyword Arguments
@@ -513,7 +512,7 @@ This function performs the following steps:
 - `Tuple{SimFloat, Float64}`: A tuple containing the current simulation time and the time taken for the step.
 """
 function next_step!(s::SymbolicAWEModel, integrator::OrdinaryDiffEqCore.ODEIntegrator; set_values=nothing, upwind_dir=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
-    !(s.integrator === integrator) && error("The ODEIntegrator doesn't belong to the RamAirKite")
+    !(s.integrator === integrator) && error("The ODEIntegrator doesn't belong to the SymbolicAWEModel")
     next_step!(s; set_values, upwind_dir, dt, vsm_interval)
 end
 

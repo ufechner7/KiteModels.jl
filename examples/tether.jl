@@ -1,6 +1,5 @@
 using KiteModels, VortexStepMethod, ControlPlots
 
-include("plotting.jl")
 set = se("system_ram.yaml")
 set.segments = 20
 dynamics_type = DYNAMIC
@@ -24,12 +23,12 @@ for i in 1:set.segments
 end
 
 system_structure = SystemStructure("tether"; points, segments)
+plot(system_structure, 0.0)
 
-model = SymbolicAWEModel(set, BodyAerodynamics[], VortexStepMethod.Solver[], system_structure)
+model = SymbolicAWEModel(set, system_structure)
 
 init_sim!(model; remake=false)
-plot(model, 0.0)
 for i in 1:100
-    next_step!(model)
     plot(model, i/set.sample_freq)
+    next_step!(model)
 end

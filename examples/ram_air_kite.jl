@@ -37,44 +37,44 @@ set.quasi_static = false
 set.physical_model = SIMPLE ? "simple_ram" : "ram"
 
 @info "Creating wing, aero, vsm_solver, system_structure and s:"
-s = SymbolicAWEModel(set)
-s.set.abs_tol = 1e-2
-s.set.rel_tol = 1e-2
+sam = SymbolicAWEModel(set)
+sam.set.abs_tol = 1e-2
+sam.set.rel_tol = 1e-2
 toc()
 
-# init_Q_b_w, R_b_w = KiteModels.initial_orient(s.set)
-# init_kite_pos = init!(s.system_structure, s.set, R_b_w, init_Q_b_w)
-# plot(s.system_structure, 0.0; zoom=false, front=false)
+# init_Q_b_w, R_b_w = KiteModelsam.initial_orient(sam.set)
+# init_kite_pos = init!(sam.system_structure, sam.set, R_b_w, init_Q_b_w)
+# plot(sam.system_structure, 0.0; zoom=false, front=false)
 
 # Initialize at elevation
-s.point_system.winches[2].tether_length += 0.2
-s.point_system.winches[3].tether_length += 0.2
-init_sim!(s; remake=false, reload=true)
-sys = s.sys
+sam.system_structure.winches[2].tether_length += 0.2
+sam.system_structure.winches[3].tether_length += 0.2
+init_sim!(sam; remake=false, reload=true)
+sys = sam.sys
 
 @info "System initialized at:"
 toc()
 
 # Stabilize system
-find_steady_state!(s)
+find_steady_state!(sam)
 
-logger = Logger(length(s.system_structure.points), steps)
-sys_state = SysState(s)
+logger = Logger(length(sam.system_structure.points), steps)
+sys_state = SysState(sam)
 t = 0.0
 runtime = 0.0
 integ_runtime = 0.0
 bias = set.quasi_static ? 0.45 : 0.35
-t0 = s.integrator.t
+t0 = sam.integrator.t
 
 try
     while t < total_time
         local steering
         global t, set_values, runtime, integ_runtime
-        PLOT && plot(s, t; zoom=false, front=false)
+        PLOT && plot(sam, t; zoom=false, front=false)
         
         # Calculate steering inputs based on cosine wave
         steering = steering_magnitude * cos(2π * steering_freq * t + bias)
-        set_values = -s.set.drum_radius .* s.integrator[sys.winch_force]
+        set_values = -sam.set.drum_radius .* sam.integrator[sys.winch_force]
         _vsm_interval = 1
         if t > 1.0
             set_values .+= [0.0, steering, -steering]  # Opposite steering for left/right
@@ -82,18 +82,18 @@ try
         end
 
         # Step simulation
-        steptime = @elapsed (t_new, integ_steptime) = next_step!(s; set_values, dt, vsm_interval=vsm_interval)
+        steptime = @elapsed (t_new, integ_steptime) = next_step!(sam; set_values, dt, vsm_interval=vsm_interval)
         t = t_new - t0  # Adjust for initial stabilization time
 
         # Track performance after initial transient
         if (t > total_time/2)
             runtime += steptime
             integ_runtime += integ_steptime
-            s.integrator.ps[sys.twist_damp] = 10
+            sam.integrator.ps[sys.twist_damp] = 10
         end
 
         # Log state variables
-        update_sys_state!(sys_state, s)
+        update_sys_state!(sys_state, sam)
         sys_state.time = t
         log!(logger, sys_state)
     end

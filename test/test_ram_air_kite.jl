@@ -233,7 +233,7 @@ const BUILD_SYS = true
         end
     end
 
-    @testset "Plotting of RamAirKite" begin
+    @testset "Plotting of SymbolicAWEModel" begin
         plt.figure("Kite")
         lines, sc, txt = plot(s, 0.0)
         plt.show(block=false)

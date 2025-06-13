@@ -13,16 +13,16 @@ A custom `SystemStructure` can be used to create models of kite power systems of
 
 We start by loading the necessary packages and defining settings and parameters.
 
-```@examples 1
-using KiteModels, VortexStepMethod, ControlPlots
+```@example 1
+using ControlPlots
+using KiteModels, VortexStepMethod
 
-include("plotting.jl")
 set = se("system_ram.yaml")
 set.segments = 20
 dynamics_type = DYNAMIC
 ```
 Then, we define vectors of the system structure types we are going to use. For this simple example we only need points, that will be connected to eachother by segments.
-```@examples 1
+```@example 1
 points = Point[]
 segments = Segment[]
 
@@ -31,7 +31,7 @@ points = push!(points, Point(1, [0.0, 0.0, set.l_tether], STATIC; wing_idx=0))
 The first point we add is a static point. There are four different [`DynamicsType`](@ref)s to choose from: [`STATIC`](@ref), [`QUASI_STATIC`](@ref), [`DYNAMIC`](@ref) and [`WING`](@ref). `STATIC` just means that the point doesn't move. `DYNAMIC` is a point modeled with acceleration, while `QUASI_STATIC` constrains this acceleration to be zero at all times. A `WING` point is connected to a rigid wing body.
 
 Now we can add `DYNAMIC` points and connect them to eachother with segments. `BRIDLE` segments don't need to have a tether, because they have a constant unstretched length.
-```@examples 1
+```@example 1
 segment_idxs = Int[]
 for i in 1:set.segments
     global points, segments
@@ -44,13 +44,13 @@ for i in 1:set.segments
 end
 ```
 From these arrays of points and segments we can create a [`SystemStructure`](@ref), which can be plotted in 2d to quickly investigate if the model is correct.
-```@examples 1
+```@example 1
 system_structure = SystemStructure("tether"; points, segments)
 plot(system_structure, 0.0)
 ```
 
 If the system looks good, we can easily model it, by first creating a [`SymbolicAWEModel`](@ref), initializing it and stepping through time.
-```@examples 1
+```@example 1
 model = SymbolicAWEModel(set, BodyAerodynamics[], VortexStepMethod.Solver[], system_structure)
 
 init_sim!(model; remake=false)
@@ -60,4 +60,7 @@ for i in 1:100
     plot(model, i/set.sample_freq)
 end
 ```
+
+## Creating a simple kite with one tether
+
 

@@ -37,6 +37,7 @@ makedocs(;
         "Examples 1p" => "examples.md",
         "Examples 4p" => "examples_4p.md",
         "Examples SymbolicAWEModel" => "examples_ram_air.md",
+        "SystemStructure for custom models" => "tutorial_system_structure.md",
         "Quickstart" => "quickstart.md",
         "Advanced usage" => "advanced.md",
     ],

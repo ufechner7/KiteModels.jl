@@ -18,7 +18,7 @@ s = KPS4(KCU(set))
 Or, if you want to use the ram-air kite model:
 ```julia
 set = load_settings("system_ram.yaml")
-s = RamAirKite(set)
+s = SymbolicAWEModel(set)
 ```
 Functions with an "!" as last character of the function name modify one of more of their
 parameters, in this context mostly the variable s.
