@@ -104,7 +104,7 @@ function SymbolicAWEModel(set::Settings)
 end
 
 function update_sys_state!(ss::SysState, s::SymbolicAWEModel, zoom=1.0)
-    isnothing(s.integrator) && throw(ArgumentError("run init_sim!(s) first"))
+    isnothing(s.integrator) && error("run init_sim!(s) first")
     ss.time = s.integrator.t # Use integrator time
 
     # Get the extended state vector from the integrator
@@ -252,7 +252,7 @@ function init_sim!(s::SymbolicAWEModel;
 end
 
 function linearize(s::SymbolicAWEModel; set_values=s.get_set_values(s.integrator))
-    isnothing(s.lin_prob) && throw(ArgumentError("Run init_sim! with remake=true and lin_outputs=..."))
+    isnothing(s.lin_prob) && error("Run init_sim! with remake=true and lin_outputs=...")
     s.set_lin_vsm(s.lin_prob, s.get_vsm(s.integrator))
     s.set_lin_set_values(s.lin_prob, set_values)
     s.set_lin_unknowns(s.lin_prob, s.get_unknowns(s.integrator))
@@ -297,17 +297,17 @@ function reinit!(
     precompile=false,
     lin_outputs=Num[]
 )
-    isnothing(s.system_structure) && throw(ArgumentError("SystemStructure not defined"))
+    isnothing(s.system_structure) && error("SystemStructure not defined")
 
     init_Q_b_w, R_b_w = initial_orient(s)
     init!(s.system_structure, s.set, R_b_w, init_Q_b_w)
     
     if isnothing(s.prob) || reload
         prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set; precompile))
-        !ispath(prob_path) && throw(ArgumentError("$prob_path not found. Run init_sim!(s::SymbolicAWEModel) first."))
+        !ispath(prob_path) && error("$prob_path not found. Run init_sim!(s::SymbolicAWEModel) first.")
         try
             (s.prob, s.full_sys, s.lin_prob, s.defaults, s.guesses) = deserialize(prob_path)
-            length(lin_outputs) > 0 && isnothing(s.lin_prob) && throw(ArgumentError("lin_prob is nothing."))
+            length(lin_outputs) > 0 && isnothing(s.lin_prob) && error("lin_prob is nothing.")
         catch e
             @warn "Failure to deserialize $prob_path !"
             return false
@@ -506,7 +506,7 @@ function init_unknowns_vec!(
     vec::Vector{SimFloat}
 )
     !s.set.quasi_static && (length(vec) != length(s.integrator.u)) && 
-        throw(ArgumentError("Unknowns of length $(length(s.integrator.u)) but vector provided of length $(length(vec))"))
+        error("Unknowns of length $(length(s.integrator.u)) but vector provided of length $(length(vec))")
         
     @unpack points, groups, segments, pulleys, winches, wings = system
     vec_idx = 1
@@ -566,7 +566,7 @@ function init_unknowns_vec!(
     end
 
     (vec_idx-1 != length(vec)) && 
-        throw(ArgumentError("Unknowns vec is of length $(length(vec)) but the last index is $(vec_idx-1)"))
+        error("Unknowns vec is of length $(length(vec)) but the last index is $(vec_idx-1)")
     nothing
 end
 
@@ -588,7 +588,8 @@ function get_unknowns(s::SymbolicAWEModel)
     end
     vec = get_nonstiff_unknowns(s, vec)
     !s.set.quasi_static && (length(vec) != length(s.integrator.u)) &&
-        throw(ArgumentError("Integrator unknowns of length $(length(s.integrator.u)) should equal vec of length $(length(vec))"))
+        error("Integrator unknowns of length $(length(s.integrator.u)) should equal vec of length $(length(vec)).
+            Maybe you forgot to run init_sim!(model; remake=true)?")
     return vec
 end
 
