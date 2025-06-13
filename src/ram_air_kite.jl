@@ -420,7 +420,7 @@ function generate_getters!(s, sym_vec)
         set_set_values = setp(sys, sys.set_values)
         s.set_set_values = (integ, val) -> set_set_values(integ, val)
         if !isnothing(s.lin_prob)
-            set_lin_set_values = setp(s.lin_prob, set_values)
+            set_lin_set_values = setp(s.lin_prob, sys.set_values)
             s.set_lin_set_values = (lin_prob, val) -> set_lin_set_values(lin_prob, val)
         end
     end

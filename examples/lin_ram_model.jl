@@ -68,7 +68,7 @@ KiteModels.init_sim!(s;
 )
 sys = s.sys
 
-@show rad2deg(s.integrator[sys.elevation])
+@show rad2deg(s.integrator[sys.elevation[1]])
 
 
 @info "System initialized at:"
