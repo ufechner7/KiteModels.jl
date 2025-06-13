@@ -4,6 +4,7 @@ Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 KiteModels = "b94af626-7959-4878-9336-2adc27959007"
 KitePodModels = "9de5dc81-f971-414a-927b-652b2f41c539"
 KiteUtils = "90980105-b163-44e5-ba9f-8b1c83bb0533"
+OpenSSL_jll = "458c3c95-2e84-50aa-8efc-19380b2a3a95"
 
 [compat]
 ControlPlots = "0.2.7"
