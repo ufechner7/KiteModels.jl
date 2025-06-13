@@ -106,6 +106,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
+      - name: Install matplotlib
+        run: sudo apt-get install -y python3-matplotlib
+        shell: bash
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
       - uses: julia-actions/cache@v2
