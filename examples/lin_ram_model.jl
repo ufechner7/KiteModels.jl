@@ -16,10 +16,6 @@ using Timers
 tic()
 @info "Loading packages "
 
-using KiteModels, LinearAlgebra, Statistics, OrdinaryDiffEqCore 
-using ModelingToolkit
-using ModelingToolkit: t_nounits as t
-
 PLOT = true
 if PLOT
     using Pkg
@@ -27,11 +23,12 @@ if PLOT
         using TestEnv; TestEnv.activate()
     end
     using ControlPlots, LaTeXStrings, ControlSystemsBase
-    import ControlPlots: plot
 end
-toc()
 
-include(joinpath(@__DIR__, "plotting.jl"))
+using KiteModels, LinearAlgebra, Statistics, OrdinaryDiffEqCore 
+using ModelingToolkit
+using ModelingToolkit: t_nounits as t
+toc()
 
 # TODO: use sparse autodiff
 

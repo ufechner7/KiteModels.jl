@@ -1,14 +1,24 @@
-# SPDX-FileCopyrightText: 2025 Uwe Fechner
+# SPDX-FileCopyrightText: 2025 Uwe Fechner, Bart van de Lint
 #
 # SPDX-License-Identifier: MIT
 
+using Pkg
+if ("TestEnv" ∈ keys(Pkg.project().dependencies))
+    if ! ("Documents" ∈ keys(Pkg.project().dependencies))
+        using TestEnv; TestEnv.activate()
+    end
+end
+using ControlPlots
 using KiteModels
 using Documenter
 
 DocMeta.setdocmeta!(KiteModels, :DocTestSetup, :(using KitePodSimulator); recursive=true)
 
 makedocs(;
-    modules=[KiteModels],
+    modules=[KiteModels,
+             isdefined(Base, :get_extension) ? 
+             Base.get_extension(KiteModels, :KiteModelsControlPlotsExt) :
+             KiteModels.KiteModelsControlPlotsExt],
     authors="Uwe Fechner <fechner@aenarete.eu>, Bart van de Lint <bart@vandelint.net> and contributors",
     repo="https://github.com/ufechner7/KiteModels.jl/blob/{commit}{path}#{line}",
     sitename="KiteModels.jl",

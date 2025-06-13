@@ -94,6 +94,9 @@ Short alias for the AbstractKiteModel.
 """
 const AKM = AbstractKiteModel
 
+# Defined in ext/KiteModelsControlPlotsExt.jl
+function plot end
+
 function __init__()
     if isdir(joinpath(pwd(), "data")) && isfile(joinpath(pwd(), "data", "system.yaml"))
         set_data_path(joinpath(pwd(), "data"))

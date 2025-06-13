@@ -1,7 +1,8 @@
-# SPDX-FileCopyrightText: 2025 Uwe Fechner
+# SPDX-FileCopyrightText: 2025 Bart van de Lint
 # SPDX-License-Identifier: MIT
 
 using Test, LinearAlgebra, KiteUtils, VortexStepMethod
+using ControlPlots
 using KiteModels
 using Statistics
 
@@ -230,6 +231,17 @@ const BUILD_SYS = true
             left_heading_diff = angle_diff(sys_state_left.heading, sys_state_initial.heading)
             @test left_heading_diff ≈ -0.9 atol=0.2
         end
+    end
+
+    @testset "Plotting of RamAirKite" begin
+        plt.figure("Kite")
+        lines, sc, txt = plot(s, 0.0)
+        plt.show(block=false)
+        sleep(1)
+        @test !isnothing(lines)
+        @test length(lines) ≥ 1  # Should have at least one line
+        @test !isnothing(sc)     # Should have scatter points
+        @test !isnothing(txt)    # Should have time text
     end
 end
 

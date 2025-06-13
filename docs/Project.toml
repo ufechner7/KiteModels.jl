@@ -1,11 +1,15 @@
 [deps]
+ControlPlots = "23c2ee80-7a9e-4350-b264-8e670f12517c"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 KiteModels = "b94af626-7959-4878-9336-2adc27959007"
 KitePodModels = "9de5dc81-f971-414a-927b-652b2f41c539"
 KiteUtils = "90980105-b163-44e5-ba9f-8b1c83bb0533"
+OpenSSL_jll = "458c3c95-2e84-50aa-8efc-19380b2a3a95"
 
 [compat]
-julia = "1.10, 1.11"
-KiteUtils = "0.7, 0.8, 0.9, 0.10"
-KitePodModels = "0.3"
+OpenSSL_jll = "~3.0.0"
+ControlPlots = "0.2.7"
 Documenter = "1.11"
+KitePodModels = "0.3"
+KiteUtils = "0.7, 0.8, 0.9, 0.10"
+julia = "1.10, 1.11"
