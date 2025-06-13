@@ -83,7 +83,7 @@ function simulate(kps4, integrator, logger, steps, f_ex)
         v_set = 0.0
         set_torque = calc_set_torque(set, wcs, v_set, delayed_v_reelout, filtered_force)
         set_torque += 200*SIN[i]
-        KiteModels.next_step!(kps4, integrator; set_torque, dt)
+        next_step!(kps4, integrator; set_torque, dt)
         # println(kps4.va_z)
         sys_state = KiteModels.SysState(kps4)
         aoa = kps4.alpha_2

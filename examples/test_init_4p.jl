@@ -41,7 +41,7 @@ kcu::KCU = KCU(set)
 kps4::KPS4 = KPS4(kcu)
 integrator = KiteModels.init_sim!(kps4; delta=0.03, stiffness_factor=0.01, upwind_dir=UPWIND_DIR, prn=STATISTIC)
 for i=1:80
-    KiteModels.next_step!(kps4, integrator; set_speed=kps4.set.v_reel_out, dt)
+    next_step!(kps4, integrator; set_speed=kps4.set.v_reel_out, dt)
 end
 lift, drag = lift_drag(kps4)
 sys_state = KiteModels.SysState(kps4)

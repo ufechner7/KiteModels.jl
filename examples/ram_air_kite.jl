@@ -5,24 +5,19 @@ using Timers
 tic()
 @info "Loading packages "
 
+PLOT = true
+using Pkg
+if ! ("LaTeXStrings" ∈ keys(Pkg.project().dependencies))
+    using TestEnv; TestEnv.activate()
+end
+using ControlPlots, LaTeXStrings
 using KiteModels, LinearAlgebra, Statistics
 
-PLOT = true
 if ! @isdefined SIMPLE
     SIMPLE = false
 end
 
-if PLOT
-    using Pkg
-    if ! ("LaTeXStrings" ∈ keys(Pkg.project().dependencies))
-        using TestEnv; TestEnv.activate()
-    end
-    using ControlPlots, LaTeXStrings
-    import ControlPlots: plot
-end
 toc()
-
-include(joinpath(@__DIR__, "plotting.jl"))
 
 # Simulation parameters
 dt = 0.05
@@ -52,9 +47,9 @@ toc()
 # plot(s.system_structure, 0.0; zoom=false, front=false)
 
 # Initialize at elevation
-s.system_structure.winches[2].tether_length += 0.2
-s.system_structure.winches[3].tether_length += 0.2
-KiteModels.init_sim!(s; remake=false, reload=true)
+s.point_system.winches[2].tether_length += 0.2
+s.point_system.winches[3].tether_length += 0.2
+init_sim!(s; remake=false, reload=true)
 sys = s.sys
 
 @info "System initialized at:"
@@ -64,7 +59,7 @@ toc()
 find_steady_state!(s)
 
 logger = Logger(length(s.system_structure.points), steps)
-sys_state = KiteModels.SysState(s)
+sys_state = SysState(s)
 t = 0.0
 runtime = 0.0
 integ_runtime = 0.0
@@ -87,7 +82,7 @@ try
         end
 
         # Step simulation
-        steptime = @elapsed (t_new, integ_steptime) = next_step!(s, set_values; dt, vsm_interval=vsm_interval)
+        steptime = @elapsed (t_new, integ_steptime) = next_step!(s; set_values, dt, vsm_interval=vsm_interval)
         t = t_new - t0  # Adjust for initial stabilization time
 
         # Track performance after initial transient
@@ -98,7 +93,7 @@ try
         end
 
         # Log state variables
-        KiteModels.update_sys_state!(sys_state, s)
+        update_sys_state!(sys_state, s)
         sys_state.time = t
         log!(logger, sys_state)
     end

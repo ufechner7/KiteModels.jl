@@ -1,7 +1,8 @@
-# SPDX-FileCopyrightText: 2025 Uwe Fechner
+# SPDX-FileCopyrightText: 2025 Bart van de Lint
 # SPDX-License-Identifier: MIT
 
 using Test, LinearAlgebra, KiteUtils, VortexStepMethod
+using ControlPlots
 using KiteModels
 using Statistics
 
@@ -138,7 +139,7 @@ const BUILD_SYS = true
         @info "Stepping"
         for _ in 1:steps
             set_values = -s.set.drum_radius * s.integrator[s.sys.winch_force] + d_set_values
-            KiteModels.next_step!(s, set_values; dt)
+            next_step!(s; set_values, dt)
             # Use SysState to get heading if needed, or directly from integrator if simpler
             # sys_state_step = KiteModels.SysState(s)
             # @show sys_state_step.heading # Example if heading is in SysState
@@ -154,7 +155,7 @@ const BUILD_SYS = true
         # Run a simulation step with zero set values
         set_values = [0.0, 0.0, 0.0]
         dt = 1/s.set.sample_freq
-        t, _ = KiteModels.next_step!(s, set_values; dt=dt)
+        t, _ = next_step!(s; set_values, dt=dt)
         # Update sys_state_before *after* the step to compare with the state *before* the loop
         KiteModels.update_sys_state!(sys_state_before, s)
         @test isapprox(t, dt, atol=TOL)
@@ -163,7 +164,7 @@ const BUILD_SYS = true
         num_steps = 10
         total_time = 0.0
         for _ in 1:num_steps
-            step_time, _ = KiteModels.next_step!(s, set_values; dt=dt)
+            step_time, _ = next_step!(s; set_values, dt=dt)
             total_time += step_time # Accumulate time from next_step! return value
         end
         sys_state_after = KiteModels.SysState(s) # Get state after the loop
@@ -230,6 +231,17 @@ const BUILD_SYS = true
             left_heading_diff = angle_diff(sys_state_left.heading, sys_state_initial.heading)
             @test left_heading_diff ≈ -0.9 atol=0.2
         end
+    end
+
+    @testset "Plotting of RamAirKite" begin
+        plt.figure("Kite")
+        lines, sc, txt = plot(s, 0.0)
+        plt.show(block=false)
+        sleep(1)
+        @test !isnothing(lines)
+        @test length(lines) ≥ 1  # Should have at least one line
+        @test !isnothing(sc)     # Should have scatter points
+        @test !isnothing(txt)    # Should have time text
     end
 end
 

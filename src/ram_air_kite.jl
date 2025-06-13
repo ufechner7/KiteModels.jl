@@ -183,7 +183,9 @@ function SysState(s::SymbolicAWEModel, zoom=1.0)
 end
 
 """
-    init_sim!(s::SymbolicAWEModel; prn=true, precompile=false) -> Nothing
+    init_sim!(s::SymbolicAWEModel; solver=nothing, adaptive=true, prn=true, 
+              precompile=false, remake=false, reload=false, 
+              lin_outputs=Num[]) -> OrdinaryDiffEqCore.ODEIntegrator
 
 Initialize a kite power system model. 
 
@@ -203,16 +205,38 @@ and only update the state variables. Otherwise, it will create a new model from 
 
 # Arguments
 - `s::SymbolicAWEModel`: The kite system state object  
-- `prn::Bool=true`: Whether to print progress information
-- `precompile::Bool=false`: Whether to build problem for precompilation
+
+# Keyword arguments
+- `solver`: Solver algorithm to use. If `nothing`, defaults to `FBDF()` or `QNDF()` based on `s.set.solver`.
+- `adaptive::Bool=true`: Whether to use adaptive time stepping.
+- `prn::Bool=true`: Whether to print progress information.
+- `precompile::Bool=false`: Whether to build problem for precompilation.
+- `remake::Bool=false`: If true, forces the system to be rebuilt, even if a serialized model exists.
+- `reload::Bool=false`: If true, forces the system to reload the serialized model from disk.
+- `lin_outputs::Vector{Num}=Num[]`: List of symbolic variables for which to generate a linearization function.
 
 # Returns
-`Nothing`
+- `integrator::OrdinaryDiffEqCore.ODEIntegrator`: The initialized ODE integrator.
 """
-function init_sim!(s::SymbolicAWEModel;
-    solver=ifelse(s.set.quasi_static, FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.6)), FBDF()), 
-    adaptive=true, prn=true, precompile=false, remake=false, reload=false, lin_outputs=Num[]
+function init_sim!(s::SymbolicAWEModel; 
+    solver=nothing, adaptive=true, prn=true, 
+    precompile=false, remake=false, reload=false, 
+    lin_outputs=Num[]
 )
+    if isnothing(solver)
+        solver = if s.set.solver == "FBDF"
+            if s.set.quasi_static
+                FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=s.set.relaxation))
+            else
+                FBDF()
+            end
+        elseif s.set.solver == "QNDF"
+            @warn "This solver is not tested."
+            QNDF()
+        else
+            error("Unavailable solver for RamAirKite: $(s.set.solver).")
+        end
+    end
     function init(s)
         init_Q_b_w, R_b_w, init_va_b = initial_orient(s)
         init!(s.system_structure, s.set, R_b_w, init_Q_b_w)
@@ -241,14 +265,14 @@ function init_sim!(s::SymbolicAWEModel;
     if !ispath(prob_path) || remake
         init(s)
     end
-    success = reinit!(s; solver, adaptive, precompile, reload, lin_outputs)
+    _, success = reinit!(s, solver; adaptive, precompile, reload, lin_outputs)
     if !success
         rm(prob_path)
         @info "Rebuilding the system. This can take some minutes..."
         init(s)
-        reinit!(s; precompile, prn)
+        reinit!(s, solver; precompile, prn)
     end
-    return nothing
+    return s.integrator
 end
 
 function linearize(s::SymbolicAWEModel; set_values=s.get_set_values(s.integrator))
@@ -260,9 +284,11 @@ function linearize(s::SymbolicAWEModel; set_values=s.get_set_values(s.integrator
 end
 
 """
-    reinit!(s::SymbolicAWEModel; prn=true, precompile=false) -> Nothing
+    reinit!(s::SymbolicAWEModel, solver; prn=true, precompile=false) -> Nothing
 
 Reinitialize an existing kite power system model with new state values.
+The new state is coming from the init section of the settings, stored
+in the struct `s.set`.
 
 This function performs the following operations:
 1. If no integrator exists yet:
@@ -280,6 +306,7 @@ and only updates the state variables to match the current initial settings.
 
 # Arguments
 - `s::SymbolicAWEModel`: The kite power system state object
+- `solver`: The solver to be used
 - `prn::Bool=true`: Whether to print progress information
 
 # Returns
@@ -289,8 +316,8 @@ and only updates the state variables to match the current initial settings.
 - `ArgumentError`: If no serialized problem exists (run `init_sim!` first)
 """
 function reinit!(
-    s::SymbolicAWEModel; 
-    solver=ifelse(s.set.quasi_static, FBDF(nlsolve=OrdinaryDiffEqNonlinearSolve.NLNewton(relax=0.4, max_iter=1000)), FBDF()),
+    s::SymbolicAWEModel,
+    solver;
     adaptive=true,
     prn=true, 
     reload=true, 
@@ -310,7 +337,7 @@ function reinit!(
             length(lin_outputs) > 0 && isnothing(s.lin_prob) && error("lin_prob is nothing.")
         catch e
             @warn "Failure to deserialize $prob_path !"
-            return false
+            return s.integrator, false
         end
     end
     if isnothing(s.integrator) || !successful_retcode(s.integrator.sol) || reload
@@ -330,7 +357,7 @@ function reinit!(
     s.set_unknowns(s.integrator, s.unknowns_vec)
     OrdinaryDiffEqCore.reinit!(s.integrator, s.integrator.u; reinit_dae=true)
     linearize_vsm!(s)
-    return true
+    return s.integrator, true
 end
 
 function generate_getters!(s, sym_vec)
@@ -459,7 +486,38 @@ function linearize_vsm!(s::SymbolicAWEModel, integ=s.integrator)
     nothing
 end
 
-function next_step!(s::SymbolicAWEModel, set_values=nothing; upwind_dir=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
+"""
+    next_step!(s::RamAirKite, integrator::ODEIntegrator; set_values=nothing, upwind_dir=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
+
+Take a simulation step, using the internal integrator.
+
+This function performs the following steps:
+1. Optionally update the set values (control inputs)
+2. Optionally update the upwind direction
+3. Optionally linearize the VSM (Vortex Step Method) model
+4. Step the ODE integrator forward by `dt` seconds
+5. Check for a successful return code from the integrator
+6. Increment the iteration counter
+
+# Arguments
+- `s::RamAirKite`: The kite power system state object
+- `integrator::ODEIntegrator`: The ODE integrator to use
+
+# Keyword Arguments
+- `set_values=nothing`: New values for the set variables (control inputs). If `nothing`, the current values are used.
+- `upwind_dir=nothing`: New upwind direction. If `nothing`, the current direction is used.
+- `dt=1/s.set.sample_freq`: Time step size in seconds. Defaults to the inverse of the sample frequency.
+- `vsm_interval=1`: Interval (in number of steps) at which to linearize the VSM model. If 0, the VSM model is not linearized.
+
+# Returns
+- `Tuple{SimFloat, Float64}`: A tuple containing the current simulation time and the time taken for the step.
+"""
+function next_step!(s::SymbolicAWEModel, integrator::OrdinaryDiffEqCore.ODEIntegrator; set_values=nothing, upwind_dir=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
+    !(s.integrator === integrator) && error("The ODEIntegrator doesn't belong to the RamAirKite")
+    next_step!(s; set_values, upwind_dir, dt, vsm_interval)
+end
+
+function next_step!(s::SymbolicAWEModel; set_values=nothing, upwind_dir=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
     if (!isnothing(set_values)) 
         s.set_set_values(s.integrator, set_values)
     end

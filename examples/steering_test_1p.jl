@@ -83,7 +83,7 @@ function simulate(integrator, steps; plot=false)
             end
         end
 
-        KiteModels.next_step!(kps3, integrator; set_speed=0, dt)
+        next_step!(kps3, integrator; set_speed=0, dt)
         iter += kps3.iter
         sys_state = SysState(kps3)
         sys_state.var_16 = get_steering(kps3.kcu)

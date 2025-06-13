@@ -64,7 +64,7 @@ function simulate(integrator, steps, plot=PLOT)
         end
         set_depower_steering(kps4.kcu, kps4.depower, steering)
 
-        KiteModels.next_step!(kps4, integrator; set_speed, dt, upwind_dir=UPWIND_DIR2)
+        next_step!(kps4, integrator; set_speed, dt, upwind_dir=UPWIND_DIR2)
         iter += kps4.iter
         reltime = i*dt-dt
         if mod(i, 5) == 1
