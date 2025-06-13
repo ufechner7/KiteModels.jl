@@ -47,7 +47,7 @@ export calculate_rotational_inertia!
 export kite_ref_frame, orient_euler, spring_forces, upwind_dir, copy_model_settings, menu2
 export create_ram_system_structure, create_simple_ram_system_structure
 import LinearAlgebra: norm
-export SystemStructure, Point, Group, Segment, Pulley, Tether, Winch, Kite
+export SystemStructure, Point, Group, Segment, Pulley, Tether, Winch, Wing
 export DynamicsType, DYNAMIC, QUASI_STATIC, WING, STATIC
 export SegmentType, POWER, STEERING, BRIDLE
 

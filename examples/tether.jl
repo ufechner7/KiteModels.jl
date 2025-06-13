@@ -7,10 +7,8 @@ dynamics_type = DYNAMIC
 points = Point[]
 segments = Segment[]
 
-# First, create a static ground point that doesn't move
 points = push!(points, Point(1, [0.0, 0.0, set.l_tether], STATIC; wing_idx=0))
 
-# Now, create the tether points
 segment_idxs = Int[]
 for i in 1:set.segments
     global points, segments

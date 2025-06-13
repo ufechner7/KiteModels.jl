@@ -23,7 +23,7 @@ SystemStructure
 
 ## Private functions
 ```@docs
-diff_eqs!
+wing_eqs!
 reinit!
 scalar_eqs!
 linear_vsm_eqs!

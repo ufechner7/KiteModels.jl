@@ -91,5 +91,5 @@ using KiteModels
 # Initialize model
 set = load_settings("system_ram.yaml")
 
-rak = SymbolicAWEModel(set)
+sam = SymbolicAWEModel(set)
 ```
