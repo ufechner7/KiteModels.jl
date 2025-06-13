@@ -469,7 +469,9 @@ function create_simple_ram_system_structure(set::Settings, wing::RamAirWing)
     winches = [winches; Winch(2, TorqueControlledMachine(set), [left_steering_idx], set.l_tether)]
     winches = [winches; Winch(3, TorqueControlledMachine(set), [right_steering_idx], set.l_tether)]
 
-    return SystemStructure(set.physical_model, points, groups, segments, pulleys, tethers, winches)
+    wings = [Wing(1, [1,2,3,4])]
+
+    return SystemStructure(set.physical_model; points, groups, segments, pulleys, tethers, winches, wings)
 end
 
 
