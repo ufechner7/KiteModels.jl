@@ -71,6 +71,8 @@ $(TYPEDFIELDS)
 
     prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
     integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Nothing} = nothing
+    t_vsm::S  = zero(S)
+    t_step::S = zero(S)
 end
 
 function SymbolicAWEModel(
@@ -511,7 +513,7 @@ This function performs the following steps:
 - `vsm_interval=1`: Interval (in number of steps) at which to linearize the VSM model. If 0, the VSM model is not linearized.
 
 # Returns
-- `Tuple{SimFloat, Float64}`: A tuple containing the current simulation time and the time taken for the step.
+- `Nothing`
 """
 function next_step!(s::SymbolicAWEModel, integrator::OrdinaryDiffEqCore.ODEIntegrator; set_values=nothing, upwind_dir=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
     !(s.integrator === integrator) && error("The ODEIntegrator doesn't belong to the SymbolicAWEModel")
@@ -526,17 +528,17 @@ function next_step!(s::SymbolicAWEModel; set_values=nothing, upwind_dir=nothing,
         s.set_wind_dir(s.integrator, upwind_dir)
     end
     if vsm_interval != 0 && s.iter % vsm_interval == 0
-        linearize_vsm!(s)
+        s.t_vsm = @elapsed linearize_vsm!(s)
     end
     
     s.t_0 = s.integrator.t
-    steptime = @elapsed OrdinaryDiffEqCore.step!(s.integrator, dt, true)
+    s.t_step = @elapsed OrdinaryDiffEqCore.step!(s.integrator, dt, true)
     if !successful_retcode(s.integrator.sol)
         println("Return code for solution: ", s.integrator.sol.retcode)
     end
     @assert successful_retcode(s.integrator.sol)
     s.iter += 1
-    s.integrator.t, steptime
+    return nothing
 end
 
 function get_prob_name(set::Settings; precompile=false)

@@ -27,7 +27,7 @@ end
 
 using KiteModels, LinearAlgebra, Statistics, OrdinaryDiffEqCore 
 using ModelingToolkit
-using ModelingToolkit: t_nounits as t
+using ModelingToolkit: t_nounits
 toc()
 
 # TODO: use sparse autodiff
@@ -56,7 +56,7 @@ s.set.rel_tol = 1e-2
 toc()
 
 # Define outputs for linearization - heading
-lin_outputs = @variables heading(t)[1]
+lin_outputs = @variables heading(t_nounits)[1]
 
 # Initialize at elevation with linearization outputs
 s.system_structure.winches[2].tether_length += 0.2
