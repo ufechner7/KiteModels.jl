@@ -200,7 +200,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             # r = (p - n) # https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line#Vector_formulation
             @parameters bridle_damp = 1.0
             @parameters measured_ω_z = 0.6
-            if in_bridle
+            if in_bridle && length(wings) > 0
                 bridle_damp_vec = bridle_damp * (vel[:, point.idx] - wing_vel[point.wing_idx, :])
             else
                 bridle_damp_vec = zeros(Num, 3)

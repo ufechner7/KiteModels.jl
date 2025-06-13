@@ -12,11 +12,11 @@ function plot(sys::SystemStructure, reltime; wing_pos=nothing, e_z=zeros(3), zoo
         xlim = (pos[end][2] - 6, pos[end][2]+6)
         ylim = (pos[end][3] - 10, pos[end][3]+2)
     elseif !zoom && !front
-        xlim = (0, 60)
-        ylim = (0, 60)
+        xlim = (-5, 55)
+        ylim = (-5, 55)
     elseif !zoom && front
         xlim = (-30, 30)
-        ylim = (0, 60)
+        ylim = (-5, 55)
     end
     ControlPlots.plot2d(pos, seg, reltime; zoom, front, xlim, ylim, dz_zoom=0.6)
 end

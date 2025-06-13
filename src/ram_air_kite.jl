@@ -336,7 +336,7 @@ end
 function generate_getters!(s, sym_vec)
     sys = s.sys
     c = collect
-    @unpack wings, winches = s.system_structure
+    @unpack wings, winches, tethers = s.system_structure
 
     if length(wings) > 0
         vsm_sym = c.([
@@ -397,6 +397,11 @@ function generate_getters!(s, sym_vec)
         end
     end
 
+    if length(tethers) > 0
+        get_unstretched_length = getu(sys, sys.unstretched_length)
+        s.get_unstretched_length = (integ) -> get_unstretched_length(integ)
+    end
+
     if length(winches) + length(wings) > 0
         set_stabilize = setp(sys, sys.stabilize)
         s.set_stabilize = (integ, val) -> set_stabilize(integ, val)
@@ -420,8 +425,6 @@ function generate_getters!(s, sym_vec)
          sys.wind_vec_gnd,    # Ground wind vector (world frame)
     ]))
     s.get_point_state = (integ) -> get_point_state(integ)
-    get_unstretched_length = getu(sys, sys.unstretched_length)
-    s.get_unstretched_length = (integ) -> get_unstretched_length(integ)
     get_spring_force = getu(sys, sys.spring_force)
     s.get_spring_force = (integ) -> get_spring_force(integ)
     get_pos = getu(sys, sys.pos)
