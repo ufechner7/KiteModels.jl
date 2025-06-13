@@ -56,7 +56,7 @@ s.set.rel_tol = 1e-2
 toc()
 
 # Define outputs for linearization - heading
-lin_outputs = @variables heading(t)
+lin_outputs = @variables heading(t)[1]
 
 # Initialize at elevation with linearization outputs
 s.system_structure.winches[2].tether_length += 0.2
