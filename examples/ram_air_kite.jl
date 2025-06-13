@@ -5,24 +5,19 @@ using Timers
 tic()
 @info "Loading packages "
 
+PLOT = true
+using Pkg
+if ! ("LaTeXStrings" ∈ keys(Pkg.project().dependencies))
+    using TestEnv; TestEnv.activate()
+end
+using ControlPlots, LaTeXStrings
 using KiteModels, LinearAlgebra, Statistics
 
-PLOT = true
 if ! @isdefined SIMPLE
     SIMPLE = false
 end
 
-if PLOT
-    using Pkg
-    if ! ("LaTeXStrings" ∈ keys(Pkg.project().dependencies))
-        using TestEnv; TestEnv.activate()
-    end
-    using ControlPlots, LaTeXStrings
-    import ControlPlots: plot
-end
 toc()
-
-include(joinpath(@__DIR__, "plotting.jl"))
 
 # Simulation parameters
 dt = 0.05
@@ -47,14 +42,14 @@ s.set.abs_tol = 1e-2
 s.set.rel_tol = 1e-2
 toc()
 
-# init_Q_b_w, R_b_w = KiteModels.initial_orient(s.set)
+# init_Q_b_w, R_b_w = initial_orient(s.set)
 # init_kite_pos = init!(s.point_system, s.set, R_b_w, init_Q_b_w)
 # plot(s.point_system, 0.0; zoom=false, front=false)
 
 # Initialize at elevation
 s.point_system.winches[2].tether_length += 0.2
 s.point_system.winches[3].tether_length += 0.2
-KiteModels.init_sim!(s; remake=false, reload=true)
+init_sim!(s; remake=false, reload=true)
 sys = s.sys
 
 @info "System initialized at:"
@@ -64,7 +59,7 @@ toc()
 find_steady_state!(s)
 
 logger = Logger(length(s.point_system.points), steps)
-sys_state = KiteModels.SysState(s)
+sys_state = SysState(s)
 t = 0.0
 runtime = 0.0
 integ_runtime = 0.0
@@ -98,7 +93,7 @@ try
         end
 
         # Log state variables
-        KiteModels.update_sys_state!(sys_state, s)
+        update_sys_state!(sys_state, s)
         sys_state.time = t
         log!(logger, sys_state)
     end
