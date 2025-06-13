@@ -41,19 +41,19 @@ set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. 
 set.quasi_static = false
 set.physical_model = SIMPLE ? "simple_ram" : "ram"
 
-@info "Creating wing, aero, vsm_solver, point_system and s:"
+@info "Creating wing, aero, vsm_solver, system_structure and s:"
 s = SymbolicAWEModel(set)
 s.set.abs_tol = 1e-2
 s.set.rel_tol = 1e-2
 toc()
 
 # init_Q_b_w, R_b_w = KiteModels.initial_orient(s.set)
-# init_kite_pos = init!(s.point_system, s.set, R_b_w, init_Q_b_w)
-# plot(s.point_system, 0.0; zoom=false, front=false)
+# init_kite_pos = init!(s.system_structure, s.set, R_b_w, init_Q_b_w)
+# plot(s.system_structure, 0.0; zoom=false, front=false)
 
 # Initialize at elevation
-s.point_system.winches[2].tether_length += 0.2
-s.point_system.winches[3].tether_length += 0.2
+s.system_structure.winches[2].tether_length += 0.2
+s.system_structure.winches[3].tether_length += 0.2
 KiteModels.init_sim!(s; remake=false, reload=true)
 sys = s.sys
 
@@ -63,7 +63,7 @@ toc()
 # Stabilize system
 find_steady_state!(s)
 
-logger = Logger(length(s.point_system.points), steps)
+logger = Logger(length(s.system_structure.points), steps)
 sys_state = KiteModels.SysState(s)
 t = 0.0
 runtime = 0.0

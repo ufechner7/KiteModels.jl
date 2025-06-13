@@ -24,7 +24,7 @@ $(TYPEDFIELDS)
     "Reference to the VSM aerodynamics solver"
     vsm_solvers::Vector{VortexStepMethod.Solver}
     "Reference to the point mass system with points, segments, pulleys and tethers"
-    point_system::SystemStructure
+    system_structure::SystemStructure
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
     "relative start time of the current time interval"
@@ -44,28 +44,30 @@ $(TYPEDFIELDS)
     defaults::Vector{Pair{Num, Real}} = Pair{Num, Real}[]
     guesses::Vector{Pair{Num, Real}} = Pair{Num, Real}[]
 
-    set_set_values::Function       = () -> nothing
-    set_wind_dir::Function          = () -> nothing
-    set_vsm::Function              = () -> nothing
-    set_unknowns::Function         = () -> nothing
-    set_nonstiff::Function         = () -> nothing
-    set_lin_vsm::Function          = () -> nothing
-    set_lin_set_values::Function   = () -> nothing
-    set_lin_unknowns::Function     = () -> nothing
-    set_stabilize::Function        = () -> nothing
+    set_set_values::Function       = (_, _) -> nothing
+    set_wind_dir::Function         = (_, _) -> nothing
+    set_vsm::Function              = (_, _) -> nothing
+    set_unknowns::Function         = (_, _) -> nothing
+    set_nonstiff::Function         = (_, _) -> nothing
+    set_lin_vsm::Function          = (_, _) -> nothing
+    set_lin_set_values::Function   = (_, _) -> nothing
+    set_lin_unknowns::Function     = (_, _) -> nothing
+    set_stabilize::Function        = (_, _) -> nothing
     
-    get_vsm::Function              = () -> nothing
-    get_set_values::Function       = () -> nothing
-    get_unknowns::Function         = () -> nothing
-    get_state::Function            = () -> nothing
-    get_y::Function                = () -> nothing
-    get_unstretched_length::Function = () -> nothing
-    get_tether_length::Function    = () -> nothing
-    get_wing_pos::Function         = () -> nothing
-    get_winch_force::Function      = () -> nothing
-    get_spring_force::Function     = () -> nothing
-    get_stabilize::Function        = () -> nothing
-    get_pos::Function              = () -> nothing
+    get_vsm::Function              = (_) -> nothing
+    get_set_values::Function       = (_) -> nothing
+    get_unknowns::Function         = (_) -> nothing
+    get_wing_state::Function       = (_) -> nothing
+    get_winch_state::Function      = (_) -> nothing
+    get_point_state::Function      = (_) -> nothing
+    get_y::Function                = (_) -> nothing
+    get_unstretched_length::Function = (_) -> nothing
+    get_tether_length::Function    = (_) -> nothing
+    get_wing_pos::Function         = (_) -> nothing
+    get_winch_force::Function      = (_) -> nothing
+    get_spring_force::Function     = (_) -> nothing
+    get_stabilize::Function        = (_) -> nothing
+    get_pos::Function              = (_) -> nothing
 
     prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
     integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Nothing} = nothing
@@ -76,17 +78,17 @@ function SymbolicAWEModel(
     set::Settings, 
     vsm_aeros::Vector{BodyAerodynamics}, 
     vsm_solvers::Vector{VortexStepMethod.Solver}, 
-    point_system::SystemStructure
+    system_structure::SystemStructure
 )
     vsm_wings = [aero.wings[1] for aero in vsm_aeros]
     if set.winch_model == "TorqueControlledMachine"
         s = SymbolicAWEModel{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
-            ; set, vsm_wings, vsm_aeros, vsm_solvers, point_system
+            ; set, vsm_wings, vsm_aeros, vsm_solvers, system_structure
             )
         s.torque_control = true
     else
         s = SymbolicAWEModel{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
-            ; set, vsm_wings, vsm_aeros, vsm_solvers, point_system
+            ; set, vsm_wings, vsm_aeros, vsm_solvers, system_structure
             )
         s.torque_control = false
     end
@@ -97,8 +99,8 @@ function SymbolicAWEModel(set::Settings)
     wing = RamAirWing(set; prn=false)
     aero = BodyAerodynamics([wing])
     vsm_solver = Solver(aero; solver_type=NONLIN, atol=2e-8, rtol=2e-8)
-    point_system = SystemStructure(set, wing)
-    return SymbolicAWEModel(set, aero, vsm_solver, point_system)
+    system_structure = SystemStructure(set, wing)
+    return SymbolicAWEModel(set, aero, vsm_solver, system_structure)
 end
 
 function update_sys_state!(ss::SysState, s::SymbolicAWEModel, zoom=1.0)
@@ -109,7 +111,7 @@ function update_sys_state!(ss::SysState, s::SymbolicAWEModel, zoom=1.0)
     set_values, pos, acc_vec, Q_b_w, elevation, azimuth, course, heading, tether_length, tether_vel, winch_force,
         twist_angle, wing_vel, aero_force_b, aero_moment_b, turn_rate, va_wing_b, wind_vec_gnd, wind_vel_wing = s.get_state(s.integrator)
 
-    P = length(s.point_system.points)
+    P = length(s.system_structure.points)
     for i in 1:P
         ss.X[i] = pos[1, i] * zoom
         ss.Y[i] = pos[2, i] * zoom
@@ -124,13 +126,13 @@ function update_sys_state!(ss::SysState, s::SymbolicAWEModel, zoom=1.0)
     ss.azimuth = azimuth[1]
 
     # Handle potential size mismatch for tether/winch related arrays
-    num_winches = length(s.point_system.winches)
+    num_winches = length(s.system_structure.winches)
     ss.l_tether[1:num_winches] .= tether_length
     ss.v_reelout[1:num_winches] .= tether_vel
     ss.force[1:num_winches] .= winch_force
 
     # Depower and Steering from twist angles
-    num_groups = length(s.point_system.wings[1].group_idxs)
+    num_groups = length(s.system_structure.wings[1].group_idxs)
     ss.twist_angles[1:num_groups] .= twist_angle[1:num_groups]
     ss.depower = rad2deg(mean(ss.twist_angles)) # Average twist for depower
     ss.steering = rad2deg(ss.twist_angles[num_groups] - ss.twist_angles[1])
@@ -175,7 +177,7 @@ function update_sys_state!(ss::SysState, s::SymbolicAWEModel, zoom=1.0)
 end
 
 function SysState(s::SymbolicAWEModel, zoom=1.0)
-    ss = SysState{length(s.point_system.points)}()
+    ss = SysState{length(s.system_structure.points)}()
     update_sys_state!(ss, s, zoom)
     ss
 end
@@ -213,9 +215,9 @@ function init_sim!(s::SymbolicAWEModel;
 )
     function init(s)
         init_Q_b_w, R_b_w, init_va_b = initial_orient(s)
-        init!(s.point_system, s.set, R_b_w, init_Q_b_w)
+        init!(s.system_structure, s.set, R_b_w, init_Q_b_w)
         
-        inputs = create_sys!(s, s.point_system; init_va_b)
+        inputs = create_sys!(s, s.system_structure; init_va_b)
         prn && @info "Simplifying the system"
         prn ? (@time (sys, _) = structural_simplify(s.full_sys, (inputs, []))) :
             ((sys, _) = structural_simplify(sys, (inputs, [])))
@@ -295,10 +297,10 @@ function reinit!(
     precompile=false,
     lin_outputs=Num[]
 )
-    isnothing(s.point_system) && throw(ArgumentError("SystemStructure not defined"))
+    isnothing(s.system_structure) && throw(ArgumentError("SystemStructure not defined"))
 
     init_Q_b_w, R_b_w = initial_orient(s)
-    init!(s.point_system, s.set, R_b_w, init_Q_b_w)
+    init!(s.system_structure, s.set, R_b_w, init_Q_b_w)
     
     if isnothing(s.prob) || reload
         prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set; precompile))
@@ -324,7 +326,7 @@ function reinit!(
         prn && @info "Initialized integrator in $t seconds"
     end
 
-    init_unknowns_vec!(s, s.point_system, s.unknowns_vec)
+    init_unknowns_vec!(s, s.system_structure, s.unknowns_vec)
     s.set_unknowns(s.integrator, s.unknowns_vec)
     OrdinaryDiffEqCore.reinit!(s.integrator, s.integrator.u; reinit_dae=true)
     linearize_vsm!(s)
@@ -334,103 +336,123 @@ end
 function generate_getters!(s, sym_vec)
     sys = s.sys
     c = collect
-    vsm_sym = c.([
-        sys.last_x,
-        sys.last_y,
-        sys.vsm_jac,
-    ])
+    @unpack wings, winches = s.system_structure
 
-    set_set_values = setp(sys, sys.set_values)
-    set_wind_dir = setp(sys, sys.upwind_dir)
-    set_vsm = setp(sys, vsm_sym)
-    set_unknowns = setu(sys, sym_vec)
-    set_nonstiff = setu(sys, get_nonstiff_unknowns(s))
-    set_stabilize = setp(sys, sys.stabilize)
+    if length(wings) > 0
+        vsm_sym = c.([
+            sys.last_x,
+            sys.last_y,
+            sys.vsm_jac,
+        ])
+        get_vsm = getp(sys, vsm_sym)
+        s.get_vsm = (integ) -> get_vsm(integ)
+        get_y = getu(sys, sys.y)
+        s.get_y = (integ) -> get_y(integ)
+        get_wing_state = getu(sys, c.([
+            sys.Q_b_w,           # Orientation quaternion
+            sys.elevation,       # Elevation angle
+            sys.azimuth,         # Azimuth angle
+            sys.course,          # Course angle
+            sys.heading,         # Heading angle (based on body x-axis projection)
+            sys.twist_angle,     # Twist angle per group
+            sys.wing_vel,        # Kite center velocity vector (world frame)
+            sys.aero_force_b,    # Aerodynamic force (body frame)
+            sys.aero_moment_b,   # Aerodynamic moment (body frame)
+            sys.turn_rate,       # Angular velocity (body frame)
+            sys.va_wing_b,       # Apparent wind velocity (body frame)
+            sys.wind_vel_wing    # Wind vector at wing height (world frame)
+        ]))
+        s.get_wing_state = (integ) -> get_wing_state(integ)
+        get_wing_pos = getu(sys, sys.wing_pos)
+        s.get_wing_pos = (integ) -> get_wing_pos(integ)
+
+        set_vsm = setp(sys, vsm_sym)
+        s.set_vsm = (integ, val) -> set_vsm(integ, val)
+        if !isnothing(s.lin_prob)
+            set_lin_vsm = setp(s.lin_prob, vsm_sym)
+            s.set_lin_vsm = (lin_prob, val) -> set_lin_vsm(lin_prob, val)
+        end
+    end
+
+    if length(winches) > 0
+        get_winch_state = getu(sys, c.([
+             sys.set_values,
+             sys.tether_length,   # Unstretched length per winch
+             sys.tether_vel,      # Reeling velocity per winch
+             sys.winch_force,     # Force at winch connection point per winch
+        ]))
+        s.get_winch_state = (integ) -> get_winch_state(integ)
+        get_set_values = getp(sys, sys.set_values)
+        s.get_set_values = (integ) -> get_set_values(integ)
+        get_tether_length = getu(sys, sys.tether_length)
+        s.get_tether_length = (integ) -> get_tether_length(integ)
+        get_winch_force = getu(sys, sys.winch_force)
+        s.get_winch_force = (integ) -> get_winch_force(integ)
+
+        set_set_values = setp(sys, sys.set_values)
+        s.set_set_values = (integ, val) -> set_set_values(integ, val)
+        if !isnothing(s.lin_prob)
+            set_lin_set_values = setp(s.lin_prob, set_values)
+            s.set_lin_set_values = (lin_prob, val) -> set_lin_set_values(lin_prob, val)
+        end
+    end
+
+    if length(winches) + length(wings) > 0
+        set_stabilize = setp(sys, sys.stabilize)
+        s.set_stabilize = (integ, val) -> set_stabilize(integ, val)
+
+        get_stabilize = getp(sys, sys.stabilize)
+        s.get_stabilize = (integ) -> get_stabilize(integ)
+    end
     
-    get_vsm = getp(sys, vsm_sym)
-    get_set_values = getp(sys, sys.set_values)
+    set_wind_dir = setp(sys, sys.upwind_dir)
+    s.set_wind_dir = (integ, val) -> set_wind_dir(integ, val)
+    set_unknowns = setu(sys, sym_vec)
+    s.set_unknowns = (integ, val) -> set_unknowns(integ, val)
+    set_nonstiff = setu(sys, get_nonstiff_unknowns(s))
+    s.set_nonstiff = (integ, val) -> set_nonstiff(integ, val)
+    
     get_unknowns = getu(sys, sym_vec)
-    get_state = getu(sys,
-        c.([
-         sys.set_values,
+    s.get_unknowns = (integ) -> get_unknowns(integ)
+    get_point_state = getu(sys, c.([
          sys.pos,             # Particle positions
          sys.acc,             # Kite center acceleration vector (world frame)
-         sys.Q_b_w,           # Orientation quaternion
-         sys.elevation,          # Elevation angle
-         sys.azimuth,            # Azimuth angle
-         sys.course,             # Course angle
-         sys.heading,          # Heading angle (based on body x-axis projection)
-         sys.tether_length,   # Unstretched length per winch
-         sys.tether_vel,      # Reeling velocity per winch
-         sys.winch_force,     # Force at winch connection point per winch
-         sys.twist_angle,     # Twist angle per group
-         sys.wing_vel,        # Kite center velocity vector (world frame)
-         sys.aero_force_b,    # Aerodynamic force (body frame)
-         sys.aero_moment_b,   # Aerodynamic moment (body frame)
-         sys.turn_rate,             # Angular velocity (body frame)
-         sys.va_wing_b,       # Apparent wind velocity (body frame)
          sys.wind_vec_gnd,    # Ground wind vector (world frame)
-         sys.wind_vel_wing    # Wind vector at wing height (world frame)
-        ])
-    )
-    get_y = getu(sys, sys.y)
+    ]))
+    s.get_point_state = (integ) -> get_point_state(integ)
     get_unstretched_length = getu(sys, sys.unstretched_length)
-    get_tether_length = getu(sys, sys.tether_length)
-    get_wing_pos = getu(sys, sys.wing_pos)
-    get_winch_force = getu(sys, sys.winch_force)
-    get_spring_force = getu(sys, sys.spring_force)
-    get_stabilize = getp(sys, sys.stabilize)
-    get_pos = getu(sys, sys.pos)
-
-    s.set_set_values = (integ, val) -> set_set_values(integ, val)
-    s.set_wind_dir = (integ, val) -> set_wind_dir(integ, val)
-    s.set_vsm = (integ, val) -> set_vsm(integ, val)
-    s.set_unknowns = (integ, val) -> set_unknowns(integ, val)
-    s.set_nonstiff = (integ, val) -> set_nonstiff(integ, val)
-    s.set_stabilize = (integ, val) -> set_stabilize(integ, val)
-    
-    s.get_vsm = (integ) -> get_vsm(integ)
-    s.get_set_values = (integ) -> get_set_values(integ)
-    s.get_unknowns = (integ) -> get_unknowns(integ)
-    s.get_state = (integ) -> get_state(integ)
-    s.get_y = (integ) -> get_y(integ)
     s.get_unstretched_length = (integ) -> get_unstretched_length(integ)
-    s.get_tether_length = (integ) -> get_tether_length(integ)
-    s.get_wing_pos = (integ) -> get_wing_pos(integ)
-    s.get_winch_force = (integ) -> get_winch_force(integ)
+    get_spring_force = getu(sys, sys.spring_force)
     s.get_spring_force = (integ) -> get_spring_force(integ)
-    s.get_stabilize = (integ) -> get_stabilize(integ)
+    get_pos = getu(sys, sys.pos)
     s.get_pos = (integ) -> get_pos(integ)
     
     if !isnothing(s.lin_prob)
-        set_lin_set_values = setp(s.lin_prob, sys.set_values)
         set_lin_unknowns = setu(s.lin_prob, Initial.(sym_vec))
-        set_lin_vsm = setp(s.lin_prob, vsm_sym)
-        
-        s.set_lin_set_values = (lin_prob, val) -> set_lin_set_values(lin_prob, val)
         s.set_lin_unknowns = (lin_prob, val) -> set_lin_unknowns(lin_prob, val)
-        s.set_lin_vsm = (lin_prob, val) -> set_lin_vsm(lin_prob, val)
     end
     nothing
 end
 
 function linearize_vsm!(s::SymbolicAWEModel, integ=s.integrator)
-    @unpack wings, y, x, jac = s.point_system
-    y .= s.get_y(integ)
-    for wing in wings
-        res = VortexStepMethod.linearize(
-            s.vsm_solvers[wing.idx], 
-            s.vsm_aeros[wing.idx], 
-            y[wing.idx, :];
-            va_idxs=1:3, 
-            omega_idxs=4:6,
-            theta_idxs=7:6+length(s.point_system.groups),
-            moment_frac=s.point_system.groups[1].moment_frac
-        )
-        jac[wing.idx, :, :] .= res[1]
-        x[wing.idx, :] .= res[2]
+    @unpack wings, y, x, jac = s.system_structure
+    if length(wings) > 0
+        y .= s.get_y(integ)
+        for wing in wings
+            res = VortexStepMethod.linearize(
+                s.vsm_solvers[wing.idx], 
+                s.vsm_aeros[wing.idx], 
+                y[wing.idx, :];
+                va_idxs=1:3, 
+                omega_idxs=4:6,
+                theta_idxs=7:6+length(s.system_structure.groups),
+                moment_frac=s.system_structure.groups[1].moment_frac
+            )
+            jac[wing.idx, :, :] .= res[1]
+            x[wing.idx, :] .= res[2]
+        end
+        s.set_vsm(integ, [x, y, jac])
     end
-    s.set_vsm(integ, [x, y, jac])
     nothing
 end
 
@@ -550,7 +572,7 @@ end
 
 function get_unknowns(s::SymbolicAWEModel)
     vec = Num[]
-    @unpack points, groups, segments, pulleys, winches, wings = s.point_system
+    @unpack points, groups, segments, pulleys, winches, wings = s.system_structure
     sys = s.sys
     for point in points
         for i in 1:3
@@ -571,7 +593,7 @@ function get_unknowns(s::SymbolicAWEModel)
 end
 
 function get_nonstiff_unknowns(s::SymbolicAWEModel, vec=Num[])
-    @unpack points, groups, segments, pulleys, winches, wings = s.point_system
+    @unpack points, groups, segments, pulleys, winches, wings = s.system_structure
     sys = s.sys
 
     for group in groups
@@ -603,7 +625,7 @@ end
 
 function initial_orient(s::SymbolicAWEModel)
     set = s.set
-    wings = s.point_system.wings
+    wings = s.system_structure.wings
     R_b_w = zeros(length(wings), 3, 3)
     Q_b_w = zeros(length(wings), 4)
     init_va_b = zeros(length(wings), 3)

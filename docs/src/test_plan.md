@@ -31,7 +31,7 @@ Expected output:
 julia> include("examples/ram_air_kite.jl")
 [ Info: Loading packages 
 Time elapsed: 2.863292943 s
-[ Info: Creating wing, aero, vsm_solver, point_system and s:
+[ Info: Creating wing, aero, vsm_solver, system_structure and s:
 Time elapsed: 4.51880941 s
 [ Info: Initialized integrator in 6.000656365 seconds
 [ Info: System initialized at:

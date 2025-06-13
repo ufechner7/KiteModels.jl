@@ -45,7 +45,7 @@ export calc_azimuth_north, calc_azimuth_east
 export winch_force, lift_drag, cl_cd, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
 export calculate_rotational_inertia!
 export kite_ref_frame, orient_euler, spring_forces, upwind_dir, copy_model_settings, menu2
-export create_ram_point_system, create_simple_ram_point_system
+export create_ram_system_structure, create_simple_ram_system_structure
 import LinearAlgebra: norm
 export SystemStructure, Point, Group, Segment, Pulley, Tether, Winch, Kite
 export DynamicsType, DYNAMIC, QUASI_STATIC, WING, STATIC

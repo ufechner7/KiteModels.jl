@@ -24,9 +24,9 @@ end
 function plot(s::SymbolicAWEModel, reltime; kwargs...)
     pos = s.integrator[s.sys.pos]
     wing_pos = s.integrator[s.sys.wing_pos]
-    for (i, point) in enumerate(s.point_system.points)
+    for (i, point) in enumerate(s.system_structure.points)
         point.pos_w .= pos[:, i]
     end
     e_z = s.integrator[s.sys.e_z]
-    plot(s.point_system, reltime; wing_pos, e_z, kwargs...)
+    plot(s.system_structure, reltime; wing_pos, e_z, kwargs...)
 end

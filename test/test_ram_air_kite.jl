@@ -52,14 +52,14 @@ const BUILD_SYS = true
             # Check initialization results
             @test !isnothing(s.integrator)
             @test !isnothing(s.sys)
-            @test !isnothing(s.point_system)
+            @test !isnothing(s.system_structure)
         end
         s.integrator = nothing
         s.sys = nothing
 
         # Keep references to first integrator and point system
         first_integrator_ptr = objectid(s.integrator)
-        first_point_system_ptr = objectid(s.point_system)
+        first_system_structure_ptr = objectid(s.system_structure)
 
         # 2. First init_sim! - should load from serialized file
         @info "Testing first init_sim! (should load serialized file)..."
@@ -68,9 +68,9 @@ const BUILD_SYS = true
 
         # Check that it's a new integrator
         second_integrator_ptr = objectid(s.integrator)
-        second_point_system_ptr = objectid(s.point_system)
+        second_system_structure_ptr = objectid(s.system_structure)
         @test first_integrator_ptr != second_integrator_ptr
-        @test first_point_system_ptr == second_point_system_ptr
+        @test first_system_structure_ptr == second_system_structure_ptr
 
         # 3. Second init_sim! - should reuse existing integrator
         @info "Testing second init_sim! (should reuse integrator)..."
@@ -78,19 +78,19 @@ const BUILD_SYS = true
 
         # This should create a new point system but reuse the existing integrator
         third_integrator_ptr = objectid(s.integrator)
-        third_point_system_ptr = objectid(s.point_system)
+        third_system_structure_ptr = objectid(s.system_structure)
         @test second_integrator_ptr == third_integrator_ptr # Should be the same
-        @test second_point_system_ptr == third_point_system_ptr
+        @test second_system_structure_ptr == third_system_structure_ptr
 
         # Get positions using SysState
         sys_state = KiteModels.SysState(s)
 
         # Check dimension consistency
-        # Note: pos_integrator is no longer directly fetched, comparing SysState to point_system
-        @test length(sys_state.X) == length(s.point_system.points)
+        # Note: pos_integrator is no longer directly fetched, comparing SysState to system_structure
+        @test length(sys_state.X) == length(s.system_structure.points)
 
         # Compare positions in different representations
-        for (i, point) in enumerate(s.point_system.points)
+        for (i, point) in enumerate(s.system_structure.points)
             # Points' world positions should match SysState positions
             point_pos = point.pos_w
             sys_state_pos = [sys_state.X[i], sys_state.Y[i], sys_state.Z[i]]
