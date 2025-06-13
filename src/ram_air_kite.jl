@@ -106,9 +106,11 @@ function update_sys_state!(ss::SysState, s::SymbolicAWEModel, zoom=1.0)
     isnothing(s.integrator) && error("run init_sim!(s) first")
     ss.time = s.integrator.t # Use integrator time
 
-    # Get the extended state vector from the integrator
-    set_values, pos, acc_vec, Q_b_w, elevation, azimuth, course, heading, tether_length, tether_vel, winch_force,
-        twist_angle, wing_vel, aero_force_b, aero_moment_b, turn_rate, va_wing_b, wind_vec_gnd, wind_vel_wing = s.get_state(s.integrator)
+    # Get the state vectors from the integrator
+    set_values, tether_length, tether_vel, winch_force = s.get_winch_state(s.integrator)
+    Q_b_w, elevation, azimuth, course, heading, twist_angle, wing_vel, aero_force_b, 
+        aero_moment_b, turn_rate, va_wing_b, wind_vel_wing = s.get_wing_state(s.integrator)
+    pos, acc, wind_vec_gnd = s.get_point_state(s.integrator)
 
     P = length(s.system_structure.points)
     for i in 1:P
@@ -118,7 +120,7 @@ function update_sys_state!(ss::SysState, s::SymbolicAWEModel, zoom=1.0)
     end
 
     # --- Populate SysState fields ---
-    ss.acc = norm(acc_vec) # Use the norm of the wing's acceleration vector
+    ss.acc = norm(acc) # Use the norm of the wing's acceleration vector
     ss.orient .= Q_b_w[1, :]
     ss.turn_rates .= turn_rate[1, :]
     ss.elevation = elevation[1]

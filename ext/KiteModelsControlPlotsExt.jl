@@ -28,10 +28,12 @@ function ControlPlots.plot(sys::SystemStructure, reltime; wing_pos=nothing, e_z=
 end
 
 function ControlPlots.plot(s::SymbolicAWEModel, reltime; kwargs...)
+    wings = s.system_structure.wings
     pos = s.integrator[s.sys.pos]
-    if length(s.system_structure.wings) > 0
-        wing_pos = s.integrator[s.sys.wing_pos]
-        e_z = s.integrator[s.sys.e_z]
+    if length(wings) > 0
+        wing_pos = [s.integrator[s.sys.wing_pos[i, :]] for i in eachindex(wings)]
+        @show wing_pos
+        e_z = [s.integrator[s.sys.e_z[i, :]] for i in eachindex(wings)]
     else
         wing_pos = nothing
         e_z = zeros(3)
