@@ -1,7 +1,14 @@
-# SPDX-FileCopyrightText: 2025 Uwe Fechner
+# SPDX-FileCopyrightText: 2025 Uwe Fechner, Bart van de Lint
 #
 # SPDX-License-Identifier: MIT
 
+using Pkg
+if ("TestEnv" ∈ keys(Pkg.project().dependencies))
+    if ! ("Documents" ∈ keys(Pkg.project().dependencies))
+        using TestEnv; TestEnv.activate()
+    end
+end
+using ControlPlots
 using KiteModels
 using Documenter
 
