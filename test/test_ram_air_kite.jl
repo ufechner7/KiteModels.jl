@@ -147,6 +147,25 @@ const BUILD_SYS = true
         end
     end
 
+    function test_plot(s)
+        @testset "Plotting of SymbolicAWEModel" begin
+            function plot_(zoom, front)
+                plt.figure("Kite")
+                lines, sc, txt = plot(s, 0.0; zoom, front)
+                plt.show(block=false)
+                sleep(1)
+                @test !isnothing(lines)
+                @test length(lines) ≥ 1  # Should have at least one line
+                @test !isnothing(sc)     # Should have scatter points
+                @test !isnothing(txt)    # Should have time text
+            end
+            plot_(false, false)
+            plot_(false, true)
+            plot_(true, false)
+            plot_(true, true)
+        end
+    end
+
     @testset "Simulation Step with SysState" begin
         # Basic step and time advancement test
         KiteModels.init_sim!(s; prn=true, reload=false)
@@ -155,17 +174,15 @@ const BUILD_SYS = true
         # Run a simulation step with zero set values
         set_values = [0.0, 0.0, 0.0]
         dt = 1/s.set.sample_freq
-        t, _ = next_step!(s; set_values, dt=dt)
+        next_step!(s; set_values, dt=dt)
         # Update sys_state_before *after* the step to compare with the state *before* the loop
         KiteModels.update_sys_state!(sys_state_before, s)
-        @test isapprox(t, dt, atol=TOL)
+        @test isapprox(s.integrator.t, dt, atol=TOL)
 
         # Run multiple steps
         num_steps = 10
-        total_time = 0.0
         for _ in 1:num_steps
-            step_time, _ = next_step!(s; set_values, dt=dt)
-            total_time += step_time # Accumulate time from next_step! return value
+            next_step!(s; set_values, dt=dt)
         end
         sys_state_after = KiteModels.SysState(s) # Get state after the loop
         # Compare state after loop with state after first step (stored in sys_state_before)
@@ -231,17 +248,40 @@ const BUILD_SYS = true
             left_heading_diff = angle_diff(sys_state_left.heading, sys_state_initial.heading)
             @test left_heading_diff ≈ -0.9 atol=0.2
         end
+        test_plot(s)
     end
 
-    @testset "Plotting of SymbolicAWEModel" begin
-        plt.figure("Kite")
-        lines, sc, txt = plot(s, 0.0)
-        plt.show(block=false)
-        sleep(1)
-        @test !isnothing(lines)
-        @test length(lines) ≥ 1  # Should have at least one line
-        @test !isnothing(sc)     # Should have scatter points
-        @test !isnothing(txt)    # Should have time text
+    @testset "Just a tether, without winch or kite" begin
+        set.segments = 20
+        dynamics_type = DYNAMIC
+
+        points = Point[]
+        segments = Segment[]
+
+        points = push!(points, Point(1, [0.0, 0.0, set.l_tether], STATIC; wing_idx=0))
+
+        segment_idxs = Int[]
+        for i in 1:set.segments
+            point_idx = i+1
+            pos = [0.0, 0.0, set.l_tether] - set.l_tether / set.segments * [0.0, 0.0, i]
+            push!(points, Point(point_idx, pos, dynamics_type; wing_idx=0))
+            segment_idx = i
+            push!(segments, Segment(segment_idx, (point_idx-1, point_idx), BRIDLE))
+            push!(segment_idxs, segment_idx)
+        end
+
+        system_structure = SystemStructure("tether"; points, segments)
+
+        sam = SymbolicAWEModel(set, system_structure)
+        sys = sam.sys
+        init_sim!(sam; remake=false)
+        @test sam.integrator[sam.sys.pos[:, end]] ≈ zeros(3)
+        for i in 1:100
+            next_step!(sam)
+        end
+        @test sam.integrator[sam.sys.pos[1, end]] > 0.8set.l_tether
+        @test isapprox(sam.integrator[sam.sys.pos[2, end]], 0.0, atol=1.0)
+        test_plot(s)
     end
 end
 

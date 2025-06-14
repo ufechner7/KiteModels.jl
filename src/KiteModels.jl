@@ -630,7 +630,7 @@ Parameters:
 - dt:           time step in seconds
 
 Returns:
-The end time of the time step in seconds.
+`Nothing`
 """
 function next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, set_force=nothing, bearing = nothing,
                     attractor=nothing, v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2, dt=1/s.set.sample_freq)
@@ -662,7 +662,7 @@ function next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing,
         s.pitch_rate = (pitch - s.pitch) / dt
         s.pitch = pitch
     end
-    integrator.t
+    return nothing
 end
 
 """
