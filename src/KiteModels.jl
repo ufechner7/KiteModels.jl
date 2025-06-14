@@ -692,6 +692,7 @@ end
 function install_examples(add_packages=true)
     copy_examples()
     copy_settings()
+    copy_bin()
     copy_model_settings()
     if add_packages
         Pkg.add(["KiteUtils", "KitePodModels", "WinchModels", "ControlPlots", 
