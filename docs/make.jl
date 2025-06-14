@@ -12,7 +12,7 @@ using ControlPlots, VortexStepMethod
 using KiteModels
 using Documenter
 
-DocMeta.setdocmeta!(KiteModels, :DocTestSetup, :(using KitePodSimulator); recursive=true)
+DocMeta.setdocmeta!(KiteModels, :DocTestSetup, :(using KiteModels); recursive=true)
 
 makedocs(;
     modules=[KiteModels],
