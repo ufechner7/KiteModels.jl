@@ -36,7 +36,7 @@ set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. 
 set.quasi_static = false
 set.physical_model = SIMPLE ? "simple_ram" : "ram"
 
-@info "Creating wing, aero, vsm_solver, system_structure and s:"
+@info "Creating wing, aero, vsm_solver, system_structure and symbolic_awe_model:"
 sam = SymbolicAWEModel(set)
 sam.set.abs_tol = 1e-2
 sam.set.rel_tol = 1e-2
@@ -82,7 +82,9 @@ try
         end
 
         # Step simulation
-        steptime = @elapsed (t_new, integ_steptime) = next_step!(sam; set_values, dt, vsm_interval=vsm_interval)
+        steptime = @elapsed next_step!(sam; set_values, dt, vsm_interval=vsm_interval)
+        t_new = sam.integrator.t
+        integ_steptime = sam.t_step
         t = t_new - t0  # Adjust for initial stabilization time
 
         # Track performance after initial transient
