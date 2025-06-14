@@ -661,6 +661,12 @@ function wing_eqs!(s, eqs, defaults; tether_wing_force, tether_wing_moment, aero
     return eqs, defaults
 end
 
+function rotate_v_around_k(v, k, θ)
+    k = sym_normalize(k)
+    v_rot = v * cos(θ) + (k × v) * sin(θ)  + k * (k ⋅ v) * (1 - cos(θ))
+    return v_rot
+end
+
 function calc_R_v_w(wing_pos, e_x)
     z = sym_normalize(wing_pos)
     y = sym_normalize(z × e_x)
@@ -673,6 +679,14 @@ function calc_R_t_w(elevation, azimuth)
     z = rotate_around_z(rotate_around_y([1, 0, 0], -elevation), azimuth)
     y = z × x
     return [x y z]
+end
+
+function calc_elevation(pos::AbstractVector)
+    atan(pos[3] / pos[1])
+end
+
+function calc_azimuth(pos::AbstractVector)
+    atan(pos[2] / pos[1])
 end
 
 """
@@ -767,12 +781,12 @@ function scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_wing_b, wing_pos, wing_vel,
             distance_vel[wing.idx]    ~ wing_vel[wing.idx, :] ⋅ R_v_w[wing.idx, :, 3]
             distance_acc[wing.idx]    ~ wing_acc[wing.idx, :] ⋅ R_v_w[wing.idx, :, 3]
 
-            elevation[wing.idx]           ~ atan(z / x)
+            elevation[wing.idx]           ~ calc_elevation(wing_pos[wing.idx, :])
             # elevation_vel = d/dt(atan(z/x)) = (x*ż' - z*ẋ')/(x^2 + z^2) according to wolframalpha
             elevation_vel[wing.idx]       ~ (x*z´ - z*x´) / 
                                     (x^2 + z^2)
             elevation_acc[wing.idx]       ~ ((x^2 + z^2)*(x*z´´ - z*x´´) + 2(z*x´ - x*z´)*(x*x´ + z*z´))/(x^2 + z^2)^2
-            azimuth[wing.idx]             ~ atan(y / x)
+            azimuth[wing.idx]             ~ calc_azimuth(wing_pos[wing.idx, :])
             # azimuth_vel = d/dt(atan(y/x)) = (-y*x´ + x*y´)/(x^2 + y^2) # TODO: check if correct
             azimuth_vel[wing.idx]         ~ (-y*x´ + x*y´) / 
                                     (x^2 + y^2)
