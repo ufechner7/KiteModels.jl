@@ -244,7 +244,7 @@ Calculate the drag force of the tether segment, defined by the parameters pos1, 
 and distribute it equally on the two particles, that are attached to the segment.
 The result is stored in the array s.forces. 
 """
-@inline function calc_particle_forces!(s, pos1, pos2, vel1, vel2, spring, segments, d_tether, rho, i)
+@inline function calc_particle_forces!(s::KPS4, pos1, pos2, vel1, vel2, spring, segments, d_tether, rho, i)
     l_0 = spring.length # Unstressed length
     k = spring.c_spring * s.stiffness_factor  # Spring constant
     c = spring.damping                        # Damping coefficient    
@@ -254,9 +254,9 @@ The result is stored in the array s.forces.
     norm1 = norm(segment)
     unit_vector = segment / norm1
 
-    k1 = 0.25 * k # compression stiffness kite segments
-    k2 = 0.1 * k  # compression stiffness tether segments
-    c1 = 6.0 * c  # damping kite segments
+    k1 = s.set.rel_compr_stiffness * k # compression stiffness kite springs
+    k2 = 0.1 * k                       # compression stiffness tether springs
+    c1 = s.set.rel_damping * c         # damping kite springs
     spring_vel   = unit_vector ⋅ rel_vel
     if (norm1 - l_0) > 0.0
         if i > segments  # kite springs
@@ -271,13 +271,25 @@ The result is stored in the array s.forces.
     end
 
     s.v_apparent .= s.v_wind_tether - av_vel
+    v_app_kcu = s.v_wind_tether - vel2
     if s.set.version == 1
         area = norm1 * d_tether
     else
-        area = norm1 * s.set.d_line * 0.001
+        if i > segments
+            area = norm1 * s.set.d_line * 0.001 * s.bridle_factor # 6.0 = A_real/A_simulated
+        else
+            area = norm1 * d_tether
+        end
     end
+
     v_app_perp = s.v_apparent - s.v_apparent ⋅ unit_vector * unit_vector
     half_drag_force = (-0.25 * rho * s.set.cd_tether * norm(v_app_perp) * area) * v_app_perp 
+    if i == segments
+        v_app_perp_kcu = v_app_kcu - v_app_kcu ⋅ unit_vector * unit_vector
+        kcu_area = π * (s.set.kcu_diameter/2)^2
+        kcu_drag_force = (-0.25 * rho * s.set.cd_kcu * norm(v_app_perp_kcu) * kcu_area) * v_app_perp_kcu
+        @inbounds s.forces[spring.p2] .+= kcu_drag_force
+    end
 
     @inbounds s.forces[spring.p1] .+= half_drag_force + s.spring_force
     @inbounds s.forces[spring.p2] .+= half_drag_force - s.spring_force
