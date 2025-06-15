@@ -70,6 +70,8 @@ $(TYPEDFIELDS)
     v_apparent::T =       zeros(S, 3)
     "vector, perpendicular to v_apparent; output of calc_drag"
     v_app_perp::T =       zeros(S, 3)
+    "angle of attack of the kite; output of set_cl_cd!"
+    alpha_2::S =          0.0
     "drag force of kite and bridle; output of calc_aero_forces"
     drag_force::T =       zeros(S, 3)
     "lift force of the kite; output of calc_aero_forces"
@@ -140,6 +142,8 @@ $(TYPEDFIELDS)
     depower::S =           0.0
     "actual relative steering setting, must be between -1.0 .. 1.0"
     steering::S =          0.0
+    "steering after the kcu, before applying offset and depower sensitivity, -1.0 .. 1.0"
+    kcu_steering::S =      0.0
     "factor for the tether stiffness, used to find the steady state with a low stiffness first"
     stiffness_factor::S =  1.0
     "initial masses of the point masses"
@@ -149,7 +153,9 @@ $(TYPEDFIELDS)
     "vector of the forces, acting on the particles"
     forces::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     "synchronous speed of the motor/ generator"
-    sync_speed::S =        0.0    
+    sync_speed::Union{S, Nothing} =        0.0
+    "set_torque of the motor/generator"
+    set_torque::Union{S, Nothing} = nothing
 end
 
 """
@@ -183,8 +189,6 @@ function clear!(s::KPS3)
     end
     s.c_spring = s.set.c_spring / s.segment_length
     s.damping  = s.set.damping / s.segment_length
-    s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
-    s.calc_cd = Spline1D(s.set.alpha_cd, s.set.cd_list) 
     s.kcu.depower = s.set.depower/100.0
     s.kcu.set_depower = s.kcu.depower
     KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
@@ -233,7 +237,7 @@ function calc_aero_forces(s::KPS3, pos_kite, v_kite, rho, rel_steering)
     # some additional drag is created while steering
     s.drag_force    .*= K * s.param_cd * BRIDLE_DRAG * (1.0 + 0.6 * abs(rel_steering)) 
     s.cor_steering    = s.set.c2_cor / v_app_norm * sin(s.psi) * cos(s.beta) # in paper named i_(s,c), Eq. 30
-    s.steering_force .= -K * s.set.rel_side_area/100.0 * s.set.c_s * (rel_steering + s.cor_steering) .* s.kite_y
+    s.steering_force .= -K * s.set.rel_side_area/100.0 * s.set.c_s * (-rel_steering + s.cor_steering) .* s.kite_y
     s.last_force     .= -(s.lift_force + s.drag_force + s.steering_force) 
     nothing
 end
@@ -243,7 +247,7 @@ end
 
 Returns a tuple of the x, y, and z vectors of the kite reference frame.
 """
-function kite_ref_frame(s::KPS3)
+function kite_ref_frame(s::KPS3; one_point=true)
     pos_kite = s.pos[end]
     delta = pos_kite - s.pos[end - 1]
     c = -delta
@@ -345,6 +349,14 @@ function calc_set_cl_cd!(s::KPS3, vec_c, v_app)
     alpha = calc_alpha(v_app, s.vec_z) - s.alpha_depower
     set_cl_cd!(s, alpha)
 end
+"""
+    cl_cd(s::KPS3)
+
+Calculate the lift and drag coefficients of the kite, based on the current angles of attack.
+"""
+function cl_cd(s::KPS3)
+    CL2, CD2 = s.calc_cl(s.alpha_2), s.calc_cd(s.alpha_2)
+end
 
 """
     residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
@@ -420,7 +432,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS3, time) where S
     end
     # winch calculations
     res[end-1] = lengthd - v_reel_out
-    res[end] = v_reel_outd - calc_acceleration(s.wm, s.sync_speed, v_reel_out, norm(s.forces[1]), true)
+    res[end] = v_reel_outd - calc_acceleration(s.wm, v_reel_out, norm(s.forces[1]); set_speed=s.sync_speed, set_torque=s.set_torque, use_brake=true)
     s.vel_kite .= vel[end-2]
     s.v_reel_out = v_reel_out
     # @assert ! isnan(norm(res))
@@ -472,8 +484,8 @@ function init_inner(s::KPS3, X=zeros(2 * s.set.segments); old=false, delta=0.0)
     end
     set_v_wind_ground!(s, pos[s.set.segments+1][3])
     s.l_tether = s.set.l_tether
-    set_v_reel_out!(s, s.set.v_reel_out, 0.0)
-
+    s.sync_speed = s.set.v_reel_out
+    s.t_0 = 0.0
     state_y0, yd0
 end
 
@@ -481,7 +493,7 @@ end
 function init(s::KPS3, X=zeros(2 * (s.set.segments)); old=false, delta = 0.0)
     res1_, res2_ = init_inner(s, X; old=old, delta = delta)
     res1, res2  = vcat(reduce(vcat, res1_), [s.l_tether, 0]), vcat(reduce(vcat, res2_),[0,0])
-    MVector{6*(s.set.segments)+2, Float64}(res1), MVector{6*(s.set.segments)+2, Float64}(res2)
+    MVector{6*(s.set.segments)+2, SimFloat}(res1), MVector{6*(s.set.segments)+2, SimFloat}(res2)
 end
 
 """
@@ -518,16 +530,16 @@ function find_steady_state_inner(s::KPS3, X, prn=false; delta=0.0)
  end
 
 """
-    find_steady_state!(s::KPS3, prn=false, delta = 0.0, stiffness_factor=0.035)
+    find_steady_state!(s::KPS3; prn=false, delta = 0.0, stiffness_factor=0.035, upwind_dir=-pi/2)
 
-Find an initial equilibrium, based on the inital parameters
+Find an initial equilibrium, based on the initial parameters
 `l_tether`, elevation and `v_reel_out`.
 """
-function find_steady_state!(s::KPS3; prn=false, delta = 0.0, stiffness_factor=0.035)
+function find_steady_state!(s::KPS3; prn=false, delta = 0.0, stiffness_factor=0.035, upwind_dir=-pi/2)
     zero = zeros(SimFloat, 2*s.set.segments)
     s.stiffness_factor=stiffness_factor
-    zero = find_steady_state_inner(s, zero, prn, delta=delta)
+    zero = find_steady_state_inner(s, zero, prn; delta)
     s.stiffness_factor=1.0
-    zero = find_steady_state_inner(s, zero, prn, delta=delta)
+    zero = find_steady_state_inner(s, zero, prn; delta)
     init(s, zero; delta=delta)
 end

@@ -543,12 +543,19 @@ function pos_kite(s::KPS4)
 end
 
 """
-    kite_ref_frame(s::KPS4)
+    kite_ref_frame(s::KPS4; one_point=false)
 
 Returns a tuple of the x, y, and z vectors of the kite reference frame.
 """
-function kite_ref_frame(s::KPS4)
-    s.x, s.y, s.z
+function kite_ref_frame(s::KPS4; one_point=false)
+    if one_point
+        c = s.z
+        y = normalize(s.v_apparent × c)
+        x = normalize(y × c)
+        return x, y, c
+    else
+        return s.x, s.y, s.z
+    end
 end
 
 """
@@ -558,13 +565,36 @@ Return the absolute value of the force at the winch as calculated during the las
 """
 function winch_force(s::KPS4) norm(s.last_force) end
 
+"""
+    cl_cd(s::KPS4)
+
+Calculate the lift and drag coefficients of the kite, based on the current angles of attack.
+"""
+function cl_cd(s::KPS4)
+    rel_side_area = s.set.rel_side_area/100.0  # defined in percent
+    K = 1 - rel_side_area                      # correction factor for the drag
+    if s.set.version == 3
+        drag_corr = 1.0
+    else
+        drag_corr = DRAG_CORR
+    end
+    CL2, CD2 = s.calc_cl(s.alpha_2), drag_corr * s.calc_cd(s.alpha_2)
+    CL3, CD3 = s.calc_cl(s.alpha_3), drag_corr * s.calc_cd(s.alpha_3)
+    CL4, CD4 = s.calc_cl(s.alpha_4), drag_corr * s.calc_cd(s.alpha_4)
+    if s.set.version == 3
+        return CL2, CD2
+    else
+        return CL2, K*(CD2+CD3+CD4)
+    end
+end
+
 # ==================== end of getter functions ================================================
 
-function spring_forces(s::KPS4)
+function spring_forces(s::KPS4; prn=true)
     forces = zeros(SimFloat, s.set.segments+KITE_SPRINGS)
     for i in 1:s.set.segments
         forces[i] =  s.springs[i].c_spring * (norm(s.pos[i+1] - s.pos[i]) - s.segment_length) * s.stiffness_factor
-        if forces[i] > 4000.0
+        if forces[i] > s.set.max_force && prn
             println("Tether raptures for segment $i !")
         end
     end
@@ -591,13 +621,27 @@ function spring_forces(s::KPS4)
     forces
 end
 
-"""
-    find_steady_state!(s::KPS4; prn=false, delta = 0.0, stiffness_factor=0.035)
+function turn(res, upwind_dir)
+    turnangle = upwind_dir + pi/2
+    res2 = zeros(SimFloat, length(res))
+    for i in 1:div(length(res), 3)
+        x = res[3*(i-1)+1]
+        y = res[3*(i-1)+2]
+        res2[3*(i-1)+1] = cos(turnangle) * x + sin(turnangle) * y
+        res2[3*(i-1)+2] = cos(turnangle) * y - sin(turnangle) * x
+        res2[3*(i-1)+3] = res[3*(i-1)+3]
+    end
+    res2
+end
 
-Find an initial equilibrium, based on the inital parameters
+"""
+    find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0.035, upwind_dir=-pi/2))
+
+Find an initial equilibrium, based on the initial parameters
 `l_tether`, elevation and `v_reel_out`.
 """
-function find_steady_state!(s::KPS4; prn=false, delta = 0.0, stiffness_factor=0.035)
+function find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0.035, upwind_dir=-pi/2)
+    set_v_wind_ground!(s, calc_height(s), s.set.v_wind; upwind_dir=-pi/2)
     s.stiffness_factor = stiffness_factor
     res = zeros(MVector{6*(s.set.segments+KITE_PARTICLES)+2, SimFloat})
     iter = 0
@@ -605,8 +649,12 @@ function find_steady_state!(s::KPS4; prn=false, delta = 0.0, stiffness_factor=0.
     # helper function for the steady state finder
     function test_initial_condition!(F, x::Vector)
         x1 = copy(x)
-        y0, yd0 = init(s, x1)
-        residual!(res, yd0, y0, s, 0.0)
+        y0, yd0 = init(s, x1; delta)
+        try
+            residual!(res, yd0, y0, s, 0.0)
+        catch e
+            println("Warning in test_initial_condition!")
+        end
         for i in 1:s.set.segments+KITE_PARTICLES-1
             if i != s.set.segments+KITE_PARTICLES-1
                 j = i
@@ -623,13 +671,18 @@ function find_steady_state!(s::KPS4; prn=false, delta = 0.0, stiffness_factor=0.
         F[end-1]                               = res[1 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)] 
         # copy the acceleration of point C in y direction
         i = s.set.segments+3 
+        x = res[1 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)]
+        y = res[2 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)]
         F[end]                                 = res[2 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)] 
         iter += 1
         return nothing 
     end
     if prn println("\nStarted function test_nlsolve...") end
     X00 = zeros(SimFloat, 2*(s.set.segments+KITE_PARTICLES-1)+2)
-    results = nlsolve(test_initial_condition!, X00, autoscale=true, xtol=2e-7, ftol=2e-7, iterations=s.set.max_iter)
+    results = nlsolve(test_initial_condition!, X00, autoscale=true, xtol=4e-7, ftol=4e-7, iterations=s.set.max_iter)
     if prn println("\nresult: $results") end
-    init(s, results.zero)
+    y0, yd0 = init(s, results.zero; upwind_dir)
+    set_v_wind_ground!(s, calc_height(s), s.set.v_wind; upwind_dir)
+    residual!(res, yd0, y0, s, 0.0)
+    y0, yd0
 end

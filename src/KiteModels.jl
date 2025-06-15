@@ -1,26 +1,5 @@
+# Copyright (c) 2020, 2021, 2022, 2024 Uwe Fechner and Bart van de Lint
 # SPDX-License-Identifier: MIT
-
-#= MIT License
-
-Copyright (c) 2020, 2021, 2022 Uwe Fechner
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. =#
 
 #= Models of a kite-power system in implicit form: residual = f(y, yd)
 
@@ -34,32 +13,43 @@ Scientific background: http://arxiv.org/abs/1406.6218 =#
 module KiteModels
 
 using PrecompileTools: @setup_workload, @compile_workload 
-using Dierckx, StaticArrays, Rotations, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, OrdinaryDiffEqCore, 
-      OrdinaryDiffEqBDF, OrdinaryDiffEqNonlinearSolve, NonlinearSolve
+using Dierckx, Interpolations, Serialization, StaticArrays, LinearAlgebra, Statistics, Parameters, NLsolve,
+      DocStringExtensions, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqNonlinearSolve,
+      NonlinearSolve
 import Sundials
-using Reexport
+using Reexport, Pkg
+using VortexStepMethod
+@reexport using VortexStepMethod: RamAirWing, BodyAerodynamics, Solver, NONLIN
 @reexport using KitePodModels
 @reexport using WinchModels
 @reexport using AtmosphericModels
+using Rotations
 import Base.zero
 import KiteUtils.calc_elevation
-import KiteUtils.calc_azimuth
 import KiteUtils.calc_heading
 import KiteUtils.calc_course
 import KiteUtils.SysState
-# import Sundials.init
-# import Sundials.step!
 import OrdinaryDiffEqCore.init
 import OrdinaryDiffEqCore.step!
+using ModelingToolkit, SymbolicIndexingInterface
+using ModelingToolkit: t_nounits as t, D_nounits as D
+using ADTypes: AutoFiniteDiff
+import ModelingToolkit.SciMLBase: successful_retcode
 
-export KPS3, KPS4, KPS4_3L, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                              # constants and types
+export KPS3, KPS4, SymbolicAWEModel, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG     # constants and types
 export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                            # helper functions
 export clear!, find_steady_state!, residual!                                                  # low level workers
-export init_sim!, next_step!                                                                  # high level workers
-export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course         # getters
-export winch_force, lift_drag, lift_over_drag, unstretched_length, tether_length, v_wind_kite # getters
-export kite_ref_frame, orient_euler, spring_forces
+export init_sim!, init!, reinit!, next_step!, init_pos_vel                                    # high level workers
+export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, calc_orient_quat, calc_aoa  # getters
+export calc_azimuth_north, calc_azimuth_east
+export winch_force, lift_drag, cl_cd, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
+export calculate_rotational_inertia!
+export kite_ref_frame, orient_euler, spring_forces, upwind_dir, copy_model_settings, menu2
+export create_ram_system_structure, create_simple_ram_system_structure
 import LinearAlgebra: norm
+export SystemStructure, Point, Group, Segment, Pulley, Tether, Winch, Wing
+export DynamicsType, DYNAMIC, QUASI_STATIC, WING, STATIC
+export SegmentType, POWER, STEERING, BRIDLE
 
 set_zero_subnormals(true)       # required to avoid drastic slow down on Intel CPUs when numbers become very small
 
@@ -82,6 +72,7 @@ const SimFloat = Float64
 Basic 3-dimensional vector, stack allocated, mutable.
 """
 const KVec3    = MVector{3, SimFloat}
+const KVec4    = MVector{4, SimFloat}
 
 """
    const SVec3    = SVector{3, SimFloat}
@@ -89,11 +80,6 @@ const KVec3    = MVector{3, SimFloat}
 Basic 3-dimensional vector, stack allocated, immutable.
 """
 const SVec3    = SVector{3, SimFloat}  
-
-# the following two definitions speed up the function residual! from 940ns to 540ns
-# disadvantage: changing the cl and cd curves requires a restart of the program     
-const calc_cl = Spline1D(se().alpha_cl, se().cl_list)
-const calc_cd = Spline1D(se().alpha_cd, se().cd_list)  
 
 """
     abstract type AbstractKiteModel
@@ -110,6 +96,9 @@ Short alias for the AbstractKiteModel.
 """
 const AKM = AbstractKiteModel
 
+# Defined in ext/KiteModelsControlPlotsExt.jl
+function plot end
+
 function __init__()
     if isdir(joinpath(pwd(), "data")) && isfile(joinpath(pwd(), "data", "system.yaml"))
         set_data_path(joinpath(pwd(), "data"))
@@ -117,21 +106,28 @@ function __init__()
 end
 
 include("KPS4.jl") # include code, specific for the four point kite model
-include("KPS4_3L.jl") # include code, specific for the four point kite model
+# include("point_mass_system.jl")
+# include("ram_air_kite.jl") # include code, specific for the ram air kite model
+# include("mtk_model.jl")
 include("KPS3.jl") # include code, specific for the one point kite model
-include("init.jl") # functions to calculate the inital state vector, the inital masses and initial springs
+include("init.jl") # functions to calculate the initial state vector, the initial masses and initial springs
+
+function menu2()
+    Main.include("examples/menu2.jl")
+end
 
 # Calculate the lift and drag coefficient as a function of the angle of attack alpha.
-function set_cl_cd!(s::AKM, alpha)   
-    angle =  alpha * 180.0 / π
+function set_cl_cd!(s::AKM, alpha)
+    angle =  rad2deg(alpha)
+    s.alpha_2 = angle
     if angle > 180.0
         angle -= 360.0
     end
     if angle < -180.0
         angle += 360.0
     end
-    s.param_cl = calc_cl(angle)
-    s.param_cd = calc_cd(angle)
+    s.param_cl = s.calc_cl(angle)
+    s.param_cd = s.calc_cd(angle)
     nothing
 end
 
@@ -153,10 +149,11 @@ Parameters:
 This function sets the variables s.depower, s.steering and s.alpha_depower. 
 
 It takes the depower offset c0 and the dependency of the steering sensitivity from
-the depower settings into account.
+the depower settings into account. The raw steering value is stored in s.kcu_steering.
 """
 function set_depower_steering!(s::AKM, depower, steering)
     s.depower  = depower
+    s.kcu_steering = steering
     s.alpha_depower = calc_alpha_depower(s.kcu, depower)
     s.steering = (steering - s.set.c0) / (1.0 + s.set.k_ds * (s.alpha_depower / deg2rad(s.set.alpha_d_max)))
     nothing
@@ -164,26 +161,12 @@ end
 
 
 """
-    set_v_reel_out!(s::AKM, v_reel_out, t_0, period_time = 1.0 / s.set.sample_freq)
-
-Setter for the reel-out speed. Must be called on every timestep (before each simulation).
-It also updates the tether length, therefore it must be called even if `v_reel_out` has
-not changed.
-
-- t_0 the start time of the next timestep relative to the start of the simulation [s]
-"""
-function set_v_reel_out!(s::AKM, v_reel_out, t_0, period_time = 1.0 / s.set.sample_freq)
-    s.sync_speed = v_reel_out
-    s.last_v_reel_out = s.v_reel_out
-    s.t_0 = t_0
-end
-
-"""
     unstretched_length(s::AKM)
 
-Getter for the unstretched tether reel-out lenght (at zero force).
+Getter for the unstretched tether reel-out length (at zero force).
 """
 function unstretched_length(s::AKM) s.l_tether end
+
 
 """
     lift_drag(s::AKM)
@@ -214,27 +197,40 @@ Return the vector of the wind speed at the height of the kite.
 function v_wind_kite(s::AKM) s.v_wind end
 
 """
-    set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind, wind_dir=0.0)
+    set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind; upwind_dir=-pi/2)
 
 Set the vector of the wind-velocity at the height of the kite. As parameter the height,
-the ground wind speed [m/s] and the wind direction [radians] are needed.
-Must be called every at each timestep.
+the ground wind speed [m/s] and the upwind direction [radians] are needed.
+Is called by the function next_step!.
 """
-function set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind, wind_dir=0.0)
+function set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind; upwind_dir=-pi/2)
     if height < 6.0
         height = 6.0
     end
+    wind_dir = -upwind_dir - pi/2
     s.v_wind .= v_wind_gnd * calc_wind_factor(s.am, height) .* [cos(wind_dir), sin(wind_dir), 0]
     s.v_wind_gnd .= [v_wind_gnd * cos(wind_dir), v_wind_gnd * sin(wind_dir), 0.0]
-    s.v_wind_tether .= v_wind_gnd * calc_wind_factor(s.am, height / 2.0) .* [cos(wind_dir), sin(wind_dir), 0]
+    s.v_wind_tether .= s.v_wind_gnd * calc_wind_factor(s.am, height / 2.0)
     s.rho = calc_rho(s.am, height)
     nothing
 end
 
+function upwind_dir(s::AKM)
+    upwind_dir(s.v_wind_gnd)
+end
+function upwind_dir(v_wind_gnd)
+    if v_wind_gnd[1] == 0.0 && v_wind_gnd[2] == 0.0
+        return NaN
+    end
+    wind_dir = atan(v_wind_gnd[2], v_wind_gnd[1])
+    -(wind_dir + π/2)
+end
+@register_symbolic upwind_dir(v_wind_gnd)
+
 """
     tether_length(s::AKM)
 
-Calculate and return the real, stretched tether lenght.
+Calculate and return the real, stretched tether length.
 """
 function tether_length(s::AKM)
     length = 0.0
@@ -248,20 +244,46 @@ end
     orient_euler(s::AKM)
 
 Calculate and return the orientation of the kite in euler angles (roll, pitch, yaw)
-as SVector. 
+as SVector.
 """
-function orient_euler(s::AKM)
-    x, y, z = kite_ref_frame(s)
-    roll = atan(y[3], z[3]) - π/2
-    if roll < -π/2
-       roll += 2π
-    end
-    pitch = asin(-x[3])
-    yaw = -atan(x[2], x[1]) - π/2
-    if yaw < -π/2
-        yaw += 2π
-    end
+function orient_euler(s::AKM; one_point=false)
+    q = QuatRotation(calc_orient_quat(s; one_point))
+    roll, pitch, yaw = quat2euler(q)
     SVector(roll, pitch, yaw)
+end
+
+function calc_orient_quat(s::AKM; viewer=false, one_point=false)
+    if viewer
+        x, _, z = kite_ref_frame(s)
+        pos_kite_ = pos_kite(s)
+        pos_before = pos_kite_ .+ z
+    
+        rotation = rot(pos_kite_, pos_before, -x)
+    else
+        x, y, z = kite_ref_frame(s; one_point) # in ENU reference
+        x = enu2ned(x)
+        y = enu2ned(y)
+        z = enu2ned(z)
+            
+        # reference frame for the orientation: NED (north, east, down)
+        ax = @SVector [1, 0, 0]
+        ay = @SVector [0, 1, 0]
+        az = @SVector [0, 0, 1]
+        rotation = rot3d(ax, ay, az, x, y, z)
+    end
+    q = QuatRotation(rotation)
+    return Rotations.params(q)
+end
+
+function calc_orient_quat_old(s::AKM)
+    x, y, z = kite_ref_frame(s) # in ENU reference
+        
+    ax = [0, 1, 0] # in ENU reference frame this is pointing to the south
+    ay = [1, 0, 0] # in ENU reference frame this is pointing to the west
+    az = [0, 0, -1] # in ENU reference frame this is pointing down
+    rotation = rot3d(ax, ay, az, x, y, z)
+    q = QuatRotation(rotation)
+    return Rotations.params(q)
 end
 
 """
@@ -276,22 +298,49 @@ end
 """
     calc_azimuth(s::AKM)
 
-Determine the azimuth angle of the kite in radian.
+Determine the azimuth angle of the kite in wind reference frame in radian.
+Positive anti-clockwise when seen from above.
 """
 function calc_azimuth(s::AKM)
+    azn = KiteUtils.azimuth_north(pos_kite(s))
+    azn2azw(azn; upwind_dir = upwind_dir(s))
+end
+
+"""
+    calc_azimuth_east(s::AKM)
+
+Determine the azimuth_east angle of the kite in radian.
+Positive clockwise when seen from above.
+"""
+function calc_azimuth_east(s::AKM)
     KiteUtils.azimuth_east(pos_kite(s))
 end
 
 """
-    calc_heading(s::AKM)
+    calc_azimuth_north(s::AKM)
+
+Determine the azimuth_north angle of the kite in radian.
+Positive anti-clockwise when seen from above.
+"""
+function calc_azimuth_north(s::AKM)
+    KiteUtils.azimuth_north(pos_kite(s))
+end
+
+"""
+    calc_heading(s::AKM; upwind_dir_=upwind_dir(s), neg_azimuth=false, one_point=false)
 
 Determine the heading angle of the kite in radian.
 """
-function calc_heading(s::AKM)
-    orientation = orient_euler(s)
+function calc_heading(s::AKM; upwind_dir_=upwind_dir(s), neg_azimuth=false, one_point=false)
+    orientation = orient_euler(s; one_point)
     elevation = calc_elevation(s)
-    azimuth = calc_azimuth(s)
-    KiteUtils.calc_heading(orientation, elevation, azimuth)
+    # use azimuth in wind reference frame
+    if neg_azimuth 
+        azimuth = -calc_azimuth(s)
+    else
+        azimuth = calc_azimuth(s)
+    end
+    calc_heading(orientation, elevation, azimuth; upwind_dir=upwind_dir_)
 end
 
 """
@@ -300,10 +349,64 @@ end
 Determine the course angle of the kite in radian.
 Undefined if the velocity of the kite is near zero.
 """
-function calc_course(s::AKM)
+function calc_course(s::AKM, neg_azimuth=false)
     elevation = calc_elevation(s)
-    azimuth = calc_azimuth(s)
+    if neg_azimuth 
+        azimuth = -calc_azimuth(s)
+    else    
+        azimuth = calc_azimuth(s)
+    end
     KiteUtils.calc_course(s.vel_kite, elevation, azimuth)
+end
+
+"""
+    calculate_rotational_inertia!(s::AKM, include_kcu::Bool=true, around_kcu::Bool=false)
+
+Calculate the rotational inertia (Ixx, Ixy, Ixz, Iyy, Iyz, Izz) for a kite model from settings. Modifies the kitemodel by initialising the masses.
+
+Parameters:
+- X: x-coordinates of the point masses.
+- Y: y-coordinates of the point masses.
+- Z: z-coordinates of the point masses.
+- M: masses of the point masses.
+- `include_kcu`: Include the kcu in the rotational intertia calculation?
+- `around_kcu`: Uses the kcu as the rotation point.
+
+Returns:  
+The tuple  Ixx, Ixy, Ixz, Iyy, Iyz, Izz where:
+- Ixx: rotational inertia around the x-axis.
+- Ixy: rotational inertia around the xy-plane.
+- Ixz: rotational inertia around the xz-plane.
+- Iyy: rotational inertia around the y-axis.
+- Iyz: rotational inertia around the yz-plane.
+- Izz: rotational inertia around the z-axis.
+
+"""
+function calculate_rotational_inertia!(s::AKM, include_kcu::Bool=true, around_kcu::Bool=false)
+    points = KiteUtils.get_particles(s.set.height_k, s.set.h_bridle, s.set.width, s.set.m_k, [0, 0, 0], [0, 0, -1], [10, 0, 0])
+    
+    pos_matrix = [points[begin+1] points[begin+2] points[begin+3] points[begin+4] points[begin+5]]
+    X = pos_matrix[begin, :]
+    Y = pos_matrix[begin+1, :]
+    Z = pos_matrix[begin+2, :]
+
+    masses = init_masses!(s)
+    M = masses[s.set.segments+1:end]
+
+    if !include_kcu
+        X = X[begin+1:end]
+        Y = Y[begin+1:end]
+        Z = Z[begin+1:end]
+        M = M[begin+1:end]
+    end
+
+    if around_kcu
+        Ixx, Ixy, Ixz, Iyy, Iyz, Izz = KiteUtils.calculate_rotational_inertia(X, Y, Z, M, false, points[begin+1])
+    else
+        Ixx, Ixy, Ixz, Iyy, Iyz, Izz = KiteUtils.calculate_rotational_inertia(X, Y, Z, M)
+    end
+
+    Ixx, Ixy, Ixz, Iyy, Iyz, Izz
 end
 
 # mutable struct SysState{P}
@@ -347,9 +450,8 @@ end
 #     Z::MVector{P, MyFloat}
 #     var_01::MyFloat
 #     var_02::MyFloat
-#     var_03::MyFloat
-#     var_04::MyFloat
-#     var_05::MyFloat
+#     ...
+#     var_16::MyFloat
 # end 
 
 function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
@@ -361,24 +463,58 @@ function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
         ss.Y[i] = pos[i][2] * zoom
         ss.Z[i] = pos[i][3] * zoom
     end
-    x, y, z = kite_ref_frame(s)
-    pos_kite_ = pos_kite(s)
-    pos_before = pos_kite_ + z
-   
-    rotation = rot(pos_kite_, pos_before, -x)
-    q = QuatRotation(rotation)
-    ss.orient .= Rotations.params(q)
+    ss.orient .= calc_orient_quat(s)
     ss.elevation = calc_elevation(s)
     ss.azimuth = calc_azimuth(s)
-    ss.force = winch_force(s)
+    ss.force .= [winch_force(s); 0; 0; 0]
     ss.heading = calc_heading(s)
     ss.course = calc_course(s)
     ss.v_app = norm(s.v_apparent)
-    ss.l_tether = s.l_tether
-    ss.v_reelout = s.v_reel_out
+    ss.l_tether .= [s.l_tether; 0; 0; 0]
+    ss.v_reelout .= [s.v_reel_out; 0; 0; 0]
     ss.depower = s.depower
-    ss.steering = s.steering
+    ss.steering = s.steering/s.set.cs_4p
+    ss.kcu_steering = s.kcu_steering/s.set.cs_4p
     ss.vel_kite .= s.vel_kite
+    ss.t_sim = 0.0
+    ss.AoA = deg2rad(s.alpha_2)
+    if isa(s, KPS4)
+        ss.alpha3 = deg2rad(s.alpha_3)
+        ss.alpha4 = deg2rad(s.alpha_4)
+        if isnothing(s.set_force)
+            ss.set_force .= [NaN, 0, 0, 0]
+        else
+            ss.set_force .= [s.set_force, 0, 0, 0]
+        end
+        if isnothing(s.bearing)
+            ss.bearing = NaN
+        else
+            ss.bearing = s.bearing
+        end
+        if isnothing(s.attractor)
+            ss.attractor = [NaN, NaN]
+        else
+            ss.attractor = s.attractor
+        end
+    end
+    ss.set_steering = s.kcu.set_steering
+    if isnothing(s.set_torque)
+        ss.set_torque .= [NaN, 0, 0, 0]
+    else
+        ss.set_torque .= [s.set_torque, 0, 0, 0]
+    end
+    if isnothing(s.sync_speed)
+        ss.set_speed .= [NaN, 0, 0, 0]
+    else
+        ss.set_speed .= [s.sync_speed, 0, 0, 0]
+    end
+    ss.roll, ss.pitch, ss.yaw = orient_euler(s)
+    cl, cd = cl_cd(s)
+    ss.CL2 = cl
+    ss.CD2 = cd
+    ss.v_wind_gnd  .= s.v_wind_gnd
+    ss.v_wind_200m .= s.v_wind_gnd * calc_wind_factor(s.am, 200.0)
+    ss.v_wind_kite .= s.v_wind
     nothing
 end
 
@@ -391,34 +527,9 @@ system state in a viewer. Optionally the position arrays can be zoomed
 according to the requirements of the viewer.
 """
 function SysState(s::AKM, zoom=1.0)
-    pos = s.pos
-    P = length(pos)
-    X = zeros(MVector{P, MyFloat})
-    Y = zeros(MVector{P, MyFloat})
-    Z = zeros(MVector{P, MyFloat})
-    for i in 1:P
-        X[i] = pos[i][1] * zoom
-        Y[i] = pos[i][2] * zoom
-        Z[i] = pos[i][3] * zoom
-    end
-    
-    x, y, z = kite_ref_frame(s)
-    pos_kite_ = pos_kite(s)
-    pos_before = pos_kite_ + z
-   
-    rotation = rot(pos_kite_, pos_before, -x)
-    q = QuatRotation(rotation)
-    orient = MVector{4, Float32}(Rotations.params(q))
-
-    elevation = calc_elevation(s)
-    azimuth = calc_azimuth(s)
-    force = winch_force(s)
-    heading = calc_heading(s)
-    course = calc_course(s)
-    v_app_norm = norm(s.v_apparent)
-    t_sim = 0
-    KiteUtils.SysState{P}(s.t_0, t_sim, 0, 0, orient, elevation, azimuth, s.l_tether, s.v_reel_out, force, s.depower, s.steering, 
-                          heading, course, v_app_norm, s.vel_kite, X, Y, Z, 0, 0, 0, 0, 0)
+    ss = SysState{length(s.pos)}()
+    update_sys_state!(ss, s, zoom)
+    ss
 end
 
 function calc_pre_tension(s::AKM)
@@ -435,70 +546,110 @@ function calc_pre_tension(s::AKM)
 end
 
 """
-    init_sim!(s; t_end=1.0, stiffness_factor=0.035, prn=false)
+    init_sim!(s::AKM; stiffness_factor=0.5, delta=0.0001, upwind_dir=-pi/2, 
+                      prn=false) -> OrdinaryDiffEqCore.ODEIntegrator
 
-Initialises the integrator of the model.
+Initializes the integrator of the model (KPS3 and KPS4 only).
 
 Parameters:
 - s:     an instance of an abstract kite model
-- t_end: end time of the simulation; normally not needed
-- stiffness_factor: factor applied to the tether stiffness during initialisation
+- stiffness_factor: factor applied to the tether stiffness during initialization
+- delta: initial stretch of the tether during the steady state calculation
+- upwind_dir: upwind direction in radians, the direction the wind is coming from. Zero is at north; 
+              clockwise positive. Default: -pi/2, wind from west.
 - prn: if set to true, print the detailed solver results
 
 Returns:
-An instance of a DAE integrator.
+An instance of an `ODEIntegrator`.
 """
-function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false)
+function init_sim!(s::AKM; stiffness_factor=0.5, delta=0.0001, upwind_dir=-pi/2, prn=false)
     clear!(s)
     s.stiffness_factor = stiffness_factor
-    y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor=stiffness_factor, prn=prn)
-    y0  = Vector{Float64}(y0)
-    yd0 = Vector{Float64}(yd0)
+    
+    try
+        y0, yd0 = KiteModels.find_steady_state!(s; stiffness_factor, delta, upwind_dir, prn)
+    catch e
+        if e isa AssertionError
+            println("ERROR: Failure to find initial steady state in find_steady_state! function!\n"*
+                    "Try to increase the delta parameter or to decrease the initial_stiffness of the init_sim! function.")
+            return nothing
+        else
+            rethrow(e)
+        end
+    end
+    y0  = Vector{SimFloat}(y0)
+    yd0 = Vector{SimFloat}(yd0)
+    
     if s.set.solver=="IDA"
         solver  = Sundials.IDA(linear_solver=Symbol(s.set.linear_solver), max_order = s.set.max_order)
     elseif s.set.solver=="DImplicitEuler"
-        solver  = DImplicitEuler(autodiff=false)
+        solver  = DImplicitEuler(autodiff=AutoFiniteDiff())
     elseif s.set.solver=="DFBDF"
-        solver  = DFBDF(autodiff=false, max_order=Val{s.set.max_order}())
+        solver  = DFBDF(autodiff=AutoFiniteDiff(), max_order=Val{s.set.max_order}())        
     else
         println("Error! Invalid solver in settings.yaml: $(s.set.solver)")
         return nothing
     end
+
     dt = 1/s.set.sample_freq
     tspan   = (0.0, dt) 
     abstol  = s.set.abs_tol # max error in m/s and m
+
     differential_vars = ones(Bool, length(y0))
     prob    = DAEProblem{true}(residual!, yd0, y0, tspan, s; differential_vars)
-    integrator = OrdinaryDiffEqCore.init(prob, solver; abstol=abstol, reltol= s.set.rel_tol, save_everystep=false)
+    integrator = OrdinaryDiffEqCore.init(prob, solver; abstol=abstol, reltol=s.set.rel_tol, save_everystep=false,
+                                         initializealg=OrdinaryDiffEqCore.NoInit())
+    if isa(s, KPS4)
+        roll, pitch, yaw = orient_euler(s)
+        s.pitch_rate = 0
+        s.pitch = pitch
+        set_initial_velocity!(s)
+    end
+    s.v_reel_out = s.set.v_reel_out
+    return integrator
 end
 
-"""
-    next_step!(s::AKM, integrator; v_ro = 0.0, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
 
-Calculates the next simulation step.
+"""
+    next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, set_force=nothing, bearing = nothing
+               attractor=nothing, v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2, dt=1/s.set.sample_freq)
+
+Calculates the next simulation step. Either `set_speed` or `set_torque` must be provided.
 
 Parameters:
 - s:            an instance of an abstract kite model
 - integrator:   an integrator instance as returned by the function [`init_sim!`](@ref)
-- v_ro:         set value of reel out speed in m/s
+- set_speed:         set value of reel out speed in m/s or nothing
+- set_torque:   set value of the torque in Nm or nothing
+- set_force:    set value of the force in N or nothing (only for logging, not used otherwise)
+- bearing:      set value of heading/ course in radian or nothing (only for logging, not used otherwise)
+- attractor:    the attractor coordinates [azimuth, elevation] in radian or nothing (only for logging)
 - `v_wind_gnd`: wind speed at reference height in m/s
-- wind_dir:     wind direction in radians
+- `upwind_dir`: upwind direction in radians, the direction the wind is coming from. Zero is at north; 
+                clockwise positive. Default: -pi/2, wind from west.
 - dt:           time step in seconds
 
-Only the first two parameters are required.
-
 Returns:
-The end time of the time step in seconds.
+`Nothing`
 """
-function next_step!(s::AKM, integrator; v_ro = 0.0, v_wind_gnd=s.set.v_wind, wind_dir=0.0, dt=1/s.set.sample_freq)
+function next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, set_force=nothing, bearing = nothing,
+                    attractor=nothing, v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2, dt=1/s.set.sample_freq)
     KitePodModels.on_timer(s.kcu)
     KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
-    set_v_reel_out!(s, v_ro, integrator.t)
-    set_v_wind_ground!(s, calc_height(s), v_wind_gnd, wind_dir)
+    s.sync_speed = set_speed
+    s.set_torque = set_torque
+    if isa(s, KPS4)
+        s.set_force = set_force
+        s.bearing = bearing
+        s.attractor = attractor
+    end
+    s.t_0 = integrator.t
+    set_v_wind_ground!(s, calc_height(s), v_wind_gnd; upwind_dir)
+    s.iter = 0
     if s.set.solver == "IDA"
         Sundials.step!(integrator, dt, true)
     else
-        OrdinaryDiffEq.step!(integrator, dt, true)
+        OrdinaryDiffEqCore.step!(integrator, dt, true)
     end
     if s.stiffness_factor < 1.0
         s.stiffness_factor+=0.01
@@ -506,13 +657,18 @@ function next_step!(s::AKM, integrator; v_ro = 0.0, v_wind_gnd=s.set.v_wind, win
             s.stiffness_factor = 1.0
         end
     end
-    integrator.t
+    if isa(s, KPS4)
+        roll, pitch, yaw = orient_euler(s)
+        s.pitch_rate = (pitch - s.pitch) / dt
+        s.pitch = pitch
+    end
+    return nothing
 end
 
 """
     copy_examples()
 
-Copy the example scripts to the folder "examples"
+Copy all example scripts to the folder "examples"
 (it will be created if it doesn't exist).
 """
 function copy_examples()
@@ -521,17 +677,57 @@ function copy_examples()
         mkdir(PATH)
     end
     src_path = joinpath(dirname(pathof(@__MODULE__)), "..", PATH)
-    cp(joinpath(src_path, "compare_kps3_kps4.jl"), joinpath(PATH, "compare_kps3_kps4.jl"), force=true)
-    cp(joinpath(src_path, "plot2d.jl"), joinpath(PATH, "plot2d.jl"), force=true)
-    cp(joinpath(src_path, "simulate.jl"), joinpath(PATH, "simulate.jl"), force=true)
-    cp(joinpath(src_path, "reel_out_1p.jl"), joinpath(PATH, "reel_out_1p.jl"), force=true)
-    cp(joinpath(src_path, "reel_out_4p.jl"), joinpath(PATH, "reel_out_4p.jl"), force=true)
-    chmod(joinpath(PATH, "compare_kps3_kps4.jl"), 0o664)
-    chmod(joinpath(PATH, "plot2d.jl"), 0o664)
-    chmod(joinpath(PATH, "simulate.jl"), 0o664)
-    chmod(joinpath(PATH, "reel_out_1p.jl"), 0o664)
-    chmod(joinpath(PATH, "reel_out_4p.jl"), 0o664)
+    copy_files("examples", readdir(src_path))
 end
+
+function copy_model_settings()
+    files = ["settings.yaml", "ram_air_kite_body.obj", "ram_air_kite_foil.dat", "system.yaml", "settings_ram.yaml", 
+             "system_ram.yaml", "ram_air_kite_foil_cd_polar.csv", "ram_air_kite_foil_cl_polar.csv", "ram_air_kite_foil_cm_polar.csv"]
+    dst_path = abspath(joinpath(pwd(), "data"))
+    copy_files("data", files)
+    set_data_path(joinpath(pwd(), "data"))
+    println("Copied $(length(files)) files to $(dst_path) !")
+end
+
+function install_examples(add_packages=true)
+    copy_examples()
+    copy_settings()
+    copy_bin()
+    copy_model_settings()
+    if add_packages
+        Pkg.add(["KiteUtils", "KitePodModels", "WinchModels", "ControlPlots", 
+                 "LaTeXStrings", "StatsBase", "Timers", "Rotations"])
+    end
+end
+
+function copy_files(relpath, files)
+    if ! isdir(relpath) 
+        mkdir(relpath)
+    end
+    src_path = joinpath(dirname(pathof(@__MODULE__)), "..", relpath)
+    for file in files
+        cp(joinpath(src_path, file), joinpath(relpath, file), force=true)
+        chmod(joinpath(relpath, file), 0o774)
+    end
+    files
+end
+
+function create_bridle(se)
+    # create the bridle
+    bridle = KiteUtils.get_particles(se.height_k, se.h_bridle, se.width, se.m_k)
+    return bridle
+end
+function bridle_length(se)
+    # calculate the bridle length
+    bridle = create_bridle(se)[2:end]
+    len = norm(bridle[1] - bridle[2])
+    len += norm(bridle[1] - bridle[4])
+    len += norm(bridle[1] - bridle[5])
+    len += norm(bridle[3] - bridle[2])
+    len += norm(bridle[3] - bridle[4])
+    len += norm(bridle[3] - bridle[5])
+end
+
 
 """
     copy_bin()
@@ -545,8 +741,8 @@ function copy_bin()
         mkdir(PATH)
     end
     src_path = joinpath(dirname(pathof(@__MODULE__)), "..", PATH)
-    cp(joinpath(src_path, "create_sys_image2"), joinpath(PATH, "create_sys_image"), force=true)
-    cp(joinpath(src_path, "run_julia2"), joinpath(PATH, "run_julia"), force=true)
+    cp(joinpath(src_path, "create_sys_image"), joinpath(PATH, "create_sys_image"), force=true)
+    cp(joinpath(src_path, "run_julia"), joinpath(PATH, "run_julia"), force=true)
     chmod(joinpath(PATH, "create_sys_image"), 0o774)
     chmod(joinpath(PATH, "run_julia"), 0o774)
     PATH = "test"
@@ -562,23 +758,6 @@ function copy_bin()
     chmod(joinpath(PATH, "update_packages.jl"), 0o664)
 end
 
-@setup_workload begin
-    # Putting some things in `@setup_workload` instead of `@compile_workload` can reduce the size of the
-    # precompile file and potentially make loading faster.
-    # list = [OtherType("hello"), OtherType("world!")]
-    path = dirname(pathof(@__MODULE__))
-    set_data_path(joinpath(path, "..", "data"))
+include("precompile.jl")
 
-    set = se("system.yaml")
-    set.kcu_diameter = 0.0
-    kps4_::KPS4 = KPS4(KCU(set))
-    kps3_::KPS3 = KPS3(KCU(set))
-    @compile_workload begin
-        # all calls in this block will be precompiled, regardless of whether
-        # they belong to your package or not (on Julia 1.8 and higher)
-        integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
-        integrator = KiteModels.init_sim!(kps4_; stiffness_factor=0.035, prn=false)       
-        nothing
-    end
-end
 end
