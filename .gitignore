@@ -54,3 +54,13 @@ docs/src/winch.png
 examples_3d/Manifest.toml
 bin/kps-image-1.11-2024-04-11.so
 bin/kps-image-1.11-perf2.so
+bin/kps-image-1.10-cleanup.so
+bin/kps-image-1.10-cleanup.so.bak
+bin/kps-image-1.11-c47.so
+bin/kps-image-1.11-cleanup.so
+bin/kps-image-1.11-cleanup.so.bak
+bin/kps-image-1.11-fix-ram-model.so
+bin/kps-image-1.11-operators.so
+bin/kps-image-1.11-perf.so
+bin/kps-image-1.11-statistics.so
+data/spectrum_8.0_0.0.jld2
