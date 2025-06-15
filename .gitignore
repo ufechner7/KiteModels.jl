@@ -53,3 +53,4 @@ data/tmp.arrow
 docs/src/winch.png
 examples_3d/Manifest.toml
 bin/kps-image-1.11-2024-04-11.so
+bin/kps-image-1.11-perf2.so
