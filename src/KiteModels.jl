@@ -34,7 +34,8 @@ Scientific background: http://arxiv.org/abs/1406.6218 =#
 module KiteModels
 
 using PrecompileTools: @setup_workload, @compile_workload 
-using Dierckx, StaticArrays, Rotations, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, OrdinaryDiffEq
+using Dierckx, StaticArrays, Rotations, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, OrdinaryDiffEqCore, 
+      OrdinaryDiffEqBDF, OrdinaryDiffEqNonlinearSolve, NonlinearSolve
 import Sundials
 using Reexport
 @reexport using KitePodModels
@@ -48,8 +49,8 @@ import KiteUtils.calc_course
 import KiteUtils.SysState
 # import Sundials.init
 # import Sundials.step!
-import OrdinaryDiffEq.init
-import OrdinaryDiffEq.step!
+import OrdinaryDiffEqCore.init
+import OrdinaryDiffEqCore.step!
 
 export KPS3, KPS4, KPS4_3L, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG                              # constants and types
 export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                            # helper functions
@@ -468,7 +469,7 @@ function init_sim!(s::AKM; t_end=1.0, stiffness_factor=0.035, prn=false)
     abstol  = s.set.abs_tol # max error in m/s and m
     differential_vars = ones(Bool, length(y0))
     prob    = DAEProblem{true}(residual!, yd0, y0, tspan, s; differential_vars)
-    integrator = OrdinaryDiffEq.init(prob, solver; abstol=abstol, reltol= s.set.rel_tol, save_everystep=false)
+    integrator = OrdinaryDiffEqCore.init(prob, solver; abstol=abstol, reltol= s.set.rel_tol, save_everystep=false)
 end
 
 """
