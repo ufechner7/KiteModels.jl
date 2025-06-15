@@ -12,17 +12,17 @@ Second run:
 ## Current results on main, 15.06.2025:
 julia> include("examples/ram_air_kite.jl")
 [ Info: Loading packages 
-Time elapsed: 3.166805083 s
+Time elapsed: 2.769526784 s
 [ Info: Creating wing, aero, vsm_solver, system_structure and symbolic_awe_model:
-Time elapsed: 4.920657187 s
-[ Info: Initialized integrator in 12.753841343 seconds
+Time elapsed: 4.461972064 s
+[ Info: Initialized integrator in 12.45877899 seconds
 [ Info: System initialized at:
-Time elapsed: 20.528783831 s
+Time elapsed: 19.64399933 s
 [ Info: Total time without plotting:
-Time elapsed: 38.624320559 s
+Time elapsed: 37.744739449 s
 ┌ Info: Performance:
-│   times_realtime = 7.714139764083804
-└   integrator_times_realtime = 55.83414810244521
+│   times_realtime = 8.560932325389938
+└   integrator_times_realtime = 57.896691251570246
 
 ### Develop branch
 In Bash:
