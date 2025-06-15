@@ -1,22 +1,11 @@
-# Copyright (c) 2024 Bart van de Lint and Uwe Fechner
+# Copyright (c) 2024, 2025 Bart van de Lint and Uwe Fechner
 # SPDX-License-Identifier: MIT
 
-"""
-    mutable struct SymbolicAWEModel{S, V, P} <: AbstractKiteModel
-
-State of the kite power system, using a quaternion kite model and three steering lines to the ground. Parameters:
-- S: Scalar type, e.g. SimFloat
-  In the documentation mentioned as Any, but when used in this module it is always SimFloat and not Any.
-- V: Vector type, e.g. KVec3
-- P: number of tether points of the system, 3segments+3
-Normally a user of this package will not have to access any of the members of this type directly,
-use the input and output functions instead.
-
-$(TYPEDFIELDS)
-"""
-@with_kw mutable struct SymbolicAWEModel{S, V, P} <: AbstractKiteModel
+@with_kw struct SerializedModel
     "Reference to the settings struct"
     set::Settings
+    set_hash
+    struct_hash
     "Reference to the geometric wing model"
     vsm_wings::Vector{VortexStepMethod.RamAirWing}
     "Reference to the aerodynamic wing model"
@@ -24,21 +13,17 @@ $(TYPEDFIELDS)
     "Reference to the VSM aerodynamics solver"
     vsm_solvers::Vector{VortexStepMethod.Solver}
     "Reference to the point mass system with points, segments, pulleys and tethers"
-    system_structure::SystemStructure
+    sys_struct::SystemStructure
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
-    "relative start time of the current time interval"
-    t_0::S =               0.0
-    "whether or not to use torque control instead of speed control"
-    torque_control::Bool = false
     "Simplified system of the mtk model"
     sys::Union{ModelingToolkit.ODESystem, Nothing} = nothing
     "Unsimplified system of the mtk model"
     full_sys::Union{ModelingToolkit.ODESystem, Nothing} = nothing
     "Linearization function of the mtk model"
     lin_prob::Union{ModelingToolkit.LinearizationProblem, Nothing} = nothing
-    "Number of solve! calls"
-    iter::Int64 = 0
+    "ODE function of the mtk model"
+    prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
 
     unknowns_vec::Vector{SimFloat} = zeros(SimFloat, 3)
     defaults::Vector{Pair{Num, Real}} = Pair{Num, Real}[]
@@ -68,40 +53,65 @@ $(TYPEDFIELDS)
     get_spring_force::Function     = (_) -> nothing
     get_stabilize::Function        = (_) -> nothing
     get_pos::Function              = (_) -> nothing
+end
 
-    prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
+"""
+    mutable struct SymbolicAWEModel{S, V, P} <: AbstractKiteModel
+
+State of the kite power system, using a quaternion kite model and three steering lines to the ground. Parameters:
+- S: Scalar type, e.g. SimFloat
+  In the documentation mentioned as Any, but when used in this module it is always SimFloat and not Any.
+- V: Vector type, e.g. KVec3
+- P: number of tether points of the system, 3segments+3
+Normally a user of this package will not have to access any of the members of this type directly,
+use the input and output functions instead.
+
+$(TYPEDFIELDS)
+"""
+@with_kw mutable struct SymbolicAWEModel <: AbstractKiteModel
+    serialized_model::SerializedModel
     integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Nothing} = nothing
-    t_vsm::S  = zero(S)
-    t_step::S = zero(S)
+    "relative start time of the current time interval"
+    t_0::SimFloat = 0.0
+    "Number of solve! calls"
+    iter::Int64 = 0
+    t_vsm::SimFloat  = zero(SimFloat)
+    t_step::SimFloat = zero(SimFloat)
+end
+
+function Base.getproperty(sam::SymbolicAWEModel, sym::Symbol)
+    if !hasfield(sam, sym)
+        Base.getproperty(sam.serialized_model, sym)
+    end
+    Base.getproperty(sam, sym)
+end
+function Base.setproperty!(sam::SymbolicAWEModel, sym::Symbol, val)
+    if !hasfield(sam, sym)
+        Base.setproperty!(sam.serialized_model, sym, val)
+    end
+    Base.setproperty!(sam, sym, val)
 end
 
 function SymbolicAWEModel(
     set::Settings, 
-    system_structure::SystemStructure,
+    sys_struct::SystemStructure,
     vsm_aeros::Vector{<:BodyAerodynamics}=BodyAerodynamics[], 
     vsm_solvers::Vector{<:VortexStepMethod.Solver}=VortexStepMethod.Solver[]
 )
     vsm_wings = [aero.wings[1] for aero in vsm_aeros]
-    if set.winch_model == "TorqueControlledMachine"
-        s = SymbolicAWEModel{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
-            ; set, system_structure, vsm_wings, vsm_aeros, vsm_solvers
-            )
-        s.torque_control = true
-    else
-        s = SymbolicAWEModel{SimFloat, Vector{SimFloat}, 3*(set.segments + 1)}(
-            ; set, system_structure, vsm_wings, vsm_aeros, vsm_solvers
-            )
-        s.torque_control = false
-    end
-    return s
+    set_hash = get_set_hash(set)
+    struct_hash = get_struct_hash(sys_struct)
+    serialized_model = SerializedModel(; set, set_hash, sys_struct, struct_hash, vsm_wings, vsm_aeros, vsm_solvers)
+    sam = SymbolicAWEModel(; serialized_model)
+    return sam
 end
 
 function SymbolicAWEModel(set::Settings)
     wing = RamAirWing(set; prn=false)
     aero = BodyAerodynamics([wing])
     vsm_solver = Solver(aero; solver_type=NONLIN, atol=2e-8, rtol=2e-8)
-    system_structure = SystemStructure(set, wing)
-    return SymbolicAWEModel(set, system_structure, [aero], [vsm_solver])
+    sys_struct = SystemStructure(set, wing)
+    return SymbolicAWEModel(set, sys_struct, [aero], [vsm_solver])
 end
 
 function update_sys_state!(ss::SysState, s::SymbolicAWEModel, zoom=1.0)
@@ -114,7 +124,7 @@ function update_sys_state!(ss::SysState, s::SymbolicAWEModel, zoom=1.0)
         aero_moment_b, turn_rate, va_wing_b, wind_vel_wing = s.get_wing_state(s.integrator)
     pos, acc, wind_vec_gnd = s.get_point_state(s.integrator)
 
-    P = length(s.system_structure.points)
+    P = length(s.sys_struct.points)
     for i in 1:P
         ss.X[i] = pos[1, i] * zoom
         ss.Y[i] = pos[2, i] * zoom
@@ -129,13 +139,13 @@ function update_sys_state!(ss::SysState, s::SymbolicAWEModel, zoom=1.0)
     ss.azimuth = azimuth[1]
 
     # Handle potential size mismatch for tether/winch related arrays
-    num_winches = length(s.system_structure.winches)
+    num_winches = length(s.sys_struct.winches)
     ss.l_tether[1:num_winches] .= tether_length
     ss.v_reelout[1:num_winches] .= tether_vel
     ss.force[1:num_winches] .= winch_force
 
     # Depower and Steering from twist angles
-    num_groups = length(s.system_structure.wings[1].group_idxs)
+    num_groups = length(s.sys_struct.wings[1].group_idxs)
     ss.twist_angles[1:num_groups] .= twist_angle[1:num_groups]
     ss.depower = rad2deg(mean(ss.twist_angles)) # Average twist for depower
     ss.steering = rad2deg(ss.twist_angles[num_groups] - ss.twist_angles[1])
@@ -180,7 +190,7 @@ function update_sys_state!(ss::SysState, s::SymbolicAWEModel, zoom=1.0)
 end
 
 function SysState(s::SymbolicAWEModel, zoom=1.0)
-    ss = SysState{length(s.system_structure.points)}()
+    ss = SysState{length(s.sys_struct.points)}()
     update_sys_state!(ss, s, zoom)
     ss
 end
@@ -242,9 +252,9 @@ function init_sim!(s::SymbolicAWEModel;
     end
     function init(s)
         init_Q_b_w, R_b_w, init_va_b = initial_orient(s)
-        init!(s.system_structure, s.set, R_b_w, init_Q_b_w)
+        init!(s.sys_struct, s.set, R_b_w, init_Q_b_w)
         
-        inputs = create_sys!(s, s.system_structure; init_va_b)
+        inputs = create_sys!(s, s.sys_struct; init_va_b)
         prn && @info "Simplifying the system"
         prn ? (@time (sys, _) = structural_simplify(s.full_sys, (inputs, []))) :
             ((sys, _) = structural_simplify(sys, (inputs, [])))
@@ -260,6 +270,9 @@ function init_sim!(s::SymbolicAWEModel;
             lin_fun, _ = linearization_function(s.full_sys, [inputs...], lin_outputs; op=s.defaults, guesses=s.guesses)
             s.lin_prob = LinearizationProblem(lin_fun, 0.0)
         end
+        sym_vec = get_unknowns(s.sys_struct, s.sys)
+        s.unknowns_vec = zeros(SimFloat, length(sym_vec))
+        generate_getters!(s, sym_vec)
         serialize(prob_path, (s.prob, s.full_sys, s.lin_prob, s.defaults, s.guesses))
         s.integrator = nothing
         return nothing
@@ -327,10 +340,10 @@ function reinit!(
     precompile=false,
     lin_outputs=Num[]
 )
-    isnothing(s.system_structure) && error("SystemStructure not defined")
+    isnothing(s.sys_struct) && error("SystemStructure not defined")
 
     init_Q_b_w, R_b_w = initial_orient(s)
-    init!(s.system_structure, s.set, R_b_w, init_Q_b_w)
+    init!(s.sys_struct, s.set, R_b_w, init_Q_b_w)
     
     if isnothing(s.prob) || reload
         prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set; precompile))
@@ -349,14 +362,14 @@ function reinit!(
             s.sys = s.prob.f.sys
             s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; 
                 adaptive, dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, save_everystep=false)
-            sym_vec = get_unknowns(s)
-            s.unknowns_vec = zeros(SimFloat, length(sym_vec))
-            generate_getters!(s, sym_vec)
+            !s.set.quasi_static && (length(sym_vec) != length(s.integrator.u)) &&
+                error("Integrator unknowns of length $(length(s.integrator.u)) should equal sym_vec of length $(length(sym_vec)).
+                    Maybe you forgot to run init_sim!(model; remake=true)?")
         end
         prn && @info "Initialized integrator in $t seconds"
     end
 
-    init_unknowns_vec!(s, s.system_structure, s.unknowns_vec)
+    init_unknowns_vec!(s, s.sys_struct, s.unknowns_vec)
     s.set_unknowns(s.integrator, s.unknowns_vec)
     OrdinaryDiffEqCore.reinit!(s.integrator, s.integrator.u; reinit_dae=true)
     linearize_vsm!(s)
@@ -366,7 +379,7 @@ end
 function generate_getters!(s, sym_vec)
     sys = s.sys
     c = collect
-    @unpack wings, winches, tethers = s.system_structure
+    @unpack wings, winches, tethers = s.sys_struct
 
     if length(wings) > 0
         vsm_sym = c.([
@@ -468,7 +481,7 @@ function generate_getters!(s, sym_vec)
 end
 
 function linearize_vsm!(s::SymbolicAWEModel, integ=s.integrator)
-    @unpack wings, y, x, jac = s.system_structure
+    @unpack wings, y, x, jac = s.sys_struct
     if length(wings) > 0
         y .= s.get_y(integ)
         for wing in wings
@@ -478,8 +491,8 @@ function linearize_vsm!(s::SymbolicAWEModel, integ=s.integrator)
                 y[wing.idx, :];
                 va_idxs=1:3, 
                 omega_idxs=4:6,
-                theta_idxs=7:6+length(s.system_structure.groups),
-                moment_frac=s.system_structure.groups[1].moment_frac
+                theta_idxs=7:6+length(s.sys_struct.groups),
+                moment_frac=s.sys_struct.groups[1].moment_frac
             )
             jac[wing.idx, :, :] .= res[1]
             x[wing.idx, :] .= res[2]
@@ -634,10 +647,9 @@ function init_unknowns_vec!(
     nothing
 end
 
-function get_unknowns(s::SymbolicAWEModel)
+function get_unknowns(sys_struct::SystemStructure, sys::ODESystem)
     vec = Num[]
-    @unpack points, groups, segments, pulleys, winches, wings = s.system_structure
-    sys = s.sys
+    @unpack points, groups, segments, pulleys, winches, wings = sys_struct
     for point in points
         for i in 1:3
             point.type == DYNAMIC && push!(vec, sys.pos[i, point.idx])
@@ -650,17 +662,12 @@ function get_unknowns(s::SymbolicAWEModel)
         pulley.type == DYNAMIC && push!(vec, sys.pulley_l0[pulley.idx])
         pulley.type == DYNAMIC && push!(vec, sys.pulley_vel[pulley.idx])
     end
-    vec = get_nonstiff_unknowns(s, vec)
-    !s.set.quasi_static && (length(vec) != length(s.integrator.u)) &&
-        error("Integrator unknowns of length $(length(s.integrator.u)) should equal vec of length $(length(vec)).
-            Maybe you forgot to run init_sim!(model; remake=true)?")
+    vec = get_nonstiff_unknowns(sys_struct, sys, vec)
     return vec
 end
 
-function get_nonstiff_unknowns(s::SymbolicAWEModel, vec=Num[])
-    @unpack points, groups, segments, pulleys, winches, wings = s.system_structure
-    sys = s.sys
-
+function get_nonstiff_unknowns(sys_struct::SystemStructure, sys::ODESystem, vec=Num[])
+    @unpack points, groups, segments, pulleys, winches, wings = sys_struct
     for group in groups
         group.type == DYNAMIC && push!(vec, sys.free_twist_angle[group.idx])
         group.type == DYNAMIC && push!(vec, sys.twist_ω[group.idx])
@@ -690,7 +697,7 @@ end
 
 function initial_orient(s::SymbolicAWEModel)
     set = s.set
-    wings = s.system_structure.wings
+    wings = s.sys_struct.wings
     R_b_w = zeros(length(wings), 3, 3)
     Q_b_w = zeros(length(wings), 4)
     init_va_b = zeros(length(wings), 3)
@@ -718,3 +725,38 @@ function pos(s::SymbolicAWEModel)
     pos = s.get_pos(s.integrator)
     return [pos[:,i] for i in eachindex(pos[1,:])]
 end    
+
+"""
+    get_set_hash(set::Settings; exclude_fields=[:abs_tol, :rel_tol, :log_level]) -> UInt64
+
+Calculate a unique hash for a Settings struct, excluding specified fields.
+This is useful for determining if the core configuration has changed while
+ignoring runtime parameters.
+
+# Arguments
+- `set::Settings`: The settings struct to hash
+- `exclude_fields::Vector{Symbol}`: Fields to exclude from hash calculation
+
+# Returns
+- `UInt64`: A unique hash representing the settings configuration
+"""
+function get_set_hash(set::Settings; 
+        fields=[:segments, :model, :foil_file, :physical_model, :top_bridle_points, 
+            :crease_frac, :bridle_fracs, :quasi_static, :winch_model]
+    )
+    h = UInt64(0)
+    for field in fields
+        value = getfield(set, field)
+        h = hash(value, h)
+    end
+    return h
+end
+
+function get_sys_struct_hash(sys_struct::SystemStructure)
+    h = UInt64(0)
+    for point in points
+        value = getfield(set, field)
+        h = hash(value, h)
+    end
+    return h
+end
