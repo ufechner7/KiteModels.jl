@@ -1,24 +1,5 @@
-#= MIT License
-
-Copyright (c) 2020, 2021, 2022 Uwe Fechner
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. =#
+# Copyright (c) 2020, 2021, 2022, 2024 Uwe Fechner
+# SPDX-License-Identifier: MIT
 
 #= Model of a kite-power system in implicit form: residual = f(y, yd)
 
@@ -44,6 +25,8 @@ const SPRINGS_INPUT = [0.    1.  150.
                        5.    2.   -1. # s8, p11, p8
                        2.    3.   -1.] # s9, p8, p9
 
+# KCU = p7, A = p8, B = p9, C = p10, D = p11
+
 # struct, defining the phyical parameters of one spring
 @with_kw struct Spring{I, S}
     p1::I = 1         # number of the first point
@@ -53,7 +36,7 @@ const SPRINGS_INPUT = [0.    1.  150.
     damping::S  = 0.1 # damping coefficent [Ns/m]
 end
 
-const SP = Spring{Int16, Float64}
+const SP = Spring{Int16, SimFloat}
 const KITE_PARTICLES = 4
 const KITE_SPRINGS = 9
 const KITE_ANGLE = 3.83 # angle between the kite and the last tether segment due to the mass of the control pod
