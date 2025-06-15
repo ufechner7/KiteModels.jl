@@ -312,14 +312,14 @@ Parameters:
 
 Updates the vector s.forces of the first parameter.
 """
-function calc_aero_forces!(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
+@inline function calc_aero_forces!(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
     rel_side_area = s.set.rel_side_area/100.0    # defined in percent
     K = 1 - rel_side_area                        # correction factor for the drag
     # pos_B, pos_C, pos_D: position of the kite particles B, C, and D
     # v_B,   v_C,   v_D:   velocity of the kite particles B, C, and D
     pos_B, pos_C, pos_D = pos[s.set.segments+3], pos[s.set.segments+4], pos[s.set.segments+5]
-    v_B,   v_C,   v_D   = vel[s.set.segments+3], vel[s.set.segments+4], vel[s.set.segments+5]
-    va_2,  va_3,  va_4  = s.v_wind - v_B, s.v_wind - v_C, s.v_wind - v_D
+    v_A, v_B, v_C, v_D  = vel[s.set.segments+2], vel[s.set.segments+3], vel[s.set.segments+4], vel[s.set.segments+5]
+    va_1, va_2,  va_3,  va_4  = s.v_wind - v_A, s.v_wind - v_B, s.v_wind - v_C, s.v_wind - v_D
  
     pos_centre = 0.5 * (pos_C + pos_D)
     delta = pos_B - pos_centre
@@ -328,17 +328,32 @@ function calc_aero_forces!(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
     x = y × z
     s.x .= x; s.y .= y; s.z .= z # save the kite reference frame in the state
 
+    va_xz1 = va_1 - (va_1 ⋅ y) * y
     va_xz2 = va_2 - (va_2 ⋅ y) * y
     va_xy3 = va_3 - (va_3 ⋅ z) * z
     va_xy4 = va_4 - (va_4 ⋅ z) * z
 
-    alpha_2 = rad2deg(π - acos2(normalize(va_xz2) ⋅ x) - alpha_depower)     + s.set.alpha_zero
-    alpha_3 = rad2deg(π - acos2(normalize(va_xy3) ⋅ x) - rel_steering * KS) + s.set.alpha_ztip
-    alpha_4 = rad2deg(π - acos2(normalize(va_xy4) ⋅ x) + rel_steering * KS) + s.set.alpha_ztip
+    R_k_w = SMatrix{3,3}([x y z])
+    va_k = R_k_w' * SVector{3}(va_2)
+    s.side_slip = atan(va_k[2], -va_k[1])
 
-    CL2, CD2 = calc_cl(alpha_2), DRAG_CORR * calc_cd(alpha_2)
-    CL3, CD3 = calc_cl(alpha_3), DRAG_CORR * calc_cd(alpha_3)
-    CL4, CD4 = calc_cl(alpha_4), DRAG_CORR * calc_cd(alpha_4)
+    alpha_2 = rad2deg(π - acos2(normalize(va_xz2) ⋅ x) - alpha_depower)     + s.set.alpha_zero
+    alpha_3 = rad2deg(π - acos2(normalize(va_xy3) ⋅ x) + rel_steering * s.ks) + s.set.alpha_ztip
+    alpha_4 = rad2deg(π - acos2(normalize(va_xy4) ⋅ x) - rel_steering * s.ks) + s.set.alpha_ztip
+    s.alpha_2 = alpha_2
+    s.alpha_3 = alpha_3
+    s.alpha_4 = alpha_4
+
+    if s.set.version == 3
+        drag_corr = 1.0
+    else
+        drag_corr = DRAG_CORR
+    end
+
+    CL2, CD2 = s.calc_cl(alpha_2), drag_corr * s.calc_cd(alpha_2)
+    CL3, CD3 = s.calc_cl(alpha_3), drag_corr * s.calc_cd(alpha_3)
+    CL4, CD4 = s.calc_cl(alpha_4), drag_corr * s.calc_cd(alpha_4)
+    s.side_cl = CL4 - CL3
     L2 = (-0.5 * rho * (norm(va_xz2))^2 * s.set.area * CL2) * normalize(va_2 × y)
     L3 = (-0.5 * rho * (norm(va_xy3))^2 * s.set.area * rel_side_area * CL3) * normalize(va_3 × z)
     L4 = (-0.5 * rho * (norm(va_xy4))^2 * s.set.area * rel_side_area * CL4) * normalize(z × va_4)
@@ -346,11 +361,19 @@ function calc_aero_forces!(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
     D3 = (-0.5 * K * rho * norm(va_3) * s.set.area * rel_side_area * CD3) * va_3
     D4 = (-0.5 * K * rho * norm(va_4) * s.set.area * rel_side_area * CD4) * va_4
     s.lift_force .= L2
-    s.drag_force .= D2 + D3 + D4
-
-    s.forces[s.set.segments + 3] .+= (L2 + D2)
-    s.forces[s.set.segments + 4] .+= (L3 + D3)
-    s.forces[s.set.segments + 5] .+= (L4 + D4)
+    if s.set.version == 3
+        s.drag_force .= D2
+        s.forces[s.set.segments + 3] .+= (L2 + D2-D3-D4)
+    else
+        s.drag_force .= D2 + D3 + D4
+        s.forces[s.set.segments + 3] .+= (L2 + D2)
+    end
+    s.f_d .= (0.5 * rho * s.set.area * norm(va_xz1)^2 * s.set.cmq * s.pitch_rate * s.set.cord_length) * s.z
+    s.f_s .= (0.5 * rho * s.set.area * (0.5*(norm(va_xy3)+norm(va_xy4)))^2 * s.set.smc * rel_steering * s.ks) * s.x
+    s.forces[s.set.segments + 2] .+= s.f_d
+    s.forces[s.set.segments + 4] .+= (L3 + D3 -0.5*s.f_d + 0.5*s.f_s)
+    s.forces[s.set.segments + 5] .+= (L4 + D4 -0.5*s.f_d - 0.5*s.f_s)
+    s.side_force .= (L3 + L4)
 end
 
 """
