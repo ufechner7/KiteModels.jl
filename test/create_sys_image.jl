@@ -8,7 +8,7 @@ if ! ("PackageCompiler" ∈ keys(Pkg.project().dependencies))
     Pkg.update()
 end
 @info "Loading packages ..."
-using Dierckx, StaticArrays, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, Sundials, KiteUtils, 
+using Dierckx, StaticArrays, LinearAlgebra, Parameters, NLsolve, DocStringExtensions, KiteUtils, 
       KitePodModels, AtmosphericModels, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, ModelingToolkit,
       DSP, JLD2, Colors, REPL, VortexStepMethod, NonlinearSolve, OrdinaryDiffEqNonlinearSolve, StatsBase,
       DiscretePIDs, WinchModels, ControlSystemsBase
@@ -18,7 +18,7 @@ using PackageCompiler, BenchmarkTools, Documenter
 push!(LOAD_PATH,joinpath(pwd(),"src"))
 
 PackageCompiler.create_sysimage(
-    [:Dierckx, :StaticArrays, :Parameters, :NLsolve, :DocStringExtensions, :Sundials, :KiteUtils, 
+    [:Dierckx, :StaticArrays, :Parameters, :NLsolve, :DocStringExtensions, :KiteUtils, 
      :KitePodModels, :AtmosphericModels, :OrdinaryDiffEqCore, :OrdinaryDiffEqBDF, :WinchModels,
      :OrdinaryDiffEqNonlinearSolve, :StatsBase, :PackageCompiler, :BenchmarkTools, :Documenter,
      :ModelingToolkit, :JLD2, :Colors, :REPL, :VortexStepMethod, :NonlinearSolve, :DSP, :DiscretePIDs, 
