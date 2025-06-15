@@ -6,7 +6,7 @@ using Pkg
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
     using TestEnv; TestEnv.activate()
 end
-using Sundials, ControlPlots
+using ControlPlots
 
 const G_EARTH  = [0.0, 0.0, -9.81] # gravitational acceleration
 const dt = 0.05
@@ -35,7 +35,7 @@ end
 function solve!(res, integrator, dt, t_final)
     for (i,t) in pairs(0:dt:t_final)
         res.time[i] = t
-        Sundials.step!(integrator, dt, true)
+        step!(integrator, dt, true)
         res.pos_z[i] = integrator.u[3]
         res.vel_z[i] = integrator.u[6]
     end
@@ -56,7 +56,7 @@ function init()
     s = nothing
 
     prob    = DAEProblem(res!, yd0, y0, tspan, s, differential_vars=differential_vars)
-    integrator = Sundials.init(prob, solver, abstol, reltol=0.001, save_everystep=false)
+    integrator = init(prob, solver, abstol, reltol=0.001, save_everystep=false)
 end
 
 function plot(res::Result)

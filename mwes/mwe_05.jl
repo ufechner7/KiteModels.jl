@@ -6,7 +6,7 @@ using Pkg
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
     using TestEnv; TestEnv.activate()
 end
-using Sundials, ControlPlots
+using ControlPlots
 
 const G_EARTH  = [0.0, 0.0, -9.81] # gravitational acceleration
 const dt = 0.05

@@ -9,7 +9,7 @@ end
 if ! ("OrdinaryDiffEq" ∈ keys(Pkg.project().dependencies))
     Pkg.add("OrdinaryDiffEq")
 end
-using OrdinaryDiffEq, ControlPlots, Sundials, StaticArrays
+using OrdinaryDiffEq, ControlPlots, StaticArrays
 
 STATIC_ARRAYS::Bool = false
 if STATIC_ARRAYS

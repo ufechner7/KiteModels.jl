@@ -16,7 +16,6 @@ using PrecompileTools: @setup_workload, @compile_workload
 using Dierckx, Interpolations, Serialization, StaticArrays, LinearAlgebra, Statistics, Parameters, NLsolve,
       DocStringExtensions, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqNonlinearSolve,
       NonlinearSolve
-import Sundials
 using Reexport, Pkg
 using VortexStepMethod
 @reexport using VortexStepMethod: RamAirWing, BodyAerodynamics, Solver, NONLIN
@@ -580,9 +579,7 @@ function init_sim!(s::AKM; stiffness_factor=0.5, delta=0.0001, upwind_dir=-pi/2,
     y0  = Vector{SimFloat}(y0)
     yd0 = Vector{SimFloat}(yd0)
     
-    if s.set.solver=="IDA"
-        solver  = Sundials.IDA(linear_solver=Symbol(s.set.linear_solver), max_order = s.set.max_order)
-    elseif s.set.solver=="DImplicitEuler"
+    if s.set.solver=="DImplicitEuler"
         solver  = DImplicitEuler(autodiff=AutoFiniteDiff())
     elseif s.set.solver=="DFBDF"
         solver  = DFBDF(autodiff=AutoFiniteDiff(), max_order=Val{s.set.max_order}())        
@@ -646,11 +643,7 @@ function next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing,
     s.t_0 = integrator.t
     set_v_wind_ground!(s, calc_height(s), v_wind_gnd; upwind_dir)
     s.iter = 0
-    if s.set.solver == "IDA"
-        Sundials.step!(integrator, dt, true)
-    else
-        OrdinaryDiffEqCore.step!(integrator, dt, true)
-    end
+    OrdinaryDiffEqCore.step!(integrator, dt, true)
     if s.stiffness_factor < 1.0
         s.stiffness_factor+=0.01
         if s.stiffness_factor > 1.0
