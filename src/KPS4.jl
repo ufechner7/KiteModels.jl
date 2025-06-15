@@ -388,9 +388,9 @@ Output:
         p2 = s.springs[i].p2  # Second point nr.
         height = 0.5 * (pos[p1][3] + pos[p2][3])
         rho = calc_rho(s.am, height)
-        if height <= -1000.0
-            println("Error: height: $height")
-        end
+        # if height <= -1000.0
+        #     println("Error: height: $height")
+        # end
         @assert height > -1000
         if height < 6
             height = 6
@@ -493,12 +493,14 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
     # winch calculations
     res[end-1] = lengthd - v_reel_out
     use_brake = s.wm isa AsyncMachine
-    if !isnothing(s.sync_speed) && s.sync_speed == 0.0
-        use_brake = true
-    end
+    # if !isnothing(s.sync_speed) && s.sync_speed == 0.0
+    #     use_brake = true
+    # end
 
+    # res[end] = v_reel_outd - calc_acceleration(s.wm, v_reel_out, norm(s.forces[1]); set_speed=s.sync_speed, 
+    #            set_torque=s.set_torque, use_brake)
     res[end] = v_reel_outd - calc_acceleration(s.wm, v_reel_out, norm(s.forces[1]); set_speed=s.sync_speed, 
-               set_torque=s.set_torque, use_brake)
+               set_torque=s.set_torque)
 
     # copy and flatten result
     for i in 2:div(T,6)+1
@@ -510,7 +512,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
     # copy the position and velocity vectors for easy debugging
     for i in 1:div(T,6)+1
         @inbounds s.pos[i] .= pos[i]
-        s.vel[i] .= vel[i]
+        @inbounds s.vel[i] .= vel[i]
     end
     s.vel_kite .= vel[end-2]
     s.v_reel_out = v_reel_out
