@@ -1,8 +1,10 @@
 using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils
 using KiteModels, KitePodModels
 
+set = se("system.yaml")
+set.kcu_diameter = 0.0
 if ! @isdefined kcu
-    const kcu = KCU(se())
+    const kcu = KCU(set)
 end
 if ! @isdefined kps4
     const kps4 = KPS4(kcu)
