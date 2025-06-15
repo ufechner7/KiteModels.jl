@@ -10,6 +10,7 @@ Second run:
 - total time without plotting < 35s
 
 ## Current results on main, 15.06.2025:
+```
 julia> include("examples/ram_air_kite.jl")
 [ Info: Loading packages 
 Time elapsed: 2.769526784 s
@@ -23,6 +24,7 @@ Time elapsed: 37.744739449 s
 ┌ Info: Performance:
 │   times_realtime = 8.560932325389938
 └   integrator_times_realtime = 57.896691251570246
+```
 
 ### Develop branch
 In Bash:
