@@ -131,6 +131,7 @@ push!(msg, ("Mean time residual!:           $(round(mean(t.times), digits=1)) ns
 # Julia 1.10 on Ryzen: 787.0 ns 6000 RAM
 # Julia 1.10 on Laptop on battery: 1047ns
 # Julia 1.11 on Laptop on battery: 1035ns
+# Julia 1.11 on Laptop on battery: 1023..1029ns on June 15, 2025
 end
 for i in eachindex(msg)
     println(msg[i])
