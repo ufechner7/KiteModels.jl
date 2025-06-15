@@ -39,6 +39,9 @@ end
 const SP = Spring{Int16, SimFloat}
 const KITE_PARTICLES = 4
 const KITE_SPRINGS = 9
+const KITE_ANGLE = 3.83 # angle between the kite and the last tether segment due to the mass of the control pod
+const PRE_STRESS  = 0.9998   # Multiplier for the initial spring lengths.
+const KS = deg2rad(16.565 * 1.064 * 0.875 * 1.033 * 0.9757 * 1.083)  # max steering
 const DRAG_CORR = 0.93       # correction of the drag for the 4-point model
 function zero(::Type{SP})
     SP(0,0,0,0,0)
@@ -210,7 +213,7 @@ function clear!(s::KPS4)
     s.lift_force .= [0.0, 0, 0]
     s.side_force .= [0.0, 0, 0]
     s.rho = s.set.rho_0
-    s.bridle_factor = s.set.l_bridle / bridle_length(s.set)
+    # s.bridle_factor = s.set.l_bridle / bridle_length(s.set)
     s.ks = deg2rad(s.set.max_steering) 
     s.kcu.depower = s.set.depower/100.0
     s.kcu.set_depower = s.kcu.depower
@@ -389,7 +392,7 @@ Output:
         height = 0.5 * (pos[p1][3] + pos[p2][3])
         rho = calc_rho(s.am, height)
         # if height <= -1000.0
-        #     println("Error: height: $height")
+            # println("Error: height: $height")
         # end
         @assert height > -1000
         if height < 6
@@ -493,14 +496,10 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
     # winch calculations
     res[end-1] = lengthd - v_reel_out
     use_brake = s.wm isa AsyncMachine
-    # if !isnothing(s.sync_speed) && s.sync_speed == 0.0
-    #     use_brake = true
-    # end
-
-    # res[end] = v_reel_outd - calc_acceleration(s.wm, v_reel_out, norm(s.forces[1]); set_speed=s.sync_speed, 
-    #            set_torque=s.set_torque, use_brake)
-    res[end] = v_reel_outd - calc_acceleration(s.wm, v_reel_out, norm(s.forces[1]); set_speed=s.sync_speed, 
-               set_torque=s.set_torque)
+    if !isnothing(s.sync_speed) && s.sync_speed == 0.0
+        use_brake = true
+    end
+    res[end] = v_reel_outd - calc_acceleration(s.wm, s.sync_speed, v_reel_out, norm(s.forces[1]), true)
 
     # copy and flatten result
     for i in 2:div(T,6)+1
@@ -509,7 +508,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
             @inbounds res[3*(div(T,6))+3*(i-2)+j] = s.res2[i][j]
         end
     end
-    # copy the position and velocity vectors for easy debugging
+    # copy the position vector for easy debugging
     for i in 1:div(T,6)+1
         @inbounds s.pos[i] .= pos[i]
         @inbounds s.vel[i] .= vel[i]
