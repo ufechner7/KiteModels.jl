@@ -64,19 +64,19 @@ $(TYPEDFIELDS)
 """
 @with_kw mutable struct KPS4{S, T, P, Q, SP} <: AbstractKiteModel
     "Reference to the settings struct"
-    set::Settings = se()
+    set::Settings
     "Reference to the KCU model (Kite Control Unit as implemented in the package KitePodModels"
-    kcu::KCU = KCU()
+    kcu::KCU
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
     "Reference to winch model as implemented in the package WinchModels"
-    wm::AbstractWinchModel = AsyncMachine()
+    wm::AbstractWinchModel
     "Iterations, number of calls to the function residual!"
     iter:: Int64 = 0
-    "Function for calculation the lift coefficent, using a spline based on the provided value pairs."
-    calc_cl = Spline1D(se().alpha_cl, se().cl_list)
-    "Function for calculation the drag coefficent, using a spline based on the provided value pairs."
-    calc_cd = Spline1D(se().alpha_cd, se().cd_list)   
+    "Function for calculation the lift coefficient, using a spline based on the provided value pairs."
+    calc_cl::Spline1D
+    "Function for calculation the drag coefficient, using a spline based on the provided value pairs."
+    calc_cd::Spline1D
     "wind vector at the height of the kite" 
     v_wind::T =           zeros(S, 3)
     "wind vector at reference height" 
@@ -85,8 +85,18 @@ $(TYPEDFIELDS)
     v_wind_tether::T =    zeros(S, 3)
     "apparent wind vector at the kite"
     v_apparent::T =       zeros(S, 3)
+    "bridle_factor = set.l_bridle/bridle_length(set)"
+    bridle_factor::S = 1.0
+    "side lift coefficient, the difference of the left and right lift coefficients"
+    side_cl::S = 0.0
     "drag force of kite and bridle; output of calc_aero_forces!"
     drag_force::T =       zeros(S, 3)
+    "side_force acting on the kite"
+    side_force::T =       zeros(S, 3)
+    f_d::T = zeros(S, 3)
+    f_s::T = zeros(S, 3)
+    "max_steering angle in radian"
+    ks::S =               0.0
     "lift force of the kite; output of calc_aero_forces!"
     lift_force::T =       zeros(S, 3)    
     "spring force of the current tether segment, output of calc_particle_forces!"
@@ -99,6 +109,8 @@ $(TYPEDFIELDS)
     res2::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     "a copy of the actual positions as output for the user"
     pos::SVector{P, KVec3} = zeros(SVector{P, KVec3})
+    "a copy of the actual velocities as output for the user"
+    vel::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     "velocity vector of the kite"
     vel_kite::T =          zeros(S, 3)
     "unstressed segment length [m]"
@@ -107,10 +119,22 @@ $(TYPEDFIELDS)
     param_cl::S =         0.2
     "drag coefficient of the kite, depending on the angle of attack"
     param_cd::S =         1.0
-    "azimuth angle in radian; inital value is zero"
+    "azimuth angle in radian; initial value is zero"
     psi::S =              zero(S)
     "depower angle [deg]"
     alpha_depower::S =     0.0
+    "pitch angle [rad]"
+    pitch::S =            0.0
+    "pitch rate [rad/s]"
+    pitch_rate::S =       0.0
+    "aoa at particle B"
+    alpha_2::S =           0.0
+    "aoa at particle C"
+    alpha_3::S =           0.0
+    "aoa at particle D"
+    alpha_4::S =           0.0
+    "side_slip angle [rad]"
+    side_slip::S = 0.0
     "relative start time of the current time interval"
     t_0::S =               0.0
     "reel out speed of the winch"
@@ -125,6 +149,8 @@ $(TYPEDFIELDS)
     depower::S =           0.0
     "actual relative steering setting, must be between -1.0 .. 1.0"
     steering::S =          0.0
+    "steering after the kcu, before applying offset and depower sensitivity, -1.0 .. 1.0"
+    kcu_steering::S =      0.0
     "multiplier for the stiffniss of tether and bridle"
     stiffness_factor::S =  1.0
     "initial masses of the point masses"
@@ -136,7 +162,15 @@ $(TYPEDFIELDS)
     "vector of the forces, acting on the particles"
     forces::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     "synchronous speed of the motor/ generator"
-    sync_speed::S =        0.0
+    sync_speed::Union{S, Nothing} =        0.0
+    "set_torque of the motor/generator"
+    set_torque::Union{S, Nothing} = nothing
+    "set value of the force at the winch, for logging only"
+    set_force::Union{S, Nothing} = nothing
+    "set value of the bearing angle in radians, for logging only"
+    bearing::Union{S, Nothing} = nothing
+    "coordinates of the attractor point [azimuth, elevation] in radian, for logging only"
+    attractor::Union{SVector{2, S}, Nothing} = nothing
     "x vector of kite reference frame"
     x::T =                 zeros(S, 3)
     "y vector of kite reference frame"
@@ -145,10 +179,10 @@ $(TYPEDFIELDS)
     z::T =                 zeros(S, 3)
 end
 
-@inline @inbounds function norm(vec::SVector{3, Float64})
+@inline @inbounds function norm(vec::SVector{3, SimFloat})
     sqrt(vec[1]*vec[1]+vec[2]*vec[2]+vec[3]*vec[3])
 end
-@inline @inbounds function norm(vec::MVector{3, Float64})
+@inline @inbounds function norm(vec::MVector{3, SimFloat})
     sqrt(vec[1]*vec[1]+vec[2]*vec[2]+vec[3]*vec[3])
 end
 
@@ -159,8 +193,9 @@ Initialize the kite power model.
 """
 function clear!(s::KPS4)
     s.t_0 = 0.0                              # relative start time of the current time interval
-    s.v_reel_out = 0.0
-    s.last_v_reel_out = 0.0
+    s.v_reel_out = s.set.v_reel_out
+    s.last_v_reel_out = s.set.v_reel_out
+    s.sync_speed = s.set.v_reel_out
     s.v_wind_gnd    .= [s.set.v_wind, 0, 0]    # wind vector at reference height
     s.v_wind_tether .= [s.set.v_wind, 0, 0]
     s.v_apparent    .= [s.set.v_wind, 0, 0]
@@ -176,11 +211,15 @@ function clear!(s::KPS4)
     end
     s.drag_force .= [0.0, 0, 0]
     s.lift_force .= [0.0, 0, 0]
+    s.side_force .= [0.0, 0, 0]
     s.rho = s.set.rho_0
-    s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
-    s.calc_cd = Spline1D(s.set.alpha_cd, s.set.cd_list) 
+    # s.bridle_factor = s.set.l_bridle / bridle_length(s.set)
+    s.ks = deg2rad(s.set.max_steering) 
     s.kcu.depower = s.set.depower/100.0
     s.kcu.set_depower = s.kcu.depower
+    roll, pitch, yaw = orient_euler(s)
+    s.pitch = pitch
+    s.pitch_rate = 0.0
     KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
 end
 
@@ -193,7 +232,7 @@ function KPS4(kcu::KCU)
     # wm.last_set_speed = kcu.set.v_reel_out
     s = KPS4{SimFloat, KVec3, kcu.set.segments+KITE_PARTICLES+1, kcu.set.segments+KITE_SPRINGS, SP}(set=kcu.set, 
              kcu=kcu, wm=wm, calc_cl = Spline1D(kcu.set.alpha_cl, kcu.set.cl_list), 
-             calc_cd=Spline1D(kcu.set.alpha_cd, kcu.set.cd_list) )       
+             calc_cd=Spline1D(kcu.set.alpha_cd, kcu.set.cd_list) )    
     clear!(s)
     return s
 end
