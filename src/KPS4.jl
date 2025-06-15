@@ -202,11 +202,15 @@ function clear!(s::KPS4)
 end
 
 function KPS4(kcu::KCU)
-    s = KPS4{SimFloat, KVec3, kcu.set.segments+KITE_PARTICLES+1, kcu.set.segments+KITE_SPRINGS, SP}()
-    s.set = kcu.set
-    s.kcu = kcu
-    s.calc_cl = Spline1D(s.set.alpha_cl, s.set.cl_list)
-    s.calc_cd = Spline1D(s.set.alpha_cd, s.set.cd_list)       
+    if kcu.set.winch_model == "AsyncMachine"
+        wm = AsyncMachine(kcu.set)
+    elseif kcu.set.winch_model == "TorqueControlledMachine"
+        wm = TorqueControlledMachine(kcu.set)
+    end
+    # wm.last_set_speed = kcu.set.v_reel_out
+    s = KPS4{SimFloat, KVec3, kcu.set.segments+KITE_PARTICLES+1, kcu.set.segments+KITE_SPRINGS, SP}(set=kcu.set, 
+             kcu=kcu, wm=wm, calc_cl = Spline1D(kcu.set.alpha_cl, kcu.set.cl_list), 
+             calc_cd=Spline1D(kcu.set.alpha_cd, kcu.set.cd_list) )       
     clear!(s)
     return s
 end

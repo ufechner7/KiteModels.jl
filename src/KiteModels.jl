@@ -565,9 +565,13 @@ end
     # Putting some things in `@setup_workload` instead of `@compile_workload` can reduce the size of the
     # precompile file and potentially make loading faster.
     # list = [OtherType("hello"), OtherType("world!")]
-    set_data_path()
-    kps4_::KPS4 = KPS4(KCU(se()))
-    kps3_::KPS3 = KPS3(KCU(se()))
+    path = dirname(pathof(@__MODULE__))
+    set_data_path(joinpath(path, "..", "data"))
+
+    set = se("system.yaml")
+    set.kcu_diameter = 0.0
+    kps4_::KPS4 = KPS4(KCU(set))
+    kps3_::KPS3 = KPS3(KCU(set))
     @compile_workload begin
         # all calls in this block will be precompiled, regardless of whether
         # they belong to your package or not (on Julia 1.8 and higher)

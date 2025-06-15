@@ -47,19 +47,19 @@ $(TYPEDFIELDS)
 """
 @with_kw mutable struct KPS3{S, T, P} <: AbstractKiteModel
     "Reference to the settings struct"
-    set::Settings = se()
+    set::Settings
     "Reference to the KCU model (Kite Control Unit as implemented in the package KitePodModels"
-    kcu::KCU = KCU()
+    kcu::KCU
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
     "Reference to winch model as implemented in the package WinchModels"
-    wm::AbstractWinchModel = AsyncMachine()
+    wm::Union{AbstractWinchModel, Nothing} = nothing
     "Iterations, number of calls to the function residual!"
     iter:: Int64 = 0
     "Function for calculation the lift coefficent, using a spline based on the provided value pairs."
-    calc_cl = Spline1D(se().alpha_cl, se().cl_list)
+    calc_cl::Spline1D
     "Function for calculation the drag coefficent, using a spline based on the provided value pairs."
-    calc_cd = Spline1D(se().alpha_cd, se().cd_list)   
+    calc_cd::Spline1D
     "wind vector at the height of the kite" 
     v_wind::T =           zeros(S, 3)
     "wind vector at reference height" 
@@ -191,8 +191,14 @@ function clear!(s::KPS3)
 end
 
 function KPS3(kcu::KCU)
-    s = KPS3{SimFloat, KVec3, kcu.set.segments+1}()
-    s.set = kcu.set
+    set = kcu.set
+    s = KPS3{SimFloat, KVec3, kcu.set.segments+1}(set=set, kcu=kcu, calc_cl= Spline1D(set.alpha_cl, set.cl_list),
+                                                  calc_cd = Spline1D(set.alpha_cd, set.cd_list))
+    if s.set.winch_model == "AsyncMachine"
+        s.wm = AsyncMachine(s.set)
+    elseif s.set.winch_model == "TorqueControlledMachine"
+        s.wm = TorqueControlledMachine(s.set)
+    end
     s.kcu = kcu  
     clear!(s)
     return s
