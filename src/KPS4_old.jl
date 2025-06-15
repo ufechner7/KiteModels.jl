@@ -1,5 +1,24 @@
-# Copyright (c) 2020, 2021, 2022, 2024 Uwe Fechner
-# SPDX-License-Identifier: MIT
+#= MIT License
+
+Copyright (c) 2020, 2021, 2022, 2024 Uwe Fechner
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. =#
 
 #= Model of a kite-power system in implicit form: residual = f(y, yd)
 
@@ -70,9 +89,9 @@ $(TYPEDFIELDS)
     wm::AbstractWinchModel
     "Iterations, number of calls to the function residual!"
     iter:: Int64 = 0
-    "Function for calculation the lift coefficient, using a spline based on the provided value pairs."
+    "Function for calculation the lift coefficent, using a spline based on the provided value pairs."
     calc_cl::Spline1D
-    "Function for calculation the drag coefficient, using a spline based on the provided value pairs."
+    "Function for calculation the drag coefficent, using a spline based on the provided value pairs."
     calc_cd::Spline1D
     "wind vector at the height of the kite" 
     v_wind::T =           zeros(S, 3)
@@ -84,14 +103,12 @@ $(TYPEDFIELDS)
     v_apparent::T =       zeros(S, 3)
     "bridle_factor = set.l_bridle/bridle_length(set)"
     bridle_factor::S = 1.0
-    "side lift coefficient, the difference of the left and right lift coefficients"
+    "side lift coefficient, the difference of the left and right lift coeficients"
     side_cl::S = 0.0
     "drag force of kite and bridle; output of calc_aero_forces!"
     drag_force::T =       zeros(S, 3)
     "side_force acting on the kite"
     side_force::T =       zeros(S, 3)
-    f_d::T = zeros(S, 3)
-    f_s::T = zeros(S, 3)
     "max_steering angle in radian"
     ks::S =               0.0
     "lift force of the kite; output of calc_aero_forces!"
@@ -106,8 +123,6 @@ $(TYPEDFIELDS)
     res2::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     "a copy of the actual positions as output for the user"
     pos::SVector{P, KVec3} = zeros(SVector{P, KVec3})
-    "a copy of the actual velocities as output for the user"
-    vel::SVector{P, KVec3} = zeros(SVector{P, KVec3})
     "velocity vector of the kite"
     vel_kite::T =          zeros(S, 3)
     "unstressed segment length [m]"
@@ -116,22 +131,20 @@ $(TYPEDFIELDS)
     param_cl::S =         0.2
     "drag coefficient of the kite, depending on the angle of attack"
     param_cd::S =         1.0
-    "azimuth angle in radian; initial value is zero"
+    "azimuth angle in radian; inital value is zero"
     psi::S =              zero(S)
     "depower angle [deg]"
     alpha_depower::S =     0.0
-    "pitch angle [rad]"
-    pitch::S =            0.0
-    "pitch rate [rad/s]"
-    pitch_rate::S =       0.0
-    "aoa at particle B"
+    "aoa at paricle B"
     alpha_2::S =           0.0
-    "aoa at particle C"
+    "aoa at paricle B, corrected formula"
+    alpha_2b::S =          0.0
+    "aoa at paricle C"
     alpha_3::S =           0.0
-    "aoa at particle D"
+    alpha_3b::S =          0.0
+    "aoa at paricle D"
     alpha_4::S =           0.0
-    "side_slip angle [rad]"
-    side_slip::S = 0.0
+    alpha_4b::S =          0.0
     "relative start time of the current time interval"
     t_0::S =               0.0
     "reel out speed of the winch"
@@ -146,8 +159,6 @@ $(TYPEDFIELDS)
     depower::S =           0.0
     "actual relative steering setting, must be between -1.0 .. 1.0"
     steering::S =          0.0
-    "steering after the kcu, before applying offset and depower sensitivity, -1.0 .. 1.0"
-    kcu_steering::S =      0.0
     "multiplier for the stiffniss of tether and bridle"
     stiffness_factor::S =  1.0
     "initial masses of the point masses"
@@ -162,12 +173,6 @@ $(TYPEDFIELDS)
     sync_speed::Union{S, Nothing} =        0.0
     "set_torque of the motor/generator"
     set_torque::Union{S, Nothing} = nothing
-    "set value of the force at the winch, for logging only"
-    set_force::Union{S, Nothing} = nothing
-    "set value of the bearing angle in radians, for logging only"
-    bearing::Union{S, Nothing} = nothing
-    "coordinates of the attractor point [azimuth, elevation] in radian, for logging only"
-    attractor::Union{SVector{2, S}, Nothing} = nothing
     "x vector of kite reference frame"
     x::T =                 zeros(S, 3)
     "y vector of kite reference frame"
@@ -190,9 +195,8 @@ Initialize the kite power model.
 """
 function clear!(s::KPS4)
     s.t_0 = 0.0                              # relative start time of the current time interval
-    s.v_reel_out = s.set.v_reel_out
-    s.last_v_reel_out = s.set.v_reel_out
-    s.sync_speed = s.set.v_reel_out
+    s.v_reel_out = 0.0
+    s.last_v_reel_out = 0.0
     s.v_wind_gnd    .= [s.set.v_wind, 0, 0]    # wind vector at reference height
     s.v_wind_tether .= [s.set.v_wind, 0, 0]
     s.v_apparent    .= [s.set.v_wind, 0, 0]
@@ -214,9 +218,6 @@ function clear!(s::KPS4)
     s.ks = deg2rad(s.set.max_steering) 
     s.kcu.depower = s.set.depower/100.0
     s.kcu.set_depower = s.kcu.depower
-    roll, pitch, yaw = orient_euler(s)
-    s.pitch = pitch
-    s.pitch_rate = 0.0
     KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
 end
 
@@ -226,7 +227,6 @@ function KPS4(kcu::KCU)
     elseif kcu.set.winch_model == "TorqueControlledMachine"
         wm = TorqueControlledMachine(kcu.set)
     end
-    # wm.last_set_speed = kcu.set.v_reel_out
     s = KPS4{SimFloat, KVec3, kcu.set.segments+KITE_PARTICLES+1, kcu.set.segments+KITE_SPRINGS, SP}(set=kcu.set, 
              kcu=kcu, wm=wm, calc_cl = Spline1D(kcu.set.alpha_cl, kcu.set.cl_list), 
              calc_cd=Spline1D(kcu.set.alpha_cd, kcu.set.cd_list) )    
@@ -315,8 +315,8 @@ Updates the vector s.forces of the first parameter.
     # pos_B, pos_C, pos_D: position of the kite particles B, C, and D
     # v_B,   v_C,   v_D:   velocity of the kite particles B, C, and D
     pos_B, pos_C, pos_D = pos[s.set.segments+3], pos[s.set.segments+4], pos[s.set.segments+5]
-    v_A, v_B, v_C, v_D  = vel[s.set.segments+2], vel[s.set.segments+3], vel[s.set.segments+4], vel[s.set.segments+5]
-    va_1, va_2,  va_3,  va_4  = s.v_wind - v_A, s.v_wind - v_B, s.v_wind - v_C, s.v_wind - v_D
+    v_B,   v_C,   v_D   = vel[s.set.segments+3], vel[s.set.segments+4], vel[s.set.segments+5]
+    va_2,  va_3,  va_4  = s.v_wind - v_B, s.v_wind - v_C, s.v_wind - v_D
  
     pos_centre = 0.5 * (pos_C + pos_D)
     delta = pos_B - pos_centre
@@ -325,23 +325,22 @@ Updates the vector s.forces of the first parameter.
     x = y × z
     s.x .= x; s.y .= y; s.z .= z # save the kite reference frame in the state
 
-    va_xz1 = va_1 - (va_1 ⋅ y) * y
     va_xz2 = va_2 - (va_2 ⋅ y) * y
     va_xy3 = va_3 - (va_3 ⋅ z) * z
     va_xy4 = va_4 - (va_4 ⋅ z) * z
-
-    R_k_w = SMatrix{3,3}([x y z])
-    va_k = R_k_w' * SVector{3}(va_2)
-    s.side_slip = atan(va_k[2], -va_k[1])
-
     alpha_2 = rad2deg(π - acos2(normalize(va_xz2) ⋅ x) - alpha_depower)     + s.set.alpha_zero
-    alpha_3 = rad2deg(π - acos2(normalize(va_xy3) ⋅ x) + rel_steering * s.ks) + s.set.alpha_ztip
-    alpha_4 = rad2deg(π - acos2(normalize(va_xy4) ⋅ x) - rel_steering * s.ks) + s.set.alpha_ztip
+    alpha_3 = rad2deg(π - acos2(normalize(va_xy3) ⋅ x) + rel_steering * s.ks * s.set.cs_4p) + s.set.alpha_ztip
+    alpha_4 = rad2deg(π - acos2(normalize(va_xy4) ⋅ x) - rel_steering * s.ks * s.set.cs_4p) + s.set.alpha_ztip
     s.alpha_2 = alpha_2
+    s.alpha_2b = rad2deg(π/2 + asin2(normalize(va_xz2) ⋅ x))
     s.alpha_3 = alpha_3
+    s.alpha_3b = rad2deg(π/2 + asin2(normalize(va_xy3) ⋅ x))
     s.alpha_4 = alpha_4
-
+    s.alpha_4b = rad2deg(π/2 + asin2(normalize(va_xy4) ⋅ x))
     if s.set.version == 3
+        alpha_2 = rad2deg(π/2 + asin2(normalize(va_xz2) ⋅ x) - alpha_depower)     + s.set.alpha_zero
+        alpha_3 = rad2deg(π/2 + asin2(normalize(va_xy3) ⋅ x) - rel_steering * s.ks * s.set.cs_4p) + s.set.alpha_ztip
+        alpha_4 = rad2deg(π/2 + asin2(normalize(va_xy4) ⋅ x) + rel_steering * s.ks * s.set.cs_4p) + s.set.alpha_ztip
         drag_corr = 1.0
     else
         drag_corr = DRAG_CORR
@@ -365,54 +364,7 @@ Updates the vector s.forces of the first parameter.
         s.drag_force .= D2 + D3 + D4
         s.forces[s.set.segments + 3] .+= (L2 + D2)
     end
-    s.f_d .= (0.5 * rho * s.set.area * norm(va_xz1)^2 * s.set.cmq * s.pitch_rate * s.set.cord_length) * s.z
-    s.f_s .= (0.5 * rho * s.set.area * (0.5*(norm(va_xy3)+norm(va_xy4)))^2 * s.set.smc * rel_steering * s.ks) * s.x
-    s.forces[s.set.segments + 2] .+= s.f_d
-    s.forces[s.set.segments + 4] .+= (L3 + D3 -0.5*s.f_d + 0.5*s.f_s)
-    s.forces[s.set.segments + 5] .+= (L4 + D4 -0.5*s.f_d - 0.5*s.f_s)
-    s.side_force .= (L3 + L4)
-end
-
-@inline function calc_aero_forces_old!(s::KPS4, pos, vel, rho, alpha_depower, rel_steering)
-    rel_side_area = s.set.rel_side_area/100.0    # defined in percent
-    K = 1 - rel_side_area                        # correction factor for the drag
-    # pos_B, pos_C, pos_D: position of the kite particles B, C, and D
-    # v_B,   v_C,   v_D:   velocity of the kite particles B, C, and D
-    pos_B, pos_C, pos_D = pos[s.set.segments+3], pos[s.set.segments+4], pos[s.set.segments+5]
-    v_B,   v_C,   v_D   = vel[s.set.segments+3], vel[s.set.segments+4], vel[s.set.segments+5]
-    va_2,  va_3,  va_4  = s.v_wind - v_B, s.v_wind - v_C, s.v_wind - v_D
- 
-    pos_centre = 0.5 * (pos_C + pos_D)
-    delta = pos_B - pos_centre
-    z = -normalize(delta)
-    y = normalize(pos_C - pos_D)
-    x = y × z
-    s.x .= x; s.y .= y; s.z .= z # save the kite reference frame in the state
-
-    va_xz2 = va_2 - (va_2 ⋅ y) * y
-    va_xy3 = va_3 - (va_3 ⋅ z) * z
-    va_xy4 = va_4 - (va_4 ⋅ z) * z
-    alpha_2 = rad2deg(π - acos2(normalize(va_xz2) ⋅ x) - alpha_depower)     + s.set.alpha_zero
-    alpha_3 = rad2deg(π - acos2(normalize(va_xy3) ⋅ x) + rel_steering * s.ks * s.set.cs_4p) + s.set.alpha_ztip
-    alpha_4 = rad2deg(π - acos2(normalize(va_xy4) ⋅ x) - rel_steering * s.ks * s.set.cs_4p) + s.set.alpha_ztip
-    s.alpha_2 = alpha_2
-    s.alpha_3 = alpha_3
-    s.alpha_4 = alpha_4
-    drag_corr = DRAG_CORR
-
-    CL2, CD2 = s.calc_cl(alpha_2), drag_corr * s.calc_cd(alpha_2)
-    CL3, CD3 = s.calc_cl(alpha_3), drag_corr * s.calc_cd(alpha_3)
-    CL4, CD4 = s.calc_cl(alpha_4), drag_corr * s.calc_cd(alpha_4)
-    s.side_cl = CL4 - CL3
-    L2 = (-0.5 * rho * (norm(va_xz2))^2 * s.set.area * CL2) * normalize(va_2 × y)
-    L3 = (-0.5 * rho * (norm(va_xy3))^2 * s.set.area * rel_side_area * CL3) * normalize(va_3 × z)
-    L4 = (-0.5 * rho * (norm(va_xy4))^2 * s.set.area * rel_side_area * CL4) * normalize(z × va_4)
-    D2 = (-0.5 * K * rho * norm(va_2) * s.set.area * CD2) * va_2
-    D3 = (-0.5 * K * rho * norm(va_3) * s.set.area * rel_side_area * CD3) * va_3
-    D4 = (-0.5 * K * rho * norm(va_4) * s.set.area * rel_side_area * CD4) * va_4
-    s.lift_force .= L2
-    s.drag_force .= D2 + D3 + D4
-    s.forces[s.set.segments + 3] .+= (L2 + D2)    
+    
     s.forces[s.set.segments + 4] .+= (L3 + D3)
     s.forces[s.set.segments + 5] .+= (L4 + D4)
     s.side_force .= (L3 + L4)
@@ -532,22 +484,12 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
     # core calculations
     s.l_tether = length
     s.segment_length = length / segments
-    if s.set.version <= 2
-        calc_aero_forces_old!(s, pos, vel, s.rho, s.alpha_depower, s.steering)
-    else
-        calc_aero_forces!(s, pos, vel, s.rho, s.alpha_depower, s.steering)
-    end
+    calc_aero_forces!(s, pos, vel, s.rho, s.alpha_depower, s.steering)
     loop!(s, pos, vel, posd, veld)
 
     # winch calculations
     res[end-1] = lengthd - v_reel_out
-    use_brake = s.wm isa AsyncMachine
-    if !isnothing(s.sync_speed) && s.sync_speed == 0.0
-        use_brake = true
-    end
-
-    res[end] = v_reel_outd - calc_acceleration(s.wm, v_reel_out, norm(s.forces[1]); set_speed=s.sync_speed, 
-               set_torque=s.set_torque, use_brake)
+    res[end] = v_reel_outd - calc_acceleration(s.wm, v_reel_out, norm(s.forces[1]); set_speed=s.sync_speed, set_torque=s.set_torque, use_brake=true)
 
     # copy and flatten result
     for i in 2:div(T,6)+1
@@ -556,10 +498,9 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
             @inbounds res[3*(div(T,6))+3*(i-2)+j] = s.res2[i][j]
         end
     end
-    # copy the position and velocity vectors for easy debugging
+    # copy the position vector for easy debugging
     for i in 1:div(T,6)+1
         @inbounds s.pos[i] .= pos[i]
-        s.vel[i] .= vel[i]
     end
     s.vel_kite .= vel[end-2]
     s.v_reel_out = v_reel_out
@@ -642,7 +583,7 @@ function spring_forces(s::KPS4; prn=true)
     forces = zeros(SimFloat, s.set.segments+KITE_SPRINGS)
     for i in 1:s.set.segments
         forces[i] =  s.springs[i].c_spring * (norm(s.pos[i+1] - s.pos[i]) - s.segment_length) * s.stiffness_factor
-        if forces[i] > s.set.max_force && prn
+        if forces[i] > 4000.0 && prn
             println("Tether raptures for segment $i !")
         end
     end
@@ -669,27 +610,13 @@ function spring_forces(s::KPS4; prn=true)
     forces
 end
 
-function turn(res, upwind_dir)
-    turnangle = upwind_dir + pi/2
-    res2 = zeros(SimFloat, length(res))
-    for i in 1:div(length(res), 3)
-        x = res[3*(i-1)+1]
-        y = res[3*(i-1)+2]
-        res2[3*(i-1)+1] = cos(turnangle) * x + sin(turnangle) * y
-        res2[3*(i-1)+2] = cos(turnangle) * y - sin(turnangle) * x
-        res2[3*(i-1)+3] = res[3*(i-1)+3]
-    end
-    res2
-end
-
 """
-    find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0.035, upwind_dir=-pi/2))
+    find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0.035)
 
-Find an initial equilibrium, based on the initial parameters
+Find an initial equilibrium, based on the inital parameters
 `l_tether`, elevation and `v_reel_out`.
 """
-function find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0.035, upwind_dir=-pi/2)
-    set_v_wind_ground!(s, calc_height(s), s.set.v_wind; upwind_dir=-pi/2)
+function find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0.035)
     s.stiffness_factor = stiffness_factor
     res = zeros(MVector{6*(s.set.segments+KITE_PARTICLES)+2, SimFloat})
     iter = 0
@@ -698,11 +625,7 @@ function find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0
     function test_initial_condition!(F, x::Vector)
         x1 = copy(x)
         y0, yd0 = init(s, x1; delta)
-        try
-            residual!(res, yd0, y0, s, 0.0)
-        catch e
-            println("Warning in test_initial_condition!")
-        end
+        residual!(res, yd0, y0, s, 0.0)
         for i in 1:s.set.segments+KITE_PARTICLES-1
             if i != s.set.segments+KITE_PARTICLES-1
                 j = i
@@ -719,8 +642,6 @@ function find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0
         F[end-1]                               = res[1 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)] 
         # copy the acceleration of point C in y direction
         i = s.set.segments+3 
-        x = res[1 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)]
-        y = res[2 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)]
         F[end]                                 = res[2 + 3*(i-1) + 3*(s.set.segments+KITE_PARTICLES)] 
         iter += 1
         return nothing 
@@ -729,8 +650,5 @@ function find_steady_state!(s::KPS4; prn=false, delta = 0.01, stiffness_factor=0
     X00 = zeros(SimFloat, 2*(s.set.segments+KITE_PARTICLES-1)+2)
     results = nlsolve(test_initial_condition!, X00, autoscale=true, xtol=4e-7, ftol=4e-7, iterations=s.set.max_iter)
     if prn println("\nresult: $results") end
-    y0, yd0 = init(s, results.zero; upwind_dir)
-    set_v_wind_ground!(s, calc_height(s), s.set.v_wind; upwind_dir)
-    residual!(res, yd0, y0, s, 0.0)
-    y0, yd0
+    init(s, results.zero)
 end

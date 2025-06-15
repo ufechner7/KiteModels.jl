@@ -28,6 +28,7 @@ msg = String[]
         kps4.set.damping =  2 * 473.0
         kps4.set.alpha = 1.0/7
         kps4.set.c_s = 0.6
+        @info "Version: $(kps4.set.version)"
     end
 
     function init_392()
