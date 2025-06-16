@@ -6,7 +6,7 @@ let
     STATISTIC = false
     FRONT_VIEW = false
     ZOOM = false
-    PLOT = true
+    PLOT = false
 
     if PLOT
         using Plots

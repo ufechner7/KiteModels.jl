@@ -1,0 +1,31 @@
+#!/bin/bash -eu
+# SPDX-FileCopyrightText: 2025 Uwe Fechner
+# SPDX-License-Identifier: MIT
+
+if [[ $(basename $(pwd)) == "bin" ]]; then
+    cd ..
+fi
+
+cd bin
+./create_sys_image --update
+
+julia_version=$(julia --version | awk '{print($3)}')
+julia_major=${julia_version:0:3}
+if [[ $julia_major == "1.1" ]]; then
+    julia_major=${julia_version:0:4} 
+fi
+
+# TODO run tests
+
+cd ..
+if [[ $julia_major == "1.10" ]]; then
+    cp Manifest-v1.10.toml Manifest-v1.10.toml.default
+    rm -rf ~/.julia/compiled/v1.10/KiteModels/
+    echo "Updated Manifest-v1.10.toml.default !"
+    echo "Make sure to run the tests before committing the new version!"
+else
+    cp Manifest-v1.11.toml Manifest-v1.11.toml.default
+    rm -rf ~/.julia/compiled/v1.11/KiteModels/
+    echo "Updated Manifest-v1.11.toml.default !"
+    echo "Make sure to run the tests before committing the new version!"
+fi
