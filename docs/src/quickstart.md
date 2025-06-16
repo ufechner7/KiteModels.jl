@@ -4,12 +4,74 @@ CurrentModule = KiteModels
 # Quickstart
 
 ## Installation of Julia
-For a quick test of this program, it is NOT needed to install VSCode, git or bash. Just installing Julia is sufficient, and that can be done in a few minutes. On Linux, just execute the command:
+For a quick test of this program, it is NOT needed to install VSCode, git or bash. Just installing Julia is sufficient, and that can be done in a few minutes. 
+
+```@raw html
+<details>
+  <summary>Windows</summary>
 ```
-bash -ci "$(curl -fsSL https://raw.githubusercontent.com/abelsiqueira/jill/master/jill.sh)"
+    
+### Windows
+Please download and install Julia using `juliaup`. Launch the `Command Prompt` app and type:
+
 ```
-On Windows, you can get Julia from the Windows store, or you download and install it from [https://julialang.org/downloads/](https://julialang.org/downloads/) . For Mac there are also different versions available on this download site.
-You do NOT need administrator permissions to install Julia, but make sure to check the option "add to path" when installing.
+winget install julia -s msstore
+juliaup add 1.10
+juliaup update
+```
+If that doesn't work, download [https://install.julialang.org/Julia.appinstaller](https://install.julialang.org/Julia.appinstaller) and double-click on the downloaded file to install it.
+
+#### Optional
+It is suggested to install [Windows Terminal](https://learn.microsoft.com/en-us/windows/terminal/install) . Copy and paste works better, unicode works much better and you can use it with `bash` or `Command Prompt`, whatever you prefer. It is suggested to set one of these two as default using the `Settings` menu of Windows Terminal.
+  
+```@raw html
+</details>
+```
+
+```@raw html
+<details>
+  <summary>Linux</summary>
+```
+
+### Linux
+
+Copy and past the following line to install julia:
+```
+curl -fsSL https://install.julialang.org | sh
+```
+Restart your terminal, and then execute:
+```
+juliaup add 1.10
+juliaup update
+```
+
+It is suggested to add the following line to your ```.bashrc``` file:
+```
+alias jl='./bin/run_julia'
+```
+This makes it possible to run Julia with the shortcut `jl` later.
+
+```@raw html
+</details>
+```
+
+```@raw html
+<details>
+  <summary>Mac</summary>
+```
+
+### Mac
+Please download and install `juliaup` as explained at https://github.com/JuliaLang/juliaup .
+
+Restart your terminal, and then execute:
+```
+juliaup add 1.10
+juliaup update
+```
+
+```@raw html
+</details>
+```
 
 ## Create a test project
 Launch a command prompt and create a folder with the name "test":
@@ -20,60 +82,37 @@ julia --project="."
 ```
 With the last command, we told Julia to create a new project in the current directory.
 
-Then we add the three required packages to our new project. By pressing the key "]"
-we enter the package manager mode where we can add or delete packages.
-```julia
-]
-add KiteUtils
-add KitePodModels
-add KiteModels
-add Plots
-st
-<BACKSPACE>
-```
-The command "st" was not really required, but it is useful to display which versions
-of the packages we have in our project. Another important package manager command
-is the command "up", which updates all packages to the latest compatible versions.
-
-Then, copy the default configuration files and examples to your new project:
+You can copy the examples to your project with:
 ```julia
 using KiteModels
-copy_settings()
-copy_examples()
+KiteModels.install_examples()
 ```
-The first command copies the files `settings.yaml` and `system.yaml` to the folder data.
-They can be customized later. The second command creates an examples folder with some examples.
 
 Your folder structure should now look like this:
 ```
-shell> tree
-.
+shell> tree -d
 ├── data
-│   ├── settings.yaml
-│   └── system.yaml
 ├── examples
-│   ├── compare_kps3_kps4.jl
-│   ├── plot2d.jl
-│   └── simulate.jl
-├── Manifest.toml
-└── Project.toml
+└── test
+    ├── data
+    └── examples
 
-2 directories, 7 files
+5 directories
 ```
-You can access the operating system command line by typing the character ";", you then get a "shell" prompt and can enter operating system commands. To leave shell mode, type \<BACKSLASH\>. 
+You can access the operating system command line by typing the character ";", you then get a "shell" prompt and can enter operating system commands. To leave shell mode, type <BACKSLASH>. 
 On windows you need to type ```tree /f``` instead of ```tree``` to see the files.
 
 ## Executing the first example
 From the Julia prompt you can use the command "include" to execute a script:
 ```
-include("examples/simulate.jl")
+include("examples/simulate_simple.jl")
 ```
 On Windows you need to type "\\\\" instead of "/":
 ```
-include("examples\\simulate.jl")
+include("examples\\simulate_simple.jl")
 ```
-You will see the 4-point kite fly for 30s. If you want to change the settings of the simulation, open the file `simulate.jl`` in your favorite text editor, modify the settings at the beginning of the file and execute the include command again.
-You can use the <TAB> key for autocompletion, for example ```include("ex<TAB>``` completes to ```include("examples\``` which can save a lot of typing. If you type <TAB> again you get a list of files to choose from.
+You will see the 4-point kite fly for 30s. If you want to change the settings of the simulation, open the file `simulate_simple.jl` in your favorite text editor, modify the settings at the beginning of the file and execute the include command again.
+You can use the <TAB> key for autocompletion, for example `include("ex<TAB>` completes to `include("examples\` which can save a lot of typing. If you type <TAB> again you get a list of files to choose from.
 
 Try out changing the following default settings:
 ```

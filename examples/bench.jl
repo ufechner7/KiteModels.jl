@@ -1,15 +1,17 @@
+# Copyright (c) 2022, 2024 Uwe Fechner
+# SPDX-License-Identifier: MIT
 using Printf
-using KiteModels, KitePodModels, KiteUtils
+using KiteModels
 
-set = deepcopy(se())
+if false include("../src/KPS4.jl") end
+
+set = deepcopy(load_settings("system.yaml"))
 
 # the following values can be changed to match your interest
 dt = 0.05
-set.solver="DFBDF" # IDA or DFBDF
+set.solver="DFBDF"              # IDA or DFBDF
+set.linear_solver="GMRES"       # GMRES, LapackDense or Dense
 STEPS = 600
-PLOT = false
-FRONT_VIEW = false
-ZOOM = true
 PRINT = false
 STATISTIC = false
 # end of user parameter section #
@@ -17,8 +19,8 @@ STATISTIC = false
 kcu::KCU = KCU(set)
 kps4::KPS4 = KPS4(kcu)
 
-function simulate(integrator, steps, plot=false)
-    start = integrator.p.iter
+function simulate(integrator, steps)
+    iter = 0
     for i in 1:steps
         if PRINT
             lift, drag = KiteModels.lift_drag(kps4)
@@ -26,12 +28,13 @@ function simulate(integrator, steps, plot=false)
             println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
         end
 
-        KiteModels.next_step!(kps4, integrator, dt=dt)
+        next_step!(kps4, integrator; set_speed=0, dt=dt)
+        iter += kps4.iter
     end
-    (integrator.p.iter - start) / steps
+    iter / steps
 end
 
-integrator = KiteModels.init_sim!(kps4, stiffness_factor=0.04, prn=STATISTIC)
+integrator = KiteModels.init_sim!(kps4; delta=0, stiffness_factor=0.5, prn=STATISTIC)
 
 println("\nStarting simulation...")
 simulate(integrator, 100)
@@ -41,22 +44,22 @@ speed = (STEPS-100) / runtime * dt
 println("Simulation speed: $(round(speed, digits=2)) times realtime.")
 lift, drag = KiteModels.lift_drag(kps4)
 println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
-println("Average number of callbacks per time step: $av_steps")
+println("Average number of callbacks per time step: $(round(av_steps, digits=2))")
 
 # Ryzen 7950X, GMRES solver
-# Total simulation time: 0.666 s
-# Simulation speed: 37.53 times realtime.
-# lift, drag  [N]: 597.72, 129.35
-# Average number of callbacks per time step: 378.63
+# Total simulation time: 0.418 s
+# Simulation speed: 59.77 times realtime.
+# lift, drag  [N]: 597.54, 129.31
+# Average number of callbacks per time step: 234.5
 
 # Ryzen 7950X, LapackDense solver
-# Total simulation time: 2.216 s
-# Simulation speed: 11.28 times realtime.
-# lift, drag  [N]: 597.56, 129.31
-# Average number of callbacks per time step: 1413.298
+# Total simulation time: 0.36 s
+# Simulation speed: 69.39 times realtime.
+# lift, drag  [N]: 597.55, 129.31
+# Average number of callbacks per time step: 227.8
 
 # Ryzen 7950X, DFBDF solver
-# Total simulation time: 0.332 s
-# Simulation speed: 75.25 times realtime.
-# lift, drag  [N]: 755.2, 168.82
-# Average number of callbacks per time step: 227.5
+# Total simulation time: 0.105 s
+# Simulation speed: 238.6 times realtime.
+# lift, drag  [N]: 598.0, 129.43
+# Average number of callbacks per time step:  64.0

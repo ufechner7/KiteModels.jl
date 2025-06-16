@@ -1,10 +1,10 @@
-using Printf
-using KiteModels, KitePodModels, KiteUtils
+# Copyright (c) 2022, 2024 Uwe Fechner
+# SPDX-License-Identifier: MIT
 
-set = deepcopy(se())
-# for the IDA solver a low tolerance is needed to be stable during reel-out
-# set.abs_tol=0.00006
-# set.rel_tol=0.000001
+using Printf
+using KiteModels
+
+set = deepcopy(load_settings("system.yaml"))
 
 # the following values can be changed to match your interest
 dt = 0.05
@@ -12,7 +12,7 @@ set.solver="DFBDF" # IDA or DFBDF
 STEPS = 600
 PLOT = true
 FRONT_VIEW = false
-ZOOM = false
+ZOOM = true
 PRINT = false
 STATISTIC = false
 ALPHA_ZERO = 8.8 
@@ -24,22 +24,20 @@ set.version = 2
 kcu::KCU = KCU(set)
 kps4::KPS4 = KPS4(kcu)
 
-if PLOT
+# if PLOT
     using Pkg
-    if ! ("Plots" ∈ keys(Pkg.project().dependencies))
+    if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
         using TestEnv; TestEnv.activate()
     end
-    using Plots
-    Plots.__init__()
-    include("plot2d.jl")
-end
+    using ControlPlots
+# end
 
 v_time = zeros(STEPS)
 v_speed = zeros(STEPS)
 v_force = zeros(STEPS)
 
 function simulate(integrator, steps, plot=false)
-    start = integrator.p.iter
+    iter = 0
     for i in 1:steps
         if PRINT
             lift, drag = KiteModels.lift_drag(kps4)
@@ -50,24 +48,25 @@ function simulate(integrator, steps, plot=false)
         if kps4.t_0 > 15.0
             acc = 0.1
         end
-        v_ro = kps4.sync_speed+acc*dt
+        set_speed = kps4.sync_speed+acc*dt
         v_time[i] = kps4.t_0
         v_speed[i] = kps4.v_reel_out
         v_force[i] = winch_force(kps4)
-        KiteModels.next_step!(kps4, integrator, v_ro = v_ro, dt=dt)
+        next_step!(kps4, integrator; set_speed, dt)
+        iter += kps4.iter
         
         if plot
-            reltime = i*dt
-            if mod(i, 5) == 0
-                p = plot2d(kps4.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=se().segments)
-                display(p)                
+            reltime = i*dt-dt
+            if mod(i, 5) == 1
+                plot2d(kps4.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, xlim=(35,75),
+                                        segments=set.segments, fig="side_view")            
             end
         end
     end
-    (integrator.p.iter - start) / steps
+    iter / steps
 end
 
-integrator = KiteModels.init_sim!(kps4, stiffness_factor=0.04, prn=STATISTIC)
+integrator = KiteModels.init_sim!(kps4; delta=0, stiffness_factor=1, prn=STATISTIC)
 kps4.sync_speed = 0.0
 
 if PLOT
@@ -83,12 +82,11 @@ else
 end
 lift, drag = KiteModels.lift_drag(kps4)
 println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
-println("Average number of callbacks per time step: $av_steps")
+println("Average number of callbacks per time step: $(round(av_steps, digits=2))")
 
 if PLOT
-    p1 = plot(v_time, v_speed, ylabel="v_reelout  [m/s]", legend=false)
-    p2 = plot(v_time, v_force, ylabel="tether_force [N]", legend=false)
-    plot(p1, p2, layout = (2, 1), legend = false)
+    p = plotx(v_time, v_speed, v_force; ylabels=["v_reelout  [m/s]","tether_force [N]"], fig="winch")
+    display(p)
 end
 # savefig("docs/src/reelout_force_4p.png")
 
@@ -99,10 +97,10 @@ end
 # Average number of callbacks per time step: 625.604
 
 # Solver: DFBDF, reltol=0.001
-# Total simulation time: 0.178 s
-# Simulation speed: 140.08 times realtime.
-# lift, drag  [N]: 558.69, 105.3
-# Average number of callbacks per time step: 114.64
+# Total simulation time: 0.165 s
+# Simulation speed: 151.64 times realtime.
+# lift, drag  [N]: 545.61, 102.62
+# Average number of callbacks per time step: 101.33
 
 # Solver: IDA
 # Total simulation time: 1.385 s

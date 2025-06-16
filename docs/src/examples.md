@@ -11,35 +11,28 @@ julia --project="."
 ```
 With the last command, we told Julia to create a new project in the current directory.
 
-Then we add the three required packages to our new project. By pressing the key "]"
-we enter the package manager mode where we can add or delete packages.
+Then add KiteModels from  Julia's package manager, by typing:
 ```julia
-]
-add KiteUtils
-add KitePodModels
-add KiteModels
-st
-<BACKSPACE>
-```
-The command "st" was not really required, but it is useful to display which versions
-of the packages we have in our project. Another important package manager command
-is the command "up", which updates all packages to the latest compatible versions.
+using Pkg
+pkg"add KiteModels"
+``` 
 
-Then, copy the default configuration files and examples to your new project:
+You can copy the examples to your project with:
 ```julia
 using KiteModels
-copy_settings()
-copy_examples()
+KiteModels.install_examples()
 ```
-The first command copies the files settings.yaml and system.yaml to the folder data.
-They can be customized later. The second command creates an examples folder with some examples.
+This also adds the extra packages, needed for the examples to the project. Furthermore, it creates a folder `data` with some example input files. You can now run the examples with the command:
+```julia
+include("examples/menu.jl")
+```
 
 ## Plotting the initial state
-First, an instance of the model of the kite control unit (KCU) is created which is needed by the Kite Power System model KPS3. Then we create a kps instance, passing the kcu model as parameter. We need to declare these variables as const to achieve a decent performance.
+First, an instance of the model of the kite control unit (KCU) is created which is needed by the Kite Power System model KPS3. Then we create a kps instance, passing the kcu model as parameter. We need to declare the type these variables to achieve a decent performance.
 ```julia
 using KiteModels
-const kcu = KCU(se())
-const kps = KPS3(kcu)
+kcu::KCU = KCU(se())
+kps::KPS3 = KPS3(kcu)
 ```
 Then we call the function `find_steady_state` which uses a non-linear solver to find the solution for a given elevation angle, reel-out speed and wind speed. 
 ```julia
@@ -54,11 +47,10 @@ for i in 1:length(kps.pos)
      push!(z, kps.pos[i][3])
 end
 ```
-And finally, we plot the position of the particles in the x-z plane. When you type ```using Plots``` you will be asked if you want to install the Plots package. Just press \<ENTER\> and it gets installed.
+And finally, we plot the position of the particles in the x-z plane. When you type ```using ControlPlots``` you will be asked if you want to install the ControlPlots package. Just press \<ENTER\> and it gets installed.
 ```julia
-using Plots
-plot(x,z, xlabel="x [m]", ylabel="z [m]", legend=false)
-plot!(x, z, seriestype = :scatter)
+using ControlPlots
+plot(x,z, xlabel="x [m]", ylabel="z [m]", scatter=true)
 ```
 ### Inital State
 ![Initial State](initial_state.png)

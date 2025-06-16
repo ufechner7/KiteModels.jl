@@ -1,7 +1,11 @@
-using Printf
-using KiteModels, KitePodModels, KiteUtils
+# Copyright (c) 2022, 2024 Uwe Fechner
+# SPDX-License-Identifier: MIT
 
-set = deepcopy(se())
+using Printf
+# simulate the effect of steering the kite using the one point kite model
+using KiteModels
+
+set = deepcopy(load_settings("system.yaml"))
 
 set.abs_tol=0.0006
 set.rel_tol=0.00001
@@ -10,8 +14,8 @@ set.rel_tol=0.00001
 dt = 0.05
 STEPS = 600
 PLOT = true
-FRONT_VIEW = false
-ZOOM = true
+FRONT_VIEW = true
+ZOOM = false
 PRINT = false
 STATISTIC = false
 # end of user parameter section #
@@ -21,16 +25,15 @@ kps3::KPS3 = KPS3(kcu)
 
 if PLOT
     using Pkg
-    if ! ("Plots" ∈ keys(Pkg.project().dependencies))
+    if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
         using TestEnv; TestEnv.activate()
     end
-    using Plots
-    Plots.__init__()
-    include("plot2d.jl")
+    using ControlPlots
 end
 
 function simulate(integrator, steps, plot=false)
-    start = integrator.p.iter
+    iter = 0
+    lines, sc, txt = nothing, nothing, nothing
     for i in 1:steps
         if PRINT
             lift, drag = KiteModels.lift_drag(kps3)
@@ -47,20 +50,21 @@ function simulate(integrator, steps, plot=false)
         end
 
 
-        KiteModels.next_step!(kps3, integrator, dt=dt)
+        next_step!(kps3, integrator; set_speed=0, dt)
+        iter += kps3.iter
 
         if plot
-            reltime = i*dt
-            if mod(i, 5) == 0
-                p = plot2d(kps3.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=se().segments)
-                display(p)                
+            reltime = i*dt-dt
+            if mod(i, 5) == 1
+                lines, sc, txt = plot2d(kps3.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=set.segments, 
+                                        lines, sc, txt, fig="simulate_steering")       
             end
         end
     end
-    (integrator.p.iter - start) / steps
+    iter / steps
 end
 
-integrator = KiteModels.init_sim!(kps3, stiffness_factor=0.04, prn=STATISTIC)
+integrator = KiteModels.init_sim!(kps3; delta=0, stiffness_factor=0.04, prn=STATISTIC)
 
 if PLOT
     av_steps = simulate(integrator, STEPS, true)
@@ -74,7 +78,6 @@ else
 end
 lift, drag = KiteModels.lift_drag(kps3)
 println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
-println("Average number of callbacks per time step: $av_steps")
+println("Average number of callbacks per time step: $(round(av_steps, digits=2))")
 
-# 30 to 39 times realtime in 504 iterations with integrator :Dense
-# 30 to 40 times realtime in 388 iterations with integrator :GMRES
+# 407 times realtime with 45.74 callbacks per time step

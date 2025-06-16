@@ -1,11 +1,10 @@
+# Copyright (c) 2022, 2024 Uwe Fechner
+# SPDX-License-Identifier: MIT
+
 using Printf
-using KiteModels, KitePodModels, KiteUtils
+using KiteModels
 
-set = deepcopy(se())
-
-# for the IDA solver a low tolerance is needed to be stable during reel-out
-# set.abs_tol=0.00006
-# set.rel_tol=0.000001
+set = deepcopy(load_settings("system.yaml"))
 
 # the following values can be changed to match your interest
 dt = 0.05
@@ -19,17 +18,14 @@ STATISTIC = false
 # end of user parameter section #
 
 kcu::KCU = KCU(set)
-kps4::KPS4 = KPS4(kcu)
 kps3::KPS3 = KPS3(kcu)
 
 if PLOT
     using Pkg
-    if ! ("Plots" ∈ keys(Pkg.project().dependencies))
+    if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
         using TestEnv; TestEnv.activate()
     end
-    using Plots
-    Plots.__init__()
-    include("plot2d.jl")
+    using ControlPlots
 end
 
 v_time = zeros(STEPS)
@@ -37,7 +33,7 @@ v_speed = zeros(STEPS)
 v_force = zeros(STEPS)
 
 function simulate(integrator, steps, plot=false)
-    start = integrator.p.iter
+    iter = 0
     for i in 1:steps
         if PRINT
             lift, drag = KiteModels.lift_drag(kps3)
@@ -48,24 +44,24 @@ function simulate(integrator, steps, plot=false)
         if kps3.t_0 > 15.0
             acc = 0.1
         end
-        v_ro = kps3.sync_speed+acc*dt
+        set_speed = kps3.sync_speed+acc*dt
         v_time[i] = kps3.t_0
         v_speed[i] = kps3.v_reel_out
         v_force[i] = winch_force(kps3)
-        KiteModels.next_step!(kps3, integrator, v_ro = v_ro, dt=dt)
-        
-        if plot
-            reltime = i*dt
-            if mod(i, 5) == 0
-                p = plot2d(kps3.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, segments=se().segments)
-                display(p)                
+        next_step!(kps3, integrator; set_speed, dt)
+        iter += kps3.iter
+        if plot 
+            reltime = i*dt-dt
+            if mod(i, 5) == 1
+                plot2d(kps3.pos, reltime; zoom=ZOOM, front=FRONT_VIEW, 
+                                        segments=set.segments, fig="side_view")             
             end
         end
     end
-    (integrator.p.iter - start) / steps
+    iter / steps
 end
 
-integrator = KiteModels.init_sim!(kps3, stiffness_factor=0.04, prn=STATISTIC)
+integrator = KiteModels.init_sim!(kps3, delta=0, stiffness_factor=0.04, prn=STATISTIC)
 kps3.sync_speed = 0.0
 
 if PLOT
@@ -80,9 +76,8 @@ else
 end
 lift, drag = KiteModels.lift_drag(kps3)
 println("lift, drag  [N]: $(round(lift, digits=2)), $(round(drag, digits=2))")
-println("Average number of callbacks per time step: $av_steps")
+println("Average number of callbacks per time step: $(round(av_steps, digits=2))")
 
-p1 = plot(v_time, v_speed, ylabel="v_reelout  [m/s]", legend=false)
-p2 = plot(v_time, v_force, ylabel="tether_force [N]", legend=false)
-plot(p1, p2, layout = (2, 1), legend = false)
+p1 = plotx(v_time, v_speed, v_force; ylabels=["v_reelout  [m/s]", "tether_force [N]"], fig="winch")
+display(p1)
 # savefig("docs/src/reelout_force_1p.png")
