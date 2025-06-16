@@ -7,10 +7,11 @@ using KiteModels, KitePodModels
 if ! @isdefined SEGMENTS
     const SEGMENTS = se().segments
 end
-if ! @isdefined kcu
-    const kcu = KCU(se())
-    const kps = KPS3(kcu)
-end
+
+set_data_path(joinpath(dirname(dirname(pathof(KiteModels))), "data"))
+set = load_settings("system.yaml")
+kcu::KCU = KCU(set)
+kps::KPS3 = KPS3(kcu)
 
 res1 = zeros(SVector{SEGMENTS+1, KiteModels.KVec3})
 res2 = deepcopy(res1)
