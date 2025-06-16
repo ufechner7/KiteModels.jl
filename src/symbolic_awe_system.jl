@@ -269,7 +269,7 @@ function init_sim!(s::SymbolicAWEModel;
         inputs = create_sys!(s, s.sys_struct; init_va_b)
         prn && @info "Simplifying the system"
         prn ? (@time (sys, _) = structural_simplify(s.full_sys, (inputs, []))) :
-            ((sys, _) = structural_simplify(sys, (inputs, [])))
+            ((sys, _) = structural_simplify(s.full_sys, (inputs, [])))
         s.sys = sys
         dt = SimFloat(1/s.set.sample_freq)
         if prn
