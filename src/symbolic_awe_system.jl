@@ -2,8 +2,6 @@
 # SPDX-License-Identifier: MIT
 
 @with_kw mutable struct SerializedModel
-    "Reference to the settings struct"
-    set::Settings
     set_hash::UInt64
     "Reference to the geometric wing model"
     vsm_wings::Vector{VortexStepMethod.RamAirWing}
@@ -11,8 +9,6 @@
     vsm_aeros::Vector{VortexStepMethod.BodyAerodynamics}
     "Reference to the VSM aerodynamics solver"
     vsm_solvers::Vector{VortexStepMethod.Solver}
-    "Reference to the point mass system with points, segments, pulleys and tethers"
-    sys_struct::SystemStructure
     sys_struct_hash::UInt64
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
@@ -69,6 +65,10 @@ use the input and output functions instead.
 $(TYPEDFIELDS)
 """
 @with_kw mutable struct SymbolicAWEModel <: AbstractKiteModel
+    "Reference to the settings struct"
+    set::Settings
+    "Reference to the point mass system with points, segments, pulleys and tethers"
+    sys_struct::SystemStructure
     serialized_model::SerializedModel
     integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Nothing} = nothing
     "relative start time of the current time interval"
@@ -104,21 +104,11 @@ function SymbolicAWEModel(
     vsm_wings = [aero.wings[1] for aero in vsm_aeros]
     set_hash = get_set_hash(set)
     sys_struct_hash = get_sys_struct_hash(sys_struct)
-    serialized_model = SerializedModel(; set, set_hash, sys_struct, sys_struct_hash, vsm_wings, vsm_aeros, vsm_solvers)
-    return SymbolicAWEModel(; serialized_model)
+    serialized_model = SerializedModel(; set_hash, sys_struct_hash, vsm_wings, vsm_aeros, vsm_solvers)
+    return SymbolicAWEModel(; set, sys_struct, serialized_model)
 end
 
 function SymbolicAWEModel(set::Settings)
-    model_path = joinpath(KiteUtils.get_data_path(), get_model_name(set))
-    if ispath(model_path)
-        try
-            serialized_model = deserialize(model_path)
-            @assert get_set_hash(set) == serialized_model.set_hash
-            return SymbolicAWEModel(; serialized_model)
-        catch
-            @warn "Failure to deserialize $model_path !"
-        end
-    end
     wing = RamAirWing(set; prn=false)
     aero = BodyAerodynamics([wing])
     vsm_solver = Solver(aero; solver_type=NONLIN, atol=2e-8, rtol=2e-8)

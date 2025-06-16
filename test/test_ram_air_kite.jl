@@ -14,7 +14,7 @@ set_data_path(temp_data_path)
 
 # Testing tolerance
 const TOL = 1e-5
-const BUILD_SYS = true
+const BUILD_SYS = false
 
 @testset verbose = true "SymbolicAWEModel MTK Model Tests" begin
     # Initialize model
@@ -37,10 +37,10 @@ const BUILD_SYS = true
         if BUILD_SYS
             # Delete existing problem file to force init!
             @info "Data path: $(get_data_path())"
-            prob_path = joinpath(get_data_path(), KiteModels.get_prob_name(s.set))
-            if isfile(prob_path)
-                @info "Removing existing serialized problem from $prob_path to test full initialization"
-                rm(prob_path)
+            model_path = joinpath(get_data_path(), KiteModels.get_model_name(s.set))
+            if isfile(model_path)
+                @info "Removing existing serialized problem from $model_path to test full initialization"
+                rm(model_path)
             end
 
             # 1. First time initialization - should create new model
@@ -48,7 +48,7 @@ const BUILD_SYS = true
             @time KiteModels.init_sim!(s; prn=true)
 
             # Check that serialization worked
-            @test isfile(prob_path)
+            @test isfile(model_path)
 
             # Check initialization results
             @test !isnothing(s.integrator)
@@ -110,11 +110,7 @@ const BUILD_SYS = true
     @testset "State Consistency" begin
         KiteModels.init_sim!(s, prn=true, reload=false)
         sys_state_before = KiteModels.SysState(s)
-
-        # Check quaternion normalization
         @test isapprox(norm(s.integrator[s.sys.Q_b_w]), 1.0, atol=TOL)
-
-        # Check elevation matches measurement
         @test isapprox(sys_state_before.elevation, deg2rad(set.elevation), atol=1e-2)
 
         # Change measurement and reinitialize

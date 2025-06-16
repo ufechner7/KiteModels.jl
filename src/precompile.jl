@@ -45,34 +45,31 @@ end
     kps3_::KPS3 = KPS3(KCU(set))
     ver = "$(VERSION.major).$(VERSION.minor)_"
 
-    set = load_settings("system_ram.yaml")
-    set.segments = 3
-    set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
-    set.quasi_static = false
-    set.physical_model = "ram"
-    model_name   = get_model_name(set)
-    model_file   = normpath(joinpath(path, "..", "data", model_name))
-    output_file = normpath(joinpath(path, "..", "data", model_name * ".default"))
-    input_file  = normpath(joinpath(path, "..", "data", model_name * ".default.xz"))
-    if isfile(input_file) && ! isfile(output_file)
-        using CodecXz
-        decompress_binary(input_file, output_file)
-        @info "Decompressed $input_file to $output_file"
-    elseif isfile(output_file)
-        @info "Output file $output_file already exists, skipping decompression."
-    else
-        @error "Input file $input_file does not exist, skipping decompression."
-    end
-
     @assert ! isnothing(kps4_.wm)
     @compile_workload begin
-        set = load_settings("system.yaml")
         # all calls in this block will be precompiled, regardless of whether(
         # they belong to your package or not (on Julia 1.8 and higher)
         integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
         integrator = KiteModels.init_sim!(kps4_; delta=0.03, stiffness_factor=0.05, prn=false)
 
-        set = load_settings("system_ram.yaml")
+        sam_set = load_settings("system_ram.yaml")
+        sam_set.segments = 3
+        set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
+        sam_set.quasi_static = false
+        sam_set.physical_model = "ram"
+        model_name   = get_model_name(sam_set)
+        model_file   = normpath(joinpath(path, "..", "data", model_name))
+        output_file = normpath(joinpath(path, "..", "data", model_name * ".default"))
+        input_file  = normpath(joinpath(path, "..", "data", model_name * ".default.xz"))
+        if isfile(input_file) && ! isfile(output_file)
+            using CodecXz
+            decompress_binary(input_file, output_file)
+            @info "Decompressed $input_file to $output_file"
+        elseif isfile(output_file)
+            @info "Output file $output_file already exists, skipping decompression."
+        else
+            @error "Input file $input_file does not exist, skipping decompression."
+        end
         if VERSION.minor == 11
             m1 = "Manifest-v1.11.toml"
             m2 = "Manifest-v1.11.toml.default"
@@ -87,7 +84,7 @@ end
         end
         # Check if the output file exists and is the same as the input file
         if isfile(output_file) && filecmp(m1, m2)
-            s = SymbolicAWEModel(set)
+            s = SymbolicAWEModel(sam_set)
 
             # Initialize at elevation
             KiteModels.init_sim!(s; prn=false, precompile=true)
