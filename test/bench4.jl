@@ -138,6 +138,7 @@ msg = String[]
     # Julia 1.10 on Laptop on battery: 1047ns
     # Julia 1.11 on Laptop on battery: 1035ns
     # Julia 1.11 on Laptop on battery: 1779ns (using KiteUtils 0.10.10)
+    # Julia 1.11 on Desktop on main branch: 1098ns 
 end
 printstyled("Benchmark results for KPS4:\n"; bold = true)
 for i in eachindex(msg)
