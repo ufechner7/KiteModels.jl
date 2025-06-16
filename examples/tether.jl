@@ -24,10 +24,10 @@ for i in 1:set.segments
     push!(segment_idxs, segment_idx)
 end
 
-system_structure = SystemStructure("tether"; points, segments)
-plot(system_structure, 0.0)
+sys_struct = SystemStructure("tether"; points, segments)
+plot(sys_struct, 0.0)
 
-model = SymbolicAWEModel(set, system_structure)
+model = SymbolicAWEModel(set, sys_struct)
 
 init_sim!(model; remake=false)
 for i in 1:100

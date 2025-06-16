@@ -1,5 +1,4 @@
 # SPDX-FileCopyrightText: 2025 Uwe Fechner, Bart van de Lint
-#
 # SPDX-License-Identifier: MIT
 
 using Pkg
@@ -12,7 +11,7 @@ using ControlPlots, VortexStepMethod
 using KiteModels
 using Documenter
 
-DocMeta.setdocmeta!(KiteModels, :DocTestSetup, :(using KitePodSimulator); recursive=true)
+DocMeta.setdocmeta!(KiteModels, :DocTestSetup, :(using KiteModels); recursive=true)
 
 makedocs(;
     modules=[KiteModels],
