@@ -180,28 +180,28 @@ struct Transform
     idx::Int16
     elevation::SimFloat # The elevation of the rotating point or kite as seen from the base point
     azimuth::SimFloat # The azimuth of the rotating point or kite as seen from the base point
+    heading::SimFloat
     wing_idx::Union{Int16, Nothing}
     rot_point_idx::Union{Int16, Nothing}
     base_point_idx::Int16
-    heading::SimFloat
     base_pos::Union{KVec3, Nothing}
     base_transform_idx::Union{Int16, Nothing}
 end
-function Transform(idx, elevation, azimuth, base_pos::AbstractVector, base_point_idx; wing_idx=1, rot_point_idx=nothing, heading=0.0)
+function Transform(idx, elevation, azimuth, heading, base_pos::AbstractVector, base_point_idx; wing_idx=1, rot_point_idx=nothing, heading=0.0)
     (isnothing(wing_idx) + isnothing(rot_point_idx) != 1) && error("Either provide a wing_idx or a rot_point_idx, not both or none.")
-    Transform(idx, elevation, azimuth, wing_idx, rot_point_idx, base_point_idx, heading, base_pos, nothing)
+    Transform(idx, elevation, azimuth, heading, wing_idx, rot_point_idx, base_point_idx, heading, base_pos, nothing)
 end
-function Transform(idx, elevation, azimuth, base_transform_idx::Int, base_point_idx; wing_idx=1, rot_point_idx=nothing, heading=0.0)
+function Transform(idx, elevation, azimuth, heading, base_transform_idx::Int, base_point_idx; wing_idx=1, rot_point_idx=nothing, heading=0.0)
     (isnothing(wing_idx) + isnothing(rot_point_idx) != 1) && error("Either provide a wing_idx or a rot_point_idx, not both or none.")
     (base_transform >= idx) && error("You have to provide a Transform with a lower idx than the current one.")
-    Transform(idx, elevation, azimuth, wing_idx, rot_point_idx, base_point_idx, heading, nothing, base_transform_idx)
+    Transform(idx, elevation, azimuth, heading, wing_idx, rot_point_idx, base_point_idx, heading, nothing, base_transform_idx)
 end
 
 function get_rot_pos(transform::Transform, wings, points)
     if !isnothing(transform.wing_idx)
-        return wings[transform.wing_idx].pos_b
+        return wings[transform.wing_idx].pos_w
     elseif !isnothing(transform.rot_point_idx)
-        return points[transform.rot_point_idx].pos_b
+        return points[transform.rot_point_idx].pos_w
     end
 end
 
@@ -317,12 +317,12 @@ function init!(transforms::Vector{Transform}, sys_struct::SystemStructure)
         T = base_pos - curr_base_pos
         for point in points
             if point.transform_idx == transform.idx
-                point.pos_w .= point.pos_b + T
+                point.pos_w .= point.pos_b .+ T
             end
         end
         for wing in wings
             if wing.transform_idx == transform.idx
-                wing.pos_w .= wing.pos_b + T
+                wing.pos_w .= wing.pos_b .+ T
             end
         end
 
@@ -335,14 +335,14 @@ function init!(transforms::Vector{Transform}, sys_struct::SystemStructure)
 
         for point in points
             if point.transform_idx == transform.idx
-                vec = point.pos_b - base_pos
+                vec = point.pos_w - base_pos
                 vec_along_x = rotate_around_x(curr_R_t_w' * vec, transform.heading)
                 point.pos_w .= base_pos + R_t_w * vec_along_x
             end
         end
         for wing in wings
             if wing.transform_idx == transform.idx
-                vec = wing.pos_b - base_pos
+                vec = wing.pos_w - base_pos
                 vec_along_x = rotate_around_x(curr_R_t_w' * vec, transform.heading)
                 wing.pos_w .= base_pos + R_t_w * vec_along_x
             end
@@ -503,7 +503,7 @@ function create_ram_system_structure(set::Settings, vsm_wing::RamAirWing)
     winches = [winches; Winch(3, TorqueControlledMachine(set), [right_steering_idx], set.l_tether)]
 
     wings = [Wing(1, [1,2,3,4])]
-    transforms = [Transform(1, deg2rad(set.elevation), deg2rad(set.azimuth), zeros(3), points[end].idx)]
+    transforms = [Transform(1, deg2rad(set.elevation), deg2rad(set.azimuth), deg2rad(set.heading), zeros(3), points[end].idx)]
     
     return SystemStructure(set.physical_model; points, groups, segments, pulleys, tethers, winches, wings, transforms)
 end
