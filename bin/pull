@@ -1,0 +1,11 @@
+#!/bin/bash -eu
+# SPDX-FileCopyrightText: 2025 Uwe Fechner
+# SPDX-License-Identifier: MIT
+
+if [[ $(basename $(pwd)) == "bin" ]]; then
+    cd ..
+fi
+git pull
+cd ../pykitesim
+git pull
+cd -

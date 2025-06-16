@@ -137,7 +137,7 @@ push!(msg, ("Mean time residual!:           $(round(mean(t.times), digits=1)) ns
 # Julia 1.11 on Desktop, branch 2024-04-11 835..892 ns on June 16, 2025
 # Julia 1.11 on Desktop, branch perf2:    1089-1149 ns on June 16, 2025
 end
-end
+
 for i in eachindex(msg)
     println(msg[i])
 end

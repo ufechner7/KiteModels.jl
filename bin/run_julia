@@ -1,29 +1,45 @@
-#!/bin/bash
+#!/bin/bash -eu
+# SPDX-FileCopyrightText: 2025 Uwe Fechner
+# SPDX-License-Identifier: MIT
 
 if [[ $(basename $(pwd)) == "bin" ]]; then
     cd ..
 fi
+
+export JULIA_PKG_SERVER_REGISTRY_PREFERENCE=eager
 
 julia_version=$(julia --version | awk '{print($3)}')
 julia_major=${julia_version:0:3} 
 if [[ $julia_major == "1.1" ]]; then
     julia_major=${julia_version:0:4} 
 fi
-branch=$(git rev-parse --abbrev-ref HEAD)
 
-if [[ $julia_major == "1.10" ]]; then
-    if [[ $HOSTNAME == "ufryzen" || $HOSTNAME == "TUD262682" ]]; then
-        GCT="--gcthreads=8,1"
-    else
-        GCT="--gcthreads=4,1"
-    fi
+if [ -d .git ] || git rev-parse --git-dir > /dev/null 2>&1 ; then
+    branch=$(git rev-parse --abbrev-ref HEAD | sed 's/\//-/g')
 else
-    GCT=""
+    branch=""
 fi
 
-if test -f "bin/kps-image-${julia_major}-${branch}.so"; then
-    echo "Found system image!"
-    julia -J  bin/kps-image-${julia_major}-${branch}.so -t 1 $GCT --project
+if [[ $HOSTNAME == "ufryzen" || $HOSTNAME == "framework" ]]; then
+    GCT="--gcthreads=8,1"
+    # export NO_MTK=true
+    export USE_V9=true
 else
-    julia $GCT --project
+    GCT="--gcthreads=4,1"
+fi
+
+if [[ $branch != "" ]]; then
+    if test -f "bin/kps-image-${julia_major}-${branch}.so"; then
+        echo "Found system image!"
+        julia +${julia_major} -J  bin/kps-image-${julia_major}-${branch}.so -t 1 $GCT --project -i -e 'using KiteModels'
+    else
+        julia +${julia_major} $GCT --project  -i # -e 'using KiteModels'
+    fi
+else
+    if test -f "bin/kps-image-${julia_major}.so"; then
+        echo "Found system image!"
+        julia +${julia_major} -J  bin/kps-image-${julia_major}.so -t 1 $GCT --project -i -e 'using KiteModels'
+    else
+        julia +${julia_major} $GCT --project -i # -e 'using KiteModels'
+    fi
 fi
