@@ -187,14 +187,14 @@ struct Transform
     base_pos::Union{KVec3, Nothing}
     base_transform_idx::Union{Int16, Nothing}
 end
-function Transform(idx, elevation, azimuth, heading, base_pos::AbstractVector, base_point_idx; wing_idx=1, rot_point_idx=nothing, heading=0.0)
+function Transform(idx, elevation, azimuth, heading, base_pos::AbstractVector, base_point_idx; wing_idx=1, rot_point_idx=nothing)
     (isnothing(wing_idx) + isnothing(rot_point_idx) != 1) && error("Either provide a wing_idx or a rot_point_idx, not both or none.")
-    Transform(idx, elevation, azimuth, heading, wing_idx, rot_point_idx, base_point_idx, heading, base_pos, nothing)
+    Transform(idx, elevation, azimuth, heading, wing_idx, rot_point_idx, base_point_idx, base_pos, nothing)
 end
-function Transform(idx, elevation, azimuth, heading, base_transform_idx::Int, base_point_idx; wing_idx=1, rot_point_idx=nothing, heading=0.0)
+function Transform(idx, elevation, azimuth, heading, base_transform_idx::Int, base_point_idx; wing_idx=1, rot_point_idx=nothing)
     (isnothing(wing_idx) + isnothing(rot_point_idx) != 1) && error("Either provide a wing_idx or a rot_point_idx, not both or none.")
     (base_transform >= idx) && error("You have to provide a Transform with a lower idx than the current one.")
-    Transform(idx, elevation, azimuth, heading, wing_idx, rot_point_idx, base_point_idx, heading, nothing, base_transform_idx)
+    Transform(idx, elevation, azimuth, heading, wing_idx, rot_point_idx, base_point_idx, nothing, base_transform_idx)
 end
 
 function get_rot_pos(transform::Transform, wings, points)
@@ -309,8 +309,6 @@ end
 
 function init!(transforms::Vector{Transform}, sys_struct::SystemStructure)
     @unpack points, wings = sys_struct
-    T = zeros(3)
-    R_t_w = zeros(3,3)
     for transform in transforms
         # ==================== TRANSLATE ==================== #
         base_pos, curr_base_pos = get_base_pos(transform, wings, points)
@@ -336,8 +334,9 @@ function init!(transforms::Vector{Transform}, sys_struct::SystemStructure)
         for point in points
             if point.transform_idx == transform.idx
                 vec = point.pos_w - base_pos
-                vec_along_x = rotate_around_x(curr_R_t_w' * vec, transform.heading)
+                vec_along_x = rotate_around_z(curr_R_t_w' * vec, transform.heading)
                 point.pos_w .= base_pos + R_t_w * vec_along_x
+                @show curr_R_t_w' * vec
             end
         end
         for wing in wings
