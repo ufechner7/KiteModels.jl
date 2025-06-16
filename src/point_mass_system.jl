@@ -56,13 +56,14 @@ mutable struct Point
     idx::Int16
     transform_idx::Int16 # idx of wing used for initial orientation
     wing_idx::Int16
+    pos_cad::KVec3
     pos_b::KVec3 # pos relative to wing COM in body frame
     pos_w::KVec3 # pos in world frame
     vel_w::KVec3 # vel in world frame
     type::DynamicsType
 end
-function Point(idx, pos_b, type; wing_idx=1, vel_w=zeros(KVec3), transform_idx=1)
-    Point(idx, transform_idx, wing_idx, pos_b, copy(pos_b), vel_w, type)
+function Point(idx, pos_cad, type; wing_idx=1, vel_w=zeros(KVec3), transform_idx=1)
+    Point(idx, transform_idx, wing_idx, pos_cad, zeros(KVec3), zeros(KVec3), vel_w, type)
 end
 
 """
@@ -165,14 +166,21 @@ struct Wing
     idx::Int16
     group_idxs::Vector{Int16}
     transform_idx::Int16
-    orient::KVec4
+    R_b_c::Matrix{SimFloat}
     angular_vel::KVec3
     pos_w::KVec3
-    pos_b::KVec3
-    vel::KVec3
-    function Wing(idx, group_idxs; transform_idx=1, orient=zeros(KVec4), angular_vel=zeros(KVec3), 
-            pos_w=zeros(KVec3), pos_b=zeros(KVec3), vel=zeros(KVec3))
-        new(idx, group_idxs, transform_idx, orient, angular_vel, pos_w, pos_b, vel)
+    pos_cad::KVec3
+    vel_w::KVec3
+    function Wing(idx, group_idxs, R_b_c, pos_cad; transform_idx=1, angular_vel=zeros(KVec3), 
+            pos_w=zeros(KVec3), vel_w=zeros(KVec3))
+        new(idx, group_idxs, transform_idx, R_b_c, angular_vel, pos_w, pos_cad, vel_w)
+    end
+end
+function Base.getproperty(wing::Wing, sym::Symbol)
+    if sym == :orient
+        return rotation_matrix_to_quaternion(wing.R_b_c)
+    else
+        return getfield(wing, sym)
     end
 end
 
@@ -206,7 +214,7 @@ function get_rot_pos(transform::Transform, wings, points)
 end
 
 function get_base_pos(transform::Transform, wings, points)
-    curr_base_pos = points[transform.base_point_idx].pos_b
+    curr_base_pos = points[transform.base_point_idx].pos_cad
     if !isnothing(transform.base_pos)
         return transform.base_pos, curr_base_pos
     elseif !isnothing(transform.base_transform_idx)
@@ -315,12 +323,12 @@ function init!(transforms::Vector{Transform}, sys_struct::SystemStructure)
         T = base_pos - curr_base_pos
         for point in points
             if point.transform_idx == transform.idx
-                point.pos_w .= point.pos_b .+ T
+                point.pos_w .= point.pos_cad .+ T
             end
         end
         for wing in wings
             if wing.transform_idx == transform.idx
-                wing.pos_w .= wing.pos_b .+ T
+                wing.pos_w .= wing.pos_cad .+ T
             end
         end
 
@@ -334,16 +342,22 @@ function init!(transforms::Vector{Transform}, sys_struct::SystemStructure)
         for point in points
             if point.transform_idx == transform.idx
                 vec = point.pos_w - base_pos
-                vec_along_x = rotate_around_z(curr_R_t_w' * vec, transform.heading)
-                point.pos_w .= base_pos + R_t_w * vec_along_x
-                @show curr_R_t_w' * vec
+                vec_along_z = rotate_around_z(curr_R_t_w' * vec, transform.heading)
+                point.pos_w .= base_pos + R_t_w * vec_along_z
+            end
+            if point.type == WING
+                wing = wings[point.wing_idx]
+                point.pos_b .= wing.R_b_c' * (point.pos_cad - wing.pos_cad) # TODO: test this
             end
         end
         for wing in wings
             if wing.transform_idx == transform.idx
                 vec = wing.pos_w - base_pos
-                vec_along_x = rotate_around_x(curr_R_t_w' * vec, transform.heading)
-                wing.pos_w .= base_pos + R_t_w * vec_along_x
+                vec_along_z = rotate_around_x(curr_R_t_w' * vec, transform.heading)
+                wing.pos_w .= base_pos + R_t_w * vec_along_z
+                for i in 1:3
+                    wing.R_b_c[:, i] .= R_t_w * rotate_around_x(curr_R_t_w' * wing.R_b_c[:, i], transform.heading)
+                end
             end
         end
 
@@ -358,12 +372,12 @@ function calc_pos(wing::RamAirWing, gamma, frac)
 end
 
 function create_tether(tether_idx, set, points, segments, tethers, attach_point, type, dynamics_type, z=[0,0,1])
-    winch_pos = find_axis_point(attach_point.pos_b, set.l_tether, z)
-    dir = winch_pos - attach_point.pos_b
+    winch_pos = find_axis_point(attach_point.pos_cad, set.l_tether, z)
+    dir = winch_pos - attach_point.pos_cad
     segment_idxs = Int16[]
     for i in 1:set.segments
         frac = i / set.segments
-        pos = attach_point.pos_b + frac * dir
+        pos = attach_point.pos_cad + frac * dir
         point_idx = length(points)+1 # last point idx
         segment_idx = length(segments)+1 # last segment idx
         if i == 1
@@ -448,13 +462,13 @@ function create_ram_system_structure(set::Settings, vsm_wing::RamAirWing)
             Point(9+i_pnt, bridle_top[3], dynamics_type)
             Point(10+i_pnt, bridle_top[4], dynamics_type)
 
-            Point(11+i_pnt, bridle_top[2] .+ -1z, dynamics_type)
+            Point(11+i_pnt, bridle_top[2] - 1z, dynamics_type)
 
-            Point(12+i_pnt, bridle_top[1] .+ -2z, dynamics_type)
-            Point(13+i_pnt, bridle_top[3] .+ -2z, dynamics_type)
+            Point(12+i_pnt, bridle_top[1] - 2z, dynamics_type)
+            Point(13+i_pnt, bridle_top[3] - 2z, dynamics_type)
 
-            Point(14+i_pnt, bridle_top[1] .+ -4z, dynamics_type)
-            Point(15+i_pnt, bridle_top[3] .+ -4z, dynamics_type)
+            Point(14+i_pnt, bridle_top[1] - 4z, dynamics_type)
+            Point(15+i_pnt, bridle_top[3] - 4z, dynamics_type)
         ]
         segments = [
             segments
@@ -501,7 +515,7 @@ function create_ram_system_structure(set::Settings, vsm_wing::RamAirWing)
     winches = [winches; Winch(2, TorqueControlledMachine(set), [left_steering_idx], set.l_tether)]
     winches = [winches; Winch(3, TorqueControlledMachine(set), [right_steering_idx], set.l_tether)]
 
-    wings = [Wing(1, [1,2,3,4])]
+    wings = [Wing(1, [1,2,3,4], I(3), zeros(3))]
     transforms = [Transform(1, deg2rad(set.elevation), deg2rad(set.azimuth), deg2rad(set.heading), zeros(3), points[end].idx)]
     
     return SystemStructure(set.physical_model; points, groups, segments, pulleys, tethers, winches, wings, transforms)
@@ -576,7 +590,7 @@ function init!(sys_struct::SystemStructure, set::Settings)
         (segment.type === BRIDLE) && (segment.diameter = 0.001set.bridle_tether_diameter)
         (segment.type === POWER) && (segment.diameter = 0.001set.power_tether_diameter)
         (segment.type === STEERING) && (segment.diameter = 0.001set.steering_tether_diameter)
-        (segment.l0 ≈ 0) && (segment.l0 = norm(points[segment.point_idxs[1]].pos_b - points[segment.point_idxs[2]].pos_b) * 0.9999)
+        (segment.l0 ≈ 0) && (segment.l0 = norm(points[segment.point_idxs[1]].pos_cad - points[segment.point_idxs[2]].pos_cad) * 0.9999)
         @assert (0 < segment.diameter < 1)
         @assert (segment.l0 > 0)
     end

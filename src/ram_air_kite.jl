@@ -242,7 +242,7 @@ function init_sim!(s::SymbolicAWEModel;
     end
     function init(s)
         init_Q_b_w, R_b_w, init_va_b = initial_orient(s)
-        init!(s.system_structure, s.set, R_b_w, init_Q_b_w)
+        init!(s.system_structure, s.set)
         
         inputs = create_sys!(s, s.system_structure; init_va_b)
         prn && @info "Simplifying the system"
@@ -330,7 +330,7 @@ function reinit!(
     isnothing(s.system_structure) && error("SystemStructure not defined")
 
     init_Q_b_w, R_b_w = initial_orient(s)
-    init!(s.system_structure, s.set, R_b_w, init_Q_b_w)
+    init!(s.system_structure, s.set)
     
     if isnothing(s.prob) || reload
         prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set; precompile))
@@ -620,11 +620,11 @@ function init_unknowns_vec!(
             vec_idx += 1
         end
         for i in 1:3
-            vec[vec_idx] = wing.pos[i]
+            vec[vec_idx] = wing.pos_w[i]
             vec_idx += 1
         end
         for i in 1:3
-            vec[vec_idx] = wing.vel[i]
+            vec[vec_idx] = wing.vel_w[i]
             vec_idx += 1
         end
     end

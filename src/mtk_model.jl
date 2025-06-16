@@ -653,8 +653,8 @@ function wing_eqs!(s, eqs, defaults; tether_wing_force, tether_wing_moment, aero
             defaults
             [Q_b_w[wing.idx, i] => wing.orient[i] for i in 1:4]
             [ω_b[wing.idx, i] => wing.angular_vel[i] for i in 1:3]
-            [wing_pos[wing.idx, i] => wing.pos[i] for i in 1:3]
-            [wing_vel[wing.idx, i] => wing.vel[i] for i in 1:3]
+            [wing_pos[wing.idx, i] => wing.pos_w[i] for i in 1:3]
+            [wing_vel[wing.idx, i] => wing.vel_w[i] for i in 1:3]
         ]
     end
     
