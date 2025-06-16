@@ -1,7 +1,7 @@
 version = 1
 
 [[annotations]]
-path = ["data/prob*", "data/ram*", "examples/discrete_jacobian.jl"]
+path = ["data/model*", "data/ram*", "examples/discrete_jacobian.jl"]
 SPDX-FileCopyrightText = "2025 Bart van de Lint"
 SPDX-License-Identifier = "MPL-2.0"
 

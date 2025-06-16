@@ -44,14 +44,14 @@ end
 ```
 From these arrays of points and segments we can create a [`SystemStructure`](@ref), which can be plotted in 2d to quickly investigate if the model is correct.
 ```julia
-system_structure = SystemStructure("tether"; points, segments)
-plot(system_structure, 0.0)
+sys_struct = SystemStructure("tether"; points, segments)
+plot(sys_struct, 0.0)
 plt.gcf()
 ```
 
 If the system looks good, we can easily model it, by first creating a [`SymbolicAWEModel`](@ref), initializing it and stepping through time.
 ```julia
-model = SymbolicAWEModel(set, system_structure)
+model = SymbolicAWEModel(set, sys_struct)
 
 init_sim!(model; remake=false)
 for i in 1:100
