@@ -73,6 +73,7 @@ $(TYPEDFIELDS)
     integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Nothing} = nothing
     t_vsm::S  = zero(S)
     t_step::S = zero(S)
+    set_tether_length::V = zeros(3)
 end
 
 function SymbolicAWEModel(
@@ -718,3 +719,21 @@ function pos(s::SymbolicAWEModel)
     pos = s.get_pos(s.integrator)
     return [pos[:,i] for i in eachindex(pos[1,:])]
 end    
+
+function min_chord_length(s::SymbolicAWEModel)
+    min_len = Inf
+    for wing in s.vsm_wings
+        min_len = min(norm(wing.le_interp(wing.gamma_tip) - wing.te_interp(wing.gamma_tip)), min_len)
+    end
+    return min_len
+end
+
+function set_depower_steering!(s::SymbolicAWEModel, depower, steering)
+    len = s.set_tether_length
+    len .= tether_length(s)
+    depower *= min_chord_length(s)
+    steering *= min_chord_length(s)
+    len[2] = 0.5 * (2*depower + 2*len[1] + steering)
+    len[3] = 0.5 * (2*depower + 2*len[1] - steering)
+    return nothing
+end
