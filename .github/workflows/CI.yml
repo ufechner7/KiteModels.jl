@@ -45,25 +45,34 @@ jobs:
             build_is_production_build: true
     steps:
       - name: Install matplotlib
-        if: runner.os == 'Linux'
-        run: sudo apt-get install -y python3-matplotlib
+        run: if [ "$RUNNER_OS" = "Linux" ]; then sudo apt-get install -y python3-matplotlib; fi
         shell: bash
+       
       - uses: actions/checkout@v4
+      
       - name: Use default manifest
         run: |
           if [ -f Manifest.toml.default ]; then cp Manifest.toml.default Manifest.toml; fi
         shell: bash
+        
       - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
+          
       - uses: julia-actions/cache@v2
       - uses: julia-actions/julia-buildpkg@v1
+      
+      - name: Build PyCall
+        run: julia --project -e 'ENV["PYTHON"]=""; using Pkg; Pkg.instantiate(); Pkg.add("PyCall"); Pkg.build("PyCall")'
+        shell: bash
+        
       - uses: julia-actions/julia-runtest@v1
         env:
           BUILD_IS_PRODUCTION_BUILD: ${{ matrix.build_is_production_build }}
         with:
           coverage: false
+          
   test-with-code-coverage:
     name: Julia ${{ matrix.julia_version }} - ${{ matrix.os }} - ${{ matrix.julia_arch }} - with code coverage
     timeout-minutes: 70
@@ -82,28 +91,38 @@ jobs:
     - name: Install matplotlib
       run: if [ "$RUNNER_OS" = "Linux" ]; then sudo apt-get install -y python3-matplotlib; fi
       shell: bash
+      
     - uses: actions/checkout@v4
+    
     - name: Use default manifest
       run: |
         if [ -f Manifest.toml.default ]; then cp Manifest.toml.default Manifest.toml; fi
       shell: bash
+      
     - uses: julia-actions/setup-julia@v2
       with:
         arch: ${{ matrix.julia_arch }}
-        version: ${{ matrix.julia_version }} 
+        version: ${{ matrix.julia_version }}
+        
     - uses: julia-actions/cache@v2
+    - uses: julia-actions/julia-buildpkg@v1
+    
     - name: Build PyCall
       run: julia --project -e 'ENV["PYTHON"]=""; using Pkg; Pkg.instantiate(); Pkg.add("PyCall"); Pkg.build("PyCall")'
       shell: bash
+      
     - uses: julia-actions/julia-runtest@v1
       env:
         BUILD_IS_PRODUCTION_BUILD: false
+        
     - uses: julia-actions/julia-processcoverage@v1
+    
     - uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: lcov.info
       continue-on-error: true
+      
   docs:
     name: Documentation
     runs-on: ubuntu-latest

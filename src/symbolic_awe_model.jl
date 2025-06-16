@@ -2,14 +2,14 @@
 # SPDX-License-Identifier: MIT
 
 @with_kw mutable struct SerializedModel
-    set_hash::UInt64
+    set_hash::Vector{UInt8}
     "Reference to the geometric wing model"
     vsm_wings::Vector{VortexStepMethod.RamAirWing}
     "Reference to the aerodynamic wing model"
     vsm_aeros::Vector{VortexStepMethod.BodyAerodynamics}
     "Reference to the VSM aerodynamics solver"
     vsm_solvers::Vector{VortexStepMethod.Solver}
-    sys_struct_hash::UInt64
+    sys_struct_hash::Vector{UInt8}
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
     "Simplified system of the mtk model"
@@ -360,9 +360,13 @@ function reinit!(
             @warn "lin_prob is nothing."
             return s.integrator, false
         elseif (get_set_hash(s.set) != s.set_hash)
+            s.set_hash = get_set_hash(s.set)
             @warn "The Settings have changed."
             return s.integrator, false
         elseif (get_sys_struct_hash(s.sys_struct) != s.sys_struct_hash)
+            @show get_sys_struct_hash(s.sys_struct) s.sys_struct_hash
+            s.sys_struct_hash = get_sys_struct_hash(s.sys_struct)
+            @show get_sys_struct_hash(s.sys_struct) s.sys_struct_hash
             @warn "The SystemStructure has changed."
             return s.integrator, false
         end
@@ -740,37 +744,46 @@ end
 function get_set_hash(set::Settings; 
         fields=[:segments, :model, :foil_file, :physical_model, :quasi_static, :winch_model]
     )
-    h = UInt64(0)
+    h = zeros(UInt8, 1)
     for field in fields
         value = getfield(set, field)
-        h = hash(value, h)
+        h = sha1(string((value, h)))
     end
     return h
 end
 
 function get_sys_struct_hash(sys_struct::SystemStructure)
     @unpack points, groups, segments, pulleys, tethers, winches, wings = sys_struct
-    h = UInt64(0)
+    h = zeros(UInt8, 1)
     for point in points
-        h = hash((point.idx, point.wing_idx, point.type), h)
+        h = sha1(string((point.idx, point.wing_idx, point.type, h)))
     end
     for segment in segments
-        h = hash((segment.idx, segment.point_idxs, segment.type), h)
+        for val in (segment.idx, segment.point_idxs, segment.type)
+            h = sha1(string((segment.idx, segment.point_idxs, segment.type, h)))
+        end
     end
     for group in groups
-        h = hash((group.idx, group.point_idxs, group.type), h)
+        for val in (group.idx, group.point_idxs, group.type)
+            h = sha1(string((group.idx, group.point_idxs, group.type, h)))
+        end
     end
     for pulley in pulleys
-        h = hash((pulley.idx, pulley.segment_idxs, pulley.type), h)
+        for val in (pulley.idx, pulley.segment_idxs, pulley.type)
+            h = sha1(string((pulley.idx, pulley.segment_idxs, pulley.type, h)))
+        end
     end
     for tether in tethers
-        h = hash((tether.idx, tether.segment_idxs), h)
+        for val in (tether.idx, tether.segment_idxs)
+            h = sha1(string((tether.idx, tether.segment_idxs, h)))
+        end
     end
     for winch in winches
-        h = hash((winch.idx, typeof(winch.model), winch.tether_idxs), h)
+        model = winch.model isa TorqueControlledMachine
+        h = sha1(string((winch.idx, model, winch.tether_idxs, h)))
     end
     for wing in wings
-        h = hash((wing.idx, wing.group_idxs), h)
+        h = sha1(string((wing.idx, wing.group_idxs, h)))
     end
     return h
 end

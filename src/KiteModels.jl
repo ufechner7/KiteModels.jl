@@ -15,7 +15,7 @@ module KiteModels
 using PrecompileTools: @setup_workload, @compile_workload 
 using Dierckx, Interpolations, Serialization, StaticArrays, LinearAlgebra, Statistics, Parameters, NLsolve,
       DocStringExtensions, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqNonlinearSolve,
-      NonlinearSolve
+      NonlinearSolve, SHA
 import Sundials
 using Reexport, Pkg
 using VortexStepMethod
