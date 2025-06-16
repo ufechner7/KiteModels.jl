@@ -364,9 +364,7 @@ function reinit!(
             @warn "The Settings have changed."
             return s.integrator, false
         elseif (get_sys_struct_hash(s.sys_struct) != s.sys_struct_hash)
-            @show get_sys_struct_hash(s.sys_struct) s.sys_struct_hash
             s.sys_struct_hash = get_sys_struct_hash(s.sys_struct)
-            @show get_sys_struct_hash(s.sys_struct) s.sys_struct_hash
             @warn "The SystemStructure has changed."
             return s.integrator, false
         end
