@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: 2025 Uwe Fechner
+# SPDX-License-Identifier: MIT
+
+#!/bin/bash -eu
+rm -rf /tmp/testdepot
+mkdir /tmp/testdepot
+rm -rf /tmp/test
+mkdir /tmp/test
+cd /tmp/test
+export JULIA_DEPOT_PATH=/tmp/testdepot 
+mkdir test 
+cd test
+julia --project=. -e 'using Pkg; Pkg.add(Pkg.PackageSpec(name="KiteModels", rev="main"))'
+julia --project -e 'using KiteModels; KiteModels.install_examples()'
+julia --project -e 'using KiteModels; include("examples/ram_air_kite.jl")'
