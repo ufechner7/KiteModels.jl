@@ -44,10 +44,12 @@ jobs:
             version: 1
             build_is_production_build: true
     steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
       - name: Install matplotlib
-        if: runner.os == 'Linux'
-        run: sudo apt-get install -y python3-matplotlib
-        shell: bash
+        run: python -m pip install matplotlib
       - uses: actions/checkout@v4
       - name: Use default manifest
         run: |
