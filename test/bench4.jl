@@ -138,8 +138,6 @@ msg = String[]
     # Julia 1.10 on Laptop on battery: 1047ns
     # Julia 1.11 on Laptop on battery: 1035ns
     # Julia 1.11 on Laptop on battery, branch perf2: 1042ns
-    # Julia 1.11 on Desktop, branch 2024-06-15: 835..892 ns on June 15, 2025
-    # Julia 1.11 on Desktop, branch perf2: 1089-1149 ns
     # Julia 1.11 on Desktop, branch perf2: 835..899 ns on June 15, 2025 after 13:12
 
 end
