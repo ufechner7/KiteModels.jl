@@ -43,6 +43,23 @@ Time elapsed: 34.11760255 s
 └   integrator_times_realtime = 53.93177410534035
 ```
 
+### Branch c47
+```
+julia> include("examples/ram_air_kite.jl")
+[ Info: Loading packages 
+Time elapsed: 2.61637947 s
+[ Info: Creating wing, aero, vsm_solver, point_system and s:
+Time elapsed: 4.084151688 s
+[ Info: Initialized integrator in 7.185354248 seconds
+[ Info: System initialized at:
+Time elapsed: 13.306661832 s
+[ Info: Total time without plotting:
+Time elapsed: 26.201612424 s
+┌ Info: Performance:
+│   times_realtime = 9.653207758331725
+└   integrator_times_realtime = 57.027712000747485
+```
+
 
 ### Develop branch
 In Bash:

@@ -10,7 +10,7 @@ using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils
 using KiteModels, KitePodModels
 
 set_data_path(joinpath(dirname(dirname(pathof(KiteModels))), "data"))
-set = deepcopy(load_settings("system.yaml"))
+set = load_settings("system.yaml")
 kcu::KCU = KCU(set)
 kps4::KPS4 = KPS4(kcu)
 
@@ -130,14 +130,15 @@ msg = String[]
     t = @benchmark residual!($res, $yd0, $y0, $kps4, $time)
     push!(msg, ("Mean time residual!:           $(round(mean(t.times), digits=1)) ns"))
     # println("t.memory: ", t.memory)
-    @test t.memory <= 176 # 144 for Julia 1.11
+    @test t.memory <= 144
 
     # time using Python/ Numba: 8.94 µs, time using Julia 1.7.2: 1.6µs, Julia 1.8.0: 1.244µs
     # Julia 1.9 on Ryzen:  816.1 ns
     # Julia 1.10 on Ryzen: 787.0 ns 6000 RAM
-    # Julia 1.10 on Laptop on battery: 1047ns
-    # Julia 1.11 on Laptop on battery: 1035ns
-    # Julia 1.11 on Laptop on battery: 1779ns (using KiteUtils 0.10.10)
+    # Julia 1.10 on Laptop on battery: 1047 ns
+    # Julia 1.11 on Laptop on power:   1024..1090 ns
+    # Julia 1.11 on Laptop on battery: 1050..1197 ns
+    # Julia 1.11 on Desktop on main branch: 835..899 ns on June 15, 2025 after 14:12
 end
 printstyled("Benchmark results for KPS4:\n"; bold = true)
 for i in eachindex(msg)

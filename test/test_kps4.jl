@@ -513,6 +513,7 @@ function simulate(integrator, steps)
     iter / steps
 end
 
+println("--> test_simulate")
 @testset "test_simulate        " begin
     STEPS = 500
     kps4.set.depower = 23.6
@@ -543,6 +544,7 @@ end
     update_sys_state!(sys_state, kps4)
     # TODO Add testcase with varying reelout speed 
 end
+println("<-- finished test_simulate")
 
 @testset "Raptures" begin
     kps4_ = KPS4(KCU(set))
