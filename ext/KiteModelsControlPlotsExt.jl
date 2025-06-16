@@ -27,21 +27,21 @@ function ControlPlots.plot(sys::SystemStructure, reltime; l_tether=50.0, wing_po
     ControlPlots.plot2d(pos, seg, reltime; zoom, front, xlim, ylim, dz_zoom=0.6)
 end
 
-# function ControlPlots.plot(s::SymbolicAWEModel, reltime; kwargs...)
-#     wings = s.system_structure.wings
-#     pos = s.integrator[s.sys.pos]
-#     if length(wings) > 0
-#         wing_pos = [s.integrator[s.sys.wing_pos[i, :]] for i in eachindex(wings)]
-#         e_z = [s.integrator[s.sys.e_z[i, :]] for i in eachindex(wings)]
-#     else
-#         wing_pos = nothing
-#         e_z = zeros(3)
-#     end
+function ControlPlots.plot(s::SymbolicAWEModel, reltime; kwargs...)
+    wings = s.system_structure.wings
+    pos = s.integrator[s.sys.pos]
+    if length(wings) > 0
+        wing_pos = [s.integrator[s.sys.wing_pos[i, :]] for i in eachindex(wings)]
+        e_z = [s.integrator[s.sys.e_z[i, :]] for i in eachindex(wings)]
+    else
+        wing_pos = nothing
+        e_z = zeros(3)
+    end
         
-#     for (i, point) in enumerate(s.system_structure.points)
-#         point.pos_w .= pos[:, i]
-#     end
-#     plot(s.system_structure, reltime; s.set.l_tether, wing_pos, e_z, kwargs...)
-# end
+    for (i, point) in enumerate(s.system_structure.points)
+        point.pos_w .= pos[:, i]
+    end
+    plot(s.system_structure, reltime; s.set.l_tether, wing_pos, e_z, kwargs...)
+end
 
 end
