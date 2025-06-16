@@ -105,11 +105,20 @@ function SymbolicAWEModel(
     set_hash = get_set_hash(set)
     sys_struct_hash = get_sys_struct_hash(sys_struct)
     serialized_model = SerializedModel(; set, set_hash, sys_struct, sys_struct_hash, vsm_wings, vsm_aeros, vsm_solvers)
-    sam = SymbolicAWEModel(; serialized_model)
-    return sam
+    return SymbolicAWEModel(; serialized_model)
 end
 
 function SymbolicAWEModel(set::Settings)
+    model_path = joinpath(KiteUtils.get_data_path(), get_model_name(set))
+    if ispath(model_path)
+        try
+            serialized_model = deserialize(model_path)
+            @assert get_set_hash(set) == serialized_model.set_hash
+            return SymbolicAWEModel(; serialized_model)
+        catch
+            @warn "Failure to deserialize $model_path !"
+        end
+    end
     wing = RamAirWing(set; prn=false)
     aero = BodyAerodynamics([wing])
     vsm_solver = Solver(aero; solver_type=NONLIN, atol=2e-8, rtol=2e-8)
@@ -353,12 +362,18 @@ function reinit!(
         !ispath(model_path) && error("$model_path not found. Run init_sim!(s::SymbolicAWEModel) first.")
         try
             s.serialized_model = deserialize(model_path)
-            length(lin_outputs) > 0 && isnothing(s.lin_prob) && error("lin_prob is nothing.")
-            (get_set_hash(s.set) != s.set_hash) && error("The Settings have changed.")
-            (get_sys_struct_hash(s.sys_struct) != s.sys_struct_hash) && error("The SystemStructure has changed.")
         catch e
-            rethrow(e)
             @warn "Failure to deserialize $model_path !"
+            return s.integrator, false
+        end
+        if length(lin_outputs) > 0 && isnothing(s.lin_prob) 
+            @warn "lin_prob is nothing."
+            return s.integrator, false
+        elseif (get_set_hash(s.set) != s.set_hash)
+            @warn "The Settings have changed."
+            return s.integrator, false
+        elseif (get_sys_struct_hash(s.sys_struct) != s.sys_struct_hash)
+            @warn "The SystemStructure has changed."
             return s.integrator, false
         end
     end
@@ -368,8 +383,8 @@ function reinit!(
             s.sys = s.prob.f.sys
             s.integrator = OrdinaryDiffEqCore.init(s.prob, solver; 
                 adaptive, dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, save_everystep=false)
-            !s.set.quasi_static && (length(sym_vec) != length(s.integrator.u)) &&
-                error("Integrator unknowns of length $(length(s.integrator.u)) should equal sym_vec of length $(length(sym_vec)).
+            !s.set.quasi_static && (length(s.unknowns_vec) != length(s.integrator.u)) &&
+                error("sam.integrator unknowns of length $(length(s.integrator.u)) should equal sam.unknowns_vec of length $(length(s.unknowns_vec)).
                     Maybe you forgot to run init_sim!(model; remake=true)?")
         end
         prn && @info "Initialized integrator in $t seconds"
@@ -553,7 +568,7 @@ function next_step!(s::SymbolicAWEModel; set_values=nothing, upwind_dir=nothing,
     s.t_0 = s.integrator.t
     s.t_step = @elapsed OrdinaryDiffEqCore.step!(s.integrator, dt, true)
     if !successful_retcode(s.integrator.sol)
-        println("Return code for solution: ", s.integrator.sol.retcode)
+        @warn "Return code for solution: $(s.integrator.sol.retcode)"
     end
     @assert successful_retcode(s.integrator.sol)
     s.iter += 1
@@ -762,7 +777,7 @@ function get_sys_struct_hash(sys_struct::SystemStructure)
         h = hash((tether.idx, tether.segment_idxs), h)
     end
     for winch in winches
-        h = hash((winch.idx, winch.model, winch.tether_idxs), h)
+        h = hash((winch.idx, typeof(winch.model), winch.tether_idxs), h)
     end
     for wing in wings
         h = hash((wing.idx, wing.group_idxs), h)
