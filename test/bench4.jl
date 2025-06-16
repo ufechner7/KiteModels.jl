@@ -9,7 +9,8 @@ end
 using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils
 using KiteModels, KitePodModels
 
-set = se("system.yaml")
+set_data_path(joinpath(dirname(dirname(pathof(KiteModels))), "data"))
+set = load_settings("system.yaml")
 set.kcu_diameter = 0.0
 if ! @isdefined kcu
     const kcu = KCU(set)
