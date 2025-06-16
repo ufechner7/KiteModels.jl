@@ -52,6 +52,7 @@ jobs:
       - name: Use default manifest
         run: |
           if [ -f Manifest.toml.default ]; then cp Manifest.toml.default Manifest.toml; fi
+        shell: bash
       - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.version }}
@@ -85,6 +86,7 @@ jobs:
     - name: Use default manifest
       run: |
         if [ -f Manifest.toml.default ]; then cp Manifest.toml.default Manifest.toml; fi
+      shell: bash
     - uses: julia-actions/setup-julia@v2
       with:
         arch: ${{ matrix.julia_arch }}
