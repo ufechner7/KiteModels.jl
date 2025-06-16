@@ -360,9 +360,11 @@ function reinit!(
             @warn "lin_prob is nothing."
             return s.integrator, false
         elseif (get_set_hash(s.set) != s.set_hash)
+            s.set_hash = get_set_hash(s.set)
             @warn "The Settings have changed."
             return s.integrator, false
         elseif (get_sys_struct_hash(s.sys_struct) != s.sys_struct_hash)
+            s.sys_struct_hash = get_sys_struct_hash(s.sys_struct)
             @warn "The SystemStructure has changed."
             return s.integrator, false
         end
@@ -752,25 +754,39 @@ function get_sys_struct_hash(sys_struct::SystemStructure)
     @unpack points, groups, segments, pulleys, tethers, winches, wings = sys_struct
     h = UInt64(0)
     for point in points
-        h = hash((point.idx, point.wing_idx, point.type), h)
+        for val in (point.idx, point.wing_idx, point.type)
+            h = hash(val, h)
+        end
     end
     for segment in segments
-        h = hash((segment.idx, segment.point_idxs, segment.type), h)
+        for val in (segment.idx, segment.point_idxs, segment.type)
+            h = hash(val, h)
+        end
     end
     for group in groups
-        h = hash((group.idx, group.point_idxs, group.type), h)
+        for val in (group.idx, group.point_idxs, group.type)
+            h = hash(val, h)
+        end
     end
     for pulley in pulleys
-        h = hash((pulley.idx, pulley.segment_idxs, pulley.type), h)
+        for val in (pulley.idx, pulley.segment_idxs, pulley.type)
+            h = hash(val, h)
+        end
     end
     for tether in tethers
-        h = hash((tether.idx, tether.segment_idxs), h)
+        for val in (tether.idx, tether.segment_idxs)
+            h = hash(val, h)
+        end
     end
     for winch in winches
-        h = hash((winch.idx, typeof(winch.model), winch.tether_idxs), h)
+        for val in (winch.idx, typeof(winch.model), winch.tether_idxs)
+            h = hash(val, h)
+        end
     end
     for wing in wings
-        h = hash((wing.idx, wing.group_idxs), h)
+        for val in (wing.idx, wing.group_idxs)
+            h = hash(val, h)
+        end
     end
     return h
 end
