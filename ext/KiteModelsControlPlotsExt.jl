@@ -28,7 +28,7 @@ function ControlPlots.plot(sys::SystemStructure, reltime; l_tether=50.0, wing_po
 end
 
 function ControlPlots.plot(s::SymbolicAWEModel, reltime; kwargs...)
-    wings = s.system_structure.wings
+    wings = s.sys_struct.wings
     pos = s.integrator[s.sys.pos]
     if length(wings) > 0
         wing_pos = [s.integrator[s.sys.wing_pos[i, :]] for i in eachindex(wings)]
@@ -38,10 +38,10 @@ function ControlPlots.plot(s::SymbolicAWEModel, reltime; kwargs...)
         e_z = zeros(3)
     end
         
-    for (i, point) in enumerate(s.system_structure.points)
+    for (i, point) in enumerate(s.sys_struct.points)
         point.pos_w .= pos[:, i]
     end
-    plot(s.system_structure, reltime; s.set.l_tether, wing_pos, e_z, kwargs...)
+    plot(s.sys_struct, reltime; s.set.l_tether, wing_pos, e_z, kwargs...)
 end
 
 end

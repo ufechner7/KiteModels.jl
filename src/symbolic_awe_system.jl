@@ -1,11 +1,10 @@
 # Copyright (c) 2024, 2025 Bart van de Lint and Uwe Fechner
 # SPDX-License-Identifier: MIT
 
-@with_kw struct SerializedModel
+@with_kw mutable struct SerializedModel
     "Reference to the settings struct"
     set::Settings
-    set_hash
-    struct_hash
+    set_hash::UInt64
     "Reference to the geometric wing model"
     vsm_wings::Vector{VortexStepMethod.RamAirWing}
     "Reference to the aerodynamic wing model"
@@ -14,6 +13,7 @@
     vsm_solvers::Vector{VortexStepMethod.Solver}
     "Reference to the point mass system with points, segments, pulleys and tethers"
     sys_struct::SystemStructure
+    sys_struct_hash::UInt64
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
     "Simplified system of the mtk model"
@@ -80,16 +80,19 @@ $(TYPEDFIELDS)
 end
 
 function Base.getproperty(sam::SymbolicAWEModel, sym::Symbol)
-    if !hasfield(sam, sym)
-        Base.getproperty(sam.serialized_model, sym)
+    if hasfield(SymbolicAWEModel, sym)
+        getfield(sam, sym)
+    else
+        getproperty(getfield(sam, :serialized_model), sym)
     end
-    Base.getproperty(sam, sym)
 end
 function Base.setproperty!(sam::SymbolicAWEModel, sym::Symbol, val)
-    if !hasfield(sam, sym)
-        Base.setproperty!(sam.serialized_model, sym, val)
+    if hasfield(SymbolicAWEModel, sym)
+        setfield!(sam, sym, val)
+    else
+        serialized_model = getfield(sam, :serialized_model)
+        setproperty!(serialized_model, sym, val)
     end
-    Base.setproperty!(sam, sym, val)
 end
 
 function SymbolicAWEModel(
@@ -100,8 +103,8 @@ function SymbolicAWEModel(
 )
     vsm_wings = [aero.wings[1] for aero in vsm_aeros]
     set_hash = get_set_hash(set)
-    struct_hash = get_struct_hash(sys_struct)
-    serialized_model = SerializedModel(; set, set_hash, sys_struct, struct_hash, vsm_wings, vsm_aeros, vsm_solvers)
+    sys_struct_hash = get_sys_struct_hash(sys_struct)
+    serialized_model = SerializedModel(; set, set_hash, sys_struct, sys_struct_hash, vsm_wings, vsm_aeros, vsm_solvers)
     sam = SymbolicAWEModel(; serialized_model)
     return sam
 end
@@ -273,17 +276,17 @@ function init_sim!(s::SymbolicAWEModel;
         sym_vec = get_unknowns(s.sys_struct, s.sys)
         s.unknowns_vec = zeros(SimFloat, length(sym_vec))
         generate_getters!(s, sym_vec)
-        serialize(prob_path, (s.prob, s.full_sys, s.lin_prob, s.defaults, s.guesses))
+        serialize(model_path, s.serialized_model)
         s.integrator = nothing
         return nothing
     end
-    prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set; precompile))
-    if !ispath(prob_path) || remake
+    model_path = joinpath(KiteUtils.get_data_path(), get_model_name(s.set; precompile))
+    if !ispath(model_path) || remake
         init(s)
     end
     _, success = reinit!(s, solver; adaptive, precompile, reload, lin_outputs)
     if !success
-        rm(prob_path)
+        rm(model_path)
         @info "Rebuilding the system. This can take some minutes..."
         init(s)
         reinit!(s, solver; precompile, prn)
@@ -346,13 +349,16 @@ function reinit!(
     init!(s.sys_struct, s.set, R_b_w, init_Q_b_w)
     
     if isnothing(s.prob) || reload
-        prob_path = joinpath(KiteUtils.get_data_path(), get_prob_name(s.set; precompile))
-        !ispath(prob_path) && error("$prob_path not found. Run init_sim!(s::SymbolicAWEModel) first.")
+        model_path = joinpath(KiteUtils.get_data_path(), get_model_name(s.set; precompile))
+        !ispath(model_path) && error("$model_path not found. Run init_sim!(s::SymbolicAWEModel) first.")
         try
-            (s.prob, s.full_sys, s.lin_prob, s.defaults, s.guesses) = deserialize(prob_path)
+            s.serialized_model = deserialize(model_path)
             length(lin_outputs) > 0 && isnothing(s.lin_prob) && error("lin_prob is nothing.")
+            (get_set_hash(s.set) != s.set_hash) && error("The Settings have changed.")
+            (get_sys_struct_hash(s.sys_struct) != s.sys_struct_hash) && error("The SystemStructure has changed.")
         catch e
-            @warn "Failure to deserialize $prob_path !"
+            rethrow(e)
+            @warn "Failure to deserialize $model_path !"
             return s.integrator, false
         end
     end
@@ -457,7 +463,7 @@ function generate_getters!(s, sym_vec)
     s.set_wind_dir = (integ, val) -> set_wind_dir(integ, val)
     set_unknowns = setu(sys, sym_vec)
     s.set_unknowns = (integ, val) -> set_unknowns(integ, val)
-    set_nonstiff = setu(sys, get_nonstiff_unknowns(s))
+    set_nonstiff = setu(sys, get_nonstiff_unknowns(s.sys_struct, s.sys))
     s.set_nonstiff = (integ, val) -> set_nonstiff(integ, val)
     
     get_unknowns = getu(sys, sym_vec)
@@ -554,14 +560,14 @@ function next_step!(s::SymbolicAWEModel; set_values=nothing, upwind_dir=nothing,
     return nothing
 end
 
-function get_prob_name(set::Settings; precompile=false)
+function get_model_name(set::Settings; precompile=false)
     suffix = ""
     ver = "$(VERSION.major).$(VERSION.minor)"
     if precompile
         suffix = ".default"
     end
     dynamics_type = ifelse(set.quasi_static, "static", "dynamic")
-    return "prob_$(ver)_$(set.physical_model)_$(dynamics_type)_$(set.segments)_seg.bin$suffix"
+    return "model_$(ver)_$(set.physical_model)_$(dynamics_type)_$(set.segments)_seg.bin$suffix"
 end
 
 """
@@ -726,23 +732,8 @@ function pos(s::SymbolicAWEModel)
     return [pos[:,i] for i in eachindex(pos[1,:])]
 end    
 
-"""
-    get_set_hash(set::Settings; exclude_fields=[:abs_tol, :rel_tol, :log_level]) -> UInt64
-
-Calculate a unique hash for a Settings struct, excluding specified fields.
-This is useful for determining if the core configuration has changed while
-ignoring runtime parameters.
-
-# Arguments
-- `set::Settings`: The settings struct to hash
-- `exclude_fields::Vector{Symbol}`: Fields to exclude from hash calculation
-
-# Returns
-- `UInt64`: A unique hash representing the settings configuration
-"""
 function get_set_hash(set::Settings; 
-        fields=[:segments, :model, :foil_file, :physical_model, :top_bridle_points, 
-            :crease_frac, :bridle_fracs, :quasi_static, :winch_model]
+        fields=[:segments, :model, :foil_file, :physical_model, :quasi_static, :winch_model]
     )
     h = UInt64(0)
     for field in fields
@@ -753,10 +744,28 @@ function get_set_hash(set::Settings;
 end
 
 function get_sys_struct_hash(sys_struct::SystemStructure)
+    @unpack points, groups, segments, pulleys, tethers, winches, wings = sys_struct
     h = UInt64(0)
     for point in points
-        value = getfield(set, field)
-        h = hash(value, h)
+        h = hash((point.idx, point.wing_idx, point.type), h)
+    end
+    for segment in segments
+        h = hash((segment.idx, segment.point_idxs, segment.type), h)
+    end
+    for group in groups
+        h = hash((group.idx, group.point_idxs, group.type), h)
+    end
+    for pulley in pulleys
+        h = hash((pulley.idx, pulley.segment_idxs, pulley.type), h)
+    end
+    for tether in tethers
+        h = hash((tether.idx, tether.segment_idxs), h)
+    end
+    for winch in winches
+        h = hash((winch.idx, winch.model, winch.tether_idxs), h)
+    end
+    for wing in wings
+        h = hash((wing.idx, wing.group_idxs), h)
     end
     return h
 end

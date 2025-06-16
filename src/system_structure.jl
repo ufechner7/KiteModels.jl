@@ -175,7 +175,7 @@ end
 """
     struct SystemStructure
 
-A discrete mass-spring-damper representation of a kite system, where point masses 
+A discrete mass-spring-damper representation of a kite sys_struct, where point masses 
 connected by elastic segments model the kite and tether dynamics:
 
 - `points::Vector{Point}`: Point masses representing:
@@ -475,8 +475,8 @@ function create_simple_ram_system_structure(set::Settings, wing::RamAirWing)
 end
 
 
-function init!(system::SystemStructure, set::Settings, R_b_w, Q_b_w)
-    @unpack points, groups, segments, pulleys, tethers, winches, wings = system
+function init!(sys_struct::SystemStructure, set::Settings, R_b_w, Q_b_w)
+    @unpack points, groups, segments, pulleys, tethers, winches, wings = sys_struct
 
     for segment in segments
         (segment.type === BRIDLE) && (segment.diameter = 0.001set.bridle_tether_diameter)

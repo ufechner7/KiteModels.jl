@@ -33,8 +33,8 @@ s.set.rel_tol = 1e-2
 toc()
 
 # Initialize at elevation
-s.system_structure.winches[2].tether_length += 0.2
-s.system_structure.winches[3].tether_length += 0.2
+s.sys_struct.winches[2].tether_length += 0.2
+s.sys_struct.winches[3].tether_length += 0.2
 KiteModels.init_sim!(s; remake=false, reload=true)
 sys = s.sys
 

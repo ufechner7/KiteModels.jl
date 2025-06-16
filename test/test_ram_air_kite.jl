@@ -53,14 +53,14 @@ const BUILD_SYS = true
             # Check initialization results
             @test !isnothing(s.integrator)
             @test !isnothing(s.sys)
-            @test !isnothing(s.system_structure)
+            @test !isnothing(s.sys_struct)
         end
         s.integrator = nothing
         s.sys = nothing
 
         # Keep references to first integrator and point system
         first_integrator_ptr = objectid(s.integrator)
-        first_system_structure_ptr = objectid(s.system_structure)
+        first_system_structure_ptr = objectid(s.sys_struct)
 
         # 2. First init_sim! - should load from serialized file
         @info "Testing first init_sim! (should load serialized file)..."
@@ -69,7 +69,7 @@ const BUILD_SYS = true
 
         # Check that it's a new integrator
         second_integrator_ptr = objectid(s.integrator)
-        second_system_structure_ptr = objectid(s.system_structure)
+        second_system_structure_ptr = objectid(s.sys_struct)
         @test first_integrator_ptr != second_integrator_ptr
         @test first_system_structure_ptr == second_system_structure_ptr
 
@@ -79,7 +79,7 @@ const BUILD_SYS = true
 
         # This should create a new point system but reuse the existing integrator
         third_integrator_ptr = objectid(s.integrator)
-        third_system_structure_ptr = objectid(s.system_structure)
+        third_system_structure_ptr = objectid(s.sys_struct)
         @test second_integrator_ptr == third_integrator_ptr # Should be the same
         @test second_system_structure_ptr == third_system_structure_ptr
 
@@ -88,10 +88,10 @@ const BUILD_SYS = true
 
         # Check dimension consistency
         # Note: pos_integrator is no longer directly fetched, comparing SysState to system_structure
-        @test length(sys_state.X) == length(s.system_structure.points)
+        @test length(sys_state.X) == length(s.sys_struct.points)
 
         # Compare positions in different representations
-        for (i, point) in enumerate(s.system_structure.points)
+        for (i, point) in enumerate(s.sys_struct.points)
             # Points' world positions should match SysState positions
             point_pos = point.pos_w
             sys_state_pos = [sys_state.X[i], sys_state.Y[i], sys_state.Z[i]]

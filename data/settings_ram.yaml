@@ -31,7 +31,6 @@ kite:
         - [0.535543, 0.786175, -2.62148]
     crease_frac: 0.82                       # distance along normalized foil chord for the trailing edge deformation crease
     bridle_fracs: [0.088, 0.31, 0.58, 0.93] # distances along normalized foil chord for bridle attachment points
-    fixed_index: 1                          # the bridle frac index around which the kite twists
     mass: 0.9                               # kite mass [kg]
     quasi_static: false                     # whether to use quasi static kite points or not
 
