@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2025 Uwe Fechner
+# SPDX-License-Identifier: MIT
+
 # unittest for StaticArrays
 # fails for v1.5.13 and v1.5.14
 using StaticArrays, LinearAlgebra, BenchmarkTools, Test

@@ -1,0 +1,12 @@
+#!/bin/bash -eu
+# SPDX-FileCopyrightText: 2025 Uwe Fechner
+# SPDX-License-Identifier: MIT
+
+rm -rf /tmp/testdepot
+mkdir /tmp/testdepot
+rm -rf /tmp/test
+mkdir /tmp/test
+cd /tmp/test
+export JULIA_DEPOT_PATH=/tmp/testdepot 
+julia --project="." -e "using Pkg; Pkg.add(\"LinearSolve\"); using LinearSolve"
+cd ..
