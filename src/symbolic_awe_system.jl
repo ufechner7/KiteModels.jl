@@ -283,12 +283,12 @@ function init_sim!(s::SymbolicAWEModel;
     if !ispath(model_path) || remake
         init(s)
     end
-    _, success = reinit!(s, solver; adaptive, precompile, reload, lin_outputs)
+    _, success = reinit!(s, solver; adaptive, precompile, reload, lin_outputs, prn)
     if !success
         rm(model_path)
         @info "Rebuilding the system. This can take some minutes..."
         init(s)
-        reinit!(s, solver; precompile, prn)
+        reinit!(s, solver; adaptive, precompile, lin_outputs, prn, reload=true)
     end
     return s.integrator
 end
