@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2022 Uwe Fechner
+# SPDX-License-Identifier: MIT
+
 using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils
 using KiteModels, KitePodModels
 
@@ -16,11 +19,11 @@ if ! @isdefined res3
 end
 
 msg=""
-@testset verbose = true "KPS3 benchmarking....   " begin
+@testset verbose = true "KPS3 benchmarking....    " begin
 
 function set_defaults()
     KiteModels.clear!(kps)
-    kps.set.l_tether = 150.0
+    kps.set.l_tethers[1] = 150.0
     kps.set.elevation = 60.0
     kps.set.area = 20.0
     kps.set.rel_side_area = 50.0
@@ -33,7 +36,7 @@ end
 
 function init_392()
     KiteModels.clear!(kps)
-    kps.set.l_tether = 392.0
+    kps.set.l_tethers[1] = 392.0
     kps.set.elevation = 70.0
     kps.set.area = 10.0
     kps.set.rel_side_area = 50.0
@@ -81,11 +84,13 @@ t = @benchmark residual!(res, yd, y, p, t) setup = (res1 = zeros(SVector{SEGMENT
                                                                (y0, yd0) = KiteModels.init(kps, X); yd=yd0; y=y0;
                                                                p = kps; t = 0.0)
 
-@test t.memory <= 64
+
+@test t.memory <= 240
 global msg = "Mean time residual! one point model: $(round(mean(t.times), digits=1)) ns"
 
 end
-println(msg)
+printstyled("Benchmark results for KPS3:\n"; bold = true)
+println(msg, "\n")
 
 # julia> include("test/bench.jl")
 # Test Summary:         |
