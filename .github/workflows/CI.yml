@@ -90,11 +90,11 @@ jobs:
     - uses: julia-actions/setup-julia@v2
       with:
         arch: ${{ matrix.julia_arch }}
-        version: ${{ matrix.julia_version }}
+        version: ${{ matrix.julia_version }} 
+    - uses: julia-actions/cache@v2
     - name: Build PyCall
       run: julia --project -e 'ENV["PYTHON"]=""; using Pkg; Pkg.instantiate(); Pkg.add("PyCall"); Pkg.build("PyCall")'
-      shell: bash    
-    - uses: julia-actions/cache@v2
+      shell: bash
     - uses: julia-actions/julia-runtest@v1
       env:
         BUILD_IS_PRODUCTION_BUILD: false
