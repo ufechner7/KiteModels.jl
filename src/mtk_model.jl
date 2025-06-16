@@ -681,14 +681,6 @@ function calc_R_t_w(elevation, azimuth)
     return [x y z]
 end
 
-function calc_elevation(pos::AbstractVector)
-    atan(pos[3] / pos[1])
-end
-
-function calc_azimuth(pos::AbstractVector)
-    atan(pos[2] / pos[1])
-end
-
 """
     scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_wing_b, wing_pos, wing_vel, wing_acc, twist_angle, twist_ω)
 
@@ -781,12 +773,12 @@ function scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_wing_b, wing_pos, wing_vel,
             distance_vel[wing.idx]    ~ wing_vel[wing.idx, :] ⋅ R_v_w[wing.idx, :, 3]
             distance_acc[wing.idx]    ~ wing_acc[wing.idx, :] ⋅ R_v_w[wing.idx, :, 3]
 
-            elevation[wing.idx]           ~ calc_elevation(wing_pos[wing.idx, :])
+            elevation[wing.idx]           ~ KiteUtils.calc_elevation(wing_pos[wing.idx, :])
             # elevation_vel = d/dt(atan(z/x)) = (x*ż' - z*ẋ')/(x^2 + z^2) according to wolframalpha
             elevation_vel[wing.idx]       ~ (x*z´ - z*x´) / 
                                     (x^2 + z^2)
             elevation_acc[wing.idx]       ~ ((x^2 + z^2)*(x*z´´ - z*x´´) + 2(z*x´ - x*z´)*(x*x´ + z*z´))/(x^2 + z^2)^2
-            azimuth[wing.idx]             ~ calc_azimuth(wing_pos[wing.idx, :])
+            azimuth[wing.idx]             ~ -KiteUtils.azimuth_east(wing_pos[wing.idx, :])
             # azimuth_vel = d/dt(atan(y/x)) = (-y*x´ + x*y´)/(x^2 + y^2) # TODO: check if correct
             azimuth_vel[wing.idx]         ~ (-y*x´ + x*y´) / 
                                     (x^2 + y^2)

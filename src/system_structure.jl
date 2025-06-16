@@ -334,8 +334,8 @@ function init!(transforms::Vector{Transform}, sys_struct::SystemStructure)
 
         # ==================== ROTATE ==================== #
         curr_rot_pos = get_rot_pos(transform, wings, points)
-        curr_elevation = calc_elevation(curr_rot_pos - base_pos)
-        curr_azimuth = calc_azimuth(curr_rot_pos - base_pos)
+        curr_elevation = KiteUtils.calc_elevation(curr_rot_pos - base_pos)
+        curr_azimuth = -KiteUtils.azimuth_east(curr_rot_pos - base_pos)
         curr_R_t_w = calc_R_t_w(curr_elevation, curr_azimuth)
         R_t_w = calc_R_t_w(transform.elevation, transform.azimuth)
 
