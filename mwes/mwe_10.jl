@@ -1,6 +1,10 @@
+# SPDX-FileCopyrightText: 2025 Uwe Fechner
+#
+# SPDX-License-Identifier: MIT
+
 using KiteModels
 
-kps4_3L::KPS4_3L = KPS4_3L(KCU(se()))
+kps4_3L::SymbolicAWEModel = SymbolicAWEModel(KCU(se()))
 
 integrator = KiteModels.init_sim!(kps4_3L; stiffness_factor=0.035, prn=false)
 nothing
