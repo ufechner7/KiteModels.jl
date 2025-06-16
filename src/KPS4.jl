@@ -510,7 +510,7 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
     # copy the position and velocity vectors for easy debugging
     for i in 1:div(T,6)+1
         @inbounds s.pos[i] .= pos[i]
-        s.vel[i] .= vel[i]
+        @inbounds s.vel[i] .= vel[i]
     end
     s.vel_kite .= vel[end-2]
     s.v_reel_out = v_reel_out
