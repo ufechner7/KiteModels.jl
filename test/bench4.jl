@@ -20,32 +20,31 @@ if ! @isdefined kps4
 end
 
 msg = String[]
-@testset verbose = true "KPS4 benchmarking...." begin
+@testset verbose = true "KPS4 benchmarking...     " begin
 
-function set_defaults()
-    KiteModels.clear!(kps4)
-    kps4.set.l_tether = 150.0
-    kps4.set.elevation = 60.0
-    kps4.set.area = 20.0
-    kps4.set.rel_side_area = 50.0
-    kps4.set.v_wind = 8.0
-    kps4.set.mass = 11.4
-    kps4.set.damping =  2 * 473.0
-    kps4.set.alpha = 1.0/7
-    kps4.set.c_s = 0.6
-    
-end
+    function set_defaults()
+        KiteModels.clear!(kps4)
+        kps4.set.l_tethers[1] = 150.0
+        kps4.set.elevation = 60.0
+        kps4.set.area = 20.0
+        kps4.set.rel_side_area = 50.0
+        kps4.set.v_wind = 8.0
+        kps4.set.mass = 11.4
+        kps4.set.damping =  2 * 473.0
+        kps4.set.alpha = 1.0/7
+        kps4.set.c_s = 0.6
+    end
 
-function init_392()
-    KiteModels.clear!(kps4)
-    kps4.set.l_tether = 392.0
-    kps4.set.elevation = 70.0
-    kps4.set.area = 10.0
-    kps4.set.rel_side_area = 50.0
-    kps4.set.v_wind = 9.1
-    kps4.set.mass = 6.2
-    kps4.set.c_s = 0.6
-end
+    function init_392()
+        KiteModels.clear!(kps4)
+        kps4.set.l_tethers[1] = 392.0
+        kps4.set.elevation = 70.0
+        kps4.set.area = 10.0
+        kps4.set.rel_side_area = 50.0
+        kps4.set.v_wind = 9.1
+        kps4.set.mass = 6.2
+        kps4.set.c_s = 0.6
+    end
 
 function init_150()
     KiteModels.clear!(kps4)
