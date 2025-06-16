@@ -388,9 +388,9 @@ Output:
         p2 = s.springs[i].p2  # Second point nr.
         height = 0.5 * (pos[p1][3] + pos[p2][3])
         rho = calc_rho(s.am, height)
-        if height <= -1000.0
-            println("Error: height: $height")
-        end
+        # if height <= -1000.0
+        #     println("Error: height: $height")
+        # end
         @assert height > -1000
         if height < 6
             height = 6
@@ -496,9 +496,12 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
     if !isnothing(s.sync_speed) && s.sync_speed == 0.0
         use_brake = true
     end
-
-    res[end] = v_reel_outd - calc_acceleration(s.wm, v_reel_out, norm(s.forces[1]); set_speed=s.sync_speed, 
-               set_torque=s.set_torque, use_brake)
+    if !isnothing(s.sync_speed)
+        res[end] = v_reel_outd - calc_acceleration(s.wm, v_reel_out, norm(s.forces[1]), s.sync_speed, use_brake)        
+    else
+        res[end] = v_reel_outd - calc_acceleration(s.wm, v_reel_out, norm(s.forces[1]); set_speed=s.sync_speed, 
+            set_torque=s.set_torque, use_brake)
+    end
 
     # copy and flatten result
     for i in 2:div(T,6)+1
