@@ -49,7 +49,7 @@ toc()
 # Initialize at elevation
 sam.sys_struct.winches[2].tether_length += 0.2
 sam.sys_struct.winches[3].tether_length += 0.2
-init_sim!(sam; remake=false, reload=true)
+init_sim!(sam; remake=false, reload=false)
 sys = sam.sys
 
 @info "System initialized at:"
