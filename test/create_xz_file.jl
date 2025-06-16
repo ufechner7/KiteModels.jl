@@ -26,7 +26,7 @@ set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. 
 set.quasi_static = false
 set.physical_model = "ram"
 
-@info "Creating wing, aero, vsm_solver, system_structure and s:"
+@info "Creating wing, aero, vsm_solver, sys_struct and s:"
 s = SymbolicAWEModel(set)
 s.set.abs_tol = 1e-2
 s.set.rel_tol = 1e-2

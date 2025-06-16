@@ -5,7 +5,7 @@ using Timers
 tic()
 @info "Loading packages "
 
-PLOT = true
+PLOT = false
 using Pkg
 if ! ("LaTeXStrings" ∈ keys(Pkg.project().dependencies))
     using TestEnv; TestEnv.activate()

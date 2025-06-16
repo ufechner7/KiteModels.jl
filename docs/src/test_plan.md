@@ -14,7 +14,7 @@ Second run:
 julia> include("examples/ram_air_kite.jl")
 [ Info: Loading packages 
 Time elapsed: 2.769526784 s
-[ Info: Creating wing, aero, vsm_solver, system_structure and symbolic_awe_model:
+[ Info: Creating wing, aero, vsm_solver, sys_struct and symbolic_awe_model:
 Time elapsed: 4.461972064 s
 [ Info: Initialized integrator in 12.45877899 seconds
 [ Info: System initialized at:
@@ -31,7 +31,7 @@ Time elapsed: 37.744739449 s
 julia> include("examples/ram_air_kite.jl")
 [ Info: Loading packages 
 Time elapsed: 2.542575391 s
-[ Info: Creating wing, aero, vsm_solver, system_structure and symbolic_awe_model:
+[ Info: Creating wing, aero, vsm_solver, sys_struct and symbolic_awe_model:
 Time elapsed: 3.982282251 s
 [ Info: Initialized integrator in 11.411887056 seconds
 [ Info: System initialized at:
@@ -66,7 +66,7 @@ Expected output:
 julia> include("examples/ram_air_kite.jl")
 [ Info: Loading packages 
 Time elapsed: 2.863292943 s
-[ Info: Creating wing, aero, vsm_solver, system_structure and s:
+[ Info: Creating wing, aero, vsm_solver, sys_struct and s:
 Time elapsed: 4.51880941 s
 [ Info: Initialized integrator in 6.000656365 seconds
 [ Info: System initialized at:

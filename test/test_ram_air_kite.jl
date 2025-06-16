@@ -60,7 +60,7 @@ const BUILD_SYS = true
 
         # Keep references to first integrator and point system
         first_integrator_ptr = objectid(s.integrator)
-        first_system_structure_ptr = objectid(s.sys_struct)
+        first_sys_struct_ptr = objectid(s.sys_struct)
 
         # 2. First init_sim! - should load from serialized file
         @info "Testing first init_sim! (should load serialized file)..."
@@ -69,9 +69,9 @@ const BUILD_SYS = true
 
         # Check that it's a new integrator
         second_integrator_ptr = objectid(s.integrator)
-        second_system_structure_ptr = objectid(s.sys_struct)
+        second_sys_struct_ptr = objectid(s.sys_struct)
         @test first_integrator_ptr != second_integrator_ptr
-        @test first_system_structure_ptr == second_system_structure_ptr
+        @test first_sys_struct_ptr == second_sys_struct_ptr
 
         # 3. Second init_sim! - should reuse existing integrator
         @info "Testing second init_sim! (should reuse integrator)..."
@@ -79,15 +79,15 @@ const BUILD_SYS = true
 
         # This should create a new point system but reuse the existing integrator
         third_integrator_ptr = objectid(s.integrator)
-        third_system_structure_ptr = objectid(s.sys_struct)
+        third_sys_struct_ptr = objectid(s.sys_struct)
         @test second_integrator_ptr == third_integrator_ptr # Should be the same
-        @test second_system_structure_ptr == third_system_structure_ptr
+        @test second_sys_struct_ptr == third_sys_struct_ptr
 
         # Get positions using SysState
         sys_state = KiteModels.SysState(s)
 
         # Check dimension consistency
-        # Note: pos_integrator is no longer directly fetched, comparing SysState to system_structure
+        # Note: pos_integrator is no longer directly fetched, comparing SysState to sys_struct
         @test length(sys_state.X) == length(s.sys_struct.points)
 
         # Compare positions in different representations
@@ -270,9 +270,9 @@ const BUILD_SYS = true
             push!(segment_idxs, segment_idx)
         end
 
-        system_structure = SystemStructure("tether"; points, segments)
+        sys_struct = SystemStructure("tether"; points, segments)
 
-        sam = SymbolicAWEModel(set, system_structure)
+        sam = SymbolicAWEModel(set, sys_struct)
         sys = sam.sys
         init_sim!(sam; remake=false)
         @test sam.integrator[sam.sys.pos[:, end]] ≈ zeros(3)

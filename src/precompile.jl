@@ -45,10 +45,10 @@ end
     kps3_::KPS3 = KPS3(KCU(se("system.yaml")))
     ver = "$(VERSION.major).$(VERSION.minor)_"
 
-    prob_name   = "prob_" * ver * "ram_dynamic_3_seg.bin"
-    prob_file   = normpath(joinpath(path, "..", "data", prob_name))
-    output_file = normpath(joinpath(path, "..", "data", prob_name * ".default"))
-    input_file  = normpath(joinpath(path, "..", "data", prob_name * ".default.xz"))
+    model_name   = get_model_name(set)
+    model_file   = normpath(joinpath(path, "..", "data", model_name))
+    output_file = normpath(joinpath(path, "..", "data", model_name * ".default"))
+    input_file  = normpath(joinpath(path, "..", "data", model_name * ".default.xz"))
     if isfile(input_file) && ! isfile(output_file)
         using CodecXz
         decompress_binary(input_file, output_file)
@@ -90,9 +90,9 @@ end
 
             # Initialize at elevation
             KiteModels.init_sim!(s; prn=false, precompile=true)
-            @info "Copying $output_file to $prob_file !"
-            cp(output_file, prob_file; force=true)
+            @info "Copying $output_file to $model_file !"
+            cp(output_file, model_file; force=true)
         end
         nothing
     end
-end 
+end   
