@@ -37,10 +37,10 @@ const BUILD_SYS = true
         if BUILD_SYS
             # Delete existing problem file to force init!
             @info "Data path: $(get_data_path())"
-            prob_path = joinpath(get_data_path(), KiteModels.get_prob_name(s.set))
-            if isfile(prob_path)
-                @info "Removing existing serialized problem from $prob_path to test full initialization"
-                rm(prob_path)
+            model_path = joinpath(get_data_path(), KiteModels.get_model_name(s.set))
+            if isfile(model_path)
+                @info "Removing existing serialized problem from $model_path to test full initialization"
+                rm(model_path)
             end
 
             # 1. First time initialization - should create new model
@@ -48,19 +48,19 @@ const BUILD_SYS = true
             @time KiteModels.init_sim!(s; prn=true)
 
             # Check that serialization worked
-            @test isfile(prob_path)
+            @test isfile(model_path)
 
             # Check initialization results
             @test !isnothing(s.integrator)
             @test !isnothing(s.sys)
-            @test !isnothing(s.system_structure)
+            @test !isnothing(s.sys_struct)
         end
         s.integrator = nothing
         s.sys = nothing
 
         # Keep references to first integrator and point system
         first_integrator_ptr = objectid(s.integrator)
-        first_system_structure_ptr = objectid(s.system_structure)
+        first_sys_struct_ptr = objectid(s.sys_struct)
 
         # 2. First init_sim! - should load from serialized file
         @info "Testing first init_sim! (should load serialized file)..."
@@ -69,9 +69,9 @@ const BUILD_SYS = true
 
         # Check that it's a new integrator
         second_integrator_ptr = objectid(s.integrator)
-        second_system_structure_ptr = objectid(s.system_structure)
+        second_sys_struct_ptr = objectid(s.sys_struct)
         @test first_integrator_ptr != second_integrator_ptr
-        @test first_system_structure_ptr == second_system_structure_ptr
+        @test first_sys_struct_ptr == second_sys_struct_ptr
 
         # 3. Second init_sim! - should reuse existing integrator
         @info "Testing second init_sim! (should reuse integrator)..."
@@ -79,19 +79,19 @@ const BUILD_SYS = true
 
         # This should create a new point system but reuse the existing integrator
         third_integrator_ptr = objectid(s.integrator)
-        third_system_structure_ptr = objectid(s.system_structure)
+        third_sys_struct_ptr = objectid(s.sys_struct)
         @test second_integrator_ptr == third_integrator_ptr # Should be the same
-        @test second_system_structure_ptr == third_system_structure_ptr
+        @test second_sys_struct_ptr == third_sys_struct_ptr
 
         # Get positions using SysState
         sys_state = KiteModels.SysState(s)
 
         # Check dimension consistency
-        # Note: pos_integrator is no longer directly fetched, comparing SysState to system_structure
-        @test length(sys_state.X) == length(s.system_structure.points)
+        # Note: pos_integrator is no longer directly fetched, comparing SysState to sys_struct
+        @test length(sys_state.X) == length(s.sys_struct.points)
 
         # Compare positions in different representations
-        for (i, point) in enumerate(s.system_structure.points)
+        for (i, point) in enumerate(s.sys_struct.points)
             # Points' world positions should match SysState positions
             point_pos = point.pos_w
             sys_state_pos = [sys_state.X[i], sys_state.Y[i], sys_state.Z[i]]
@@ -110,11 +110,7 @@ const BUILD_SYS = true
     @testset "State Consistency" begin
         KiteModels.init_sim!(s, prn=true, reload=false)
         sys_state_before = KiteModels.SysState(s)
-
-        # Check quaternion normalization
         @test isapprox(norm(s.integrator[s.sys.Q_b_w]), 1.0, atol=TOL)
-
-        # Check elevation matches measurement
         @test isapprox(sys_state_before.elevation, deg2rad(set.elevation), atol=1e-2)
 
         # Change measurement and reinitialize
@@ -270,9 +266,9 @@ const BUILD_SYS = true
             push!(segment_idxs, segment_idx)
         end
 
-        system_structure = SystemStructure("tether"; points, segments)
+        sys_struct = SystemStructure("tether"; points, segments)
 
-        sam = SymbolicAWEModel(set, system_structure)
+        sam = SymbolicAWEModel(set, sys_struct)
         sys = sam.sys
         init_sim!(sam; remake=false)
         @test sam.integrator[sam.sys.pos[:, end]] ≈ zeros(3)

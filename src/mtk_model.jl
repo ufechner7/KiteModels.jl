@@ -340,12 +340,12 @@ function force_eqs!(s, system, eqs, defaults, guesses;
     end
     for segment in segments
         p1, p2 = segment.point_idxs[1], segment.point_idxs[2]
-        if s.set.quasi_static
+        # if s.set.quasi_static
             guesses = [
                 guesses
                 [segment_vec[i, segment.idx] => points[p2].pos_w[i] - points[p1].pos_w[i] for i in 1:3]
             ]
-        end
+        # end
 
         if segment.type == BRIDLE
             in_pulley = 0
@@ -579,7 +579,7 @@ Tuple of updated equations and defaults
 function wing_eqs!(s, eqs, defaults; tether_wing_force, tether_wing_moment, aero_force_b, 
     aero_moment_b, ω_b, α_b, R_b_w, wing_pos, wing_vel, wing_acc, stabilize, fix_nonstiff
 )
-    wings = s.system_structure.wings
+    wings = s.sys_struct.wings
     @variables begin
         # potential differential variables
         wing_acc_b(t)[eachindex(wings), 1:3]
@@ -699,7 +699,7 @@ Generate equations for scalar quantities like elevation, azimuth, heading and co
     - Angular velocities and accelerations
     """
 function scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_wing_b, wing_pos, wing_vel, wing_acc, twist_angle, twist_ω, ω_b, α_b)
-    @unpack wings = s.system_structure
+    @unpack wings = s.sys_struct
     @parameters wind_scale_gnd = s.set.v_wind
     @parameters upwind_dir = deg2rad(s.set.upwind_dir)
     @variables begin
@@ -817,7 +817,7 @@ and moments. The Jacobian is computed using the VSM solver.
 - Jacobian matrix for state derivatives
 """
 function linear_vsm_eqs!(s, eqs, guesses; aero_force_b, aero_moment_b, group_aero_moment, init_va_b, twist_angle, va_wing_b, ω_b)
-    @unpack groups, wings = s.system_structure
+    @unpack groups, wings = s.sys_struct
     if length(wings) == 0
         return eqs, guesses
     end

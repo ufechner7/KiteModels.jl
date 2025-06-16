@@ -175,7 +175,7 @@ end
 """
     struct SystemStructure
 
-A discrete mass-spring-damper representation of a kite system, where point masses 
+A discrete mass-spring-damper representation of a kite sys_struct, where point masses 
 connected by elastic segments model the kite and tether dynamics:
 
 - `points::Vector{Point}`: Point masses representing:
@@ -249,9 +249,9 @@ function SystemStructure(set::Settings, wing::RamAirWing)
     length(set.bridle_fracs) != 4 && throw(ArgumentError("4 bridle fracs should be provided for all models."))
 
     if set.physical_model == "ram"
-        return create_ram_system_structure(set, wing)
+        return create_ram_sys_struct(set, wing)
     elseif set.physical_model == "simple_ram"
-        return create_simple_ram_system_structure(set, wing)
+        return create_simple_ram_sys_struct(set, wing)
     else
         throw(ArgumentError("Undefined physical model"))
     end
@@ -307,7 +307,7 @@ function find_axis_point(P, l, v=[0,0,1])
     return [t * v[1], t * v[2], t * v[3]]
 end
 
-function create_ram_system_structure(set::Settings, vsm_wing::RamAirWing)
+function create_ram_sys_struct(set::Settings, vsm_wing::RamAirWing)
     points = Point[]
     groups = Group[]
     segments = Segment[]
@@ -414,7 +414,7 @@ function create_ram_system_structure(set::Settings, vsm_wing::RamAirWing)
     return SystemStructure(set.physical_model; points, groups, segments, pulleys, tethers, winches, wings)
 end
 
-function create_simple_ram_system_structure(set::Settings, wing::RamAirWing)
+function create_simple_ram_sys_struct(set::Settings, wing::RamAirWing)
     points = Point[]
     groups = Group[]
     segments = Segment[]
@@ -475,8 +475,8 @@ function create_simple_ram_system_structure(set::Settings, wing::RamAirWing)
 end
 
 
-function init!(system::SystemStructure, set::Settings, R_b_w, Q_b_w)
-    @unpack points, groups, segments, pulleys, tethers, winches, wings = system
+function init!(sys_struct::SystemStructure, set::Settings, R_b_w, Q_b_w)
+    @unpack points, groups, segments, pulleys, tethers, winches, wings = sys_struct
 
     for segment in segments
         (segment.type === BRIDLE) && (segment.diameter = 0.001set.bridle_tether_diameter)

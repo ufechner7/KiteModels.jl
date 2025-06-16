@@ -59,8 +59,8 @@ toc()
 lin_outputs = @variables heading(t_nounits)[1]
 
 # Initialize at elevation with linearization outputs
-s.system_structure.winches[2].tether_length += 0.2
-s.system_structure.winches[3].tether_length += 0.2
+s.sys_struct.winches[2].tether_length += 0.2
+s.sys_struct.winches[3].tether_length += 0.2
 KiteModels.init_sim!(s; 
     remake=false,
     reload=true,

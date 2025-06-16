@@ -5,7 +5,7 @@ using Timers
 tic()
 @info "Loading packages "
 
-PLOT = true
+PLOT = false
 using Pkg
 if ! ("LaTeXStrings" ∈ keys(Pkg.project().dependencies))
     using TestEnv; TestEnv.activate()
@@ -36,20 +36,20 @@ set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. 
 set.quasi_static = false
 set.physical_model = SIMPLE ? "simple_ram" : "ram"
 
-@info "Creating wing, aero, vsm_solver, system_structure and symbolic_awe_model:"
+@info "Creating wing, aero, vsm_solver, sys_struct and symbolic_awe_model:"
 sam = SymbolicAWEModel(set)
 sam.set.abs_tol = 1e-2
 sam.set.rel_tol = 1e-2
 toc()
 
 # init_Q_b_w, R_b_w = KiteModelsam.initial_orient(sam.set)
-# init_kite_pos = init!(sam.system_structure, sam.set, R_b_w, init_Q_b_w)
-# plot(sam.system_structure, 0.0; zoom=false, front=false)
+# init_kite_pos = init!(sam.sys_struct, sam.set, R_b_w, init_Q_b_w)
+# plot(sam.sys_struct, 0.0; zoom=false, front=false)
 
 # Initialize at elevation
-sam.system_structure.winches[2].tether_length += 0.2
-sam.system_structure.winches[3].tether_length += 0.2
-init_sim!(sam; remake=false, reload=true)
+sam.sys_struct.winches[2].tether_length += 0.2
+sam.sys_struct.winches[3].tether_length += 0.2
+init_sim!(sam; remake=false, reload=false)
 sys = sam.sys
 
 @info "System initialized at:"
@@ -58,7 +58,7 @@ toc()
 # Stabilize system
 find_steady_state!(sam)
 
-logger = Logger(length(sam.system_structure.points), steps)
+logger = Logger(length(sam.sys_struct.points), steps)
 sys_state = SysState(sam)
 t = 0.0
 runtime = 0.0

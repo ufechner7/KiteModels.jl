@@ -112,7 +112,7 @@ if ! haskey(ENV, "NO_MTK")
     set_values = [-50, -1.1, -1.1]
     sam = SymbolicAWEModel(set)
     KiteModels.init_sim!(sam)
-    logger = Logger(length(sam.system_structure.points), 5)
+    logger = Logger(length(sam.sys_struct.points), 5)
 
     for i in 1:5
         next_step!(sam; set_values)
