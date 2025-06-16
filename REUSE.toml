@@ -1,0 +1,31 @@
+version = 1
+
+[[annotations]]
+path = ["data/prob*", "data/ram*", "examples/discrete_jacobian.jl"]
+SPDX-FileCopyrightText = "2025 Bart van de Lint"
+SPDX-License-Identifier = "MPL-2.0"
+
+[[annotations]]
+path = "data/*ram.yaml"
+SPDX-FileCopyrightText = "2025 Bart van de Lint, Uwe Fechner"
+SPDX-License-Identifier = "CC-BY-4.0"
+
+[[annotations]]
+path = ["data/settings.yaml", "data/system.yaml", "data/vsm_settings.yaml"]
+SPDX-FileCopyrightText = "2025 Uwe Fechner"
+SPDX-License-Identifier = "CC-BY-4.0"
+
+[[annotations]]
+path = ["Manifest*", "Project.toml", ".gitignore"]
+SPDX-FileCopyrightText = "2025 Uwe Fechner, Bart van de Lint"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = ["docs/src/*.png", "docs/src/*.md", "docs/src/kite_power_tools.drawio"]
+SPDX-FileCopyrightText = "2025 Uwe Fechner"
+SPDX-License-Identifier = "CC-BY-4.0"
+
+[[annotations]]
+path = ["docs/.gitignore", "docs/Project.toml", "CITATION.cff"]
+SPDX-FileCopyrightText = "2025 Uwe Fechner"
+SPDX-License-Identifier = "MIT"

@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you are using this software, please cite it as shown below."
+preferred-citation:
+  type: article
+  authors:
+    - family-names: "Fechner"
+      given-names: "Uwe"
+    - family-names: "van de Vlugt"
+      given-names: "Rolf"
+    - family-names: "Schreuder"
+      given-names: "E"
+    - family-names: "Schmehl"
+      given-names: "Roland"
+  doi: "10.1016/j.renene.2015.04.028"
+  journal: "Renewable Energy"
+  title: "Dynamic model of a pumping kite power system"
+  issue: 83
+  volume: 83
+  year: 2015
