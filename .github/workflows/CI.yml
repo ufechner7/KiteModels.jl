@@ -48,17 +48,31 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          
       - name: Install matplotlib
         run: python -m pip install matplotlib
+        
+      - name: Configure PyCall to use system Python
+        run: |
+          julia --project -e '
+            ENV["PYTHON"] = Sys.which("python")
+            using Pkg
+            Pkg.build("PyCall")
+          '
+        shell: bash
+        
       - uses: actions/checkout@v4
+      
       - name: Use default manifest
         run: |
           if [ -f Manifest.toml.default ]; then cp Manifest.toml.default Manifest.toml; fi
         shell: bash
+        
       - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
+          
       - uses: julia-actions/cache@v2
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
@@ -66,6 +80,7 @@ jobs:
           BUILD_IS_PRODUCTION_BUILD: ${{ matrix.build_is_production_build }}
         with:
           coverage: false
+          
   test-with-code-coverage:
     name: Julia ${{ matrix.julia_version }} - ${{ matrix.os }} - ${{ matrix.julia_arch }} - with code coverage
     timeout-minutes: 70
