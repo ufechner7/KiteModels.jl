@@ -496,12 +496,12 @@ function residual!(res, yd, y::MVector{S, SimFloat}, s::KPS4, time) where S
     if !isnothing(s.sync_speed) && s.sync_speed == 0.0
         use_brake = true
     end
-    if !isnothing(s.sync_speed)
-        res[end] = v_reel_outd - calc_acceleration(s.wm, v_reel_out, norm(s.forces[1]), s.sync_speed, use_brake)        
-    else
+    # if !isnothing(s.sync_speed)
+    #     res[end] = v_reel_outd - calc_acceleration(s.wm, v_reel_out, norm(s.forces[1]), s.sync_speed)        
+    # else
         res[end] = v_reel_outd - calc_acceleration(s.wm, v_reel_out, norm(s.forces[1]); set_speed=s.sync_speed, 
             set_torque=s.set_torque, use_brake)
-    end
+    # end
 
     # copy and flatten result
     for i in 2:div(T,6)+1
