@@ -136,7 +136,7 @@ msg = String[]
     # Julia 1.9 on Ryzen:  816.1 ns
     # Julia 1.10 on Ryzen: 787.0 ns 6000 RAM
     # Julia 1.10 on Laptop on battery: 1047 ns
-    # Julia 1.11 on Laptop on battery: 1035 ns
+    # Julia 1.11 on Laptop on power:   1024..1090 ns
     # Julia 1.11 on Laptop on battery: 1050..1197 ns
     # Julia 1.11 on Desktop on main branch: 835..899 ns on June 15, 2025 after 14:12
 end
