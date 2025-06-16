@@ -14,7 +14,7 @@ set_data_path(temp_data_path)
 
 # Testing tolerance
 const TOL = 1e-5
-const BUILD_SYS = false
+const BUILD_SYS = true
 
 @testset verbose = true "SymbolicAWEModel MTK Model Tests" begin
     # Initialize model
