@@ -170,7 +170,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                 chord_b = point.pos_b - fixed_pos
                 normal = chord_b × group.y_airf
                 pos_b = fixed_pos + cos(twist_angle[group.idx]) * chord_b - sin(twist_angle[group.idx]) * normal
-            else
+            elseif found == 0
                 pos_b = point.pos_b
                 eqs = [
                     eqs

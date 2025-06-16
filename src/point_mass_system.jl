@@ -55,13 +55,14 @@ $(TYPEDFIELDS)
 mutable struct Point
     idx::Int16
     transform_idx::Int16 # idx of wing used for initial orientation
+    wing_idx::Int16
     pos_b::KVec3 # pos relative to wing COM in body frame
     pos_w::KVec3 # pos in world frame
     vel_w::KVec3 # vel in world frame
     type::DynamicsType
 end
-function Point(idx, pos_b, type; vel_w=zeros(KVec3), transform_idx=1)
-    Point(idx, transform_idx, pos_b, copy(pos_b), vel_w, type)
+function Point(idx, pos_b, type; wing_idx=1, vel_w=zeros(KVec3), transform_idx=1)
+    Point(idx, transform_idx, wing_idx, pos_b, copy(pos_b), vel_w, type)
 end
 
 """
@@ -166,10 +167,12 @@ struct Wing
     transform_idx::Int16
     orient::KVec4
     angular_vel::KVec3
-    pos::KVec3
+    pos_w::KVec3
+    pos_b::KVec3
     vel::KVec3
-    function Wing(idx, group_idxs; transform_idx=1, orient=zeros(KVec4), angular_vel=zeros(KVec3), pos=zeros(KVec3), vel=zeros(KVec3))
-        new(idx, group_idxs, transform_idx, orient, angular_vel, pos, vel)
+    function Wing(idx, group_idxs; transform_idx=1, orient=zeros(KVec4), angular_vel=zeros(KVec3), 
+            pos_w=zeros(KVec3), pos_b=zeros(KVec3), vel=zeros(KVec3))
+        new(idx, group_idxs, transform_idx, orient, angular_vel, pos_w, pos_b, vel)
     end
 end
 
@@ -177,14 +180,14 @@ struct Transform
     idx::Int16
     elevation::SimFloat # The elevation of the rotating point or kite as seen from the base point
     azimuth::SimFloat # The azimuth of the rotating point or kite as seen from the base point
-    wing_idx::Union{SimFloat, Nothing}
-    rot_point_idx::Union{SimFloat, Nothing}
-    base_point_idx::SimFloat
+    wing_idx::Union{Int16, Nothing}
+    rot_point_idx::Union{Int16, Nothing}
+    base_point_idx::Int16
     heading::SimFloat
     base_pos::Union{KVec3, Nothing}
     base_transform_idx::Union{Int16, Nothing}
 end
-function Transform(idx, elevation, azimuth, base_pos::KVec3, base_point_idx; wing_idx=1, rot_point_idx=nothing, heading=0.0)
+function Transform(idx, elevation, azimuth, base_pos::AbstractVector, base_point_idx; wing_idx=1, rot_point_idx=nothing, heading=0.0)
     (isnothing(wing_idx) + isnothing(rot_point_idx) != 1) && error("Either provide a wing_idx or a rot_point_idx, not both or none.")
     Transform(idx, elevation, azimuth, wing_idx, rot_point_idx, base_point_idx, heading, base_pos, nothing)
 end
@@ -304,8 +307,8 @@ function SystemStructure(set::Settings, wing::RamAirWing)
     end
 end
 
-function update!(transforms::Vector{Transform}, sys::SystemStructure)
-    @unpack points, wings = sys
+function init!(transforms::Vector{Transform}, sys_struct::SystemStructure)
+    @unpack points, wings = sys_struct
     T = zeros(3)
     R_t_w = zeros(3,3)
     for transform in transforms
@@ -439,7 +442,6 @@ function create_ram_system_structure(set::Settings, vsm_wing::RamAirWing)
         ]
 
         # ==================== CREATE PULLEY BRIDLE SYSTEM ==================== #
-        # TODO: add initial rotation around y-axis
         points = [
             points
             Point(7+i_pnt, bridle_top[1], dynamics_type)
@@ -568,8 +570,8 @@ function create_simple_ram_system_structure(set::Settings, wing::RamAirWing)
 end
 
 
-function init!(system::SystemStructure, set::Settings, R_b_w, Q_b_w)
-    @unpack points, groups, segments, pulleys, tethers, winches, wings = system
+function init!(sys_struct::SystemStructure, set::Settings)
+    @unpack points, groups, segments, pulleys, tethers, winches, wings, transforms = sys_struct
 
     for segment in segments
         (segment.type === BRIDLE) && (segment.diameter = 0.001set.bridle_tether_diameter)
@@ -600,23 +602,6 @@ function init!(system::SystemStructure, set::Settings, R_b_w, Q_b_w)
         group.twist_vel = 0.0
         @assert group.moment_frac ≈ first_moment_frac "All group.moment_frac must be the same."
     end
-
-    min_point = fill(Inf, 3)
-    for point in points
-        if point.pos_b[3] < min_point[3]
-            min_point .= point.pos_b
-        end
-    end
-    for point in points
-        R = R_b_w[point.transform_idx, :, :]
-        point.pos_w .= R * (point.pos_b .- min_point)
-        point.vel_w .= 0.0
-    end
-    for wing in wings
-        wing.pos .= R_b_w[wing.idx, :, :] * -min_point
-        wing.orient .= Q_b_w[wing.idx, :]
-        wing.vel .= 0.0
-        wing.angular_vel .= 0.0
-    end
+    init!(transforms, sys_struct)
     return nothing
 end
