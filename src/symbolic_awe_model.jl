@@ -275,6 +275,8 @@ function init_sim!(s::SymbolicAWEModel;
         sym_vec = get_unknowns(s.sys_struct, s.sys)
         s.unknowns_vec = zeros(SimFloat, length(sym_vec))
         generate_getters!(s, sym_vec)
+        s.set_hash = get_set_hash(s.set)
+        s.sys_struct_hash = get_sys_struct_hash(s.sys_struct)
         serialize(model_path, s.serialized_model)
         s.integrator = nothing
         return nothing
@@ -360,13 +362,9 @@ function reinit!(
             @warn "lin_prob is nothing."
             return s.integrator, false
         elseif (get_set_hash(s.set) != s.set_hash)
-            s.set_hash = get_set_hash(s.set)
             @warn "The Settings have changed."
             return s.integrator, false
         elseif (get_sys_struct_hash(s.sys_struct) != s.sys_struct_hash)
-            @show get_sys_struct_hash(s.sys_struct) s.sys_struct_hash
-            s.sys_struct_hash = get_sys_struct_hash(s.sys_struct)
-            @show get_sys_struct_hash(s.sys_struct) s.sys_struct_hash
             @warn "The SystemStructure has changed."
             return s.integrator, false
         end
