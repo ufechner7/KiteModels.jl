@@ -22,9 +22,10 @@
     prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
 
     unknowns_vec::Vector{SimFloat} = zeros(SimFloat, 3)
-    defaults::Vector{Pair{Num, Real}} = Pair{Num, Real}[]
-    guesses::Vector{Pair{Num, Real}} = Pair{Num, Real}[]
+    defaults::Vector{Pair} = Pair[]
+    guesses::Vector{Pair} = Pair[]
 
+    set_psys::Function             = (_, _) -> nothing
     set_set_values::Function       = (_, _) -> nothing
     set_wind_dir::Function         = (_, _) -> nothing
     set_vsm::Function              = (_, _) -> nothing
@@ -384,6 +385,7 @@ function reinit!(
 
     init_unknowns_vec!(s, s.sys_struct, s.unknowns_vec)
     s.set_unknowns(s.integrator, s.unknowns_vec)
+    s.set_psys(s.integrator, s.sys_struct)
     OrdinaryDiffEqCore.reinit!(s.integrator, s.integrator.u; reinit_dae=true)
     linearize_vsm!(s)
     return s.integrator, true
@@ -466,6 +468,8 @@ function generate_getters!(s, sym_vec)
         s.get_stabilize = (integ) -> get_stabilize(integ)
     end
     
+    set_psys = setp(sys, sys.psys)
+    s.set_psys = (integ, val) -> set_psys(integ, val)
     set_wind_dir = setp(sys, sys.upwind_dir)
     s.set_wind_dir = (integ, val) -> set_wind_dir(integ, val)
     set_unknowns = setu(sys, sym_vec)

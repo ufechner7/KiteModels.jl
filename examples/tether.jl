@@ -24,14 +24,14 @@ for i in 1:set.segments
     push!(segment_idxs, segment_idx)
 end
 
-transforms = [Transform(1, deg2rad(90), 0.0, 0.0, [0.0, 0.0, 50.0], points[1].idx; rot_point_idx=points[end].idx)]
+transforms = [Transform(1, deg2rad(-80), 0.0, 0.0, [0.0, 0.0, 50.0], points[1].idx; rot_point_idx=points[end].idx)]
 sys_struct = SystemStructure("tether", set; points, segments, transforms)
 plot(sys_struct, 0.0)
 
 sam = SymbolicAWEModel(set, sys_struct)
 
 init_sim!(sam; remake=false)
-sam.integrator.ps[sam.sys.psys] = sys_struct
+# sam.integrator.ps[sam.sys.psys] = sys_struct
 for i in 1:100
     plot(sam, i/set.sample_freq)
     next_step!(sam)

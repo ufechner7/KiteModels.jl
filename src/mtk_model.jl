@@ -225,7 +225,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             ]
             defaults = [
                 defaults
-                [pos[j, point.idx] => point.pos_w[j] for j in 1:3]
+                [pos[j, point.idx] => get_pos_w(psys, point.idx)[j] for j in 1:3]
                 [vel[j, point.idx] => 0 for j in 1:3]
             ]
         elseif point.type == QUASI_STATIC
@@ -238,7 +238,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             guesses = [
                 guesses
                 [acc[j, point.idx] => 0 for j in 1:3]
-                [pos[j, point.idx] => point.pos_w[j] for j in 1:3]
+                [pos[j, point.idx] => get_pos_w(psys, point.idx)[j] for j in 1:3]
                 [point_force[j, point.idx] => 0 for j in 1:3]
             ]
         else
@@ -878,8 +878,8 @@ end
 
 function create_sys!(s::SymbolicAWEModel, system::SystemStructure; init_va_b)
     eqs = []
-    defaults = Pair{Num, Real}[]
-    guesses = Pair{Num, Real}[]
+    defaults = Pair{Num, Any}[]
+    guesses = Pair{Num, Any}[]
 
     @unpack wings, groups, winches = system
 

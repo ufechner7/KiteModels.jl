@@ -49,7 +49,7 @@ toc()
 # Initialize at elevation
 set.l_tethers[2] += 0.2
 set.l_tethers[3] += 0.2
-init_sim!(sam; remake=false, reload=false)
+init_sim!(sam; remake=true, reload=false)
 sys = sam.sys
 
 @info "System initialized at:"
@@ -148,4 +148,5 @@ display(p)
 
 @info "Performance:" times_realtime=(total_time/2)/runtime integrator_times_realtime=(total_time/2)/integ_runtime
 
+# 55x realtime
 # 

@@ -9,8 +9,6 @@ export plot
 
 function ControlPlots.plot(sys::SystemStructure, reltime; l_tether=50.0, wing_pos=nothing, e_z=zeros(3), zoom=false, front=false)
     pos = [sys.points[i].pos_w for i in eachindex(sys.points)]
-    min_x = minimum([p[1] for p in pos])
-    min_z = minimum([p[3] for p in pos])
     !isnothing(wing_pos) && (pos = [pos..., wing_pos...])
     seg = [[sys.segments[i].point_idxs[1], sys.segments[i].point_idxs[2]] for i in eachindex(sys.segments)]
     if zoom && !front
@@ -20,11 +18,11 @@ function ControlPlots.plot(sys::SystemStructure, reltime; l_tether=50.0, wing_po
         xlim = (pos[end][2] - 6, pos[end][2]+6)
         ylim = (pos[end][3] - 10, pos[end][3]+2)
     elseif !zoom && !front
-        xlim = (min_x-5, min_x+l_tether+10)
-        ylim = (min_z-5, min_z+l_tether+10)
+        xlim = (-5, l_tether+10)
+        ylim = (-5, l_tether+10)
     elseif !zoom && front
         xlim = (-12.5 - 0.5l_tether, 12.5 + 0.5l_tether)
-        ylim = (min_z-5, min_z+l_tether+10)
+        ylim = (-5, l_tether+10)
     end
     ControlPlots.plot2d(pos, seg, reltime; zoom, front, xlim, ylim, dz_zoom=0.6)
 end
