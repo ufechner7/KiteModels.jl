@@ -162,6 +162,34 @@ mutable struct Winch
     end
 end
 
+"""
+    struct Wing
+
+A rigid wing body that can have multiple groups of points attached to it.
+
+$(TYPEDFIELDS)
+
+# Fields
+- `idx::Int16`: Unique identifier for the wing
+- `group_idxs::Vector{Int16}`: Indices of groups attached to this wing
+- `transform_idx::Int16`: Transform used for initial positioning and orientation
+- `R_b_c::Matrix{SimFloat}`: Rotation matrix from body frame to CAD frame
+- `angular_vel::KVec3`: Angular velocity of the wing in world frame
+- `pos_w::KVec3`: Position of wing center of mass in world frame
+- `pos_cad::KVec3`: Position of wing center of mass in CAD frame
+- `vel_w::KVec3`: Velocity of wing center of mass in world frame
+
+The wing provides a rigid body reference frame for attached points and groups.
+Points with `type == WING` move rigidly with the wing body according to the
+wing's orientation matrix `R_b_c` and position `pos_w`.
+
+# Extended help
+The wing's orientation can be accessed as a quaternion through the `orient` property:
+```julia
+wing = Wing(1, [1,2], I(3), zeros(3))
+quat = wing.orient  # Returns quaternion representation of R_b_c
+```
+"""
 struct Wing
     idx::Int16
     group_idxs::Vector{Int16}
@@ -184,6 +212,47 @@ function Base.getproperty(wing::Wing, sym::Symbol)
     end
 end
 
+"""
+    mutable struct Transform
+
+Describes the spatial transformation (position and orientation) of system components
+relative to a base reference point.
+
+$(TYPEDFIELDS)
+
+# Fields
+- `idx::Int16`: Unique identifier for the transform
+- `elevation::SimFloat`: Elevation angle of the rotating point/wing as seen from base point (radians)
+- `azimuth::SimFloat`: Azimuth angle of the rotating point/wing as seen from base point (radians)  
+- `heading::SimFloat`: Rotation angle around the base-to-rotation vector (radians)
+- `wing_idx::Union{Int16, Nothing}`: Index of wing to be rotated (mutually exclusive with rot_point_idx)
+- `rot_point_idx::Union{Int16, Nothing}`: Index of point to be rotated (mutually exclusive with wing_idx)
+- `base_point_idx::Int16`: Index of the reference point for the transformation
+- `base_pos::Union{KVec3, Nothing}`: Fixed position offset for the base point
+- `base_transform_idx::Union{Int16, Nothing}`: Index of another transform to use as base position
+
+# Transformation sequence
+The transform applies the following operations in order:
+1. **Translation**: Move the base point according to `base_pos` or referenced transform
+2. **Rotation**: Rotate the system around the base point using spherical coordinates:
+   - `elevation`: Angle above/below the horizontal plane
+   - `azimuth`: Angle in the horizontal plane (measured from east, positive counterclockwise)
+   - `heading`: Additional rotation around the base-to-rotation vector
+
+# Usage
+Either `wing_idx` or `rot_point_idx` must be specified (not both). The transform
+will orient the specified wing or point according to the elevation/azimuth angles
+relative to the base point, then apply the heading rotation.
+
+# Examples
+```julia
+# Transform a wing to 45° elevation, 30° azimuth, with base at origin
+transform = Transform(1, deg2rad(45), deg2rad(30), 0.0, [0,0,0], 1; wing_idx=1)
+
+# Transform using another transform as base reference
+transform = Transform(2, deg2rad(60), deg2rad(0), 0.0, 1, 2; rot_point_idx=5)
+```
+"""
 mutable struct Transform
     const idx::Int16
     elevation::SimFloat # The elevation of the rotating point or kite as seen from the base point
