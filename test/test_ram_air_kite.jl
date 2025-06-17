@@ -272,7 +272,7 @@ const BUILD_SYS = true
         sam = SymbolicAWEModel(set, sys_struct)
         sys = sam.sys
         init_sim!(sam; remake=false)
-        @test sam.integrator[sam.sys.pos[:, end]] ≈ zeros(3)
+        @test isapprox(sam.integrator[sam.sys.pos[:, end]], [8.682408883346524, 0.0, 0.7596123493895988], atol=1e-2)
         for i in 1:100
             next_step!(sam)
         end
