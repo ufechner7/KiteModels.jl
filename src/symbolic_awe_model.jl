@@ -755,7 +755,7 @@ function get_set_hash(set::Settings;
 end
 
 function get_sys_struct_hash(sys_struct::SystemStructure)
-    @unpack points, groups, segments, pulleys, tethers, winches, wings = sys_struct
+    @unpack points, groups, segments, pulleys, tethers, winches, wings, transforms = sys_struct
     data_parts = []
     for point in points
         push!(data_parts, ("point", point.idx, point.wing_idx, Int(point.type)))
