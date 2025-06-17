@@ -52,7 +52,7 @@ A normal freely moving tether point.
 
 $(TYPEDFIELDS)
 """
-mutable struct Point
+struct Point
     idx::Int16
     transform_idx::Int16 # idx of wing used for initial orientation
     wing_idx::Int16
@@ -74,12 +74,12 @@ Set of bridle lines that share the same twist angle and trailing edge angle.
 $(TYPEDFIELDS)
 """
 mutable struct Group
-    idx::Int16
-    point_idxs::Vector{Int16}
-    le_pos::KVec3 # point which the group rotates around under wing deformation
-    chord::KVec3 # chord vector in body frame which the group rotates around under wing deformation
-    y_airf::KVec3 # spanwise vector in local panel frame which the group rotates around under wing deformation
-    type::DynamicsType
+    const idx::Int16
+    const point_idxs::Vector{Int16}
+    const le_pos::KVec3 # point which the group rotates around under wing deformation
+    const chord::KVec3 # chord vector in body frame which the group rotates around under wing deformation
+    const y_airf::KVec3 # spanwise vector in local panel frame which the group rotates around under wing deformation
+    const type::DynamicsType
     moment_frac::SimFloat
     twist::SimFloat
     twist_vel::SimFloat
@@ -102,9 +102,9 @@ A segment from one point index to another point index.
 $(TYPEDFIELDS)
 """
 mutable struct Segment
-    idx::Int16
-    point_idxs::Tuple{Int16, Int16}
-    type::SegmentType
+    const idx::Int16
+    const point_idxs::Tuple{Int16, Int16}
+    const type::SegmentType
     l0::SimFloat
     compression_frac::SimFloat
     diameter::SimFloat
@@ -121,9 +121,9 @@ A pulley described by two segments with the common point of the segments being t
 $(TYPEDFIELDS)
 """
 mutable struct Pulley
-    idx::Int16
-    segment_idxs::Tuple{Int16, Int16}
-    type::DynamicsType
+    const idx::Int16
+    const segment_idxs::Tuple{Int16, Int16}
+    const type::DynamicsType
     sum_length::SimFloat
     length::SimFloat
     vel::SimFloat
@@ -152,9 +152,9 @@ A set of tethers or just one tether connected to a winch.
 $(TYPEDFIELDS)
 """
 mutable struct Winch
-    idx::Int16
-    model::AbstractWinchModel
-    tether_idxs::Vector{Int16}
+    const idx::Int16
+    const model::AbstractWinchModel
+    const tether_idxs::Vector{Int16}
     tether_length::SimFloat
     tether_vel::SimFloat
     function Winch(idx, model, tether_idxs, tether_length; tether_vel=0.0)
@@ -184,16 +184,16 @@ function Base.getproperty(wing::Wing, sym::Symbol)
     end
 end
 
-struct Transform
-    idx::Int16
+mutable struct Transform
+    const idx::Int16
     elevation::SimFloat # The elevation of the rotating point or kite as seen from the base point
     azimuth::SimFloat # The azimuth of the rotating point or kite as seen from the base point
     heading::SimFloat
-    wing_idx::Union{Int16, Nothing}
-    rot_point_idx::Union{Int16, Nothing}
-    base_point_idx::Int16
+    const wing_idx::Union{Int16, Nothing}
+    const rot_point_idx::Union{Int16, Nothing}
+    const base_point_idx::Int16
     base_pos::Union{KVec3, Nothing}
-    base_transform_idx::Union{Int16, Nothing}
+    const base_transform_idx::Union{Int16, Nothing}
 end
 function Transform(idx, elevation, azimuth, heading, base_pos::AbstractVector, base_point_idx; wing_idx=1, rot_point_idx=nothing)
     (isnothing(wing_idx) + isnothing(rot_point_idx) != 1) && error("Either provide a wing_idx or a rot_point_idx, not both or none.")
@@ -315,9 +315,13 @@ function SystemStructure(set::Settings, wing::RamAirWing)
     end
 end
 
-function init!(transforms::Vector{Transform}, sys_struct::SystemStructure)
+function init!(transforms::Vector{Transform}, sys_struct::SystemStructure, set::Settings)
     @unpack points, wings = sys_struct
     for transform in transforms
+        transform.elevation = deg2rad(set.elevations[transform.idx])
+        transform.azimuth   = deg2rad(set.azimuths[transform.idx])
+        transform.heading   = deg2rad(set.headings[transform.idx])
+
         # ==================== TRANSLATE ==================== #
         base_pos, curr_base_pos = get_base_pos(transform, wings, points)
         T = base_pos - curr_base_pos
@@ -615,6 +619,6 @@ function init!(sys_struct::SystemStructure, set::Settings)
         group.twist_vel = 0.0
         @assert group.moment_frac ≈ first_moment_frac "All group.moment_frac must be the same."
     end
-    init!(transforms, sys_struct)
+    init!(transforms, sys_struct, set)
     return nothing
 end
