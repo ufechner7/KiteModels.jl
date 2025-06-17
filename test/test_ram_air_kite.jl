@@ -34,27 +34,27 @@ const BUILD_SYS = true
     set.elevation = 80.0
 
     @testset "Model Initialization Chain" begin
-        if BUILD_SYS
-            # Delete existing problem file to force init!
-            @info "Data path: $(get_data_path())"
-            model_path = joinpath(get_data_path(), KiteModels.get_model_name(s.set))
-            if isfile(model_path)
-                @info "Removing existing serialized problem from $model_path to test full initialization"
-                rm(model_path)
-            end
+        # if BUILD_SYS
+        # Delete existing problem file to force init!
+        @info "Data path: $(get_data_path())"
+        model_path = joinpath(get_data_path(), KiteModels.get_model_name(s.set))
+        # if isfile(model_path)
+        #     @info "Removing existing serialized problem from $model_path to test full initialization"
+        #     rm(model_path)
+        # end
 
-            # 1. First time initialization - should create new model
-            @info "Testing initial init! (should create new model)..."
-            @time KiteModels.init_sim!(s; prn=true)
+        # 1. First time initialization - should create new model
+        @info "Testing initial init! (should create new model if it doesn't exist yet)..."
+        @time KiteModels.init_sim!(s; prn=true)
 
-            # Check that serialization worked
-            @test isfile(model_path)
+        # Check that serialization worked
+        @test isfile(model_path)
 
-            # Check initialization results
-            @test !isnothing(s.integrator)
-            @test !isnothing(s.sys)
-            @test !isnothing(s.sys_struct)
-        end
+        # Check initialization results
+        @test !isnothing(s.integrator)
+        @test !isnothing(s.sys)
+        @test !isnothing(s.sys_struct)
+        # end
         s.integrator = nothing
         s.sys = nothing
 
@@ -124,6 +124,44 @@ const BUILD_SYS = true
         # Verify state changed according to measurement
         @test !isapprox(sys_state_after.elevation, old_elevation, atol=1e-2)
         @test isapprox(sys_state_after.elevation, deg2rad(85.0), atol=1e-2)
+
+        @testset "set_depower_steering!" begin
+            initial_tether_lengths = s.get_tether_length(s.integrator)
+            depower = 0.1
+            steering = 0.05
+            KiteModels.set_depower_steering!(s, depower, steering)
+            new_tether_lengths = s.set_tether_length
+            @test !isapprox(new_tether_lengths, initial_tether_lengths)
+            # Verify the changes based on the equations
+            len = s.set_tether_length
+            len1 = initial_tether_lengths[1]
+            len2 = 0.5 * (2*depower*KiteModels.min_chord_length(s) + 2*len1 + steering*KiteModels.min_chord_length(s))
+            len3 = 0.5 * (2*depower*KiteModels.min_chord_length(s) + 2*len1 - steering*KiteModels.min_chord_length(s))
+            @test isapprox(len[2], len2)
+            @test isapprox(len[3], len3)
+            @test isapprox(KiteModels.min_chord_length(s), 0.434108)
+        end
+
+        @testset "set_v_wind_ground!" begin
+            initial_wind_speed = s.set.v_wind
+            initial_upwind_dir = deg2rad(s.set.upwind_dir)
+            @test initial_upwind_dir == -π/2
+            @test s.integrator[s.sys.wind_vec_gnd[1]] == s.set.v_wind
+
+            # Set new wind speed and direction
+            new_wind_speed = 10.0
+            new_upwind_dir = -pi/4
+            KiteModels.set_v_wind_ground!(s, new_wind_speed, new_upwind_dir)
+
+            # Check if wind speed and direction have been updated correctly
+            @test norm(s.integrator[s.sys.wind_vec_gnd]) ≈ new_wind_speed
+            @test s.integrator.ps[s.sys.upwind_dir] ≈ -pi/4 # Default upwind_dir
+            @test s.integrator[s.sys.wind_vec_gnd[1]] ≈ -s.integrator[s.sys.wind_vec_gnd[2]]
+
+            KiteModels.set_v_wind_ground!(s, initial_wind_speed, initial_upwind_dir)
+            @test s.integrator[s.sys.wind_vec_gnd[1]] ≈ initial_wind_speed
+            @test s.integrator.ps[s.sys.upwind_dir] ≈ -pi/2 # Default upwind_dir
+        end
     end
 
     function test_step(s, d_set_values=zeros(3); dt=0.05, steps=5)

@@ -26,7 +26,7 @@
     guesses::Vector{Pair{Num, Real}} = Pair{Num, Real}[]
 
     set_set_values::Function       = (_, _) -> nothing
-    set_wind_dir::Function         = (_, _) -> nothing
+    set_wind::Function         = (_, _) -> nothing
     set_vsm::Function              = (_, _) -> nothing
     set_unknowns::Function         = (_, _) -> nothing
     set_nonstiff::Function         = (_, _) -> nothing
@@ -77,6 +77,7 @@ $(TYPEDFIELDS)
     iter::Int64 = 0
     t_vsm::SimFloat  = zero(SimFloat)
     t_step::SimFloat = zero(SimFloat)
+    set_tether_length::Vector{SimFloat} = zeros(SimFloat, 3)
 end
 
 function Base.getproperty(sam::SymbolicAWEModel, sym::Symbol)
@@ -466,8 +467,8 @@ function generate_getters!(s, sym_vec)
         s.get_stabilize = (integ) -> get_stabilize(integ)
     end
     
-    set_wind_dir = setp(sys, sys.upwind_dir)
-    s.set_wind_dir = (integ, val) -> set_wind_dir(integ, val)
+    set_wind = setp(sys, [sys.wind_scale_gnd, sys.upwind_dir])
+    s.set_wind = (integ, val) -> set_wind(integ, val)
     set_unknowns = setu(sys, sym_vec)
     s.set_unknowns = (integ, val) -> set_unknowns(integ, val)
     set_nonstiff = setu(sys, get_nonstiff_unknowns(s.sys_struct, s.sys))
@@ -534,24 +535,20 @@ This function performs the following steps:
 
 # Keyword Arguments
 - `set_values=nothing`: New values for the set variables (control inputs). If `nothing`, the current values are used.
-- `upwind_dir=nothing`: New upwind direction. If `nothing`, the current direction is used.
 - `dt=1/s.set.sample_freq`: Time step size in seconds. Defaults to the inverse of the sample frequency.
 - `vsm_interval=1`: Interval (in number of steps) at which to linearize the VSM model. If 0, the VSM model is not linearized.
 
 # Returns
 - `Nothing`
 """
-function next_step!(s::SymbolicAWEModel, integrator::OrdinaryDiffEqCore.ODEIntegrator; set_values=nothing, upwind_dir=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
+function next_step!(s::SymbolicAWEModel, integrator::OrdinaryDiffEqCore.ODEIntegrator; set_values=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
     !(s.integrator === integrator) && error("The ODEIntegrator doesn't belong to the SymbolicAWEModel")
     next_step!(s; set_values, upwind_dir, dt, vsm_interval)
 end
 
-function next_step!(s::SymbolicAWEModel; set_values=nothing, upwind_dir=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
+function next_step!(s::SymbolicAWEModel; set_values=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
     if (!isnothing(set_values)) 
         s.set_set_values(s.integrator, set_values)
-    end
-    if (!isnothing(upwind_dir))
-        s.set_wind_dir(s.integrator, upwind_dir)
     end
     if vsm_interval != 0 && s.iter % vsm_interval == 0
         s.t_vsm = @elapsed linearize_vsm!(s)
@@ -742,7 +739,9 @@ end
 function min_chord_length(s::SymbolicAWEModel)
     min_len = Inf
     for wing in s.vsm_wings
-        min_len = min(norm(wing.le_interp(wing.gamma_tip) - wing.te_interp(wing.gamma_tip)), min_len)
+        le_pos = [wing.le_interp[i](wing.gamma_tip) for i in 1:3]
+        te_pos = [wing.te_interp[i](wing.gamma_tip) for i in 1:3]
+        min_len = min(norm(le_pos - te_pos), min_len)
     end
     return min_len
 end
@@ -754,6 +753,11 @@ function set_depower_steering!(s::SymbolicAWEModel, depower, steering)
     steering *= min_chord_length(s)
     len[2] = 0.5 * (2*depower + 2*len[1] + steering)
     len[3] = 0.5 * (2*depower + 2*len[1] - steering)
+    return nothing
+end
+
+function set_v_wind_ground!(s::SymbolicAWEModel, v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2)
+    s.set_wind(s.integrator, [v_wind_gnd, upwind_dir])
     return nothing
 end
 
