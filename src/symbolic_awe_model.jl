@@ -362,10 +362,10 @@ function reinit!(
         if length(lin_outputs) > 0 && isnothing(s.lin_prob) 
             @warn "lin_prob is nothing."
             return s.integrator, false
-        elseif (get_set_hash(s.set) != s.set_hash)
+        elseif (get_set_hash(s.set) != s.serialized_model.set_hash)
             @warn "The Settings have changed."
             return s.integrator, false
-        elseif (get_sys_struct_hash(s.sys_struct) != s.sys_struct_hash)
+        elseif (get_sys_struct_hash(s.sys_struct) != s.serialized_model.sys_struct_hash)
             @warn "The SystemStructure has changed."
             return s.integrator, false
         end
@@ -755,33 +755,34 @@ function get_set_hash(set::Settings;
 end
 
 function get_sys_struct_hash(sys_struct::SystemStructure)
-    @unpack points, groups, segments, pulleys, tethers, winches, wings, transforms = sys_struct
-    h = zeros(UInt8, 1)
+    @unpack points, groups, segments, pulleys, tethers, winches, wings = sys_struct
+    data_parts = []
     for point in points
-        h = sha1(string((point.idx, point.transform_idx, point.wing_idx, point.type, h)))
+        push!(data_parts, ("point", point.idx, point.wing_idx, Int(point.type)))
     end
     for segment in segments
-        h = sha1(string((segment.idx, segment.point_idxs, segment.type, h)))
+        push!(data_parts, ("segment", segment.idx, segment.point_idxs, Int(segment.type)))
     end
     for group in groups
-        h = sha1(string((group.idx, group.point_idxs, group.type, h)))
+        push!(data_parts, ("group", group.idx, group.point_idxs, Int(group.type)))
     end
     for pulley in pulleys
-        h = sha1(string((pulley.idx, pulley.segment_idxs, pulley.type, h)))
+        push!(data_parts, ("pulley", pulley.idx, pulley.segment_idxs, Int(pulley.type)))
     end
     for tether in tethers
-        h = sha1(string((tether.idx, tether.segment_idxs, h)))
+        push!(data_parts, ("tether", tether.idx, tether.segment_idxs))
     end
     for winch in winches
-        model = winch.model isa TorqueControlledMachine
-        h = sha1(string((winch.idx, model, winch.tether_idxs, h)))
+        model_type = winch.model isa TorqueControlledMachine
+        push!(data_parts, ("winch", winch.idx, model_type, winch.tether_idxs))
     end
     for wing in wings
-        h = sha1(string((wing.idx, wing.group_idxs, wing.transform_idx, h)))
+        push!(data_parts, ("wing", wing.idx, wing.group_idxs))
     end
     for transform in transforms
-        h = sha1(string((transform.idx, transform.wing_idx, transform.rot_point_idx, 
-                transform.base_point_idx, transform.base_transform_idx, h)))
+        push!(data_parts, ("transform", transform.idx, transform.wing_idx, transform.rot_point_idx, 
+                transform.base_point_idx, transform.base_transform_idx))
     end
-    return h
+    content = string(data_parts)
+    return sha1(content)
 end
