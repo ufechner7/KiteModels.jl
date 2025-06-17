@@ -2,14 +2,14 @@
 # SPDX-License-Identifier: MIT
 
 @with_kw mutable struct SerializedModel
-    set_hash::UInt64
+    set_hash::Vector{UInt8}
     "Reference to the geometric wing model"
     vsm_wings::Vector{VortexStepMethod.RamAirWing}
     "Reference to the aerodynamic wing model"
     vsm_aeros::Vector{VortexStepMethod.BodyAerodynamics}
     "Reference to the VSM aerodynamics solver"
     vsm_solvers::Vector{VortexStepMethod.Solver}
-    sys_struct_hash::UInt64
+    sys_struct_hash::Vector{UInt8}
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
     am::AtmosphericModel = AtmosphericModel()
     "Simplified system of the mtk model"
@@ -275,6 +275,8 @@ function init_sim!(s::SymbolicAWEModel;
         sym_vec = get_unknowns(s.sys_struct, s.sys)
         s.unknowns_vec = zeros(SimFloat, length(sym_vec))
         generate_getters!(s, sym_vec)
+        s.set_hash = get_set_hash(s.set)
+        s.sys_struct_hash = get_sys_struct_hash(s.sys_struct)
         serialize(model_path, s.serialized_model)
         s.integrator = nothing
         return nothing
@@ -283,12 +285,12 @@ function init_sim!(s::SymbolicAWEModel;
     if !ispath(model_path) || remake
         init(s)
     end
-    _, success = reinit!(s, solver; adaptive, precompile, reload, lin_outputs)
+    _, success = reinit!(s, solver; adaptive, precompile, reload, lin_outputs, prn)
     if !success
         rm(model_path)
         @info "Rebuilding the system. This can take some minutes..."
         init(s)
-        reinit!(s, solver; precompile, prn)
+        reinit!(s, solver; adaptive, precompile, lin_outputs, prn, reload=true)
     end
     return s.integrator
 end
@@ -359,10 +361,10 @@ function reinit!(
         if length(lin_outputs) > 0 && isnothing(s.lin_prob) 
             @warn "lin_prob is nothing."
             return s.integrator, false
-        elseif (get_set_hash(s.set) != s.set_hash)
+        elseif (get_set_hash(s.set) != s.serialized_model.set_hash)
             @warn "The Settings have changed."
             return s.integrator, false
-        elseif (get_sys_struct_hash(s.sys_struct) != s.sys_struct_hash)
+        elseif (get_sys_struct_hash(s.sys_struct) != s.serialized_model.sys_struct_hash)
             @warn "The SystemStructure has changed."
             return s.integrator, false
         end
@@ -758,37 +760,39 @@ end
 function get_set_hash(set::Settings; 
         fields=[:segments, :model, :foil_file, :physical_model, :quasi_static, :winch_model]
     )
-    h = UInt64(0)
+    h = zeros(UInt8, 1)
     for field in fields
         value = getfield(set, field)
-        h = hash(value, h)
+        h = sha1(string((value, h)))
     end
     return h
 end
 
 function get_sys_struct_hash(sys_struct::SystemStructure)
     @unpack points, groups, segments, pulleys, tethers, winches, wings = sys_struct
-    h = UInt64(0)
+    data_parts = []
     for point in points
-        h = hash((point.idx, point.wing_idx, point.type), h)
+        push!(data_parts, ("point", point.idx, point.wing_idx, Int(point.type)))
     end
     for segment in segments
-        h = hash((segment.idx, segment.point_idxs, segment.type), h)
+        push!(data_parts, ("segment", segment.idx, segment.point_idxs, Int(segment.type)))
     end
     for group in groups
-        h = hash((group.idx, group.point_idxs, group.type), h)
+        push!(data_parts, ("group", group.idx, group.point_idxs, Int(group.type)))
     end
     for pulley in pulleys
-        h = hash((pulley.idx, pulley.segment_idxs, pulley.type), h)
+        push!(data_parts, ("pulley", pulley.idx, pulley.segment_idxs, Int(pulley.type)))
     end
     for tether in tethers
-        h = hash((tether.idx, tether.segment_idxs), h)
+        push!(data_parts, ("tether", tether.idx, tether.segment_idxs))
     end
     for winch in winches
-        h = hash((winch.idx, typeof(winch.model), winch.tether_idxs), h)
+        model_type = winch.model isa TorqueControlledMachine
+        push!(data_parts, ("winch", winch.idx, model_type, winch.tether_idxs))
     end
     for wing in wings
-        h = hash((wing.idx, wing.group_idxs), h)
+        push!(data_parts, ("wing", wing.idx, wing.group_idxs))
     end
-    return h
+    content = string(data_parts)
+    return sha1(content)
 end
