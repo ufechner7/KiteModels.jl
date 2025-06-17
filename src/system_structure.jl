@@ -167,8 +167,6 @@ end
 
 A rigid wing body that can have multiple groups of points attached to it.
 
-$(TYPEDFIELDS)
-
 # Fields
 - `idx::Int16`: Unique identifier for the wing
 - `group_idxs::Vector{Int16}`: Indices of groups attached to this wing
@@ -217,8 +215,6 @@ end
 
 Describes the spatial transformation (position and orientation) of system components
 relative to a base reference point.
-
-$(TYPEDFIELDS)
 
 # Fields
 - `idx::Int16`: Unique identifier for the transform
