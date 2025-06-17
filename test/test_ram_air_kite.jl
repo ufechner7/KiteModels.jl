@@ -279,6 +279,7 @@ const BUILD_SYS = true
         @test sam.integrator[sam.sys.pos[1, end]] > 0.8set.l_tether
         @test isapprox(sam.integrator[sam.sys.pos[2, end]], 0.0, atol=1.0)
         test_plot(s)
+        set.elevation = 80
     end
 end
 
