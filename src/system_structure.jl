@@ -284,8 +284,8 @@ struct SystemStructure
         end
         for (i, winch) in enumerate(winches)
             @assert winch.idx == i
-            set.l_tethers[i]   = rad2deg(winch.tether_length)
-            set.v_reel_outs[i] = rad2deg(winch.tether_vel)
+            set.l_tethers[i]   = winch.tether_length
+            set.v_reel_outs[i] = winch.tether_vel
         end
         for (i, wing) in enumerate(wings)
             @assert wing.idx == i
@@ -528,7 +528,7 @@ function create_ram_sys_struct(set::Settings, vsm_wing::RamAirWing)
     wings = [Wing(1, [1,2,3,4], I(3), zeros(3))]
     transforms = [Transform(1, deg2rad(set.elevation), deg2rad(set.azimuth), deg2rad(set.heading), zeros(3), points[end].idx; wing_idx=1)]
     
-    return SystemStructure(set.physical_model; points, groups, segments, pulleys, tethers, winches, wings, transforms)
+    return SystemStructure(set.physical_model, set; points, groups, segments, pulleys, tethers, winches, wings, transforms)
 end
 
 function create_simple_ram_sys_struct(set::Settings, wing::RamAirWing)
@@ -589,7 +589,7 @@ function create_simple_ram_sys_struct(set::Settings, wing::RamAirWing)
     wings = [Wing(1, [1,2,3,4], I(3), zeros(3))]
     transforms = [Transform(1, deg2rad(set.elevation), deg2rad(set.azimuth), deg2rad(set.heading), zeros(3), points[end].idx; wing_idx=1)]
 
-    return SystemStructure(set.physical_model; points, groups, segments, pulleys, tethers, winches, wings, transforms)
+    return SystemStructure(set.physical_model, set; points, groups, segments, pulleys, tethers, winches, wings, transforms)
 end
 
 function init!(sys_struct::SystemStructure, set::Settings)
