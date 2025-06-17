@@ -5,7 +5,7 @@ using Timers
 tic()
 @info "Loading packages "
 
-PLOT = false
+PLOT = true
 using Pkg
 if ! ("LaTeXStrings" ∈ keys(Pkg.project().dependencies))
     using TestEnv; TestEnv.activate()
@@ -49,7 +49,7 @@ toc()
 # Initialize at elevation
 set.l_tethers[2] += 0.2
 set.l_tethers[3] += 0.2
-init_sim!(sam; remake=true, reload=false)
+init_sim!(sam; remake=false, reload=false)
 sys = sam.sys
 
 @info "System initialized at:"
@@ -148,5 +148,4 @@ display(p)
 
 @info "Performance:" times_realtime=(total_time/2)/runtime integrator_times_realtime=(total_time/2)/integ_runtime
 
-# 55x realtime
-# 
+# 55x realtime (PLOT=false, CPU: Intel i9-9980HK (16) @ 5.000GHz)
