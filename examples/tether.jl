@@ -31,8 +31,7 @@ plot(sys_struct, 0.0)
 sam = SymbolicAWEModel(set, sys_struct)
 
 init_sim!(sam; remake=false)
-# sam.integrator.ps[sam.sys.psys] = sys_struct
-for i in 1:100
+for i in 1:80
     plot(sam, i/set.sample_freq)
     next_step!(sam)
 end
