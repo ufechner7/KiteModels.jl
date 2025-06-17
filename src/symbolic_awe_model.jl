@@ -667,7 +667,7 @@ function get_unknowns(sys_struct::SystemStructure, sys::ODESystem)
         for i in 1:3
             point.type == DYNAMIC && push!(vec, sys.pos[i, point.idx])
         end
-        for i in 1:3 # TODO: add speed to init
+        for i in 1:3
             point.type == DYNAMIC && push!(vec, sys.vel[i, point.idx])
         end
     end
@@ -751,37 +751,33 @@ function get_set_hash(set::Settings;
 end
 
 function get_sys_struct_hash(sys_struct::SystemStructure)
-    @unpack points, groups, segments, pulleys, tethers, winches, wings = sys_struct
+    @unpack points, groups, segments, pulleys, tethers, winches, wings, transforms = sys_struct
     h = zeros(UInt8, 1)
     for point in points
-        h = sha1(string((point.idx, point.wing_idx, point.type, h)))
+        h = sha1(string((point.idx, point.transform_idx, point.wing_idx, point.type, h)))
     end
     for segment in segments
-        for val in (segment.idx, segment.point_idxs, segment.type)
-            h = sha1(string((segment.idx, segment.point_idxs, segment.type, h)))
-        end
+        h = sha1(string((segment.idx, segment.point_idxs, segment.type, h)))
     end
     for group in groups
-        for val in (group.idx, group.point_idxs, group.type)
-            h = sha1(string((group.idx, group.point_idxs, group.type, h)))
-        end
+        h = sha1(string((group.idx, group.point_idxs, group.type, h)))
     end
     for pulley in pulleys
-        for val in (pulley.idx, pulley.segment_idxs, pulley.type)
-            h = sha1(string((pulley.idx, pulley.segment_idxs, pulley.type, h)))
-        end
+        h = sha1(string((pulley.idx, pulley.segment_idxs, pulley.type, h)))
     end
     for tether in tethers
-        for val in (tether.idx, tether.segment_idxs)
-            h = sha1(string((tether.idx, tether.segment_idxs, h)))
-        end
+        h = sha1(string((tether.idx, tether.segment_idxs, h)))
     end
     for winch in winches
         model = winch.model isa TorqueControlledMachine
         h = sha1(string((winch.idx, model, winch.tether_idxs, h)))
     end
     for wing in wings
-        h = sha1(string((wing.idx, wing.group_idxs, h)))
+        h = sha1(string((wing.idx, wing.group_idxs, wing.transform_idx, h)))
+    end
+    for transform in transforms
+        h = sha1(string((transform.idx, transform.wing_idx, transform.rot_point_idx, 
+                transform.base_point_idx, transform.base_transform_idx, h)))
     end
     return h
 end

@@ -195,11 +195,11 @@ mutable struct Transform
     base_pos::Union{KVec3, Nothing}
     const base_transform_idx::Union{Int16, Nothing}
 end
-function Transform(idx, elevation, azimuth, heading, base_pos::AbstractVector, base_point_idx; wing_idx=1, rot_point_idx=nothing)
+function Transform(idx, elevation, azimuth, heading, base_pos::AbstractVector, base_point_idx; wing_idx=nothing, rot_point_idx=nothing)
     (isnothing(wing_idx) + isnothing(rot_point_idx) != 1) && error("Either provide a wing_idx or a rot_point_idx, not both or none.")
     Transform(idx, elevation, azimuth, heading, wing_idx, rot_point_idx, base_point_idx, base_pos, nothing)
 end
-function Transform(idx, elevation, azimuth, heading, base_transform_idx::Int, base_point_idx; wing_idx=1, rot_point_idx=nothing)
+function Transform(idx, elevation, azimuth, heading, base_transform_idx::Int, base_point_idx; wing_idx=nothing, rot_point_idx=nothing)
     (isnothing(wing_idx) + isnothing(rot_point_idx) != 1) && error("Either provide a wing_idx or a rot_point_idx, not both or none.")
     (base_transform >= idx) && error("You have to provide a Transform with a lower idx than the current one.")
     Transform(idx, elevation, azimuth, heading, wing_idx, rot_point_idx, base_point_idx, nothing, base_transform_idx)
@@ -244,6 +244,7 @@ See also: [`Point`](@ref), [`Segment`](@ref), [`Group`](@ref), [`Pulley`](@ref)
 """
 struct SystemStructure
     name::String
+    set::Settings
     points::Vector{Point}
     groups::Vector{Group}
     segments::Vector{Segment}
@@ -255,7 +256,7 @@ struct SystemStructure
     y::Array{Float64, 2}
     x::Array{Float64, 2}
     jac::Array{Float64, 3}
-    function SystemStructure(name; 
+    function SystemStructure(name, set; 
             points=Point[], 
             groups=Group[], 
             segments=Segment[], 
@@ -267,6 +268,7 @@ struct SystemStructure
         )
         for (i, point) in enumerate(points)
             @assert point.idx == i
+            @assert point.transform_idx <= length(transforms)
         end
         for (i, group) in enumerate(groups)
             @assert group.idx == i
@@ -282,12 +284,17 @@ struct SystemStructure
         end
         for (i, winch) in enumerate(winches)
             @assert winch.idx == i
+            set.l_tethers[i]   = rad2deg(winch.tether_length)
+            set.v_reel_outs[i] = rad2deg(winch.tether_vel)
         end
         for (i, wing) in enumerate(wings)
             @assert wing.idx == i
         end
         for (i, transform) in enumerate(transforms)
             @assert transform.idx == i
+            set.elevations[i] = rad2deg(transform.elevation)
+            set.azimuths[i]   = rad2deg(transform.azimuth)
+            set.headings[i]   = rad2deg(transform.heading)
         end
         if length(wings) > 0
             ny = 3+length(wings[1].group_idxs)+3
@@ -299,7 +306,10 @@ struct SystemStructure
         y = zeros(length(wings), ny)
         x = zeros(length(wings), nx)
         jac = zeros(length(wings), nx, ny)
-        return new(name, points, groups, segments, pulleys, tethers, winches, wings, transforms, y, x, jac)
+        set.physical_model = name
+        sys_struct = new(name, set, points, groups, segments, pulleys, tethers, winches, wings, transforms, y, x, jac)
+        init!(sys_struct, set)
+        return sys_struct
     end
 end
 
@@ -315,13 +325,9 @@ function SystemStructure(set::Settings, wing::RamAirWing)
     end
 end
 
-function init!(transforms::Vector{Transform}, sys_struct::SystemStructure, set::Settings)
+function init!(transforms::Vector{Transform}, sys_struct::SystemStructure)
     @unpack points, wings = sys_struct
     for transform in transforms
-        transform.elevation = deg2rad(set.elevations[transform.idx])
-        transform.azimuth   = deg2rad(set.azimuths[transform.idx])
-        transform.heading   = deg2rad(set.headings[transform.idx])
-
         # ==================== TRANSLATE ==================== #
         base_pos, curr_base_pos = get_base_pos(transform, wings, points)
         T = base_pos - curr_base_pos
@@ -520,7 +526,7 @@ function create_ram_sys_struct(set::Settings, vsm_wing::RamAirWing)
     winches = [winches; Winch(3, TorqueControlledMachine(set), [right_steering_idx], set.l_tether)]
 
     wings = [Wing(1, [1,2,3,4], I(3), zeros(3))]
-    transforms = [Transform(1, deg2rad(set.elevation), deg2rad(set.azimuth), deg2rad(set.heading), zeros(3), points[end].idx)]
+    transforms = [Transform(1, deg2rad(set.elevation), deg2rad(set.azimuth), deg2rad(set.heading), zeros(3), points[end].idx; wing_idx=1)]
     
     return SystemStructure(set.physical_model; points, groups, segments, pulleys, tethers, winches, wings, transforms)
 end
@@ -580,12 +586,11 @@ function create_simple_ram_sys_struct(set::Settings, wing::RamAirWing)
     winches = [winches; Winch(2, TorqueControlledMachine(set), [left_steering_idx], set.l_tether)]
     winches = [winches; Winch(3, TorqueControlledMachine(set), [right_steering_idx], set.l_tether)]
 
-    wings = [Wing(1, [1,2,3,4])]
-    transforms = [Transform(1, deg2rad(set.elevation), deg2rad(set.azimuth), zeros(3), points[end].idx)]
+    wings = [Wing(1, [1,2,3,4], I(3), zeros(3))]
+    transforms = [Transform(1, deg2rad(set.elevation), deg2rad(set.azimuth), deg2rad(set.heading), zeros(3), points[end].idx; wing_idx=1)]
 
     return SystemStructure(set.physical_model; points, groups, segments, pulleys, tethers, winches, wings, transforms)
 end
-
 
 function init!(sys_struct::SystemStructure, set::Settings)
     @unpack points, groups, segments, pulleys, tethers, winches, wings, transforms = sys_struct
@@ -594,8 +599,29 @@ function init!(sys_struct::SystemStructure, set::Settings)
         (segment.type === BRIDLE) && (segment.diameter = 0.001set.bridle_tether_diameter)
         (segment.type === POWER) && (segment.diameter = 0.001set.power_tether_diameter)
         (segment.type === STEERING) && (segment.diameter = 0.001set.steering_tether_diameter)
-        (segment.l0 ≈ 0) && (segment.l0 = norm(points[segment.point_idxs[1]].pos_cad - points[segment.point_idxs[2]].pos_cad) * 0.9999)
         @assert (0 < segment.diameter < 1)
+    end
+
+    for winch in winches
+        winch.tether_length = set.l_tethers[winch.idx]
+        winch.tether_vel    = set.v_reel_outs[winch.idx]
+    end
+
+    (length(groups) > 0) && (first_moment_frac = groups[1].moment_frac)
+    for group in groups
+        group.twist = 0.0
+        group.twist_vel = 0.0
+        @assert group.moment_frac ≈ first_moment_frac "All group.moment_frac must be the same."
+    end
+    
+    for transform in transforms
+        transform.elevation = deg2rad(set.elevations[transform.idx])
+        transform.azimuth   = deg2rad(set.azimuths[transform.idx])
+        transform.heading   = deg2rad(set.headings[transform.idx])
+    end
+
+    for segment in segments
+        (segment.l0 ≈ 0) && (segment.l0 = norm(points[segment.point_idxs[1]].pos_cad - points[segment.point_idxs[2]].pos_cad))
         @assert (segment.l0 > 0)
     end
 
@@ -607,18 +633,6 @@ function init!(sys_struct::SystemStructure, set::Settings)
         @assert !(pulley.sum_length ≈ 0)
     end
 
-    for winch in winches
-        winch.tether_length ≈ 0.0 && (winch.tether_length = set.l_tether)
-        winch.tether_vel = 0.0
-        @assert !(winch.tether_length ≈ 0)
-    end
-
-    (length(groups) > 0) && (first_moment_frac = groups[1].moment_frac)
-    for group in groups
-        group.twist = 0.0
-        group.twist_vel = 0.0
-        @assert group.moment_frac ≈ first_moment_frac "All group.moment_frac must be the same."
-    end
-    init!(transforms, sys_struct, set)
+    init!(transforms, sys_struct)
     return nothing
 end

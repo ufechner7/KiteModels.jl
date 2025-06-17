@@ -65,6 +65,14 @@ function rotation_matrix_to_quaternion(R)
     return [w, x, y, z]
 end
 
+function get_pos_w(sys_struct::SystemStructure, idx::Int16)
+    return sys_struct.points[idx].pos_w
+end
+@register_array_symbolic get_pos_w(sys::SystemStructure, point_idx::Int16) begin
+    size=size(KVec3)
+    eltype=SimFloat
+end
+
 """
     force_eqs!(s, system, eqs, defaults, guesses; kwargs...)
 
@@ -103,6 +111,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
     # ==================== POINTS ==================== #
     tether_wing_force = zeros(Num, length(wings), 3)
     tether_wing_moment = zeros(Num, length(wings), 3)
+    @parameters psys::SystemStructure = system
     @variables begin
         pos(t)[1:3, eachindex(points)]
         vel(t)[1:3, eachindex(points)]
@@ -136,6 +145,8 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                 end
             end
         end
+        @assert !iszero(mass)
+
         eqs = [
             eqs
             point_mass[point.idx] ~ mass
@@ -189,7 +200,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         elseif point.type == STATIC
             eqs = [
                 eqs
-                pos[:, point.idx]    ~ point.pos_w
+                pos[:, point.idx]    ~ get_pos_w(psys, point.idx)
                 vel[:, point.idx]    ~ zeros(3)
                 acc[:, point.idx]    ~ zeros(3)
             ]
