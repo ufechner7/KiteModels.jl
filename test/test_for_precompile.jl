@@ -104,12 +104,15 @@ let
 end
 if ! haskey(ENV, "NO_MTK")
     using KiteModels,  LinearAlgebra
+    sam_set = load_settings("system_ram.yaml")
+    sam_set.segments = 3
+    set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
+    sam_set.quasi_static = false
+    sam_set.physical_model = "ram"
     s = SymbolicAWEModel(sam_set)
 
     # Initialize at elevation
     KiteModels.init_sim!(s; prn=false, precompile=true)
-    @info "Copying $output_file to $model_file !"
-    cp(output_file, model_file; force=true)
     find_steady_state!(s)
     steps = Int(round(10 / 0.05))
     logger = Logger(length(s.sys_struct.points), steps)
