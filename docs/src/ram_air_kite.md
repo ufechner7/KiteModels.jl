@@ -11,7 +11,7 @@ Group(::Any, ::Any, ::RamAirWing, ::Any, ::Any, ::Any)
 Group(::Any, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any)
 Segment(::Any, ::Any, ::Any)
 Pulley(::Any, ::Any, ::Any)
-Tether(::Any, ::Any)
+Tether
 Winch(::Any, ::Any, ::Any, ::Any)
 Wing(::Any, ::Any, ::Any, ::Any)
 Transform(::Any, ::Any, ::Any, ::Any)
@@ -29,7 +29,6 @@ DynamicsType
 Point
 Pulley
 Segment
-Tether
 Winch
 Group
 Wing
