@@ -62,6 +62,31 @@ struct Point
     vel_w::KVec3 # vel in world frame
     type::DynamicsType
 end
+
+"""
+    Point(idx, pos_cad, type; wing_idx=1, vel_w=zeros(KVec3), transform_idx=1)
+
+Constructs a Point object.
+
+# Arguments
+- `idx::Int16`: Unique identifier for the point.
+- `pos_cad::KVec3`: Position of the point in the CAD frame.
+- `type::DynamicsType`: Dynamics type of the point (STATIC, DYNAMIC, etc.).
+
+# Keyword Arguments
+- `wing_idx::Int16=1`: Index of the wing this point is attached to.
+- `vel_w::KVec3=zeros(KVec3)`: Initial velocity of the point in world frame.
+- `transform_idx::Int16=1`: Index of the transform used for initial positioning.
+
+# Returns
+- `Point`: A new Point object.
+
+# Example
+To create a Point:
+```julia
+    point = Point(1, [1.0, 2.0, 3.0], DYNAMIC; wing_idx=1)
+```
+"""
 function Point(idx, pos_cad, type; wing_idx=1, vel_w=zeros(KVec3), transform_idx=1)
     Point(idx, transform_idx, wing_idx, pos_cad, zeros(KVec3), zeros(KVec3), vel_w, type)
 end
@@ -84,12 +109,82 @@ mutable struct Group
     twist::SimFloat
     twist_vel::SimFloat
 end
+
+"""
+    Group(idx, point_idxs, vsm_wing::RamAirWing, gamma, type, moment_frac)
+
+Constructs a Group object representing a collection of points on a kite body that share 
+a common twist deformation.
+
+A Group models the local deformation of a kite wing section through twist dynamics. 
+All points within a group undergo the same twist rotation about the chord vector, 
+which is determined by a torque balance between aerodynamic moments and tether forces.
+
+The governing equation is:
+```julia
+  twist_α = (group_aero_moment + group_tether_moment) / inertia
+```
+
+# Arguments
+- `idx::Int16`: Unique identifier for the group
+- `point_idxs::Vector{Int16}`: Indices of points that move together with this group's twist
+- `vsm_wing::RamAirWing`: Wing geometry object used to extract local chord and spanwise vectors
+- `gamma`: Spanwise parameter (typically -1 to 1) defining the group's location along the wing
+- `type::DynamicsType`: Dynamics type (DYNAMIC for time-varying twist, QUASI_STATIC for equilibrium)
+- `moment_frac::SimFloat`: Fraction of total wing moment applied to this group (typically distributed equally)
+
+# Returns
+- `Group`: A new Group object with twist dynamics capability
+
+# Example
+Create a group at mid-span with quarter of the wing moment:
+```julia
+  group = Group(1, [1, 2, 3], vsm_wing, 0.0, DYNAMIC, 0.25)
+```
+"""
 function Group(idx, point_idxs, vsm_wing::RamAirWing, gamma, type, moment_frac)
     le_pos = [vsm_wing.le_interp[i](gamma) for i in 1:3]
     chord = [vsm_wing.te_interp[i](gamma) for i in 1:3] .- le_pos
     y_airf = normalize([vsm_wing.le_interp[i](gamma-0.01) for i in 1:3] - le_pos)
     Group(idx, point_idxs, le_pos, chord, y_airf, type, moment_frac, 0.0, 0.0)
 end
+
+"""
+    Group(idx, point_idxs, le_pos, chord, y_airf, type, moment_frac)
+
+Constructs a Group object representing a collection of points on a kite body that share 
+a common twist deformation.
+
+A Group models the local deformation of a kite wing section through twist dynamics. 
+All points within a group undergo the same twist rotation about the chord vector, 
+which is determined by a torque balance between aerodynamic moments and tether forces.
+
+The governing equation is:
+```julia
+  twist_α = (group_aero_moment + group_tether_moment) / inertia
+```
+
+# Arguments
+- `idx::Int16`: Unique identifier for the group
+- `point_idxs::Vector{Int16}`: Indices of points that twist together with this group
+- `le_pos::KVec3`: Leading edge position serving as the rotation center in body frame
+- `chord::KVec3`: Chord vector defining the twist axis direction in body frame
+- `y_airf::KVec3`: Spanwise vector in local airfoil frame for coordinate system definition
+- `type::DynamicsType`: DYNAMIC for time-varying twist, QUASI_STATIC for equilibrium twist
+- `moment_frac::SimFloat`: Fraction of total wing moment applied to this group
+
+# Returns
+- `Group`: A new Group object for modeling local wing deformation
+
+# Example
+Create a group with explicit geometry for a rectangular wing section:
+```julia
+  le_pos = [1.0, 2.0, 3.0]      # Leading edge position
+  chord  = [1.0, 0.0, 0.0]       # Chord vector pointing downstream  
+  y_airf = [0.0, 1.0, 0.0]      # Spanwise direction
+  group = Group(1, [1, 2, 3], le_pos, chord, y_airf, DYNAMIC, 0.25)
+```
+"""
 function Group(idx, point_idxs, le_pos, chord, y_airf, type, moment_frac)
     Group(idx, point_idxs, le_pos, chord, y_airf, type, moment_frac, 0.0, 0.0)
 end
@@ -109,6 +204,30 @@ mutable struct Segment
     compression_frac::SimFloat
     diameter::SimFloat
 end
+
+"""
+    Segment(idx, point_idxs, type; l0=zero(SimFloat), compression_frac=0.1)
+
+Constructs a Segment object. If l0 is not provided, it is calculated as the distance between the two segment points.
+
+# Arguments
+- `idx::Int16`: Unique identifier for the segment.
+- `point_idxs::Tuple{Int16, Int16}`: Tuple containing the indices of the two points connected by this segment.
+- `type::SegmentType`: Type of the segment (POWER, STEERING, BRIDLE).
+
+# Keyword Arguments
+- `l0::SimFloat=zero(SimFloat)`: Unstretched length of the segment.
+- `compression_frac::SimFloat=0.1`: Compression fraction of the segment.
+
+# Returns
+- `Segment`: A new Segment object.
+
+# Example
+To create a Segment:
+```julia
+    segment = Segment(1, (1, 2), BRIDLE; l0=10.0)
+```
+"""
 function Segment(idx, point_idxs, type; l0=zero(SimFloat), compression_frac=0.1)
     Segment(idx, point_idxs, type, l0, compression_frac, zero(SimFloat))
 end
@@ -127,9 +246,28 @@ mutable struct Pulley
     sum_length::SimFloat
     length::SimFloat
     vel::SimFloat
-    function Pulley(idx, segment_idxs, type)
-        new(idx, segment_idxs, type, 0.0, 0.0, 0.0)
-    end
+end
+"""
+    Pulley(idx, segment_idxs, type)
+
+Constructs a Pulley object.
+
+# Arguments
+- `idx::Int16`: Unique identifier for the pulley.
+- `segment_idxs::Tuple{Int16, Int16}`: Tuple containing the indices of the two segments connected by this pulley.
+- `type::DynamicsType`: Dynamics type of the pulley.
+
+# Returns
+- `Pulley`: A new Pulley object.
+
+# Example
+To create a Pulley:
+```julia
+    pulley = Pulley(1, (1, 2), DYNAMIC)
+```
+"""
+function Pulley(idx, segment_idxs, type)
+    return Pulley(idx, segment_idxs, type, 0.0, 0.0, 0.0)
 end
 
 """
@@ -157,9 +295,33 @@ mutable struct Winch
     const tether_idxs::Vector{Int16}
     tether_length::SimFloat
     tether_vel::SimFloat
-    function Winch(idx, model, tether_idxs, tether_length; tether_vel=0.0)
-        new(idx, model, tether_idxs, tether_length, tether_vel)
-    end
+end
+
+"""
+    Winch(idx, model, tether_idxs, tether_length; tether_vel=0.0)
+
+Constructs a Winch object.
+
+# Arguments
+- `idx::Int16`: Unique identifier for the winch.
+- `model::AbstractWinchModel`: The winch model.
+- `tether_idxs::Vector{Int16}`: Vector containing the indices of the tethers connected to this winch.
+- `tether_length::SimFloat`: Initial tether length.
+
+# Keyword Arguments
+- `tether_vel::SimFloat=0.0`: Initial tether velocity.
+
+# Returns
+- `Winch`: A new Winch object.
+
+# Example
+To create a Winch:
+```julia
+    winch = Winch(1, TorqueControlledMachine(set), [1, 2], 100.0)
+```
+"""
+function Winch(idx, model, tether_idxs, tether_length; tether_vel=0.0)
+    return Winch(idx, model, tether_idxs, tether_length, tether_vel)
 end
 
 """
@@ -216,58 +378,83 @@ end
 Describes the spatial transformation (position and orientation) of system components
 relative to a base reference point.
 
-# Fields
-- `idx::Int16`: Unique identifier for the transform
-- `elevation::SimFloat`: Elevation angle of the rotating point/wing as seen from base point (radians)
-- `azimuth::SimFloat`: Azimuth angle of the rotating point/wing as seen from base point (radians)  
-- `heading::SimFloat`: Rotation angle around the base-to-rotation vector (radians)
-- `wing_idx::Union{Int16, Nothing}`: Index of wing to be rotated (mutually exclusive with rot_point_idx)
-- `rot_point_idx::Union{Int16, Nothing}`: Index of point to be rotated (mutually exclusive with wing_idx)
-- `base_point_idx::Int16`: Index of the reference point for the transformation
-- `base_pos::Union{KVec3, Nothing}`: Fixed position offset for the base point
-- `base_transform_idx::Union{Int16, Nothing}`: Index of another transform to use as base position
-
-# Transformation sequence
-The transform applies the following operations in order:
-1. **Translation**: Move the base point according to `base_pos` or referenced transform
-2. **Rotation**: Rotate the system around the base point using spherical coordinates:
-   - `elevation`: Angle above/below the horizontal plane
-   - `azimuth`: Angle in the horizontal plane (measured from east, positive counterclockwise)
-   - `heading`: Additional rotation around the base-to-rotation vector
-
-# Usage
-Either `wing_idx` or `rot_point_idx` must be specified (not both). The transform
-will orient the specified wing or point according to the elevation/azimuth angles
-relative to the base point, then apply the heading rotation.
-
-# Examples
-```julia
-# Transform a wing to 45° elevation, 30° azimuth, with base at origin
-transform = Transform(1, deg2rad(45), deg2rad(30), 0.0, [0,0,0], 1; wing_idx=1)
-
-# Transform using another transform as base reference
-transform = Transform(2, deg2rad(60), deg2rad(0), 0.0, 1, 2; rot_point_idx=5)
-```
+$(TYPEDFIELDS)
 """
 mutable struct Transform
     const idx::Int16
+    const wing_idx::Union{Int16, Nothing}
+    const rot_point_idx::Union{Int16, Nothing}
+    const base_point_idx::Union{Int16, Nothing}
+    const base_transform_idx::Union{Int16, Nothing}
     elevation::SimFloat # The elevation of the rotating point or kite as seen from the base point
     azimuth::SimFloat # The azimuth of the rotating point or kite as seen from the base point
     heading::SimFloat
-    const wing_idx::Union{Int16, Nothing}
-    const rot_point_idx::Union{Int16, Nothing}
-    const base_point_idx::Int16
     base_pos::Union{KVec3, Nothing}
-    const base_transform_idx::Union{Int16, Nothing}
 end
-function Transform(idx, elevation, azimuth, heading, base_pos::AbstractVector, base_point_idx; wing_idx=nothing, rot_point_idx=nothing)
-    (isnothing(wing_idx) + isnothing(rot_point_idx) != 1) && error("Either provide a wing_idx or a rot_point_idx, not both or none.")
-    Transform(idx, elevation, azimuth, heading, wing_idx, rot_point_idx, base_point_idx, base_pos, nothing)
+
+"""
+    Transform(idx, elevation, azimuth, heading; 
+        base_point_idx=nothing, base_pos=nothing, base_transform_idx=nothing, 
+        wing_idx=nothing, rot_point_idx=nothing)
+
+Constructs a Transform object that describes an orientation transformation from a base reference to a rotating object.
+
+A Transform defines the spatial relationship between a reference (base) and a target object (wing or point) 
+using spherical coordinates. The transformation is defined by elevation, azimuth, and heading angles that position 
+and orient the target relative to the base.
+
+# Base Reference
+The base of the transformation can be defined in two ways:
+- **Fixed position**: Using `base_pos` (fixed position vector) and `base_point_idx` (reference point index)
+- **Chained transform**: Using `base_transform_idx` (index of another transform whose position becomes the base)
+
+# Target Object
+The target of the transformation can be either:
+- A wing (specified by `wing_idx`): The entire wing will be positioned and oriented
+- A point (specified by `rot_point_idx`): A single point will be positioned
+
+# Arguments
+- `idx::Int16`: Unique identifier for the transform
+- `elevation::SimFloat`: Elevation angle of the target as seen from base (radians)
+- `azimuth::SimFloat`: Azimuth angle of the target as seen from base (radians)
+- `heading::SimFloat`: Rotation angle around the base-to-target vector (radians)
+
+# Keyword Arguments
+## Base Reference (mutually exclusive)
+- `base_pos::AbstractVector=nothing`: Fixed position offset for the base point in world coordinates
+- `base_point_idx::Int16=nothing`: Index of the reference point (required when using `base_pos`)
+- `base_transform_idx::Int=nothing`: Index of another transform to use as base position
+
+## Target Object (mutually exclusive)
+- `wing_idx::Union{Int16, Nothing}=nothing`: Index of wing to be rotated to (elevation, azimuth)
+- `rot_point_idx::Union{Int16, Nothing}=nothing`: Index of point to be rotated to (elevation, azimuth)
+
+# Returns
+- `Transform`: A new Transform object defining the spatial relationship
+
+# Examples
+Position a wing at 45° elevation and 30° azimuth from a fixed position:
+  transform = Transform(1, deg2rad(45), deg2rad(30), 0.0; 
+                       base_pos=[0,0,0], base_point_idx=1, wing_idx=1)
+
+Position a point relative to another transform:
+  transform = Transform(2, deg2rad(60), 0.0, 0.0; 
+                       base_transform_idx=1, rot_point_idx=5)
+
+Create a chained wing positioning (wing relative to another wing's position):
+  transform = Transform(3, deg2rad(30), deg2rad(45), deg2rad(10); 
+                       base_transform_idx=1, wing_idx=2)
+"""
+function Transform(idx, elevation, azimuth, heading;
+        base_point_idx=nothing, base_pos=nothing, base_transform_idx=nothing,
+        wing_idx=nothing, rot_point_idx=nothing)
+    (isnothing(wing_idx) == isnothing(rot_point_idx)) && error("Either provide a wing_idx or a rot_point_idx, not both or none.")
+    (isnothing(base_pos) == isnothing(base_transform_idx)) && error("Either provide the base_pos or the base_transform_idx, not both or none.")
+    (isnothing(base_pos) !== isnothing(base_point_idx)) && error("When providing a base_pos, also provide a base_point_idx.")
+    Transform(idx, wing_idx, rot_point_idx, base_point_idx, base_transform_idx, elevation, azimuth, heading, base_pos)
 end
-function Transform(idx, elevation, azimuth, heading, base_transform_idx::Int, base_point_idx; wing_idx=nothing, rot_point_idx=nothing)
-    (isnothing(wing_idx) + isnothing(rot_point_idx) != 1) && error("Either provide a wing_idx or a rot_point_idx, not both or none.")
-    (base_transform >= idx) && error("You have to provide a Transform with a lower idx than the current one.")
-    Transform(idx, elevation, azimuth, heading, wing_idx, rot_point_idx, base_point_idx, nothing, base_transform_idx)
+function Transform(idx, set, base_point_idx; kwargs...)
+    Transform(idx, set.elevations[idx], set.azimuths[idx], set.headings[idx], base_point_idx; kwargs...)
 end
 
 function get_rot_pos(transform::Transform, wings, points)
