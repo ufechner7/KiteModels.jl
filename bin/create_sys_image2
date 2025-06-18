@@ -47,6 +47,6 @@ else
     fi
 fi
 julia --project -e "using Pkg; Pkg.precompile()"
-julia --project -e "include(\"./test/create_sys_image2.jl\");"
+julia --project -e "include(\"./test/create_sys_image.jl\");"
 mv kps-image_tmp.so bin/kps-image-${julia_major}.so
 julia --project -e "using Pkg; Pkg.precompile()"
