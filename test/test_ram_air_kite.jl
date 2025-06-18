@@ -266,7 +266,8 @@ const BUILD_SYS = true
             push!(segment_idxs, segment_idx)
         end
 
-        transforms = [Transform(1, deg2rad(-80), 0.0, 0.0, [0.0, 0.0, 50.0], points[1].idx; rot_point_idx=points[end].idx)]
+        transforms = [Transform(1, deg2rad(-80), 0.0, 0.0; 
+            base_pos=[0.0, 0.0, 50.0], base_point_idx=points[1].idx, rot_point_idx=points[end].idx)]
         sys_struct = SystemStructure("tether", set; points, segments, transforms)
 
         sam = SymbolicAWEModel(set, sys_struct)
