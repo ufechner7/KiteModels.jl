@@ -894,9 +894,9 @@ version = "0.3.8"
 
 [[deps.KiteUtils]]
 deps = ["Arrow", "CSV", "DocStringExtensions", "LinearAlgebra", "OrderedCollections", "Parameters", "Parsers", "Pkg", "PrecompileTools", "RecursiveArrayTools", "ReferenceFrameRotations", "Rotations", "StaticArrays", "StructArrays", "StructTypes", "YAML"]
-git-tree-sha1 = "ef1ab34bdb8c1bcf06f99b4364cae5df1be6936a"
+git-tree-sha1 = "93659cbb96514bafd053ae0e81d08d15248040e9"
 uuid = "90980105-b163-44e5-ba9f-8b1c83bb0533"
-version = "0.10.10"
+version = "0.10.11"
 
 [[deps.Krylov]]
 deps = ["LinearAlgebra", "Printf", "SparseArrays"]
