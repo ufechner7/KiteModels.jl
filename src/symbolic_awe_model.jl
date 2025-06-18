@@ -750,6 +750,12 @@ function min_chord_length(s::SymbolicAWEModel)
     return min_len
 end
 
+"""
+    set_depower_steering!(s::SymbolicAWEModel, depower, steering) -> Nothing
+
+Set kite depower and steering by adjusting tether lengths. Depower controls angle of attack,
+steering controls left/right differential. Values are scaled by minimum chord length.
+"""
 function set_depower_steering!(s::SymbolicAWEModel, depower, steering)
     len = s.set_tether_length
     len .= tether_length(s)
@@ -760,6 +766,12 @@ function set_depower_steering!(s::SymbolicAWEModel, depower, steering)
     return nothing
 end
 
+"""
+    set_v_wind_ground!(s::SymbolicAWEModel, v_wind_gnd=s.set.v_wind, upwind_dir=-π/2) -> Nothing
+
+Set ground wind speed (m/s) and upwind direction (radians). Direction: 0=north, π/2=east, 
+π=zouth, -π/2=west (default).
+"""
 function set_v_wind_ground!(s::SymbolicAWEModel, v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2)
     s.set_wind(s.integrator, [v_wind_gnd, upwind_dir])
     return nothing
