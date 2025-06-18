@@ -48,7 +48,7 @@ end
 """
     mutable struct Point
 
-A normal freely moving tether point.
+A point mass.
 
 $(TYPEDFIELDS)
 """
@@ -66,7 +66,11 @@ end
 """
     Point(idx, pos_cad, type; wing_idx=1, vel_w=zeros(KVec3), transform_idx=1)
 
-Constructs a Point object.
+Constructs a Point object. A point can be of four different [`DynamicsType`](@ref)s:
+- `STATIC`: the point doesn't move. ``\\ddot{\\mathbf{r}} = \\mathbf{0}``
+- `DYNAMIC`: the point moves according to Newton's second law. ``\\ddot{\\mathbf{r}} = \\mathbf{F}/m``
+- `QUASI_STATIC`: the acceleration is constrained to be zero, by solving a nonlinear problem. ``\\mathbf{F}/m = \\mathbf{0}``
+- `WING`: the point has a static position in the rigid body wing frame. ``\\mathbf{r}_w = \\mathbf{r}_{wing} + \\mathbf{R}_{b\\rightarrow w} \\mathbf{r}_b``
 
 # Arguments
 - `idx::Int16`: Unique identifier for the point.
@@ -117,13 +121,26 @@ Constructs a Group object representing a collection of points on a kite body tha
 a common twist deformation.
 
 A Group models the local deformation of a kite wing section through twist dynamics. 
-All points within a group undergo the same twist rotation about the chord vector, 
-which is determined by a torque balance between aerodynamic moments and tether forces.
+All points within a group undergo the same twist rotation about the chord vector.
 
 The governing equation is:
-```julia
-  twist_α = (group_aero_moment + group_tether_moment) / inertia
+```math
+\\begin{aligned}
+\\tau = \\underbrace{\\sum_{i=1}^{4} r_{b,i} \\times (\\mathbf{F}_{b,i} \\cdot \\hat{\\mathbf{z}})}_{\\text{bridles}} + \\underbrace{r_a \\times (\\mathbf{F}_a \\cdot \\hat{\\mathbf{z}})}_{\\text{aero}}
+\\end{aligned}
 ```
+
+where:
+- ``\\tau`` is the total torque about the twist axis
+- ``r_{b,i}`` is the position vector of bridle point ``i`` relative to the twist center
+- ``\\mathbf{F}_{b,i}`` is the force at bridle point ``i``
+- ``\\hat{\\mathbf{z}}`` is the unit vector along the twist axis (chord direction)
+- ``r_a`` is the position vector of the aerodynamic center relative to the twist center
+- ``\\mathbf{F}_a`` is the aerodynamic force at the group's aerodynamic center
+
+The group can have two [`DynamicsType`](@ref)s:
+- `DYNAMIC`: the group rotates according to Newton's second law: ``I\\ddot{\\theta} = \\tau``
+- `QUASI_STATIC`: the rotational acceleration is zero: ``\\tau = 0``
 
 # Arguments
 - `idx::Int16`: Unique identifier for the group
@@ -131,7 +148,7 @@ The governing equation is:
 - `vsm_wing::RamAirWing`: Wing geometry object used to extract local chord and spanwise vectors
 - `gamma`: Spanwise parameter (typically -1 to 1) defining the group's location along the wing
 - `type::DynamicsType`: Dynamics type (DYNAMIC for time-varying twist, QUASI_STATIC for equilibrium)
-- `moment_frac::SimFloat`: Fraction of total wing moment applied to this group (typically distributed equally)
+- `moment_frac::SimFloat`: Chordwise position (0=leading edge, 1=trailing edge) about which the group rotates
 
 # Returns
 - `Group`: A new Group object with twist dynamics capability
@@ -156,13 +173,26 @@ Constructs a Group object representing a collection of points on a kite body tha
 a common twist deformation.
 
 A Group models the local deformation of a kite wing section through twist dynamics. 
-All points within a group undergo the same twist rotation about the chord vector, 
-which is determined by a torque balance between aerodynamic moments and tether forces.
+All points within a group undergo the same twist rotation about the chord vector.
 
 The governing equation is:
-```julia
-  twist_α = (group_aero_moment + group_tether_moment) / inertia
+```math
+\\begin{aligned}
+\\tau = \\underbrace{\\sum_{i=1}^{4} r_{b,i} \\times (\\mathbf{F}_{b,i} \\cdot \\hat{\\mathbf{z}})}_{\\text{bridles}} + \\underbrace{r_a \\times (\\mathbf{F}_a \\cdot \\hat{\\mathbf{z}})}_{\\text{aero}}
+\\end{aligned}
 ```
+
+where:
+- ``\\tau`` is the total torque about the twist axis
+- ``r_{b,i}`` is the position vector of bridle point ``i`` relative to the twist center
+- ``\\mathbf{F}_{b,i}`` is the force at bridle point ``i``
+- ``\\hat{\\mathbf{z}}`` is the unit vector along the twist axis (chord direction)
+- ``r_a`` is the position vector of the aerodynamic center relative to the twist center
+- ``\\mathbf{F}_a`` is the aerodynamic force at the group's aerodynamic center
+
+The group can have two [`DynamicsType`](@ref)s:
+- `DYNAMIC`: the group rotates according to Newton's second law: ``I\\ddot{\\theta} = \\tau``
+- `QUASI_STATIC`: the rotational acceleration is zero: ``\\tau = 0``
 
 # Arguments
 - `idx::Int16`: Unique identifier for the group
@@ -208,7 +238,32 @@ end
 """
     Segment(idx, point_idxs, type; l0=zero(SimFloat), compression_frac=0.1)
 
-Constructs a Segment object. If l0 is not provided, it is calculated as the distance between the two segment points.
+Constructs a Segment object representing an elastic spring-damper connection between two points.
+
+The segment follows Hooke's law with damping and aerodynamic drag:
+
+**Spring-Damper Force:**
+```math
+\\mathbf{F}_{spring} = \\left[k(l - l_0) - c\\dot{l}\\right]\\hat{\\mathbf{u}}
+```
+
+**Aerodynamic Drag:**
+```math
+\\mathbf{F}_{drag} = \\frac{1}{2}\\rho C_d A |\\mathbf{v}_a| \\mathbf{v}_{a,\\perp}
+```
+
+**Total Force:**
+```math
+\\mathbf{F}_{total} = \\mathbf{F}_{spring} + \\mathbf{F}_{drag}
+```
+
+where:
+- ``k = \\frac{E \\pi d^2/4}{l}`` is the axial stiffness
+- ``l`` is current length, ``l_0`` is unstretched length
+- ``c = \\frac{\\xi}{c_{spring}} k`` is damping coefficient
+- ``\\hat{\\mathbf{u}} = \\frac{\\mathbf{r}_2 - \\mathbf{r}_1}{l}`` is unit vector along segment
+- ``\\dot{l} = (\\mathbf{v}_1 - \\mathbf{v}_2) \\cdot \\hat{\\mathbf{u}}`` is extension rate
+- ``\\mathbf{v}_{a,\\perp}`` is apparent wind velocity perpendicular to segment
 
 # Arguments
 - `idx::Int16`: Unique identifier for the segment.
@@ -216,8 +271,8 @@ Constructs a Segment object. If l0 is not provided, it is calculated as the dist
 - `type::SegmentType`: Type of the segment (POWER, STEERING, BRIDLE).
 
 # Keyword Arguments
-- `l0::SimFloat=zero(SimFloat)`: Unstretched length of the segment.
-- `compression_frac::SimFloat=0.1`: Compression fraction of the segment.
+- `l0::SimFloat=zero(SimFloat)`: Unstretched length of the segment. Calculated from point positions if zero.
+- `compression_frac::SimFloat=0.1`: Compression fraction of stiffness for compression behavior.
 
 # Returns
 - `Segment`: A new Segment object.
@@ -247,15 +302,43 @@ mutable struct Pulley
     length::SimFloat
     vel::SimFloat
 end
+
 """
     Pulley(idx, segment_idxs, type)
 
-Constructs a Pulley object.
+Constructs a Pulley object that enforces length redistribution between two segments.
+
+The pulley constraint maintains constant total length while allowing force transmission:
+
+**Constraint Equations:**
+```math
+l_1 + l_2 = l_{total} = \\text{constant}
+```
+
+**Force Balance:**
+```math
+F_{pulley} = F_1 - F_2
+```
+
+**Dynamics:**
+```math
+m\\ddot{l}_1 = F_{pulley} = F_1 - F_2
+```
+
+where:
+- ``l_1, l_2`` are the lengths of connected segments
+- ``F_1, F_2`` are the spring forces in the segments  
+- ``m = \\rho_{tether} \\pi (d/2)^2 l_{total}`` is the total mass of both segments
+- ``\\dot{l}_1 + \\dot{l}_2 = 0`` (velocity constraint)
+
+The pulley can have two [`DynamicsType`](@ref)s:
+- `DYNAMIC`: the length redistribution follows Newton's second law: ``m\\ddot{l}_1 = F_1 - F_2``
+- `QUASI_STATIC`: the forces are balanced instantaneously: ``F_1 = F_2``
 
 # Arguments
 - `idx::Int16`: Unique identifier for the pulley.
 - `segment_idxs::Tuple{Int16, Int16}`: Tuple containing the indices of the two segments connected by this pulley.
-- `type::DynamicsType`: Dynamics type of the pulley.
+- `type::DynamicsType`: Dynamics type of the pulley (DYNAMIC or QUASI_STATIC).
 
 # Returns
 - `Pulley`: A new Pulley object.
@@ -273,13 +356,48 @@ end
 """
     struct Tether
 
-A set of segments making a flexible tether. The winch point should only be part of one segment.
+A tethers object.
 
 $(TYPEDFIELDS)
 """
 struct Tether
     idx::Int16
     segment_idxs::Vector{Int16}
+end
+
+"""
+    Tether(idx, segment_idxs)
+
+Constructs a Tether object representing a flexible line composed of multiple segments.
+
+A tether enforces a shared unstretched length constraint across all its constituent segments:
+
+**Length Constraint:**
+```math
+\\sum_{i \\in \\text{segments}} l_{0,i} = L_{tether}
+```
+
+**Winch Control:**
+The unstretched tether length is controlled by winch acceleration:
+```math
+\\ddot L_{tether} = \\alpha_\\text{winch}
+```
+
+# Arguments
+- `idx::Int16`: Unique identifier for the tether
+- `segment_idxs::Vector{Int16}`: Indices of segments that form this tether
+
+# Returns
+- `Tether`: A new Tether object
+
+# Example
+Create a tether from segments 1, 2, and 3:
+```julia
+    tether = Tether(1, [1, 2, 3])
+```
+"""
+function Tether(idx, segment_idxs)
+    return Tether(idx, segment_idxs)
 end
 
 """
@@ -876,7 +994,8 @@ function create_ram_sys_struct(set::Settings, vsm_wing::RamAirWing)
     winches = [winches; Winch(3, TorqueControlledMachine(set), [right_steering_idx], set.l_tether)]
 
     wings = [Wing(1, [1,2,3,4], I(3), zeros(3))]
-    transforms = [Transform(1, deg2rad(set.elevation), deg2rad(set.azimuth), deg2rad(set.heading), zeros(3), points[end].idx; wing_idx=1)]
+    transforms = [Transform(1, deg2rad(set.elevation), deg2rad(set.azimuth), deg2rad(set.heading);
+                                    base_pos= zeros(3), base_point_idx=points[end].idx, wing_idx=1)]
     
     return SystemStructure(set.physical_model, set; points, groups, segments, pulleys, tethers, winches, wings, transforms)
 end
@@ -937,7 +1056,8 @@ function create_simple_ram_sys_struct(set::Settings, wing::RamAirWing)
     winches = [winches; Winch(3, TorqueControlledMachine(set), [right_steering_idx], set.l_tether)]
 
     wings = [Wing(1, [1,2,3,4], I(3), zeros(3))]
-    transforms = [Transform(1, deg2rad(set.elevation), deg2rad(set.azimuth), deg2rad(set.heading), zeros(3), points[end].idx; wing_idx=1)]
+    transforms = [Transform(1, deg2rad(set.elevation), deg2rad(set.azimuth), deg2rad(set.heading);
+                                    base_pos= zeros(3), base_point_idx=points[end].idx, wing_idx=1)]
 
     return SystemStructure(set.physical_model, set; points, groups, segments, pulleys, tethers, winches, wings, transforms)
 end
