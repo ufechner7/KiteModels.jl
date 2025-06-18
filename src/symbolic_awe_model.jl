@@ -456,7 +456,7 @@ function generate_getters!(s, sym_vec)
     end
 
     if length(tethers) > 0
-        get_unstretched_length = getu(sys, sys.unstretched_length)
+        get_unstretched_length = getu(sys, sys.tether_length)
         s.get_unstretched_length = (integ) -> get_unstretched_length(integ)
     end
 

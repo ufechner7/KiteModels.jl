@@ -547,16 +547,16 @@ function force_eqs!(s, system, eqs, defaults, guesses;
 
     # ==================== TETHERS ==================== #
     @variables begin
-        unstretched_length(t)[eachindex(tethers)]
+        stretched_length(t)[eachindex(tethers)]
     end
     for tether in tethers
-        ulen = zero(Num)
+        slen = zero(Num)
         for segment_idx in tether.segment_idxs
-            ulen += len[segment_idx]
+            slen += len[segment_idx]
         end
         eqs = [
             eqs
-            unstretched_length[tether.idx] ~ ulen
+            stretched_length[tether.idx] ~ slen
         ]
     end
 

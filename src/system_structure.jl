@@ -354,18 +354,6 @@ function Pulley(idx, segment_idxs, type)
 end
 
 """
-    struct Tether
-
-A tethers object.
-
-$(TYPEDFIELDS)
-"""
-struct Tether
-    idx::Int16
-    segment_idxs::Vector{Int16}
-end
-
-"""
     Tether(idx, segment_idxs)
 
 Constructs a Tether object representing a flexible line composed of multiple segments.
@@ -396,8 +384,9 @@ Create a tether from segments 1, 2, and 3:
     tether = Tether(1, [1, 2, 3])
 ```
 """
-function Tether(idx, segment_idxs)
-    return Tether(idx, segment_idxs)
+struct Tether
+    idx::Int16
+    segment_idxs::Vector{Int16}
 end
 
 """
@@ -418,16 +407,28 @@ end
 """
     Winch(idx, model, tether_idxs, tether_length; tether_vel=0.0)
 
-Constructs a Winch object.
+Constructs a Winch object that controls tether length through torque or speed regulation.
+
+**Tether Length Control:**
+```math
+\\ddot{L}_{tether} = f_{winch}(v_{reel}, F_{tether}, \\text{set\\_values})
+```
+
+where the winch acceleration function `f_winch` depends on the winch model type:
+- **Torque-controlled**: Direct torque input with motor dynamics
+- **Speed-controlled**: Velocity regulation with internal control loops
+
+For detailed mathematical models of winch dynamics, motor characteristics, and control algorithms, 
+see the [WinchModels.jl documentation](https://github.com/aenarete/WinchModels.jl/blob/main/docs/winch.md).
 
 # Arguments
 - `idx::Int16`: Unique identifier for the winch.
-- `model::AbstractWinchModel`: The winch model.
+- `model::AbstractWinchModel`: The winch model (TorqueControlledMachine, AsyncMachine, etc.).
 - `tether_idxs::Vector{Int16}`: Vector containing the indices of the tethers connected to this winch.
 - `tether_length::SimFloat`: Initial tether length.
 
 # Keyword Arguments
-- `tether_vel::SimFloat=0.0`: Initial tether velocity.
+- `tether_vel::SimFloat=0.0`: Initial tether velocity (reel-out rate).
 
 # Returns
 - `Winch`: A new Winch object.
@@ -495,6 +496,29 @@ Constructs a Wing object representing a rigid body that serves as a reference fr
 A Wing provides a rigid body coordinate system for kite components. Points with `type == WING` move rigidly 
 with the wing body according to the wing's orientation matrix and position. Groups attached to the wing 
 undergo local deformation (twist) relative to the rigid wing body frame.
+
+**Rigid Body Dynamics:**
+The wing follows standard rigid body equations of motion:
+
+```math
+\\begin{aligned}
+\\frac{\\delta \\mathbf{q}_b^w}{\\delta t} &= \\frac{1}{2} \\Omega(\\boldsymbol{\\omega}_b) \\mathbf{q}_b^w \\\\
+\\boldsymbol{\\tau}_k &= \\mathbf{I} \\frac{\\delta \\boldsymbol{\\omega}}{\\delta t} + \\boldsymbol{\\omega}_b \\times (\\mathbf{I}\\boldsymbol{\\omega}_b)
+\\end{aligned}
+```
+
+where:
+- ``\\mathbf{q}_b^w`` is the quaternion from world to body frame
+- ``\\boldsymbol{\\omega}_b`` is the angular velocity in body frame
+- ``\\Omega(\\boldsymbol{\\omega}_b)`` is the quaternion multiplication matrix
+- ``\\mathbf{I}`` is the inertia tensor in body frame
+- ``\\boldsymbol{\\tau}_k`` is the total applied torque (aerodynamic + tether forces)
+
+**Coordinate Transformations:**
+Points attached to the wing transform as:
+```math
+\\mathbf{r}_w = \\mathbf{r}_{wing} + \\mathbf{R}_{b \\rightarrow w} \\mathbf{r}_b
+```
 
 # Arguments
 - `idx::Int16`: Unique identifier for the wing
