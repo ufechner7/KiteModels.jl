@@ -83,7 +83,7 @@ end
             @warn "Manifest files differ, no precompilation will be done."
         end
         # Check if the output file exists and is the same as the input file
-        if isfile(output_file) && filecmp(m1, m2)
+        if isfile(output_file)
             s = SymbolicAWEModel(sam_set)
 
             # Initialize at elevation
