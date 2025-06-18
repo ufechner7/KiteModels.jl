@@ -359,10 +359,6 @@ struct Wing
     pos_w::KVec3
     pos_cad::KVec3
     vel_w::KVec3
-    function Wing(idx, group_idxs, R_b_c, pos_cad; transform_idx=1, angular_vel=zeros(KVec3), 
-            pos_w=zeros(KVec3), vel_w=zeros(KVec3))
-        new(idx, group_idxs, transform_idx, R_b_c, angular_vel, pos_w, pos_cad, vel_w)
-    end
 end
 function Base.getproperty(wing::Wing, sym::Symbol)
     if sym == :orient
@@ -370,6 +366,50 @@ function Base.getproperty(wing::Wing, sym::Symbol)
     else
         return getfield(wing, sym)
     end
+end
+
+"""
+    Wing(idx, group_idxs, R_b_c, pos_cad; transform_idx=1, angular_vel=zeros(KVec3), 
+         pos_w=zeros(KVec3), vel_w=zeros(KVec3))
+
+Constructs a Wing object representing a rigid body that serves as a reference frame for attached points and groups.
+
+A Wing provides a rigid body coordinate system for kite components. Points with `type == WING` move rigidly 
+with the wing body according to the wing's orientation matrix and position. Groups attached to the wing 
+undergo local deformation (twist) relative to the rigid wing body frame.
+
+# Arguments
+- `idx::Int16`: Unique identifier for the wing
+- `group_idxs::Vector{Int16}`: Indices of groups attached to this wing that can deform relative to the body
+- `R_b_c::Matrix{SimFloat}`: Rotation matrix from body frame to CAD frame (3×3 orthogonal matrix)
+- `pos_cad::KVec3`: Position of wing center of mass in CAD frame
+
+# Keyword Arguments
+- `transform_idx::Int16=1`: Transform used for initial positioning and orientation
+- `angular_vel::KVec3=zeros(KVec3)`: Initial angular velocity of the wing in world frame
+- `pos_w::KVec3=zeros(KVec3)`: Initial position of wing center of mass in world frame
+- `vel_w::KVec3=zeros(KVec3)`: Initial velocity of wing center of mass in world frame
+
+# Special Properties
+The wing orientation can be accessed as a quaternion:
+```julia
+  quat = wing.orient  # Returns quaternion representation of R_b_c
+```
+
+# Returns
+- `Wing`: A new Wing object providing a rigid body reference frame
+
+# Example
+Create a wing with identity orientation and two attached groups:
+```julia
+  R_b_c = I(3) # identity matrix
+  pos_cad = [0.0, 0.0, 0.0]
+  wing = Wing(1, [1, 2], R_b_c, pos_cad)
+```
+"""
+function Wing(idx, group_idxs, R_b_c, pos_cad; transform_idx=1, angular_vel=zeros(KVec3), 
+        pos_w=zeros(KVec3), vel_w=zeros(KVec3))
+    return Wing(idx, group_idxs, transform_idx, R_b_c, angular_vel, pos_w, pos_cad, vel_w)
 end
 
 """
@@ -420,12 +460,12 @@ The target of the transformation can be either:
 - `heading::SimFloat`: Rotation angle around the base-to-target vector (radians)
 
 # Keyword Arguments
-## Base Reference (mutually exclusive)
+- **Base Reference (mutually exclusive)**
 - `base_pos::AbstractVector=nothing`: Fixed position offset for the base point in world coordinates
 - `base_point_idx::Int16=nothing`: Index of the reference point (required when using `base_pos`)
 - `base_transform_idx::Int=nothing`: Index of another transform to use as base position
 
-## Target Object (mutually exclusive)
+- **Target Object (mutually exclusive)**
 - `wing_idx::Union{Int16, Nothing}=nothing`: Index of wing to be rotated to (elevation, azimuth)
 - `rot_point_idx::Union{Int16, Nothing}=nothing`: Index of point to be rotated to (elevation, azimuth)
 
@@ -508,61 +548,119 @@ struct SystemStructure
     y::Array{Float64, 2}
     x::Array{Float64, 2}
     jac::Array{Float64, 3}
-    function SystemStructure(name, set; 
-            points=Point[], 
-            groups=Group[], 
-            segments=Segment[], 
-            pulleys=Pulley[], 
-            tethers=Tether[], 
-            winches=Winch[], 
-            wings=Wing[],
-            transforms=Transform[],
-        )
-        for (i, point) in enumerate(points)
-            @assert point.idx == i
-            @assert point.transform_idx <= length(transforms)
-        end
-        for (i, group) in enumerate(groups)
-            @assert group.idx == i
-        end
-        for (i, segment) in enumerate(segments)
-            @assert segment.idx == i
-        end
-        for (i, pulley) in enumerate(pulleys)
-            @assert pulley.idx == i
-        end
-        for (i, tether) in enumerate(tethers)
-            @assert tether.idx == i
-        end
-        for (i, winch) in enumerate(winches)
-            @assert winch.idx == i
-            set.l_tethers[i]   = winch.tether_length
-            set.v_reel_outs[i] = winch.tether_vel
-        end
-        for (i, wing) in enumerate(wings)
-            @assert wing.idx == i
-        end
-        for (i, transform) in enumerate(transforms)
-            @assert transform.idx == i
-            set.elevations[i] = rad2deg(transform.elevation)
-            set.azimuths[i]   = rad2deg(transform.azimuth)
-            set.headings[i]   = rad2deg(transform.heading)
-        end
-        if length(wings) > 0
-            ny = 3+length(wings[1].group_idxs)+3
-            nx = 3+3+length(wings[1].group_idxs)
-        else
-            ny = 0
-            nx = 0
-        end
-        y = zeros(length(wings), ny)
-        x = zeros(length(wings), nx)
-        jac = zeros(length(wings), nx, ny)
-        set.physical_model = name
-        sys_struct = new(name, set, points, groups, segments, pulleys, tethers, winches, wings, transforms, y, x, jac)
-        init!(sys_struct, set)
-        return sys_struct
+end
+
+"""
+    SystemStructure(name, set; points=Point[], groups=Group[], segments=Segment[], 
+                   pulleys=Pulley[], tethers=Tether[], winches=Winch[], 
+                   wings=Wing[], transforms=Transform[])
+
+Constructs a SystemStructure object representing a complete kite system using a discrete mass-spring-damper model.
+
+A SystemStructure defines the physical topology and dynamics of an airborne wind energy system, where:
+- Point masses represent wing attachment points, bridle connections, and tether nodes
+- Spring-damper segments connect points to model tether/bridle elasticity
+- Groups enable local wing deformation through twist dynamics
+- Pulleys redistribute line tensions and lengths
+- Winches provide tether actuation and control
+
+# Physical Model
+The system uses a lumped-parameter approach where:
+- **Points**: Discrete masses with 3DOF translational dynamics
+- **Segments**: Elastic connections with spring-damper behavior
+- **Groups**: Collections of points sharing twist deformation
+- **Wings**: Rigid bodies providing reference frames
+- **Transforms**: Define initial positioning and orientation
+See also: [`Point`](@ref), [`Segment`](@ref), [`Group`](@ref), [`Pulley`](@ref)
+
+# Arguments
+- `name::String`: Physical model identifier (typically "ram" or "simple_ram")
+- `set::Settings`: Configuration object containing simulation parameters
+
+# Keyword Arguments
+- `points::Vector{Point}=Point[]`: Point masses in the system
+- `groups::Vector{Group}=Group[]`: Groups for wing deformation modeling
+- `segments::Vector{Segment}=Segment[]`: Elastic connections between points
+- `pulleys::Vector{Pulley}=Pulley[]`: Elements that redistribute line lengths
+- `tethers::Vector{Tether}=Tether[]`: Groups of segments forming complete tether lines
+- `winches::Vector{Winch}=Winch[]`: Ground-based winches for system control
+- `wings::Vector{Wing}=Wing[]`: Rigid wing bodies
+- `transforms::Vector{Transform}=Transform[]`: Initial positioning transformations
+
+# Validation and Initialization
+The constructor performs extensive validation:
+- Ensures sequential indexing for all components
+- Updates Settings object with component parameters
+- Initializes geometric properties and unstretched lengths
+- Applies transforms for initial positioning
+
+# Returns
+- `SystemStructure`: A complete system model ready for simulation
+
+# Example
+Create a minimal system with basic components:
+  points = [Point(1, [0,0,0], STATIC), Point(2, [0,0,10], DYNAMIC)]
+  segments = [Segment(1, (1,2), BRIDLE)]
+  sys_struct = SystemStructure("test_system", set; points, segments)
+
+Create a complete ram air wing system:
+  wing = RamAirWing(set)
+  sys_struct = SystemStructure(set, wing)  # Uses predefined ram model
+"""
+function SystemStructure(name, set; 
+        points=Point[], 
+        groups=Group[], 
+        segments=Segment[], 
+        pulleys=Pulley[], 
+        tethers=Tether[], 
+        winches=Winch[], 
+        wings=Wing[],
+        transforms=Transform[],
+    )
+    for (i, point) in enumerate(points)
+        @assert point.idx == i
+        @assert point.transform_idx <= length(transforms)
     end
+    for (i, group) in enumerate(groups)
+        @assert group.idx == i
+    end
+    for (i, segment) in enumerate(segments)
+        @assert segment.idx == i
+    end
+    for (i, pulley) in enumerate(pulleys)
+        @assert pulley.idx == i
+    end
+    for (i, tether) in enumerate(tethers)
+        @assert tether.idx == i
+    end
+    for (i, winch) in enumerate(winches)
+        @assert winch.idx == i
+        set.l_tethers[i]   = winch.tether_length
+        set.v_reel_outs[i] = winch.tether_vel
+    end
+    for (i, wing) in enumerate(wings)
+        @assert wing.idx == i
+    end
+    for (i, transform) in enumerate(transforms)
+        @assert transform.idx == i
+        set.elevations[i] = rad2deg(transform.elevation)
+        set.azimuths[i]   = rad2deg(transform.azimuth)
+        set.headings[i]   = rad2deg(transform.heading)
+    end
+    if length(wings) > 0
+        ny = 3+length(wings[1].group_idxs)+3
+        nx = 3+3+length(wings[1].group_idxs)
+    else
+        ny = 0
+        nx = 0
+    end
+    y = zeros(length(wings), ny)
+    x = zeros(length(wings), nx)
+    jac = zeros(length(wings), nx, ny)
+    set.physical_model = name
+    sys_struct = SystemStructure(name, set, points, groups, segments, pulleys, tethers, winches, wings, transforms, y, x, jac)
+    init!(sys_struct, set)
+    return sys_struct
 end
 
 function SystemStructure(set::Settings, wing::RamAirWing)
