@@ -76,6 +76,17 @@ with some example input files. You can now run the examples with the command:
 ```julia
 include("examples/menu.jl")
 ```
+You can also run the ram-air-kite example like this:
+```julia
+include("examples/ram_air_kite.jl")
+```
+This might take two minutes. To speed up the model initialization, you can create a system image:
+```bash
+cd bin
+./create_sys_image
+```
+If you now launch Julia with `./bin/run_julia` and then run the above example again, it should be about three
+times faster.
 
 ## Advanced installation
 If you intend to modify or extend the code, it is suggested to fork the `KiteModels.jl` repository and to check out your fork:

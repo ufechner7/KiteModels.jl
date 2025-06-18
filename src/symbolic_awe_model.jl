@@ -22,9 +22,10 @@
     prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
 
     unknowns_vec::Vector{SimFloat} = zeros(SimFloat, 3)
-    defaults::Vector{Pair{Num, Real}} = Pair{Num, Real}[]
-    guesses::Vector{Pair{Num, Real}} = Pair{Num, Real}[]
+    defaults::Vector{Pair} = Pair[]
+    guesses::Vector{Pair} = Pair[]
 
+    set_psys::Function             = (_, _) -> nothing
     set_set_values::Function       = (_, _) -> nothing
     set_wind::Function         = (_, _) -> nothing
     set_vsm::Function              = (_, _) -> nothing
@@ -255,7 +256,7 @@ function init_sim!(s::SymbolicAWEModel;
     end
     function init(s)
         init_Q_b_w, R_b_w, init_va_b = initial_orient(s)
-        init!(s.sys_struct, s.set, R_b_w, init_Q_b_w)
+        init!(s.sys_struct, s.set)
         
         inputs = create_sys!(s, s.sys_struct; init_va_b)
         prn && @info "Simplifying the system"
@@ -347,8 +348,8 @@ function reinit!(
 )
     isnothing(s.sys_struct) && error("SystemStructure not defined")
 
-    init_Q_b_w, R_b_w = initial_orient(s)
-    init!(s.sys_struct, s.set, R_b_w, init_Q_b_w)
+    # init_Q_b_w, R_b_w, init_va_b = initial_orient(s)
+    init!(s.sys_struct, s.set)
     
     if isnothing(s.prob) || reload
         model_path = joinpath(KiteUtils.get_data_path(), get_model_name(s.set; precompile))
@@ -385,6 +386,7 @@ function reinit!(
 
     init_unknowns_vec!(s, s.sys_struct, s.unknowns_vec)
     s.set_unknowns(s.integrator, s.unknowns_vec)
+    s.set_psys(s.integrator, s.sys_struct)
     OrdinaryDiffEqCore.reinit!(s.integrator, s.integrator.u; reinit_dae=true)
     linearize_vsm!(s)
     return s.integrator, true
@@ -467,6 +469,8 @@ function generate_getters!(s, sym_vec)
         s.get_stabilize = (integ) -> get_stabilize(integ)
     end
     
+    set_psys = setp(sys, sys.psys)
+    s.set_psys = (integ, val) -> set_psys(integ, val)
     set_wind = setp(sys, [sys.wind_scale_gnd, sys.upwind_dir])
     s.set_wind = (integ, val) -> set_wind(integ, val)
     set_unknowns = setu(sys, sym_vec)
@@ -643,11 +647,11 @@ function init_unknowns_vec!(
             vec_idx += 1
         end
         for i in 1:3
-            vec[vec_idx] = wing.pos[i]
+            vec[vec_idx] = wing.pos_w[i]
             vec_idx += 1
         end
         for i in 1:3
-            vec[vec_idx] = wing.vel[i]
+            vec[vec_idx] = wing.vel_w[i]
             vec_idx += 1
         end
     end
@@ -664,7 +668,7 @@ function get_unknowns(sys_struct::SystemStructure, sys::ODESystem)
         for i in 1:3
             point.type == DYNAMIC && push!(vec, sys.pos[i, point.idx])
         end
-        for i in 1:3 # TODO: add speed to init
+        for i in 1:3
             point.type == DYNAMIC && push!(vec, sys.vel[i, point.idx])
         end
     end
@@ -773,7 +777,7 @@ function get_set_hash(set::Settings;
 end
 
 function get_sys_struct_hash(sys_struct::SystemStructure)
-    @unpack points, groups, segments, pulleys, tethers, winches, wings = sys_struct
+    @unpack points, groups, segments, pulleys, tethers, winches, wings, transforms = sys_struct
     data_parts = []
     for point in points
         push!(data_parts, ("point", point.idx, point.wing_idx, Int(point.type)))
@@ -796,6 +800,10 @@ function get_sys_struct_hash(sys_struct::SystemStructure)
     end
     for wing in wings
         push!(data_parts, ("wing", wing.idx, wing.group_idxs))
+    end
+    for transform in transforms
+        push!(data_parts, ("transform", transform.idx, transform.wing_idx, transform.rot_point_idx, 
+                transform.base_point_idx, transform.base_transform_idx))
     end
     content = string(data_parts)
     return sha1(content)

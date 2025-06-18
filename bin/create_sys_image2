@@ -1,0 +1,49 @@
+#!/bin/bash -eu
+# SPDX-FileCopyrightText: 2025 Uwe Fechner
+# SPDX-License-Identifier: MIT
+
+update=false
+if [[ $# -gt 0 ]]; then
+    if [[ $1 != "--update" ]]; then
+        echo "Invalid parameter! Use:"
+        echo "./create_sys_image"
+        echo "or"
+        echo "./create_sys_image --update"
+        exit 1
+    else
+        update=true
+    fi
+fi
+
+if [[ $(basename $(pwd)) == "bin" ]]; then
+    cd ..
+fi
+
+julia_version=$(julia --version | awk '{print($3)}')
+julia_major=${julia_version:0:3} 
+if [[ $julia_major == "1.1" ]]; then
+    julia_major=${julia_version:0:4} 
+fi
+if test -f "kps-image-${julia_major}.so"; then
+    mv bin/kps-image-${julia_major}.so kps-image-${julia_major}.so.bak
+fi
+
+if [[ $update == true ]]; then
+    echo "Updating packages..."
+    if test -f "Manifest.toml"; then
+        mv Manifest.toml Manifest.toml.bak
+    fi
+    if test -f "Manifest-v1.10.toml"; then
+        mv Manifest-v1.10.toml Manifest-v1.10.toml.bak
+    fi
+    if test -f "Manifest-v1.11.toml"; then
+        mv Manifest-v1.11.toml Manifest-v1.11.toml.bak
+    fi
+    julia --project -e "include(\"./test/update_packages.jl\");"
+else
+    echo "Using existing manifest file!"
+fi
+julia --project -e "using Pkg; Pkg.precompile()"
+julia --project -e "include(\"./test/create_sys_image.jl\");"
+mv kps-image_tmp.so bin/kps-image-${julia_major}.so
+julia --project -e "using Pkg; Pkg.precompile()"

@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 This project was started by Uwe Fechner in 2022 with the goal to make the results 
 of his PhD thesis on the simulation and control of kite power systems, re-coded in a fast and modern programming language, available to the public.
 
-Bart van de Lint joined the project in 2024. His major contribution is the first modelling toolkit (MTK) based model, a ram-air kite model.
+Bart van de Lint joined the project in 2024. His major contribution is the first ModelingToolkit (MTK) based model, a ram-air kite model.
 
 ## Developers
 - Uwe Fechner, Delft/ Den Haag, The Netherlands -  original author of the `KPS3` and `KPS4` kite models
