@@ -693,7 +693,7 @@ Constructs a SystemStructure object representing a complete kite system using a 
 
 # Arguments
 - `name::String`: Model identifier. "ram" and "simple_ram" are defined inside KiteModels.jl, provide a different name for a custom model.
-- `set::Settings`: Configuration parameters
+- `set::Settings`: Configuration parameters (see [KiteUtils.Settings](https://ufechner7.github.io/KiteUtils.jl/stable/types/#KiteUtils.Settings))
 
 # Returns
 - `SystemStructure`: Complete system ready for building a [`SymbolicAWEModel`](@ref)

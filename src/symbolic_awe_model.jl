@@ -96,6 +96,39 @@ function Base.setproperty!(sam::SymbolicAWEModel, sym::Symbol, val)
     end
 end
 
+"""
+    SymbolicAWEModel(set::Settings, sys_struct::SystemStructure, 
+                     vsm_aeros::Vector{<:BodyAerodynamics}=BodyAerodynamics[], 
+                     vsm_solvers::Vector{<:VortexStepMethod.Solver}=VortexStepMethod.Solver[])
+
+Constructs a SymbolicAWEModel that can generate ModelingToolkit equations
+from the discrete mass-spring-damper representation defined in the [`SystemStructure`](@ref).
+The aerodynamic models provide forces and moments acting on wing components.
+
+# Arguments
+- `set::Settings`: Configuration parameters (see [KiteUtils.Settings](https://ufechner7.github.io/KiteUtils.jl/stable/types/#KiteUtils.Settings))
+- `sys_struct::SystemStructure`: Physical system definition with points, segments, groups, etc.
+- `vsm_aeros::Vector{<:BodyAerodynamics}=BodyAerodynamics[]`: Aerodynamic models for each wing
+- `vsm_solvers::Vector{<:VortexStepMethod.Solver}=VortexStepMethod.Solver[]`: VSM solvers for aerodynamic calculations
+
+# Returns
+- `SymbolicAWEModel`: Model ready for symbolic equation generation via [`init_sim!`](@ref)
+
+# Example
+```julia
+# Create wing geometry and aerodynamics
+set = se()
+wing = RamAirWing(set)
+aero = BodyAerodynamics([wing])
+solver = Solver(aero; solver_type=NONLIN)
+
+# Create system structure
+sys_struct = SystemStructure(set, wing)
+
+# Create symbolic model
+model = SymbolicAWEModel(set, sys_struct, [aero], [solver])
+```
+"""
 function SymbolicAWEModel(
     set::Settings, 
     sys_struct::SystemStructure,
@@ -109,6 +142,35 @@ function SymbolicAWEModel(
     return SymbolicAWEModel(; set, sys_struct, serialized_model)
 end
 
+"""
+    SymbolicAWEModel(set::Settings)
+
+Constructs a default SymbolicAWEModel with automatically generated components.
+
+This convenience constructor creates a complete AWE model using default configurations:
+- Generates a ram-air wing from settings
+- Creates aerodynamic model and VSM solver
+- Builds system structure based on the wing geometry
+- Assembles everything into a ready-to-use symbolic model
+
+# Arguments
+- `set::Settings`: Configuration parameters (see [KiteUtils.Settings](https://ufechner7.github.io/KiteUtils.jl/stable/types/#KiteUtils.Settings))
+
+# Returns
+- `SymbolicAWEModel`: Model ready for symbolic equation generation via [`init_sim!`](@ref)
+
+# Example
+```julia
+set = se()  # Load default settings
+model = SymbolicAWEModel(set)
+
+# Initialize and run simulation
+init_sim!(model)
+for i in 1:1000
+    next_step!(model)
+end
+```
+"""
 function SymbolicAWEModel(set::Settings)
     wing = RamAirWing(set; prn=false)
     aero = BodyAerodynamics([wing])
