@@ -18,6 +18,8 @@ Segment
 Tether
 Winch
 Group
+Wing
+Transform
 SystemStructure
 ```
 

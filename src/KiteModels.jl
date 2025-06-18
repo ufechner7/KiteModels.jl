@@ -47,7 +47,7 @@ export calculate_rotational_inertia!
 export kite_ref_frame, orient_euler, spring_forces, upwind_dir, copy_model_settings, menu2
 export create_ram_sys_struct, create_simple_ram_sys_struct
 import LinearAlgebra: norm
-export SystemStructure, Point, Group, Segment, Pulley, Tether, Winch, Wing
+export SystemStructure, Point, Group, Segment, Pulley, Tether, Winch, Wing, Transform
 export DynamicsType, DYNAMIC, QUASI_STATIC, WING, STATIC
 export SegmentType, POWER, STEERING, BRIDLE
 
@@ -107,7 +107,7 @@ end
 
 include("KPS4.jl") # include code, specific for the four point kite model
 include("system_structure.jl")
-include("symbolic_awe_system.jl") # include code, specific for the ram air kite model
+include("symbolic_awe_model.jl") # include code, specific for the ram air kite model
 include("mtk_model.jl")
 include("KPS3.jl") # include code, specific for the one point kite model
 include("init.jl") # functions to calculate the initial state vector, the initial masses and initial springs

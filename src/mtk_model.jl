@@ -65,6 +65,14 @@ function rotation_matrix_to_quaternion(R)
     return [w, x, y, z]
 end
 
+function get_pos_w(sys_struct::SystemStructure, idx::Int16)
+    return sys_struct.points[idx].pos_w
+end
+@register_array_symbolic get_pos_w(sys::SystemStructure, point_idx::Int16) begin
+    size=size(KVec3)
+    eltype=SimFloat
+end
+
 """
     force_eqs!(s, system, eqs, defaults, guesses; kwargs...)
 
@@ -103,6 +111,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
     # ==================== POINTS ==================== #
     tether_wing_force = zeros(Num, length(wings), 3)
     tether_wing_moment = zeros(Num, length(wings), 3)
+    @parameters psys::SystemStructure = system
     @variables begin
         pos(t)[1:3, eachindex(points)]
         vel(t)[1:3, eachindex(points)]
@@ -136,6 +145,8 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                 end
             end
         end
+        @assert !iszero(mass)
+
         eqs = [
             eqs
             point_mass[point.idx] ~ mass
@@ -170,7 +181,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                 chord_b = point.pos_b - fixed_pos
                 normal = chord_b × group.y_airf
                 pos_b = fixed_pos + cos(twist_angle[group.idx]) * chord_b - sin(twist_angle[group.idx]) * normal
-            else
+            elseif found == 0
                 pos_b = point.pos_b
                 eqs = [
                     eqs
@@ -189,7 +200,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         elseif point.type == STATIC
             eqs = [
                 eqs
-                pos[:, point.idx]    ~ point.pos_w
+                pos[:, point.idx]    ~ get_pos_w(psys, point.idx)
                 vel[:, point.idx]    ~ zeros(3)
                 acc[:, point.idx]    ~ zeros(3)
             ]
@@ -214,7 +225,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             ]
             defaults = [
                 defaults
-                [pos[j, point.idx] => point.pos_w[j] for j in 1:3]
+                [pos[j, point.idx] => get_pos_w(psys, point.idx)[j] for j in 1:3]
                 [vel[j, point.idx] => 0 for j in 1:3]
             ]
         elseif point.type == QUASI_STATIC
@@ -227,7 +238,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             guesses = [
                 guesses
                 [acc[j, point.idx] => 0 for j in 1:3]
-                [pos[j, point.idx] => point.pos_w[j] for j in 1:3]
+                [pos[j, point.idx] => get_pos_w(psys, point.idx)[j] for j in 1:3]
                 [point_force[j, point.idx] => 0 for j in 1:3]
             ]
         else
@@ -653,12 +664,18 @@ function wing_eqs!(s, eqs, defaults; tether_wing_force, tether_wing_moment, aero
             defaults
             [Q_b_w[wing.idx, i] => wing.orient[i] for i in 1:4]
             [ω_b[wing.idx, i] => wing.angular_vel[i] for i in 1:3]
-            [wing_pos[wing.idx, i] => wing.pos[i] for i in 1:3]
-            [wing_vel[wing.idx, i] => wing.vel[i] for i in 1:3]
+            [wing_pos[wing.idx, i] => wing.pos_w[i] for i in 1:3]
+            [wing_vel[wing.idx, i] => wing.vel_w[i] for i in 1:3]
         ]
     end
     
     return eqs, defaults
+end
+
+function rotate_v_around_k(v, k, θ)
+    k = sym_normalize(k)
+    v_rot = v * cos(θ) + (k × v) * sin(θ)  + k * (k ⋅ v) * (1 - cos(θ))
+    return v_rot
 end
 
 function calc_R_v_w(wing_pos, e_x)
@@ -767,12 +784,12 @@ function scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_wing_b, wing_pos, wing_vel,
             distance_vel[wing.idx]    ~ wing_vel[wing.idx, :] ⋅ R_v_w[wing.idx, :, 3]
             distance_acc[wing.idx]    ~ wing_acc[wing.idx, :] ⋅ R_v_w[wing.idx, :, 3]
 
-            elevation[wing.idx]           ~ atan(z / x)
+            elevation[wing.idx]           ~ KiteUtils.calc_elevation(wing_pos[wing.idx, :])
             # elevation_vel = d/dt(atan(z/x)) = (x*ż' - z*ẋ')/(x^2 + z^2) according to wolframalpha
             elevation_vel[wing.idx]       ~ (x*z´ - z*x´) / 
                                     (x^2 + z^2)
             elevation_acc[wing.idx]       ~ ((x^2 + z^2)*(x*z´´ - z*x´´) + 2(z*x´ - x*z´)*(x*x´ + z*z´))/(x^2 + z^2)^2
-            azimuth[wing.idx]             ~ atan(y / x)
+            azimuth[wing.idx]             ~ -KiteUtils.azimuth_east(wing_pos[wing.idx, :])
             # azimuth_vel = d/dt(atan(y/x)) = (-y*x´ + x*y´)/(x^2 + y^2) # TODO: check if correct
             azimuth_vel[wing.idx]         ~ (-y*x´ + x*y´) / 
                                     (x^2 + y^2)
@@ -861,8 +878,8 @@ end
 
 function create_sys!(s::SymbolicAWEModel, system::SystemStructure; init_va_b)
     eqs = []
-    defaults = Pair{Num, Real}[]
-    guesses = Pair{Num, Real}[]
+    defaults = Pair{Num, Any}[]
+    guesses = Pair{Num, Any}[]
 
     @unpack wings, groups, winches = system
 

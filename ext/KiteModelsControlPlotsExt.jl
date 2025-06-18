@@ -7,7 +7,7 @@ using ControlPlots, KiteModels
 
 export plot
 
-function ControlPlots.plot(sys::SystemStructure, reltime; l_tether=50.0, wing_pos=nothing, e_z=zeros(3), zoom=false, front=false)
+function ControlPlots.plot(sys::SystemStructure, reltime; l_tether=50.0, wing_pos=nothing, e_z=zeros(3), zoom=false, front=false, xy=nothing)
     pos = [sys.points[i].pos_w for i in eachindex(sys.points)]
     !isnothing(wing_pos) && (pos = [pos..., wing_pos...])
     seg = [[sys.segments[i].point_idxs[1], sys.segments[i].point_idxs[2]] for i in eachindex(sys.segments)]
@@ -24,7 +24,7 @@ function ControlPlots.plot(sys::SystemStructure, reltime; l_tether=50.0, wing_po
         xlim = (-12.5 - 0.5l_tether, 12.5 + 0.5l_tether)
         ylim = (-5, l_tether+10)
     end
-    ControlPlots.plot2d(pos, seg, reltime; zoom, front, xlim, ylim, dz_zoom=0.6)
+    ControlPlots.plot2d(pos, seg, reltime; zoom, front, xlim, ylim, dz_zoom=0.6, xy)
 end
 
 function ControlPlots.plot(s::SymbolicAWEModel, reltime; kwargs...)

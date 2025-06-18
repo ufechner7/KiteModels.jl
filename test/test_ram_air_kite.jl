@@ -254,30 +254,32 @@ const BUILD_SYS = true
         points = Point[]
         segments = Segment[]
 
-        points = push!(points, Point(1, [0.0, 0.0, set.l_tether], STATIC; wing_idx=0))
+        points = push!(points, Point(1, zeros(3), STATIC; wing_idx=0))
 
         segment_idxs = Int[]
         for i in 1:set.segments
             point_idx = i+1
-            pos = [0.0, 0.0, set.l_tether] - set.l_tether / set.segments * [0.0, 0.0, i]
+            pos = [0.0, 0.0, i * set.l_tether / set.segments]
             push!(points, Point(point_idx, pos, dynamics_type; wing_idx=0))
             segment_idx = i
             push!(segments, Segment(segment_idx, (point_idx-1, point_idx), BRIDLE))
             push!(segment_idxs, segment_idx)
         end
 
-        sys_struct = SystemStructure("tether"; points, segments)
+        transforms = [Transform(1, deg2rad(-80), 0.0, 0.0, [0.0, 0.0, 50.0], points[1].idx; rot_point_idx=points[end].idx)]
+        sys_struct = SystemStructure("tether", set; points, segments, transforms)
 
         sam = SymbolicAWEModel(set, sys_struct)
         sys = sam.sys
         init_sim!(sam; remake=false)
-        @test sam.integrator[sam.sys.pos[:, end]] ≈ zeros(3)
+        @test isapprox(sam.integrator[sam.sys.pos[:, end]], [8.682408883346524, 0.0, 0.7596123493895988], atol=1e-2)
         for i in 1:100
             next_step!(sam)
         end
         @test sam.integrator[sam.sys.pos[1, end]] > 0.8set.l_tether
         @test isapprox(sam.integrator[sam.sys.pos[2, end]], 0.0, atol=1.0)
         test_plot(s)
+        set.elevation = 80
     end
 end
 

@@ -47,8 +47,8 @@ toc()
 # plot(sam.sys_struct, 0.0; zoom=false, front=false)
 
 # Initialize at elevation
-sam.sys_struct.winches[2].tether_length += 0.2
-sam.sys_struct.winches[3].tether_length += 0.2
+set.l_tethers[2] += 0.2
+set.l_tethers[3] += 0.2
 init_sim!(sam; remake=false, reload=false)
 sys = sam.sys
 
@@ -63,7 +63,7 @@ sys_state = SysState(sam)
 t = 0.0
 runtime = 0.0
 integ_runtime = 0.0
-bias = set.quasi_static ? 0.45 : 0.35
+bias = set.quasi_static ? 0.45 : 0.40
 t0 = sam.integrator.t
 
 try
@@ -147,3 +147,5 @@ p = plotx(sl.time,
 display(p)
 
 @info "Performance:" times_realtime=(total_time/2)/runtime integrator_times_realtime=(total_time/2)/integ_runtime
+
+# 55x realtime (PLOT=false, CPU: Intel i9-9980HK (16) @ 5.000GHz)
