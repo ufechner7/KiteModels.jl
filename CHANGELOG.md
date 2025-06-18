@@ -3,6 +3,11 @@ SPDX-FileCopyrightText: 2025 Uwe Fechner, Bart van de Lint
 SPDX-License-Identifier: MIT
 -->
 
+### KiteModels v0.8.0
+#### Added
+
+#### Changed
+
 ### KiteModels v0.7.4 2025-06-08
 #### Added
 - added licenses to each file, the command `pipx run reuse lint` succeeds now
