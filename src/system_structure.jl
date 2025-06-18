@@ -130,6 +130,8 @@ The governing equation is:
 \\end{aligned}
 ```
 
+![System Overview](group-slice.svg)
+
 where:
 - ``\\tau`` is the total torque about the twist axis
 - ``r_{b,i}`` is the position vector of bridle point ``i`` relative to the twist center
@@ -170,50 +172,8 @@ end
     Group(idx, point_idxs, le_pos, chord, y_airf, type, moment_frac)
 
 Constructs a Group object representing a collection of points on a kite body that share 
-a common twist deformation.
+a common twist deformation. See: [`Group(::Any, ::Any, ::RamAirWing, ::Any, ::Any, ::Any)`](@ref).
 
-A Group models the local deformation of a kite wing section through twist dynamics. 
-All points within a group undergo the same twist rotation about the chord vector.
-
-The governing equation is:
-```math
-\\begin{aligned}
-\\tau = \\underbrace{\\sum_{i=1}^{4} r_{b,i} \\times (\\mathbf{F}_{b,i} \\cdot \\hat{\\mathbf{z}})}_{\\text{bridles}} + \\underbrace{r_a \\times (\\mathbf{F}_a \\cdot \\hat{\\mathbf{z}})}_{\\text{aero}}
-\\end{aligned}
-```
-
-where:
-- ``\\tau`` is the total torque about the twist axis
-- ``r_{b,i}`` is the position vector of bridle point ``i`` relative to the twist center
-- ``\\mathbf{F}_{b,i}`` is the force at bridle point ``i``
-- ``\\hat{\\mathbf{z}}`` is the unit vector along the twist axis (chord direction)
-- ``r_a`` is the position vector of the aerodynamic center relative to the twist center
-- ``\\mathbf{F}_a`` is the aerodynamic force at the group's aerodynamic center
-
-The group can have two [`DynamicsType`](@ref)s:
-- `DYNAMIC`: the group rotates according to Newton's second law: ``I\\ddot{\\theta} = \\tau``
-- `QUASI_STATIC`: the rotational acceleration is zero: ``\\tau = 0``
-
-# Arguments
-- `idx::Int16`: Unique identifier for the group
-- `point_idxs::Vector{Int16}`: Indices of points that twist together with this group
-- `le_pos::KVec3`: Leading edge position serving as the rotation center in body frame
-- `chord::KVec3`: Chord vector defining the twist axis direction in body frame
-- `y_airf::KVec3`: Spanwise vector in local airfoil frame for coordinate system definition
-- `type::DynamicsType`: DYNAMIC for time-varying twist, QUASI_STATIC for equilibrium twist
-- `moment_frac::SimFloat`: Fraction of total wing moment applied to this group
-
-# Returns
-- `Group`: A new Group object for modeling local wing deformation
-
-# Example
-Create a group with explicit geometry for a rectangular wing section:
-```julia
-  le_pos = [1.0, 2.0, 3.0]      # Leading edge position
-  chord  = [1.0, 0.0, 0.0]       # Chord vector pointing downstream  
-  y_airf = [0.0, 1.0, 0.0]      # Spanwise direction
-  group = Group(1, [1, 2, 3], le_pos, chord, y_airf, DYNAMIC, 0.25)
-```
 """
 function Group(idx, point_idxs, le_pos, chord, y_airf, type, moment_frac)
     Group(idx, point_idxs, le_pos, chord, y_airf, type, moment_frac, 0.0, 0.0)
@@ -411,8 +371,14 @@ Constructs a Winch object that controls tether length through torque or speed re
 
 **Tether Length Control:**
 ```math
-\\ddot{L}_{tether} = f_{winch}(v_{reel}, F_{tether}, \\text{set\\_values})
+\\ddot{L} = \\alpha(v, F, u)
 ```
+where:
+- ``L`` is the tether length
+- ``v`` is the reel out velocity (tether extension rate)
+- ``F`` is the tether force
+- ``u`` is the applied torque or speed setpoint
+- ``\\alpha`` is the winch acceleration function depending on model type
 
 where the winch acceleration function `f_winch` depends on the winch model type:
 - **Torque-controlled**: Direct torque input with motor dynamics
