@@ -72,6 +72,15 @@ Constructs a Point object. A point can be of four different [`DynamicsType`](@re
 - `QUASI_STATIC`: the acceleration is constrained to be zero, by solving a nonlinear problem. ``\\mathbf{F}/m = \\mathbf{0}``
 - `WING`: the point has a static position in the rigid body wing frame. ``\\mathbf{r}_w = \\mathbf{r}_{wing} + \\mathbf{R}_{b\\rightarrow w} \\mathbf{r}_b``
 
+where:
+- ``\\mathbf{r}`` is the point position vector
+- ``\\mathbf{F}`` is the net force acting on the point
+- ``m`` is the point mass
+- ``\\mathbf{r}_w`` is the position in world frame
+- ``\\mathbf{r}_{wing}`` is the wing center position
+- ``\\mathbf{R}_{b\\rightarrow w}`` is the rotation matrix from body to world frame
+- ``\\mathbf{r}_b`` is the position in body frame
+
 # Arguments
 - `idx::Int16`: Unique identifier for the point.
 - `pos_cad::KVec3`: Position of the point in the CAD frame.
@@ -322,14 +331,19 @@ A tether enforces a shared unstretched length constraint across all its constitu
 
 **Length Constraint:**
 ```math
-\\sum_{i \\in \\text{segments}} l_{0,i} = L_{tether}
+\\sum_{i \\in \\text{segments}} l_{0,i} = L
 ```
 
 **Winch Control:**
 The unstretched tether length is controlled by winch acceleration:
 ```math
-\\ddot L_{tether} = \\alpha_\\text{winch}
+\\ddot L = \\alpha(v, F, u)
 ```
+
+where:
+- ``L`` is the tether length
+- ``l_{0,i}`` is the segment unstretched length
+- ``\\alpha(v, F, u)`` is the winch acceleration function depending on model type
 
 # Arguments
 - `idx::Int16`: Unique identifier for the tether
@@ -378,7 +392,7 @@ where:
 - ``v`` is the reel out velocity (tether extension rate)
 - ``F`` is the tether force
 - ``u`` is the applied torque or speed setpoint
-- ``\\alpha`` is the winch acceleration function depending on model type
+- ``\\alpha(v, F, u)`` is the winch acceleration function depending on model type
 
 where the winch acceleration function `f_winch` depends on the winch model type:
 - **Torque-controlled**: Direct torque input with motor dynamics
@@ -483,8 +497,14 @@ where:
 **Coordinate Transformations:**
 Points attached to the wing transform as:
 ```math
-\\mathbf{r}_w = \\mathbf{r}_{wing} + \\mathbf{R}_{b \\rightarrow w} \\mathbf{r}_b
+\\mathbf{r}_w = \\mathbf{r}_{w} + \\mathbf{R}_{b \\rightarrow w} \\mathbf{r}_b
 ```
+
+where:
+- ``\\mathbf{r}_w`` is the position in world frame
+- ``\\mathbf{r}_{w}`` is the wing position in world frame
+- ``\\mathbf{R}_{b \\rightarrow w}`` is the rotation from body to world frame
+- ``\\mathbf{r}_b`` is the point position in body frame
 
 # Arguments
 - `idx::Int16`: Unique identifier for the wing
@@ -548,8 +568,9 @@ end
 Constructs a Transform object that orients system components using spherical coordinates.
 
 **All points and wings with matching `transform_idx` are transformed together as a rigid body:**
-1. **Translation**: Position target at (elevation, azimuth) from base
-2. **Rotation**: Rotate all components by `heading` around the base-target vector
+1. **Translation**: Translate such that base is at specified base pos
+1. **Rotation 1**: Rotate so target is at (elevation, azimuth) relative to base
+2. **Rotation 2**: Rotate all components by `heading` around the base-target vector
 
 ```math
 \\mathbf{r}_{transformed} = \\mathbf{r}_{base} + \\mathbf{R}_{heading} \\circ \\mathbf{R}_{elevation,azimuth}(\\mathbf{r} - \\mathbf{r}_{base})
@@ -617,21 +638,20 @@ end
 """
     struct SystemStructure
 
-A discrete mass-spring-damper representation of a kite sys_struct, where point masses 
-connected by elastic segments model the kite and tether dynamics:
+A discrete mass-spring-damper representation of a kite system, where point masses 
+connected by elastic segments model the kite and tether dynamics.
 
-- `points::Vector{Point}`: Point masses representing:
-  - Wing attachment points 
-  - Dynamic bridle/tether points
-  - Fixed ground anchor points
-- `groups::Vector{Group}`: Collections of points that move together, 
-    according to wing deformation (twist and trailing edge deflection)
-- `segments::Vector{Segment}`: Spring-damper elements between points
-- `pulleys::Vector{Pulley}`: Elements that redistribute line lengths
-- `tethers::Vector{Tether}`: Groups of segments with a common unstretched length
-- `winches::Vector{Winch}`: Ground-based winches that control the tether lengths
+# Components
+- [`Point`](@ref): Point masses representing wing attachment points, dynamic bridle/tether points, and fixed ground anchors
+- [`Group`](@ref): Collections of points that move together according to wing deformation (twist and trailing edge deflection)
+- [`Segment`](@ref): Spring-damper elements connecting points
+- [`Pulley`](@ref): Elements that redistribute line lengths between segments
+- [`Tether`](@ref): Groups of segments with a common unstretched length
+- [`Winch`](@ref): Ground-based winches that control tether lengths
+- [`Wing`](@ref): Rigid wing bodies that serve as reference frames
+- [`Transform`](@ref): Spatial transformations for initial positioning and orientation
 
-See also: [`Point`](@ref), [`Segment`](@ref), [`Group`](@ref), [`Pulley`](@ref)
+See the individual component documentation for detailed mathematical models and governing equations.
 """
 struct SystemStructure
     name::String
@@ -656,55 +676,39 @@ end
 
 Constructs a SystemStructure object representing a complete kite system using a discrete mass-spring-damper model.
 
-A SystemStructure defines the physical topology and dynamics of an airborne wind energy system, where:
-- Point masses represent wing attachment points, bridle connections, and tether nodes
-- Spring-damper segments connect points to model tether/bridle elasticity
-- Groups enable local wing deformation through twist dynamics
-- Pulleys redistribute line tensions and lengths
-- Winches provide tether actuation and control
+## Components
 
-# Physical Model
-The system uses a lumped-parameter approach where:
-- **Points**: Discrete masses with 3DOF translational dynamics
-- **Segments**: Elastic connections with spring-damper behavior
-- **Groups**: Collections of points sharing twist deformation
-- **Wings**: Rigid bodies providing reference frames
-- **Transforms**: Define initial positioning and orientation
-See also: [`Point`](@ref), [`Segment`](@ref), [`Group`](@ref), [`Pulley`](@ref)
+- **Points** - See [`Point`](@ref) for discrete mass dynamics
+- **Segments** - See [`Segment`](@ref) for elastic spring-damper connections  
+- **Groups** - See [`Group`](@ref) for wing twist deformation modeling
+- **Wings** - See [`Wing`](@ref) for rigid body dynamics
+- **Pulleys** - See [`Pulley`](@ref) for length redistribution between segments
+- **Tethers** - See [`Tether`](@ref) for segment groups with shared unstretched length
+- **Winches** - See [`Winch`](@ref) for ground-based tether length control
+- **Transforms** - See [`Transform`](@ref) for initial positioning and orientation
+
+## Physical Models
+- **"ram"**: 4 deformable wing groups, complex pulley bridle system
+- **"simple_ram"**: 4 deformable wing groups, direct bridle connections
 
 # Arguments
-- `name::String`: Physical model identifier (typically "ram" or "simple_ram")
-- `set::Settings`: Configuration object containing simulation parameters
-
-# Keyword Arguments
-- `points::Vector{Point}=Point[]`: Point masses in the system
-- `groups::Vector{Group}=Group[]`: Groups for wing deformation modeling
-- `segments::Vector{Segment}=Segment[]`: Elastic connections between points
-- `pulleys::Vector{Pulley}=Pulley[]`: Elements that redistribute line lengths
-- `tethers::Vector{Tether}=Tether[]`: Groups of segments forming complete tether lines
-- `winches::Vector{Winch}=Winch[]`: Ground-based winches for system control
-- `wings::Vector{Wing}=Wing[]`: Rigid wing bodies
-- `transforms::Vector{Transform}=Transform[]`: Initial positioning transformations
-
-# Validation and Initialization
-The constructor performs extensive validation:
-- Ensures sequential indexing for all components
-- Updates Settings object with component parameters
-- Initializes geometric properties and unstretched lengths
-- Applies transforms for initial positioning
+- `name::String`: Model identifier. "ram" and "simple_ram" are defined inside KiteModels.jl, provide a different name for a custom model.
+- `set::Settings`: Configuration parameters
 
 # Returns
-- `SystemStructure`: A complete system model ready for simulation
+- `SystemStructure`: Complete system ready for building a [`SymbolicAWEModel`](@ref)
 
-# Example
-Create a minimal system with basic components:
-  points = [Point(1, [0,0,0], STATIC), Point(2, [0,0,10], DYNAMIC)]
-  segments = [Segment(1, (1,2), BRIDLE)]
-  sys_struct = SystemStructure("test_system", set; points, segments)
+# Examples
+```julia
+# Auto-generate from wing geometry
+wing = RamAirWing(set)
+sys_struct = SystemStructure(set, wing)
 
-Create a complete ram air wing system:
-  wing = RamAirWing(set)
-  sys_struct = SystemStructure(set, wing)  # Uses predefined ram model
+# Manual construction
+points = [Point(1, [0,0,0], STATIC), Point(2, [0,0,10], DYNAMIC)]
+segments = [Segment(1, (1,2), BRIDLE)]
+sys_struct = SystemStructure("custom", set; points, segments)
+```
 """
 function SystemStructure(name, set; 
         points=Point[], 
