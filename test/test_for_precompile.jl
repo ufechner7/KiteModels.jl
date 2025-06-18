@@ -103,22 +103,17 @@ let
     simulate(integrator, 100, true)
 end
 if ! haskey(ENV, "NO_MTK")
-    using KiteModels, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, LinearAlgebra
-    using Base: summarysize
+    using KiteModels,  LinearAlgebra
+    s = SymbolicAWEModel(sam_set)
 
-    update_settings()
-    set = se("system_ram.yaml")
-    set.segments = 2
-    set_values = [-50, -1.1, -1.1]
-    sam = SymbolicAWEModel(set)
-    KiteModels.init_sim!(sam)
-    logger = Logger(length(sam.sys_struct.points), 5)
-
-    for i in 1:5
-        next_step!(sam; set_values)
-        sys_state = KiteModels.SysState(sam)
-        log!(logger, sys_state)
-    end
+    # Initialize at elevation
+    KiteModels.init_sim!(s; prn=false, precompile=true)
+    @info "Copying $output_file to $model_file !"
+    cp(output_file, model_file; force=true)
+    find_steady_state!(s)
+    steps = Int(round(10 / 0.05))
+    logger = Logger(length(s.sys_struct.points), steps)
+    sys_state = SysState(s)
 end
 
 @info "Precompile script has completed execution."
