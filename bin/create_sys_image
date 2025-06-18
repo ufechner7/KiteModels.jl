@@ -112,6 +112,14 @@ if test -f "kps-image-${julia_major}-${branch}.so"; then
 fi
 $JULIA_CMD --startup-file=no -e "using Pkg; Pkg.add(\"TestEnv\")"
 
+if [[ $julia_major == "1.10" ]]; then
+    rm -f data/model_1.10_ram_dynamic_3_seg.bin.default
+    rm -f data/model_1.10_ram_dynamic_3_seg.bin
+else
+    rm -f data/model_1.11_ram_dynamic_3_seg.bin.default
+    rm -f data/model_1.11_ram_dynamic_3_seg.bin
+fi
+
 if [[ $update == true ]]; then
     echo "Updating packages..."
     export JULIA_PKG_SERVER_REGISTRY_PREFERENCE="eager"
