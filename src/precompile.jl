@@ -90,6 +90,10 @@ end
             KiteModels.init_sim!(s; prn=false, precompile=true)
             @info "Copying $output_file to $model_file !"
             cp(output_file, model_file; force=true)
+            find_steady_state!(s)
+            steps = Int(round(10 / 0.05))
+            logger = Logger(length(s.sys_struct.points), steps)
+            sys_state = SysState(s)
         end
         nothing
     end

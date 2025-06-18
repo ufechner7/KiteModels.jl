@@ -162,7 +162,7 @@ if test -f $SOFILE; then
     mv $SOFILE $SOFILE.bak
 fi
 mv kps-image_tmp.so $SOFILE
-$JULIA_CMD --startup-file=no  --project -e "using Pkg; Pkg.precompile(); Pkg.resolve()"
+$JULIA_CMD --startup-file=no  --project -e "using Pkg; Pkg.precompile()"
 if [ -d src ]; then
     cd src
     touch *.jl # make sure all modules get recompiled in the next step
