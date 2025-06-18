@@ -1,4 +1,7 @@
 #!/bin/bash -eu
+# SPDX-FileCopyrightText: 2025 Uwe Fechner
+# SPDX-License-Identifier: MIT
+
 update=false
 if [[ $# -gt 0 ]]; then
     if [[ $1 != "--update" ]]; then
@@ -38,13 +41,7 @@ if [[ $update == true ]]; then
     fi
     julia --project -e "include(\"./test/update_packages.jl\");"
 else
-    if [[ $julia_major == "1.10" ]]; then
-        cp Manifest-v1.10.toml.default Manifest-v1.10.toml
-        echo "Using Manifest-v1.10.toml.default ..."        
-    else
-        cp Manifest-v1.11.toml.default Manifest-v1.11.toml
-        echo "Using Manifest-v1.11.toml.default ..."
-    fi
+    echo "Using existing manifest file!"
 fi
 julia --project -e "using Pkg; Pkg.precompile()"
 julia --project -e "include(\"./test/create_sys_image.jl\");"

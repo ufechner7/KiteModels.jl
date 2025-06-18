@@ -103,22 +103,20 @@ let
     simulate(integrator, 100, true)
 end
 if ! haskey(ENV, "NO_MTK")
-    using KiteModels, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, LinearAlgebra
-    using Base: summarysize
+    using KiteModels,  LinearAlgebra
+    sam_set = load_settings("system_ram.yaml")
+    sam_set.segments = 3
+    set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
+    sam_set.quasi_static = false
+    sam_set.physical_model = "ram"
+    s = SymbolicAWEModel(sam_set)
 
-    update_settings()
-    set = se("system_ram.yaml")
-    set.segments = 2
-    set_values = [-50, -1.1, -1.1]
-    sam = SymbolicAWEModel(set)
-    KiteModels.init_sim!(sam)
-    logger = Logger(length(sam.sys_struct.points), 5)
-
-    for i in 1:5
-        next_step!(sam; set_values)
-        sys_state = KiteModels.SysState(sam)
-        log!(logger, sys_state)
-    end
+    # Initialize at elevation
+    KiteModels.init_sim!(s; prn=false, precompile=true)
+    find_steady_state!(s)
+    steps = Int(round(10 / 0.05))
+    logger = Logger(length(s.sys_struct.points), steps)
+    sys_state = SysState(s)
 end
 
 @info "Precompile script has completed execution."
