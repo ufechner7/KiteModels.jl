@@ -469,7 +469,7 @@ The wing follows standard rigid body equations of motion:
 ```math
 \\begin{aligned}
 \\frac{\\delta \\mathbf{q}_b^w}{\\delta t} &= \\frac{1}{2} \\Omega(\\boldsymbol{\\omega}_b) \\mathbf{q}_b^w \\\\
-\\boldsymbol{\\tau}_k &= \\mathbf{I} \\frac{\\delta \\boldsymbol{\\omega}}{\\delta t} + \\boldsymbol{\\omega}_b \\times (\\mathbf{I}\\boldsymbol{\\omega}_b)
+\\boldsymbol{\\tau}_w &= \\mathbf{I} \\frac{\\delta \\boldsymbol{\\omega}}{\\delta t} + \\boldsymbol{\\omega}_b \\times (\\mathbf{I}\\boldsymbol{\\omega}_b)
 \\end{aligned}
 ```
 
@@ -478,7 +478,7 @@ where:
 - ``\\boldsymbol{\\omega}_b`` is the angular velocity in body frame
 - ``\\Omega(\\boldsymbol{\\omega}_b)`` is the quaternion multiplication matrix
 - ``\\mathbf{I}`` is the inertia tensor in body frame
-- ``\\boldsymbol{\\tau}_k`` is the total applied torque (aerodynamic + tether forces)
+- ``\\boldsymbol{\\tau}_w`` is the total applied torque to the rigid wing body (aerodynamic + tether forces)
 
 **Coordinate Transformations:**
 Points attached to the wing transform as:
@@ -545,53 +545,44 @@ end
         base_point_idx=nothing, base_pos=nothing, base_transform_idx=nothing, 
         wing_idx=nothing, rot_point_idx=nothing)
 
-Constructs a Transform object that describes an orientation transformation from a base reference to a rotating object.
+Constructs a Transform object that orients system components using spherical coordinates.
 
-A Transform defines the spatial relationship between a reference (base) and a target object (wing or point) 
-using spherical coordinates. The transformation is defined by elevation, azimuth, and heading angles that position 
-and orient the target relative to the base.
+**All points and wings with matching `transform_idx` are transformed together as a rigid body:**
+1. **Translation**: Position target at (elevation, azimuth) from base
+2. **Rotation**: Rotate all components by `heading` around the base-target vector
 
-# Base Reference
-The base of the transformation can be defined in two ways:
-- **Fixed position**: Using `base_pos` (fixed position vector) and `base_point_idx` (reference point index)
-- **Chained transform**: Using `base_transform_idx` (index of another transform whose position becomes the base)
-
-# Target Object
-The target of the transformation can be either:
-- A wing (specified by `wing_idx`): The entire wing will be positioned and oriented
-- A point (specified by `rot_point_idx`): A single point will be positioned
+```math
+\\mathbf{r}_{transformed} = \\mathbf{r}_{base} + \\mathbf{R}_{heading} \\circ \\mathbf{R}_{elevation,azimuth}(\\mathbf{r} - \\mathbf{r}_{base})
+```
 
 # Arguments
 - `idx::Int16`: Unique identifier for the transform
-- `elevation::SimFloat`: Elevation angle of the target as seen from base (radians)
-- `azimuth::SimFloat`: Azimuth angle of the target as seen from base (radians)
-- `heading::SimFloat`: Rotation angle around the base-to-target vector (radians)
+- `elevation::SimFloat`: Target elevation angle from base (radians)
+- `azimuth::SimFloat`: Target azimuth angle from base (radians)  
+- `heading::SimFloat`: Rotation around base-target vector (radians)
 
 # Keyword Arguments
-- **Base Reference (mutually exclusive)**
-- `base_pos::AbstractVector=nothing`: Fixed position offset for the base point in world coordinates
-- `base_point_idx::Int16=nothing`: Index of the reference point (required when using `base_pos`)
-- `base_transform_idx::Int=nothing`: Index of another transform to use as base position
+**Base Reference (choose one):**
+- `base_pos + base_point_idx`: Fixed position and reference point
+- `base_transform_idx`: Chain to another transform's position
 
-- **Target Object (mutually exclusive)**
-- `wing_idx::Union{Int16, Nothing}=nothing`: Index of wing to be rotated to (elevation, azimuth)
-- `rot_point_idx::Union{Int16, Nothing}=nothing`: Index of point to be rotated to (elevation, azimuth)
+**Target Object (choose one):**
+- `wing_idx`: Wing to position at (elevation, azimuth)
+- `rot_point_idx`: Point to position at (elevation, azimuth)
 
 # Returns
-- `Transform`: A new Transform object defining the spatial relationship
+- `Transform`: Transform affecting all components with matching `transform_idx`
 
 # Examples
-Position a wing at 45° elevation and 30° azimuth from a fixed position:
-  transform = Transform(1, deg2rad(45), deg2rad(30), 0.0; 
-                       base_pos=[0,0,0], base_point_idx=1, wing_idx=1)
+```julia
+# Position wing and all associated points at 45° elevation, 30° azimuth
+transform = Transform(1, deg2rad(45), deg2rad(30), 0.0; 
+                     base_pos=[0,0,0], base_point_idx=1, wing_idx=1)
 
-Position a point relative to another transform:
-  transform = Transform(2, deg2rad(60), 0.0, 0.0; 
-                       base_transform_idx=1, rot_point_idx=5)
-
-Create a chained wing positioning (wing relative to another wing's position):
-  transform = Transform(3, deg2rad(30), deg2rad(45), deg2rad(10); 
-                       base_transform_idx=1, wing_idx=2)
+# Chain transforms for multi-kite systems
+transform2 = Transform(2, deg2rad(30), deg2rad(45), deg2rad(10); 
+                      base_transform_idx=1, wing_idx=2)
+```
 """
 function Transform(idx, elevation, azimuth, heading;
         base_point_idx=nothing, base_pos=nothing, base_transform_idx=nothing,
