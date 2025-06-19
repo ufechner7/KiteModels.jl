@@ -180,10 +180,10 @@ fi
 rm LocalPreferences.toml
 echo "Precompiling package KiteModels..."
 $JULIA_CMD --startup-file=no --project -J $SOFILE -e "using KiteModels, KitePodModels, KiteUtils"
-echo "Precompiling package ControlPlots..."
+echo "Precompiling package ControlPlots and KiteModelsControlPlotsExt ..."
 if [[ $branch != "" ]]; then
-    $JULIA_CMD --startup-file=no --project -J $SOFILE -e "using TestEnv; TestEnv.activate(); using ControlPlots; using VortexStepMethod"
+    $JULIA_CMD --startup-file=no --project -J $SOFILE -e "using TestEnv; TestEnv.activate(); using ControlPlots; using VortexStepMethod; using KiteModels"
 else
-    $JULIA_CMD --startup-file=no --project -J $SOFILE -e "using ControlPlots; using VortexStepMethod"
+    $JULIA_CMD --startup-file=no --project -J $SOFILE -e "using ControlPlots; using VortexStepMethod; using KiteModels"
 fi
 
