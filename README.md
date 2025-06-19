@@ -99,14 +99,18 @@ Then compile a system image:
 cd KiteModels.jl/bin
 ./create_sys_image
 ```
-If you know launch julia with:
+If you now launch julia with:
 ```bash
 cd ..
 ./bin/run_julia
 ```
-you can run the examples with
+You can run the examples with:
 ```julia
 menu()
+```
+You can also run the ram-air-kite example like this:
+```julia
+include("examples/ram_air_kite.jl")
 ```
 
 ## One point model
@@ -132,7 +136,7 @@ The models KPS3 and KPS4 are described in detail in [Dynamic Model of a Pumping 
 If you want to replay old flight log files in 2D and 3D to understand and explain better how kite power systems work, please have a look at [KiteViewer](https://github.com/ufechner7/KiteViewer) . How new log files can be created and replayed is explained in the documentation of [KiteSimulators](https://github.com/aenarete/KiteSimulators.jl) .
 
 ## Licence
-This project is licensed under the MIT License. Please see the below `Copyright notice` in association with the license
+This project is licensed under the MIT and the MPL-2.0 License. The documentation is licensed under the CC-BY-4.0 License. Please see the below `Copyright notice` in association with the license
 that can be found in the file [LICENSE](LICENSE) in this folder.
 
 ## Copyright notice

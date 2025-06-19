@@ -12,6 +12,8 @@ SPDX-License-Identifier: MIT
 - make model initialization faster [#222](https://github.com/ufechner7/KiteModels.jl/pull/222)
 - implement missing methods for the `SymbolicAWEModel` [#198](https://github.com/ufechner7/KiteModels.jl/pull/198)
 #### Changed
+- fixed the performance regression when using the `KPS4` model with a winch model of type  `AsyncMachine`
+- improved the script `create_sys_image`; it is now also available if you install the package without using git
 - make model initialization faster [#222](https://github.com/ufechner7/KiteModels.jl/pull/222)
 - make next_step! return nothing [#213](https://github.com/ufechner7/KiteModels.jl/pull/213)
 - Change the names of `RamAirKite` to `SymbolicAWESystem` and `PointMassSystem` to `SystemStructure` [#208](https://github.com/ufechner7/KiteModels.jl/pull/208)

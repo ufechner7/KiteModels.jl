@@ -45,9 +45,6 @@ fi
 # disable pre-compilation
 cp LocalPreferences.toml.default LocalPreferences.toml
 
-rm -rf data/*.bin
-rm -rf data/*.bin.default
-
 export JULIA_PKG_SERVER_REGISTRY_PREFERENCE="eager"
 
 if ! command -v juliaup &> /dev/null; then
@@ -112,11 +109,11 @@ fi
 $JULIA_CMD --startup-file=no -e "using Pkg; Pkg.add(\"TestEnv\")"
 
 if [[ $julia_major == "1.10" ]]; then
-    rm -f data/model_1.10_ram_dynamic_3_seg.bin.default
-    rm -f data/model_1.10_ram_dynamic_3_seg.bin
+    rm -f data/model_1.10_*.bin.default
+    rm -f data/model_1.10_*.bin
 else
-    rm -f data/model_1.11_ram_dynamic_3_seg.bin.default
-    rm -f data/model_1.11_ram_dynamic_3_seg.bin
+    rm -f data/model_1.11_*.bin.default
+    rm -f data/model_1.11_*.bin
 fi
 
 if [[ $update == true ]]; then
@@ -182,8 +179,8 @@ echo "Precompiling package KiteModels..."
 $JULIA_CMD --startup-file=no --project -J $SOFILE -e "using KiteModels, KitePodModels, KiteUtils"
 echo "Precompiling package ControlPlots and KiteModelsControlPlotsExt ..."
 if [[ $branch != "" ]]; then
-    $JULIA_CMD --startup-file=no --project -J $SOFILE -e "using TestEnv; TestEnv.activate(); using ControlPlots; using VortexStepMethod; using KiteModels"
+    $JULIA_CMD --startup-file=no --project -J $SOFILE -e "using TestEnv; TestEnv.activate(); using ControlPlots, VortexStepMethod, KiteModels"
 else
-    $JULIA_CMD --startup-file=no --project -J $SOFILE -e "using ControlPlots; using VortexStepMethod; using KiteModels"
+    $JULIA_CMD --startup-file=no --project -J $SOFILE -e "using ControlPlots, VortexStepMethod, KiteModels"
 fi
 

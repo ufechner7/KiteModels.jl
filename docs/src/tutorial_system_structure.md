@@ -9,6 +9,11 @@ A custom `SystemStructure` can be used to create models of kite power systems of
 - quasi-static or dynamic point masses
 - different amounts of stiffness, damping and diameter on different tether segments
 
+## Precondition
+First, following the [Quickstart](@ref) section up to the installation of the examples. Make sure that
+at least `KiteModels` version 0.8 is installed by typing `using Pkg; Pkg.status()`. To start Julia,
+either use `julia --project`, or `./bin/run_julia`.
+
 ## Creating a simple tether
 
 We start by loading the necessary packages and defining settings and parameters.
@@ -30,7 +35,7 @@ segments = Segment[]
 points = push!(points, Point(1, zeros(3), STATIC; wing_idx=0))
 ```
 
-The first point we add is a static point. There are four different [`DynamicsType`](@ref)s to choose from: `STATIC`, `QUASI_STATIC`, `DYNAMIC` and `WING`. `STATIC` just means that the point doesn't move. `DYNAMIC` is a point modeled with acceleration, while `QUASI_STATIC` constrains this acceleration to be zero at all times. A `WING` point is connected to a rigid wing body.
+The first point we add is a static point. There are four different [`DynamicsType`](@ref)s to choose from: `STATIC`, `QUASI_STATIC`, `DYNAMIC` and `WING`. `STATIC` just means that the point doesn't move. `DYNAMIC` is a point modeled with acceleration, while `QUASI_STATIC` constrains this acceleration to be zero at all times. A `WING` point is connected to a wing body.
 
 Now we can add `DYNAMIC` points and connect them to each other with segments. `BRIDLE` segments don't need to have a tether, because they have a constant unstretched length.
 ```julia
@@ -48,8 +53,9 @@ end
 
 In order to describe the initial orientation of the structure, we define a [`Transform`](@ref) with an elevation (-80 degrees), azimuth and heading, and a base position `[0.0, 0.0, 50.0]`.
 ```julia
-transforms = [Transform(1, deg2rad(-80), 0.0, 0.0, [0.0, 0.0, 50.0], points[1].idx; 
-                            rot_point_idx=points[end].idx)]
+transforms = [Transform(1, deg2rad(-80), 0.0, 0.0; 
+              base_pos = [0.0, 0.0, 50.0], base_point_idx=points[1].idx,
+              rot_point_idx=points[end].idx)]
 ```
 
 From the points, segments and transform we create a [`SystemStructure`](@ref), which can be plotted in 2d to quickly investigate if the model is correct.
