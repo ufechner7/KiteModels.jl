@@ -5,8 +5,16 @@ SPDX-License-Identifier: MIT
 
 ### KiteModels v0.8.0
 #### Added
-
+- add a tutorial for custom system structures
+- add documentation for SystemStructure components [#229](https://github.com/ufechner7/KiteModels.jl/pull/229)
+- add the Transform object which defines initial orientation of the SystemStructure [#214](https://github.com/ufechner7/KiteModels.jl/pull/214)
+- add a custom amount of kites to the SystemStructure [#208](https://github.com/ufechner7/KiteModels.jl/pull/208)
+- make model initialization faster [#222](https://github.com/ufechner7/KiteModels.jl/pull/222)
+- implement missing methods for the SymbolicAWEModel [#198](https://github.com/ufechner7/KiteModels.jl/pull/198)
 #### Changed
+- make model initialization faster [#222](https://github.com/ufechner7/KiteModels.jl/pull/222)
+- make next_step! return nothing [#213](https://github.com/ufechner7/KiteModels.jl/pull/213)
+- Change the names of RamAirKite to SymbolicAWESystem and PointMassSystem to SystemStructure [#208](https://github.com/ufechner7/KiteModels.jl/pull/208)
 
 ### KiteModels v0.7.4 2025-06-08
 #### Added
