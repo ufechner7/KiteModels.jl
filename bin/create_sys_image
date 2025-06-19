@@ -47,9 +47,6 @@ rm -rf data/*.bin
 rm -rf data/*.bin.default
 
 export JULIA_PKG_SERVER_REGISTRY_PREFERENCE="eager"
-if [[ $HOSTNAME == "ufryzen" || $HOSTNAME == "framework" ]]; then
-    export NO_MTK=true
-fi
 
 if ! command -v juliaup &> /dev/null; then
     echo "Please install the Julia installer 'juliaup'!"
