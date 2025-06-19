@@ -16,7 +16,7 @@ SPDX-FileCopyrightText = "2025 Uwe Fechner"
 SPDX-License-Identifier = "CC-BY-4.0"
 
 [[annotations]]
-path = ["Manifest*", "Project.toml", ".gitignore"]
+path = ["Manifest*", "Project.toml", "LocalPreferences.toml.default", ".gitignore"]
 SPDX-FileCopyrightText = "2025 Uwe Fechner, Bart van de Lint"
 SPDX-License-Identifier = "MIT"
 
