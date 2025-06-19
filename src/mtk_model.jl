@@ -65,13 +65,13 @@ function rotation_matrix_to_quaternion(R)
     return [w, x, y, z]
 end
 
-function get_pos_w(sys_struct::SystemStructure, idx::Int16)
-    return sys_struct.points[idx].pos_w
-end
+get_pos_w(sys_struct::SystemStructure, idx::Int16) = sys_struct.points[idx].pos_w
 @register_array_symbolic get_pos_w(sys::SystemStructure, point_idx::Int16) begin
     size=size(KVec3)
     eltype=SimFloat
 end
+get_mass(sys_struct::SystemStructure, idx::Int16) = sys_struct.points[idx].mass
+@register_symbolic get_mass(sys::SystemStructure, point_idx::Int16)
 
 """
     force_eqs!(s, system, eqs, defaults, guesses; kwargs...)
@@ -126,7 +126,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
     end
     for point in points
         F::Vector{Num} = zeros(Num, 3)
-        mass = 0.0
+        mass = point.mass
         in_bridle = false
         for segment in segments
             if point.idx in segment.point_idxs
@@ -449,7 +449,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             height[segment.idx]          ~ max(0.0, 0.5(pos[:, p1][3] + pos[:, p2][3]))
             segment_vel[:, segment.idx]  ~ 0.5(vel[:, p1] + vel[:, p2])
             segment_rho[segment.idx]     ~ calc_rho(s.am, height[segment.idx])
-            wind_vel[:, segment.idx]     ~ AtmosphericModels.calc_wind_factor(s.am, height[segment.idx], s.set.profile_law) * wind_vec_gnd
+            wind_vel[:, segment.idx]     ~ AtmosphericModels.calc_wind_factor(s.am, max(height[segment.idx], 1e-3), s.set.profile_law) * wind_vec_gnd
             va[:, segment.idx]           ~ wind_vel[:, segment.idx] - segment_vel[:, segment.idx]
             area[segment.idx]            ~ len[segment.idx] * segment.diameter
             app_perp_vel[:, segment.idx] ~ va[:, segment.idx] - 
@@ -728,7 +728,7 @@ function scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_wing_b, wing_pos, wing_vel,
     end
     eqs = [
         eqs
-        wind_vec_gnd ~ wind_scale_gnd * rotate_around_z([0, -1, 0], -upwind_dir)
+        wind_vec_gnd ~ max(wind_scale_gnd, 1e-6) * rotate_around_z([0, -1, 0], -upwind_dir)
     ]
     for wing in wings
         eqs = [

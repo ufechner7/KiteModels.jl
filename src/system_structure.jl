@@ -52,19 +52,20 @@ A point mass.
 
 $(TYPEDFIELDS)
 """
-struct Point
-    idx::Int16
-    transform_idx::Int16 # idx of wing used for initial orientation
-    wing_idx::Int16
-    pos_cad::KVec3
-    pos_b::KVec3 # pos relative to wing COM in body frame
-    pos_w::KVec3 # pos in world frame
-    vel_w::KVec3 # vel in world frame
-    type::DynamicsType
+mutable struct Point
+    const idx::Int16
+    const transform_idx::Int16 # idx of wing used for initial orientation
+    const wing_idx::Int16
+    const pos_cad::KVec3
+    const pos_b::KVec3 # pos relative to wing COM in body frame
+    const pos_w::KVec3 # pos in world frame
+    const vel_w::KVec3 # vel in world frame
+    const type::DynamicsType
+    mass::SimFloat
 end
 
 """
-    Point(idx, pos_cad, type; wing_idx=1, vel_w=zeros(KVec3), transform_idx=1)
+    Point(idx, pos_cad, type; wing_idx=1, vel_w=zeros(KVec3), transform_idx=1, mass=0.0)
 
 Constructs a Point object. A point can be of four different [`DynamicsType`](@ref)s:
 - `STATIC`: the point doesn't move. ``\\ddot{\\mathbf{r}} = \\mathbf{0}``
@@ -100,8 +101,8 @@ To create a Point:
     point = Point(1, [1.0, 2.0, 3.0], DYNAMIC; wing_idx=1)
 ```
 """
-function Point(idx, pos_cad, type; wing_idx=1, vel_w=zeros(KVec3), transform_idx=1)
-    Point(idx, transform_idx, wing_idx, pos_cad, zeros(KVec3), zeros(KVec3), vel_w, type)
+function Point(idx, pos_cad, type; wing_idx=1, vel_w=zeros(KVec3), transform_idx=1, mass=0.0)
+    Point(idx, transform_idx, wing_idx, pos_cad, zeros(KVec3), zeros(KVec3), vel_w, type, mass)
 end
 
 """
