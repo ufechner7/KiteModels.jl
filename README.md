@@ -99,14 +99,18 @@ Then compile a system image:
 cd KiteModels.jl/bin
 ./create_sys_image
 ```
-If you know launch julia with:
+If you now launch julia with:
 ```bash
 cd ..
 ./bin/run_julia
 ```
-you can run the examples with
+You can run the examples with:
 ```julia
 menu()
+```
+You can also run the ram-air-kite example like this:
+```julia
+include("examples/ram_air_kite.jl")
 ```
 
 ## One point model
