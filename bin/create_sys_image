@@ -182,8 +182,8 @@ echo "Precompiling package KiteModels..."
 $JULIA_CMD --startup-file=no --project -J $SOFILE -e "using KiteModels, KitePodModels, KiteUtils"
 echo "Precompiling package ControlPlots and KiteModelsControlPlotsExt ..."
 if [[ $branch != "" ]]; then
-    $JULIA_CMD --startup-file=no --project -J $SOFILE -e "using TestEnv; TestEnv.activate(); using ControlPlots; using VortexStepMethod; using KiteModels"
+    $JULIA_CMD --startup-file=no --project -J $SOFILE -e "using TestEnv; TestEnv.activate(); using ControlPlots, VortexStepMethod, KiteModels"
 else
-    $JULIA_CMD --startup-file=no --project -J $SOFILE -e "using ControlPlots; using VortexStepMethod; using KiteModels"
+    $JULIA_CMD --startup-file=no --project -J $SOFILE -e "using ControlPlots, VortexStepMethod, KiteModels"
 fi
 
