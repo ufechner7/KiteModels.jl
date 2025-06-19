@@ -32,7 +32,6 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Remove the version switching code
 if [[ -n "$julia_version" ]]; then
     JULIA_CMD="julia +$julia_version"
 else
@@ -42,6 +41,9 @@ fi
 if [[ $(basename $(pwd)) == "bin" ]]; then
     cd ..
 fi
+
+# disable pre-compilation
+cp LocalPreferences.toml.default LocalPreferences.toml
 
 rm -rf data/*.bin
 rm -rf data/*.bin.default
@@ -173,6 +175,9 @@ if [ -d src ]; then
     touch *.jl # make sure all modules get recompiled in the next step
     cd ..
 fi
+
+# enable pre-compilation
+rm LocalPreferences.toml
 echo "Precompiling package KiteModels..."
 $JULIA_CMD --startup-file=no --project -J $SOFILE -e "using KiteModels, KitePodModels, KiteUtils"
 echo "Precompiling package ControlPlots..."
