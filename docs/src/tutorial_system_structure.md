@@ -23,7 +23,7 @@ using KiteModels, VortexStepMethod, ControlPlots
 
 set = se("system_ram.yaml")
 set.segments = 20
-dynamics_type = KiteModels.DYNAMIC
+dynamics_type = DYNAMIC
 ```
 
 Then, we define vectors of the system structure types we are going to use. For this simple example we only need points and segments.
