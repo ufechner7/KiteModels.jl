@@ -9,6 +9,9 @@ A custom `SystemStructure` can be used to create models of kite power systems of
 - quasi-static or dynamic point masses
 - different amounts of stiffness, damping and diameter on different tether segments
 
+## Precondition
+First, following the [Quickstart](@ref) section up to the installation of the examples.
+
 ## Creating a simple tether
 
 We start by loading the necessary packages and defining settings and parameters.
@@ -18,7 +21,7 @@ using KiteModels, VortexStepMethod, ControlPlots
 
 set = se("system_ram.yaml")
 set.segments = 20
-dynamics_type = DYNAMIC
+dynamics_type = KiteModels.DYNAMIC
 ```
 
 Then, we define vectors of the system structure types we are going to use. For this simple example we only need points and segments.
