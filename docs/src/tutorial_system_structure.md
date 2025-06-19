@@ -10,7 +10,9 @@ A custom `SystemStructure` can be used to create models of kite power systems of
 - different amounts of stiffness, damping and diameter on different tether segments
 
 ## Precondition
-First, following the [Quickstart](@ref) section up to the installation of the examples.
+First, following the [Quickstart](@ref) section up to the installation of the examples. Make sure that
+at least `KiteModels` version 0.8 is installed by typing `using Pkg; Pkg.status()`. To start Julia,
+either use `julia --project`, or `./bin/run_julia`.
 
 ## Creating a simple tether
 
