@@ -18,11 +18,11 @@ function ControlPlots.plot(sys::SystemStructure, reltime; l_tether=50.0, wing_po
         xlim = (pos[end][2] - 6, pos[end][2]+6)
         ylim = (pos[end][3] - 10, pos[end][3]+2)
     elseif !zoom && !front
-        xlim = (-5, l_tether+10)
-        ylim = (-5, l_tether+10)
+        xlim = (-0.1l_tether, 1.2l_tether)
+        ylim = (-0.1l_tether, 1.2l_tether)
     elseif !zoom && front
-        xlim = (-12.5 - 0.5l_tether, 12.5 + 0.5l_tether)
-        ylim = (-5, l_tether+10)
+        xlim = (-0.75l_tether, 0.75l_tether)
+        ylim = (-0.1l_tether, 1.2l_tether)
     end
     ControlPlots.plot2d(pos, seg, reltime; zoom, front, xlim, ylim, dz_zoom=0.6, xy)
 end

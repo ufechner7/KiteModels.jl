@@ -126,7 +126,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
     end
     for point in points
         F::Vector{Num} = zeros(Num, 3)
-        mass = point.mass
+        mass = get_mass(psys, point.idx)
         in_bridle = false
         for segment in segments
             if point.idx in segment.point_idxs
@@ -466,7 +466,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         pulley_force(t)[eachindex(pulleys)]
         pulley_acc(t)[eachindex(pulleys)]
     end
-    @parameters pulley_damp = 1.0
+    @parameters pulley_damp = 5.0
     for pulley in pulleys
         segment = segments[pulley.segment_idxs[1]]
         mass_per_meter = s.set.rho_tether * π * (segment.diameter/2)^2
