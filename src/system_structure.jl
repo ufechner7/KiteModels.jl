@@ -455,6 +455,7 @@ struct Wing
     group_idxs::Vector{Int16}
     transform_idx::Int16
     R_b_c::Matrix{SimFloat}
+    R_b_w::Matrix{SimFloat}
     angular_vel::KVec3
     pos_w::KVec3
     pos_cad::KVec3
@@ -462,7 +463,7 @@ struct Wing
 end
 function Base.getproperty(wing::Wing, sym::Symbol)
     if sym == :orient
-        return rotation_matrix_to_quaternion(wing.R_b_c)
+        return rotation_matrix_to_quaternion(wing.R_b_w)
     else
         return getfield(wing, sym)
     end
@@ -538,7 +539,7 @@ Create a wing with identity orientation and two attached groups:
 """
 function Wing(idx, group_idxs, R_b_c, pos_cad; transform_idx=1, angular_vel=zeros(KVec3), 
         pos_w=zeros(KVec3), vel_w=zeros(KVec3))
-    return Wing(idx, group_idxs, transform_idx, R_b_c, angular_vel, pos_w, pos_cad, vel_w)
+    return Wing(idx, group_idxs, transform_idx, R_b_c, zeros(3,3), angular_vel, pos_w, pos_cad, vel_w)
 end
 
 """
@@ -779,6 +780,11 @@ function SystemStructure(set::Settings, wing::RamAirWing)
     end
 end
 
+function apply_heading(vec, R_t_w, curr_R_t_w, heading)
+    vec_along_z = rotate_around_z(curr_R_t_w' * vec, heading)
+    return R_t_w * vec_along_z
+end
+
 function init!(transforms::Vector{Transform}, sys_struct::SystemStructure)
     @unpack points, wings = sys_struct
     for transform in transforms
@@ -806,8 +812,7 @@ function init!(transforms::Vector{Transform}, sys_struct::SystemStructure)
         for point in points
             if point.transform_idx == transform.idx
                 vec = point.pos_w - base_pos
-                vec_along_z = rotate_around_z(curr_R_t_w' * vec, transform.heading)
-                point.pos_w .= base_pos + R_t_w * vec_along_z
+                point.pos_w .= base_pos + apply_heading(vec, R_t_w, curr_R_t_w, transform.heading)
             end
             if point.type == WING
                 wing = wings[point.wing_idx]
@@ -817,10 +822,9 @@ function init!(transforms::Vector{Transform}, sys_struct::SystemStructure)
         for wing in wings
             if wing.transform_idx == transform.idx
                 vec = wing.pos_w - base_pos
-                vec_along_z = rotate_around_x(curr_R_t_w' * vec, transform.heading)
-                wing.pos_w .= base_pos + R_t_w * vec_along_z
+                wing.pos_w .= base_pos + apply_heading(vec, R_t_w, curr_R_t_w, transform.heading)
                 for i in 1:3
-                    wing.R_b_c[:, i] .= R_t_w * rotate_around_x(curr_R_t_w' * wing.R_b_c[:, i], transform.heading)
+                    wing.R_b_w[:, i] .= apply_heading(wing.R_b_c[:, i], R_t_w, curr_R_t_w, transform.heading)
                 end
             end
         end

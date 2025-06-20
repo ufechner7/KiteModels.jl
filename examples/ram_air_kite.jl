@@ -63,7 +63,7 @@ sys_state = SysState(sam)
 t = 0.0
 runtime = 0.0
 integ_runtime = 0.0
-bias = set.quasi_static ? 0.45 : 0.40
+bias = set.quasi_static ? 0.45 : 0.35
 t0 = sam.integrator.t
 
 try
@@ -149,5 +149,5 @@ display(p)
 @info "Performance:" times_realtime=(total_time/2)/runtime integrator_times_realtime=(total_time/2)/integ_runtime
 
 # 55x realtime (PLOT=false, CPU: Intel i9-9980HK (16) @ 5.000GHz)
-# 65x realtime (PLOT=false, CPU: Intel i9-9980HK (16) @ 5.000GHz) - commit 6620ed5d0a38e96930615aad9a66e4cd666955f2
+# 40-65x realtime (PLOT=false, CPU: Intel i9-9980HK (16) @ 5.000GHz) - commit 6620ed5d0a38e96930615aad9a66e4cd666955f2
 # 40x realtime (PLOT=false, CPU: Intel i9-9980HK (16) @ 5.000GHz) - commit 88a78894038d3cbd50fbff83dfbe5c26266b0637

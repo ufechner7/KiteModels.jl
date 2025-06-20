@@ -411,7 +411,6 @@ function reinit!(
     isnothing(s.sys_struct) && error("SystemStructure not defined")
 
     # init_Q_b_w, R_b_w, init_va_b = initial_orient(s)
-    init!(s.sys_struct, s.set)
     
     if isnothing(s.prob) || reload
         model_path = joinpath(KiteUtils.get_data_path(), get_model_name(s.set; precompile))
@@ -446,6 +445,7 @@ function reinit!(
         prn && @info "Initialized integrator in $t seconds"
     end
 
+    init!(s.sys_struct, s.set)
     init_unknowns_vec!(s, s.sys_struct, s.unknowns_vec)
     s.set_unknowns(s.integrator, s.unknowns_vec)
     s.set_psys(s.integrator, s.sys_struct)
