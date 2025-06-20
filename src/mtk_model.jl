@@ -66,12 +66,51 @@ function rotation_matrix_to_quaternion(R)
 end
 
 get_pos_w(sys_struct::SystemStructure, idx::Int16) = sys_struct.points[idx].pos_w
-@register_array_symbolic get_pos_w(sys::SystemStructure, point_idx::Int16) begin
-    size=size(KVec3)
+@register_array_symbolic get_pos_w(sys::SystemStructure, idx::Int16) begin
+    size=(3,)
+    eltype=SimFloat
+end
+get_pos_b(sys_struct::SystemStructure, idx::Int16) = sys_struct.points[idx].pos_b
+@register_array_symbolic get_pos_b(sys::SystemStructure, idx::Int16) begin
+    size=(3,)
+    eltype=SimFloat
+end
+get_wing_pos_w(sys_struct::SystemStructure, idx::Int16) = sys_struct.wings[idx].pos_w
+@register_array_symbolic get_wing_pos_w(sys::SystemStructure, idx::Int16) begin
+    size=(3,)
+    eltype=SimFloat
+end
+get_wing_vel_w(sys_struct::SystemStructure, idx::Int16) = sys_struct.wings[idx].vel_w
+@register_array_symbolic get_wing_vel_w(sys::SystemStructure, idx::Int16) begin
+    size=(3,)
+    eltype=SimFloat
+end
+get_orient(sys_struct::SystemStructure, idx::Int16) = sys_struct.wings[idx].orient
+@register_array_symbolic get_orient(sys::SystemStructure, idx::Int16) begin
+    size=(4,)
+    eltype=SimFloat
+end
+get_angular_vel(sys_struct::SystemStructure, idx::Int16) = sys_struct.wings[idx].angular_vel
+@register_array_symbolic get_angular_vel(sys::SystemStructure, idx::Int16) begin
+    size=(3,)
     eltype=SimFloat
 end
 get_mass(sys_struct::SystemStructure, idx::Int16) = sys_struct.points[idx].mass
-@register_symbolic get_mass(sys::SystemStructure, point_idx::Int16)
+@register_symbolic get_mass(sys::SystemStructure, idx::Int16)
+get_l0(sys_struct::SystemStructure, idx::Int16) = sys_struct.segments[idx].l0
+@register_symbolic get_l0(sys::SystemStructure, idx::Int16)
+get_diameter(sys_struct::SystemStructure, idx::Int16) = sys_struct.segments[idx].diameter
+@register_symbolic get_diameter(sys::SystemStructure, idx::Int16)
+get_compression_frac(sys_struct::SystemStructure, idx::Int16) = sys_struct.segments[idx].compression_frac
+@register_symbolic get_compression_frac(sys::SystemStructure, idx::Int16)
+get_moment_frac(sys_struct::SystemStructure, idx::Int16) = sys_struct.groups[idx].moment_frac
+@register_symbolic get_moment_frac(sys::SystemStructure, idx::Int16)
+get_sum_length(sys_struct::SystemStructure, idx::Int16) = sys_struct.pulleys[idx].sum_length
+@register_symbolic get_sum_length(sys::SystemStructure, idx::Int16)
+get_tether_length(sys_struct::SystemStructure, idx::Int16) = sys_struct.winches[idx].tether_length
+@register_symbolic get_tether_length(sys::SystemStructure, idx::Int16)
+get_tether_vel(sys_struct::SystemStructure, idx::Int16) = sys_struct.winches[idx].tether_vel
+@register_symbolic get_tether_vel(sys::SystemStructure, idx::Int16)
 
 """
     force_eqs!(s, system, eqs, defaults, guesses; kwargs...)
@@ -101,7 +140,7 @@ Tuple containing:
 - Tether forces on wing
 - Tether moments on wing
 """
-function force_eqs!(s, system, eqs, defaults, guesses; 
+function force_eqs!(s, system, psys, eqs, defaults, guesses; 
         R_b_w, wing_pos, wing_vel, wind_vec_gnd, group_aero_moment, twist_angle, twist_ω, stabilize, set_values, fix_nonstiff)
 
     @parameters acc_multiplier = 1
@@ -111,7 +150,6 @@ function force_eqs!(s, system, eqs, defaults, guesses;
     # ==================== POINTS ==================== #
     tether_wing_force = zeros(Num, length(wings), 3)
     tether_wing_moment = zeros(Num, length(wings), 3)
-    @parameters psys::SystemStructure = system
     @variables begin
         pos(t)[1:3, eachindex(points)]
         vel(t)[1:3, eachindex(points)]
@@ -119,6 +157,9 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         point_force(t)[1:3, eachindex(points)]
         tether_r(t)[1:3, eachindex(points)]
         point_mass(t)[eachindex(points)]
+        chord_b(t)[1:3, eachindex(points)]
+        normal(t)[1:3, eachindex(points)]
+        pos_b(t)[1:3, eachindex(points)]
 
         spring_force_vec(t)[1:3, eachindex(segments)]
         drag_force(t)[1:3, eachindex(segments)]
@@ -130,7 +171,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         in_bridle = false
         for segment in segments
             if point.idx in segment.point_idxs
-                mass_per_meter = s.set.rho_tether * π * (segment.diameter/2)^2
+                mass_per_meter = s.set.rho_tether * π * (get_diameter(psys, segment.idx)/2)^2
                 inverted = segment.point_idxs[2] == point.idx
                 if inverted
                     F .-= spring_force_vec[:, segment.idx]
@@ -178,14 +219,17 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                     and should be part of exactly 1 wing.")
 
                 fixed_pos = group.le_pos
-                chord_b = point.pos_b - fixed_pos
-                normal = chord_b × group.y_airf
-                pos_b = fixed_pos + cos(twist_angle[group.idx]) * chord_b - sin(twist_angle[group.idx]) * normal
-            elseif found == 0
-                pos_b = point.pos_b
                 eqs = [
                     eqs
-                    tether_r[:, point.idx] ~ pos[:, point.idx] - wing_pos[point.wing_idx, :]
+                    chord_b[:, point.idx]   ~ get_pos_b(psys, point.idx) .- fixed_pos
+                    normal[:, point.idx]    ~ chord_b[:, point.idx] × group.y_airf
+                    pos_b[:, point.idx]     ~ fixed_pos .+ cos(twist_angle[group.idx]) * chord_b[:, point.idx] - sin(twist_angle[group.idx]) * normal[:, point.idx]
+                ]
+            elseif found == 0
+                eqs = [
+                    eqs
+                    pos_b[:, point.idx]     ~ get_pos_b(psys, point.idx)
+                    tether_r[:, point.idx]  ~ pos[:, point.idx] - wing_pos[point.wing_idx, :]
                 ]
                 tether_wing_moment[point.wing_idx, :] .+= tether_r[:, point.idx] × point_force[:, point.idx]
             end
@@ -193,7 +237,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             
             eqs = [
                 eqs
-                pos[:, point.idx]    ~ wing_pos[point.wing_idx, :] + R_b_w[point.wing_idx, :, :] * pos_b
+                pos[:, point.idx]    ~ wing_pos[point.wing_idx, :] + R_b_w[point.wing_idx, :, :] * pos_b[:, point.idx]
                 vel[:, point.idx]    ~ zeros(3)
                 acc[:, point.idx]    ~ zeros(3)
             ]
@@ -257,6 +301,8 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             group_tether_moment(t)[eachindex(groups)]
             tether_force(t)[eachindex(groups), eachindex(groups[1].point_idxs)]
             tether_moment(t)[eachindex(groups), eachindex(groups[1].point_idxs)]
+            r_group(t)[eachindex(groups), eachindex(groups[1].point_idxs)]
+            r_vec(t)[eachindex(groups), eachindex(groups[1].point_idxs), 1:3]
         end
     end
     
@@ -279,11 +325,12 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         init_z_airf = x_airf × group.y_airf
         z_airf = x_airf * sin(twist_angle[group.idx]) + init_z_airf * cos(twist_angle[group.idx])
         for (i, point_idx) in enumerate(group.point_idxs)
-            r = (points[point_idx].pos_b - (group.le_pos + group.moment_frac*group.chord)) ⋅ normalize(group.chord)
             eqs = [
                 eqs
-                tether_force[group.idx, i] ~ (point_force[:, point_idx] ⋅ (R_b_w[wing.idx, :, :] * -z_airf))
-                tether_moment[group.idx, i] ~ r * tether_force[group.idx, i]
+                r_vec[group.idx, i, :]      ~ (get_pos_b(psys, point_idx) .- (group.le_pos + get_moment_frac(psys, group.idx)*group.chord))
+                r_group[group.idx, i]       ~ r_vec[group.idx, i, :] ⋅ normalize(group.chord)
+                tether_force[group.idx, i]  ~ (point_force[:, point_idx] ⋅ (R_b_w[wing.idx, :, :] * -z_airf))
+                tether_moment[group.idx, i] ~ r_group[group.idx, i] * tether_force[group.idx, i]
             ]
         end
         
@@ -354,7 +401,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         # if s.set.quasi_static
             guesses = [
                 guesses
-                [segment_vec[i, segment.idx] => points[p2].pos_w[i] - points[p1].pos_w[i] for i in 1:3]
+                [segment_vec[i, segment.idx] => get_pos_w(psys, p2)[i] - get_pos_w(psys, p1)[i] for i in 1:3]
             ]
         # end
 
@@ -371,7 +418,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                 if segment.idx == pulley.segment_idxs[2]
                     eqs = [
                         eqs
-                        l0[segment.idx] ~ pulley.sum_length - pulley_l0[pulley.idx]
+                        l0[segment.idx] ~ get_sum_length(psys, pulley.idx) - pulley_l0[pulley.idx]
                     ]
                     in_pulley += 1
                 end
@@ -379,7 +426,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             if in_pulley == 0
                 eqs = [
                     eqs
-                    l0[segment.idx] ~ segment.l0
+                    l0[segment.idx] ~ get_l0(psys, segment.idx)
                 ]
             end
             (in_pulley > 1) && error("Bridle segment number $(segment.idx) is part of
@@ -407,7 +454,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
                     elseif in_winch == 0
                         eqs = [
                             eqs
-                            l0[segment.idx] ~ segment.l0
+                            l0[segment.idx] ~ get_l0(psys, segment.idx)
                         ]
                     end
                     in_tether += 1
@@ -419,19 +466,12 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             error("Unknown segment type: $(segment.type)")
         end
 
-        stiffness_m = s.set.e_tether * (segment.diameter/2)^2 * pi
+        stiffness_m = s.set.e_tether * (get_diameter(psys, segment.idx)/2)^2 * pi
         @parameters stiffness_frac = 0.01
         (segment.type == BRIDLE) && (stiffness_m = stiffness_frac * stiffness_m)
 
         damping_m = (s.set.damping / s.set.c_spring) * stiffness_m
         
-        if segment.compression_frac ≈ 1.0
-            eqs = [eqs; stiffness[segment.idx]       ~ stiffness_m / len[segment.idx]]
-        else
-            eqs = [eqs; stiffness[segment.idx]       ~ ifelse(len[segment.idx] > l0[segment.idx],
-                                        stiffness_m / len[segment.idx],
-                                        segment.compression_frac * stiffness_m / len[segment.idx])]
-        end
         eqs = [
             eqs
             # spring force equations
@@ -441,6 +481,9 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             rel_vel[:, segment.idx]      ~ vel[:, p1] - vel[:, p2]
             spring_vel[segment.idx]      ~ rel_vel[:, segment.idx] ⋅ unit_vec[:, segment.idx]
             damping[segment.idx]         ~ damping_m / len[segment.idx]
+            stiffness[segment.idx]       ~ ifelse(len[segment.idx] > l0[segment.idx],
+                                        stiffness_m / len[segment.idx],
+                                        get_compression_frac(psys, segment.idx) * stiffness_m / len[segment.idx])
             spring_force[segment.idx] ~  (stiffness[segment.idx] * (len[segment.idx] - l0[segment.idx]) - 
                             damping[segment.idx] * spring_vel[segment.idx])
             spring_force_vec[:, segment.idx]  ~ spring_force[segment.idx] * unit_vec[:, segment.idx]
@@ -451,7 +494,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             segment_rho[segment.idx]     ~ calc_rho(s.am, height[segment.idx])
             wind_vel[:, segment.idx]     ~ AtmosphericModels.calc_wind_factor(s.am, max(height[segment.idx], 1e-3), s.set.profile_law) * wind_vec_gnd
             va[:, segment.idx]           ~ wind_vel[:, segment.idx] - segment_vel[:, segment.idx]
-            area[segment.idx]            ~ len[segment.idx] * segment.diameter
+            area[segment.idx]            ~ len[segment.idx] * get_diameter(psys, segment.idx)
             app_perp_vel[:, segment.idx] ~ va[:, segment.idx] - 
                                         (va[:, segment.idx] ⋅ unit_vec[:, segment.idx]) * unit_vec[:, segment.idx]
             drag_force[:, segment.idx]   ~ (0.5 * segment_rho[segment.idx] * s.set.cd_tether * norm(va[:, segment.idx]) * 
@@ -469,9 +512,8 @@ function force_eqs!(s, system, eqs, defaults, guesses;
     @parameters pulley_damp = 5.0
     for pulley in pulleys
         segment = segments[pulley.segment_idxs[1]]
-        mass_per_meter = s.set.rho_tether * π * (segment.diameter/2)^2
-        mass = pulley.sum_length * mass_per_meter
-        @assert !(mass ≈ 0.0)
+        mass_per_meter = s.set.rho_tether * π * (get_diameter(psys, segment.idx)/2)^2
+        mass = get_sum_length(psys, pulley.idx) * mass_per_meter
         eqs = [
             eqs
             pulley_force[pulley.idx]    ~ spring_force[pulley.segment_idxs[1]] - spring_force[pulley.segment_idxs[2]]
@@ -485,7 +527,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             ]
             defaults = [
                 defaults
-                pulley_l0[pulley.idx] => segments[pulley.segment_idxs[1]].l0
+                pulley_l0[pulley.idx] => get_l0(psys, pulley.segment_idxs[1])
                 pulley_vel[pulley.idx] => 0
             ]
         elseif pulley.type == QUASI_STATIC
@@ -496,7 +538,7 @@ function force_eqs!(s, system, eqs, defaults, guesses;
             ]
             guesses = [
                 guesses
-                pulley_l0[pulley.idx] => segments[pulley.segment_idxs[1]].l0
+                pulley_l0[pulley.idx] => get_l0(psys, pulley.segment_idxs[1])
             ]
         else
             error("Wrong pulley type")
@@ -540,8 +582,8 @@ function force_eqs!(s, system, eqs, defaults, guesses;
         ]
         defaults = [
             defaults
-            tether_length[winch.idx] => winch.tether_length
-            tether_vel[winch.idx] => 0
+            tether_length[winch.idx] => get_tether_length(psys, winch.idx)
+            tether_vel[winch.idx] => get_tether_vel(psys, winch.idx)
         ]
     end
 
@@ -587,7 +629,7 @@ angular velocities and accelerations, and forces/moments.
 # Returns
 Tuple of updated equations and defaults
 """
-function wing_eqs!(s, eqs, defaults; tether_wing_force, tether_wing_moment, aero_force_b, 
+function wing_eqs!(s, eqs, psys, defaults; tether_wing_force, tether_wing_moment, aero_force_b, 
     aero_moment_b, ω_b, α_b, R_b_w, wing_pos, wing_vel, wing_acc, stabilize, fix_nonstiff
 )
     wings = s.sys_struct.wings
@@ -662,10 +704,10 @@ function wing_eqs!(s, eqs, defaults; tether_wing_force, tether_wing_moment, aero
         ]
         defaults = [
             defaults
-            [Q_b_w[wing.idx, i] => wing.orient[i] for i in 1:4]
-            [ω_b[wing.idx, i] => wing.angular_vel[i] for i in 1:3]
-            [wing_pos[wing.idx, i] => wing.pos_w[i] for i in 1:3]
-            [wing_vel[wing.idx, i] => wing.vel_w[i] for i in 1:3]
+            [Q_b_w[wing.idx, i] => get_orient(psys, wing.idx)[i] for i in 1:4]
+            [ω_b[wing.idx, i] => get_angular_vel(psys, wing.idx)[i] for i in 1:3]
+            [wing_pos[wing.idx, i] => get_wing_pos_w(psys, wing.idx)[i] for i in 1:3]
+            [wing_vel[wing.idx, i] => get_wing_vel_w(psys, wing.idx)[i] for i in 1:3]
         ]
     end
     
@@ -884,6 +926,7 @@ function create_sys!(s::SymbolicAWEModel, system::SystemStructure; init_va_b)
     @unpack wings, groups, winches = system
 
     @parameters begin
+        psys::SystemStructure = system
         stabilize = false
         fix_nonstiff = false
     end
@@ -910,10 +953,10 @@ function create_sys!(s::SymbolicAWEModel, system::SystemStructure; init_va_b)
     end
 
     eqs, defaults, guesses, tether_wing_force, tether_wing_moment = 
-        force_eqs!(s, system, eqs, defaults, guesses; 
+        force_eqs!(s, system, psys, eqs, defaults, guesses; 
             R_b_w, wing_pos, wing_vel, wind_vec_gnd, group_aero_moment, twist_angle, twist_ω, stabilize, set_values, fix_nonstiff)
     eqs, guesses = linear_vsm_eqs!(s, eqs, guesses; aero_force_b, aero_moment_b, group_aero_moment, init_va_b, twist_angle, va_wing_b, ω_b)
-    eqs, defaults = wing_eqs!(s, eqs, defaults; tether_wing_force, tether_wing_moment, aero_force_b, aero_moment_b, 
+    eqs, defaults = wing_eqs!(s, eqs, psys, defaults; tether_wing_force, tether_wing_moment, aero_force_b, aero_moment_b, 
         ω_b, α_b, R_b_w, wing_pos, wing_vel, wing_acc, stabilize, fix_nonstiff)
     eqs = scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_wing_b, wing_pos, wing_vel, wing_acc, twist_angle, twist_ω, ω_b, α_b)
     

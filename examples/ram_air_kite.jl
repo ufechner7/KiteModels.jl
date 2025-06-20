@@ -5,7 +5,7 @@ using Timers
 tic()
 @info "Loading packages "
 
-PLOT = true
+PLOT = false
 using Pkg
 if ! ("LaTeXStrings" ∈ keys(Pkg.project().dependencies))
     using TestEnv; TestEnv.activate()
@@ -149,3 +149,5 @@ display(p)
 @info "Performance:" times_realtime=(total_time/2)/runtime integrator_times_realtime=(total_time/2)/integ_runtime
 
 # 55x realtime (PLOT=false, CPU: Intel i9-9980HK (16) @ 5.000GHz)
+# 65x realtime (PLOT=false, CPU: Intel i9-9980HK (16) @ 5.000GHz) - commit 6620ed5d0a38e96930615aad9a66e4cd666955f2
+# 65x realtime (PLOT=false, CPU: Intel i9-9980HK (16) @ 5.000GHz) - commit 6620ed5d0a38e96930615aad9a66e4cd666955f2
