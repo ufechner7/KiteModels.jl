@@ -26,22 +26,20 @@ SystemStructure(name, set; points=Point[], groups=Group[], segments=Segment[],
 SystemStructure
 SymbolicAWEModel(::Settings, ::SystemStructure, ::Vector{<:BodyAerodynamics}, ::Vector{<:VortexStepMethod.Solver})
 SymbolicAWEModel(::Settings)
+Point(idx, pos_cad, type)
 Point
 Group(::Any, ::Any, ::RamAirWing, ::Any, ::Any, ::Any)
 Group
-Segment(idx, point_idxs, type; l0=zero(SimFloat), compression_frac=0.1)
+Segment(idx, point_idxs, type)
 Segment
 Pulley(idx, segment_idxs, type)
 Pulley
 Tether
 Winch(idx, model, tether_idxs, tether_length; tether_vel=0.0)
 Winch
-Wing(idx, group_idxs, R_b_c, pos_cad; transform_idx=1, angular_vel=zeros(KVec3), 
-         pos_w=zeros(KVec3), vel_w=zeros(KVec3))
+Wing(idx, group_idxs, R_b_c, pos_cad)
 Wing
-Transform(idx, elevation, azimuth, heading;
-        base_point_idx=nothing, base_pos=nothing, base_transform_idx=nothing,
-        wing_idx=nothing, rot_point_idx=nothing)
+Transform(idx, elevation, azimuth, heading)
 Transform
 ```
 
