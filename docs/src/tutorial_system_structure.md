@@ -51,14 +51,14 @@ for i in 1:set.segments
 end
 ```
 
-In order to describe the initial orientation of the structure, we define a [`Transform`](@ref) with an elevation (-80 degrees), azimuth and heading, and a base position `[0.0, 0.0, 50.0]`.
+In order to describe the initial orientation of the structure, we define a [`Transform(idx, elevation, azimuth, heading)`](@ref) with an elevation (-80 degrees), azimuth and heading, and a base position `[0.0, 0.0, 50.0]`.
 ```julia
 transforms = [Transform(1, deg2rad(-80), 0.0, 0.0; 
               base_pos = [0.0, 0.0, 50.0], base_point_idx=points[1].idx,
               rot_point_idx=points[end].idx)]
 ```
 
-From the points, segments and transform we create a [`SystemStructure`](@ref), which can be plotted in 2d to quickly investigate if the model is correct.
+From the points, segments and transform we create a [`SystemStructure(name, set)`](@ref), which can be plotted in 2d to quickly investigate if the model is correct.
 ```julia
 sys_struct = SystemStructure("tether", set; points, segments, transforms)
 plot(sys_struct, 0.0)

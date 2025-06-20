@@ -12,38 +12,37 @@ The [`SystemStructure`](@ref) serves as input to the [`SymbolicAWEModel`](@ref),
 3. Pass to [`SymbolicAWEModel`](@ref) for automatic MTK model generation
 4. Simulate the resulting symbolic model
 
-## Public constructors
-```@docs
-SystemStructure(::Any, ::Any)
-SymbolicAWEModel(::Settings, ::SystemStructure, ::Vector{<:BodyAerodynamics}, ::Vector{<:VortexStepMethod.Solver})
-SymbolicAWEModel(::Settings)
-Point(::Any, ::Any, ::Any)
-Group(::Any, ::Any, ::RamAirWing, ::Any, ::Any, ::Any)
-Group(::Any, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any)
-Segment(::Any, ::Any, ::Any)
-Pulley(::Any, ::Any, ::Any)
-Tether
-Winch(::Any, ::Any, ::Any, ::Any)
-Wing(::Any, ::Any, ::Any, ::Any)
-Transform(::Any, ::Any, ::Any, ::Any)
-```
-
-## Private enumerations
+## Public enumerations
 ```@docs
 SegmentType
 DynamicsType
 ```
 
-## Private types
+## Public constructors
 ```@docs
-Point
-Pulley
-Segment
-Winch
-Group
-Wing
-Transform
+SystemStructure(name, set; points=Point[], groups=Group[], segments=Segment[], 
+                   pulleys=Pulley[], tethers=Tether[], winches=Winch[], 
+                   wings=Wing[], transforms=Transform[])
 SystemStructure
+SymbolicAWEModel(::Settings, ::SystemStructure, ::Vector{<:BodyAerodynamics}, ::Vector{<:VortexStepMethod.Solver})
+SymbolicAWEModel(::Settings)
+Point
+Group(::Any, ::Any, ::RamAirWing, ::Any, ::Any, ::Any)
+Group
+Segment(idx, point_idxs, type; l0=zero(SimFloat), compression_frac=0.1)
+Segment
+Pulley(idx, segment_idxs, type)
+Pulley
+Tether
+Winch(idx, model, tether_idxs, tether_length; tether_vel=0.0)
+Winch
+Wing(idx, group_idxs, R_b_c, pos_cad; transform_idx=1, angular_vel=zeros(KVec3), 
+         pos_w=zeros(KVec3), vel_w=zeros(KVec3))
+Wing
+Transform(idx, elevation, azimuth, heading;
+        base_point_idx=nothing, base_pos=nothing, base_transform_idx=nothing,
+        wing_idx=nothing, rot_point_idx=nothing)
+Transform
 ```
 
 ## Private functions
