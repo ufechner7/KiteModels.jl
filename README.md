@@ -21,7 +21,7 @@ The models have the following subcomponents, implemented in separate packages:
 - The aerodynamic forces and moments of some of the models are calculated using the package [VortexStepMethod](https://github.com/Albatross-Kite-Transport/VortexStepMethod.jl)
 
 This package is part of Julia Kite Power Tools, which consists of the following packages:
-<p align="center"><img src="./docs/src/kite_power_tools.png" width="500" /></p>
+<p align="center"><img src="https://github.com/ufechner7/KiteModels.jl/blob/main/docs/src/kite_power_tools.png" width="500" /></p>
 
 ## News
 #### Work in progress
