@@ -16,7 +16,8 @@ Bart van de Lint joined the project in 2024. His major contribution is the first
 ## Contributors
 - Daan van Wolffelaar, Delft, The Netherlands - contributed the scripts 
   - `test_inertia_calculation.jl` 
-  - `calculate_rotational_inertia.jl` and the related functions
+  - `calculate_rotational_inertia.jl` and the related functions and made major contributions to 
+  - `test_orientation.jl`
   
   He also tested the KPS4 model against real flight data and was able to find bugs and determine parameters to achieve a reasonable match between the model and a real system.
 - Friso Broekhuizen, Delft, The Netherlands contributed

@@ -21,7 +21,8 @@ Welcome to the KiteModels.jl community! We appreciate your interest in contribut
 -    Feature Requests: Suggest new features or improvements.
 
 ### License
-By contributing code to KiteModels.jl, you are agreeing to release that code under the [MIT License](https://github.com/ufechner7/KiteModels.jl/blob/main/LICENSE).
+By contributing code to KiteModels.jl, you are agreeing to release that code under the [MIT License](https://github.com/ufechner7/KiteModels.jl/blob/main/LICENSE-MIT) or the 
+[MPL-2.0 License](https://github.com/ufechner7/KiteModels.jl/blob/main/LICENSE-MPLtwo).
 
 2. Get Set Up
 

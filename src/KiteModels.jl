@@ -1,4 +1,4 @@
-# Copyright (c) 2020, 2021, 2022, 2024 Uwe Fechner and Bart van de Lint
+# Copyright (c) 2020, 2021, 2022, 2024 Uwe Fechner, Bart van de Lint and Daan van Wolffelaar
 # SPDX-License-Identifier: MIT
 
 #= Models of a kite-power system in implicit form: residual = f(y, yd)
