@@ -30,7 +30,7 @@ steering_freq = 1/2  # Hz - full left-right cycle frequency
 steering_magnitude = 10.0      # Magnitude of steering input [Nm]
 
 # Initialize model
-set = load_settings("system_ram.yaml")
+set = Settings("system_ram.yaml")
 set.segments = 3
 set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
 set.quasi_static = false
@@ -41,10 +41,6 @@ sam = SymbolicAWEModel(set)
 sam.set.abs_tol = 1e-2
 sam.set.rel_tol = 1e-2
 toc()
-
-# init_Q_b_w, R_b_w = KiteModelsam.initial_orient(sam.set)
-# init_kite_pos = init!(sam.sys_struct, sam.set, R_b_w, init_Q_b_w)
-# plot(sam.sys_struct, 0.0; zoom=false, front=false)
 
 # Initialize at elevation
 set.l_tethers[2] += 0.2

@@ -7,6 +7,8 @@ using KiteModels, VortexStepMethod, ControlPlots
 set = se("system_ram.yaml")
 set.v_wind = 10.0
 set.l_tether = 5.0
+set.abs_tol = 1e-4
+set.rel_tol = 1e-4
 dynamics_type = DYNAMIC
 
 points = Point[]
@@ -24,7 +26,7 @@ push!(segments, Segment(3, (3,4), BRIDLE))
 
 push!(pulleys, Pulley(1, (1,2), DYNAMIC))
 
-transforms = [Transform(1, -deg2rad(10.0), 0.0, 0.0; base_pos=[1.0, 0.0, 4.0], base_point_idx=1, rot_point_idx=2)]
+transforms = [Transform(1, -deg2rad(0.0), 0.0, 0.0; base_pos=[1.0, 0.0, 4.0], base_point_idx=1, rot_point_idx=2)]
 sys_struct = KiteModels.SystemStructure("pulley", set; points, segments, pulleys, transforms)
 plot(sys_struct, 0.0; zoom=false, l_tether=set.l_tether)
 

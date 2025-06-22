@@ -28,12 +28,14 @@ makedocs(;
         "Home" => "index.md",
         "Types" => "types.md",
         "Functions" => "functions.md",
-        "SymbolicAWEModel" => "ram_air_kite.md",
+        "SymbolicAWEModel" => [
+		"Overview" => "symbolic_awe_model/ram_air_kite.md",
+		"Examples" => "symbolic_awe_model/examples_ram_air.md",
+		"Tutorial" => "symbolic_awe_model/tutorial_system_structure.md"
+	],
         "Parameters" => "parameters.md",
         "Examples 1p" => "examples.md",
         "Examples 4p" => "examples_4p.md",
-        "Examples SymbolicAWEModel" => "examples_ram_air.md",
-        "SystemStructure for custom models" => "tutorial_system_structure.md",
         "Quickstart" => "quickstart.md",
         "Advanced usage" => "advanced.md",
     ],

@@ -140,7 +140,7 @@ The governing equation is:
 \\end{aligned}
 ```
 
-![System Overview](group-slice.svg)
+![System Overview](group_slice.svg)
 
 where:
 - ``\\tau`` is the total torque about the twist axis
