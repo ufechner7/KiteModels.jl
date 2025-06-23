@@ -355,7 +355,6 @@ function force_eqs!(s, system, psys, pset, eqs, defaults, guesses;
         end
         
         inertia = 1/3 * (get_mass(pset)/length(groups)) * (norm(group.chord))^2 # plate inertia around leading edge
-        @assert !(inertia ≈ 0.0)
         @parameters twist_damp = 50
         @parameters max_twist = deg2rad(90)
 
@@ -657,6 +656,7 @@ function wing_eqs!(s, eqs, psys, pset, defaults; tether_wing_force, tether_wing_
 
         # rest: forces, moments, vectors and scalar values
         moment_b(t)[eachindex(wings), 1:3] # moment in principal frame
+        wing_mass(t)[eachindex(wings)]
     end
     @parameters ω_damp = 150
 
@@ -711,7 +711,8 @@ function wing_eqs!(s, eqs, psys, pset, defaults; tether_wing_force, tether_wing_
                     wing_acc[wing.idx, :]
                 )
             )
-            wing_acc[wing.idx, :] ~ (tether_wing_force[wing.idx, :] + R_b_w[wing.idx, :, :] * aero_force_b[wing.idx, :]) / get_mass(pset)
+            wing_mass[wing.idx] ~ get_mass(pset)
+            wing_acc[wing.idx, :] ~ (tether_wing_force[wing.idx, :] + R_b_w[wing.idx, :, :] * aero_force_b[wing.idx, :]) / wing_mass[wing.idx]
         ]
         defaults = [
             defaults
