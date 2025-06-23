@@ -741,7 +741,7 @@ function SystemStructure(name, set;
     for (i, winch) in enumerate(winches)
         @assert winch.idx == i
         if iszero(winch.tether_length)
-            for segment_idx in winch.tethers[1].segment_idxs
+            for segment_idx in tethers[winch.tether_idxs[1]].segment_idxs
                 winch.tether_length += segments[segment_idx].l0
             end
         end

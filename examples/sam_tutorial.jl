@@ -18,7 +18,11 @@ for i in 1:set.segments
     global points, segments
     point_idx = i+1
     pos = [0.0, 0.0, i * set.l_tether / set.segments]
-    push!(points, Point(point_idx, pos, dynamics_type; wing_idx=0))
+    if i < set.segments
+        push!(points, Point(point_idx, pos, dynamics_type; wing_idx=0))
+    else
+        push!(points, Point(point_idx, pos, dynamics_type; mass=1.0, wing_idx=0))
+    end
     segment_idx = i
     push!(segments, Segment(segment_idx, (point_idx-1, point_idx), BRIDLE))
     push!(segment_idxs, segment_idx)
@@ -46,15 +50,15 @@ using WinchModels
 wm = TorqueControlledMachine(set)
 winches = [Winch(1, wm, [1])]
 
-sys_struct = SystemStructure("winch", set; points, segments, transforms)
+sys_struct = SystemStructure("winch", set; points, segments, tethers, winches, transforms)
 sam = SymbolicAWEModel(set, sys_struct)
 init_sim!(sam; remake=false)
 ss = SysState(sam)
 
 for i in 1:80
     plot(sam, (i-1)/set.sample_freq)
-    next_step!(sam)
-    update_sys_state!(sam)
-    @show ss.l_tether
+    next_step!(sam; set_values=[-10.0])
+    update_sys_state!(ss, sam)
+    @show ss.l_tether[1]
 end
 

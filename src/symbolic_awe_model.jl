@@ -25,31 +25,31 @@
     defaults::Vector{Pair} = Pair[]
     guesses::Vector{Pair} = Pair[]
 
-    set_psys::Function             = (_, _) -> nothing
-    set_set_values::Function       = (_, _) -> nothing
-    set_wind::Function         = (_, _) -> nothing
-    set_vsm::Function              = (_, _) -> nothing
-    set_unknowns::Function         = (_, _) -> nothing
-    set_nonstiff::Function         = (_, _) -> nothing
-    set_lin_vsm::Function          = (_, _) -> nothing
-    set_lin_set_values::Function   = (_, _) -> nothing
-    set_lin_unknowns::Function     = (_, _) -> nothing
-    set_stabilize::Function        = (_, _) -> nothing
+    set_psys::Union{Function, Nothing}             = nothing
+    set_set_values::Union{Function, Nothing}       = nothing
+    set_wind::Union{Function, Nothing}             = nothing
+    set_vsm::Union{Function, Nothing}              = nothing
+    set_unknowns::Union{Function, Nothing}         = nothing
+    set_nonstiff::Union{Function, Nothing}         = nothing
+    set_lin_vsm::Union{Function, Nothing}          = nothing
+    set_lin_set_values::Union{Function, Nothing}   = nothing
+    set_lin_unknowns::Union{Function, Nothing}     = nothing
+    set_stabilize::Union{Function, Nothing}        = nothing
     
-    get_vsm::Function              = (_) -> nothing
-    get_set_values::Function       = (_) -> nothing
-    get_unknowns::Function         = (_) -> nothing
-    get_wing_state::Function       = (_) -> nothing
-    get_winch_state::Function      = (_) -> nothing
-    get_point_state::Function      = (_) -> nothing
-    get_y::Function                = (_) -> nothing
-    get_unstretched_length::Function = (_) -> nothing
-    get_tether_length::Function    = (_) -> nothing
-    get_wing_pos::Function         = (_) -> nothing
-    get_winch_force::Function      = (_) -> nothing
-    get_spring_force::Function     = (_) -> nothing
-    get_stabilize::Function        = (_) -> nothing
-    get_pos::Function              = (_) -> nothing
+    get_vsm::Union{Function, Nothing}              = nothing
+    get_set_values::Union{Function, Nothing}       = nothing
+    get_unknowns::Union{Function, Nothing}         = nothing
+    get_wing_state::Union{Function, Nothing}       = nothing
+    get_winch_state::Union{Function, Nothing}      = nothing
+    get_point_state::Union{Function, Nothing}      = nothing
+    get_y::Union{Function, Nothing}                = nothing
+    get_unstretched_length::Union{Function, Nothing} = nothing
+    get_tether_length::Union{Function, Nothing}    = nothing
+    get_wing_pos::Union{Function, Nothing}         = nothing
+    get_winch_force::Union{Function, Nothing}      = nothing
+    get_spring_force::Union{Function, Nothing}     = nothing
+    get_stabilize::Union{Function, Nothing}        = nothing
+    get_pos::Union{Function, Nothing}              = nothing
 end
 
 """
@@ -185,73 +185,71 @@ function update_sys_state!(ss::SysState, s::SymbolicAWEModel, zoom=1.0)
     ss.time = s.integrator.t # Use integrator time
 
     # Get the state vectors from the integrator
-    set_values, tether_length, tether_vel, winch_force = s.get_winch_state(s.integrator)
-    Q_b_w, elevation, azimuth, course, heading, twist_angle, wing_vel, aero_force_b, 
-        aero_moment_b, turn_rate, va_wing_b, wind_vel_wing = s.get_wing_state(s.integrator)
-    pos, acc, wind_vec_gnd = s.get_point_state(s.integrator)
+    if !isnothing(s.get_winch_state)    
+        set_values, tether_length, tether_vel, winch_force = s.get_winch_state(s.integrator)
+        ss.l_tether .= tether_length
+        ss.v_reelout .= tether_vel
+        ss.force .= winch_force
+        ss.set_torque .= set_values
+    end
+    if !isnothing(s.get_wing_state)
+        Q_b_w, elevation, azimuth, course, heading, twist_angle, wing_vel, aero_force_b, 
+            aero_moment_b, turn_rate, va_wing_b, wind_vel_wing = s.get_wing_state(s.integrator)
+        ss.orient .= Q_b_w[1, :]
+        ss.turn_rates .= turn_rate[1, :]
+        ss.elevation = elevation[1]
+        ss.azimuth = azimuth[1]
+        # Depower and Steering from twist angles
+        num_groups = length(s.sys_struct.wings[1].group_idxs)
+        ss.twist_angles[1:num_groups] .= twist_angle[1:num_groups]
+        ss.depower = rad2deg(mean(ss.twist_angles)) # Average twist for depower
+        ss.steering = rad2deg(ss.twist_angles[num_groups] - ss.twist_angles[1])
+        ss.heading = heading[1] # Use heading from MTK model
+        ss.course = course[1]
+        # Apparent Wind and Aerodynamics
+        ss.v_app = norm(va_wing_b[1, :])
+        ss.v_wind_kite .= wind_vel_wing[1, :]
+        # Calculate AoA and Side Slip from apparent wind in body frame
+        # AoA: angle between v_app projected onto xz-plane and x-axis
+        # Side Slip: angle between v_app and the xz-plane
+        if ss.v_app > 1e-6 # Avoid division by zero
+            ss.AoA = atan(va_wing_b[1, 3], va_wing_b[1, 1])
+            ss.side_slip = asin(va_wing_b[1, 2] / ss.v_app)
+        else
+            ss.AoA = 0.0
+            ss.side_slip = 0.0
+        end
+        ss.aero_force_b .= aero_force_b[1, :]
+        ss.aero_moment_b .= aero_moment_b[1, :]
+        ss.vel_kite .= wing_vel[1, :]
+        # Calculate Roll, Pitch, Yaw from Quaternion
+        q = Q_b_w[1, :]
+        # roll (x-axis rotation)
+        sinr_cosp = 2 * (q[1] * q[2] + q[3] * q[4])
+        cosr_cosp = 1 - 2 * (q[2] * q[2] + q[3] * q[3])
+        ss.roll = atan(sinr_cosp, cosr_cosp)
+        # pitch (y-axis rotation)
+        sinp = 2 * (q[1] * q[3] - q[4] * q[2])
+        if abs(sinp) >= 1
+            ss.pitch = copysign(pi / 2, sinp) # use 90 degrees if out of range
+        else
+            ss.pitch = asin(sinp)
+        end
+        # yaw (z-axis rotation)
+        siny_cosp = 2 * (q[1] * q[4] + q[2] * q[3])
+        cosy_cosp = 1 - 2 * (q[3] * q[3] + q[4] * q[4])
+        ss.yaw = atan(siny_cosp, cosy_cosp)
+    end
 
+    pos, acc, wind_vec_gnd = s.get_point_state(s.integrator)
     P = length(s.sys_struct.points)
     for i in 1:P
         ss.X[i] = pos[1, i] * zoom
         ss.Y[i] = pos[2, i] * zoom
         ss.Z[i] = pos[3, i] * zoom
     end
-
-    # --- Populate SysState fields ---
     ss.acc = norm(acc) # Use the norm of the wing's acceleration vector
-    ss.orient .= Q_b_w[1, :]
-    ss.turn_rates .= turn_rate[1, :]
-    ss.elevation = elevation[1]
-    ss.azimuth = azimuth[1]
-
-    # Handle potential size mismatch for tether/winch related arrays
-    num_winches = length(s.sys_struct.winches)
-    ss.l_tether[1:num_winches] .= tether_length
-    ss.v_reelout[1:num_winches] .= tether_vel
-    ss.force[1:num_winches] .= winch_force
-
-    # Depower and Steering from twist angles
-    num_groups = length(s.sys_struct.wings[1].group_idxs)
-    ss.twist_angles[1:num_groups] .= twist_angle[1:num_groups]
-    ss.depower = rad2deg(mean(ss.twist_angles)) # Average twist for depower
-    ss.steering = rad2deg(ss.twist_angles[num_groups] - ss.twist_angles[1])
-    ss.heading = heading[1] # Use heading from MTK model
-    ss.course = course[1]
-    # Apparent Wind and Aerodynamics
-    ss.v_app = norm(va_wing_b[1, :])
     ss.v_wind_gnd .= wind_vec_gnd
-    ss.v_wind_kite .= wind_vel_wing[1, :]
-    # Calculate AoA and Side Slip from apparent wind in body frame
-    # AoA: angle between v_app projected onto xz-plane and x-axis
-    # Side Slip: angle between v_app and the xz-plane
-    if ss.v_app > 1e-6 # Avoid division by zero
-        ss.AoA = atan(va_wing_b[1, 3], va_wing_b[1, 1])
-        ss.side_slip = asin(va_wing_b[1, 2] / ss.v_app)
-    else
-        ss.AoA = 0.0
-        ss.side_slip = 0.0
-    end
-    ss.aero_force_b .= aero_force_b[1, :]
-    ss.aero_moment_b .= aero_moment_b[1, :]
-    ss.vel_kite .= wing_vel[1, :]
-    # Calculate Roll, Pitch, Yaw from Quaternion
-    q = Q_b_w[1, :]
-    # roll (x-axis rotation)
-    sinr_cosp = 2 * (q[1] * q[2] + q[3] * q[4])
-    cosr_cosp = 1 - 2 * (q[2] * q[2] + q[3] * q[3])
-    ss.roll = atan(sinr_cosp, cosr_cosp)
-    # pitch (y-axis rotation)
-    sinp = 2 * (q[1] * q[3] - q[4] * q[2])
-    if abs(sinp) >= 1
-        ss.pitch = copysign(pi / 2, sinp) # use 90 degrees if out of range
-    else
-        ss.pitch = asin(sinp)
-    end
-    # yaw (z-axis rotation)
-    siny_cosp = 2 * (q[1] * q[4] + q[2] * q[3])
-    cosy_cosp = 1 - 2 * (q[3] * q[3] + q[4] * q[4])
-    ss.yaw = atan(siny_cosp, cosy_cosp)
-    ss.set_torque[1:3] .= set_values
     nothing
 end
 

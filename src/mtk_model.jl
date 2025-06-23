@@ -405,33 +405,28 @@ function force_eqs!(s, system, psys, eqs, defaults, guesses;
             ]
         # end
 
-        if segment.type == BRIDLE
-            in_pulley = 0
-            for pulley in pulleys
-                if segment.idx == pulley.segment_idxs[1] # each bridle segment has to be part of no pulley or one pulley
-                    eqs = [
-                        eqs
-                        l0[segment.idx] ~ pulley_l0[pulley.idx]
-                    ]
-                    in_pulley += 1
-                end
-                if segment.idx == pulley.segment_idxs[2]
-                    eqs = [
-                        eqs
-                        l0[segment.idx] ~ get_sum_length(psys, pulley.idx) - pulley_l0[pulley.idx]
-                    ]
-                    in_pulley += 1
-                end
-            end
-            if in_pulley == 0
+        in_pulley = 0
+        for pulley in pulleys
+            if segment.idx == pulley.segment_idxs[1] # each bridle segment has to be part of no pulley or one pulley
                 eqs = [
                     eqs
-                    l0[segment.idx] ~ get_l0(psys, segment.idx)
+                    l0[segment.idx] ~ pulley_l0[pulley.idx]
                 ]
+                in_pulley += 1
             end
-            (in_pulley > 1) && error("Bridle segment number $(segment.idx) is part of
-                $in_pulley pulleys, and should be part of either 0 or 1 pulleys.")
-        elseif segment.type == POWER || segment.type == STEERING
+            if segment.idx == pulley.segment_idxs[2]
+                eqs = [
+                    eqs
+                    l0[segment.idx] ~ get_sum_length(psys, pulley.idx) - pulley_l0[pulley.idx]
+                ]
+                in_pulley += 1
+            end
+        end
+        (in_pulley > 1) && error("Bridle segment number $(segment.idx) is part of
+            $in_pulley pulleys, and should be part of either 0 or 1 pulleys.")
+
+        #TODO: Segments cannot be part of a tether if they are part of a pulley.
+        if in_pulley == 0
             in_tether = 0
             for tether in tethers
                 if segment.idx in tether.segment_idxs # each tether segment has to be part of exactly one tether
@@ -443,27 +438,24 @@ function force_eqs!(s, system, psys, eqs, defaults, guesses;
                             in_winch += 1
                         end
                     end
-                    !(in_winch in [0,1]) && error("Tether number $(tether.idx) is part of
-                        $(in_winch) winches, and should be part of exactly 0 or 1 winch.")
+                    (in_winch != 1) && error("Tether number $(tether.idx) is connected to
+                        $(in_winch) winches, and should have 1 winch connected.")
 
-                    if in_winch == 1
-                        eqs = [
-                            eqs
-                            l0[segment.idx] ~ tether_length[winch_idx] / length(tether.segment_idxs)
-                        ]
-                    elseif in_winch == 0
-                        eqs = [
-                            eqs
-                            l0[segment.idx] ~ get_l0(psys, segment.idx)
-                        ]
-                    end
+                    eqs = [
+                        eqs
+                        l0[segment.idx] ~ tether_length[winch_idx] / length(tether.segment_idxs)
+                    ]
                     in_tether += 1
                 end
             end
-            (in_tether != 1) && error("Segment number $(segment.idx) is part of 
-                $in_tether tethers, and should be part of exactly 1 tether.")
-        else
-            error("Unknown segment type: $(segment.type)")
+            !(in_tether in [0,1]) && error("Segment number $(segment.idx) is part of 
+                $in_tether tethers, and should be part of exactly 0 or 1 tether.")
+            if in_tether == 0
+                eqs = [
+                    eqs
+                    l0[segment.idx] ~ get_l0(psys, segment.idx)
+                ]
+            end
         end
 
         stiffness_m = s.set.e_tether * (get_diameter(psys, segment.idx)/2)^2 * pi
