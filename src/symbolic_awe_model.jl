@@ -185,12 +185,13 @@ function update_sys_state!(ss::SysState, s::SymbolicAWEModel, zoom=1.0)
     ss.time = s.integrator.t # Use integrator time
 
     # Get the state vectors from the integrator
-    if !isnothing(s.get_winch_state)    
+    if !isnothing(s.get_winch_state)
+        nw = length(s.sys_struct.winches)
         set_values, tether_length, tether_vel, winch_force = s.get_winch_state(s.integrator)
-        ss.l_tether .= tether_length
-        ss.v_reelout .= tether_vel
-        ss.force .= winch_force
-        ss.set_torque .= set_values
+        ss.l_tether[1:nw] .= tether_length
+        ss.v_reelout[1:nw] .= tether_vel
+        ss.force[1:nw] .= winch_force
+        ss.set_torque[1:nw] .= set_values
     end
     if !isnothing(s.get_wing_state)
         Q_b_w, elevation, azimuth, course, heading, twist_angle, wing_vel, aero_force_b, 
