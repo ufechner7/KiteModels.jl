@@ -43,8 +43,8 @@ sam.set.rel_tol = 1e-2
 toc()
 
 # Initialize at elevation
-set.l_tethers[2] += 0.2
-set.l_tethers[3] += 0.2
+set.l_tethers[2] += 0.4
+set.l_tethers[3] += 0.4
 init_sim!(sam; remake=false, reload=false)
 sys = sam.sys
 

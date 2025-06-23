@@ -1,11 +1,11 @@
 # SPDX-FileCopyrightText: 2025 Bart van de Lint
 #
 # SPDX-License-Identifier: MPL-2.0
-
 using KiteModels, VortexStepMethod, ControlPlots
 
-set = se("system_ram.yaml")
+set = Settings("system_ram.yaml")
 set.segments = 20
+set.l_tether = 50.0
 dynamics_type = DYNAMIC
 
 points = Point[]
@@ -24,7 +24,10 @@ for i in 1:set.segments
     push!(segment_idxs, segment_idx)
 end
 
-transforms = [Transform(1, deg2rad(-80), 0.0, 0.0, [0.0, 0.0, 50.0], points[1].idx; rot_point_idx=points[end].idx)]
+transforms = [Transform(1, deg2rad(-80), 0.0, 0.0; 
+              base_pos = [0.0, 0.0, 50.0], base_point_idx=points[1].idx,
+              rot_point_idx=points[end].idx)]
+
 sys_struct = SystemStructure("tether", set; points, segments, transforms)
 plot(sys_struct, 0.0)
 
@@ -35,3 +38,23 @@ for i in 1:80
     plot(sam, i/set.sample_freq)
     next_step!(sam)
 end
+
+# ADDING A WINCH
+tethers = [Tether(1,[segment.idx for segment in segments])]
+
+using WinchModels
+wm = TorqueControlledMachine(set)
+winches = [Winch(1, wm, [1])]
+
+sys_struct = SystemStructure("winch", set; points, segments, transforms)
+sam = SymbolicAWEModel(set, sys_struct)
+init_sim!(sam; remake=false)
+ss = SysState(sam)
+
+for i in 1:80
+    plot(sam, (i-1)/set.sample_freq)
+    next_step!(sam)
+    update_sys_state!(sam)
+    @show ss.l_tether
+end
+

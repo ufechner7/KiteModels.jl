@@ -375,12 +375,12 @@ mutable struct Winch
     const idx::Int16
     const model::AbstractWinchModel
     const tether_idxs::Vector{Int16}
-    tether_length::SimFloat
+    tether_length::Union{SimFloat, Nothing}
     tether_vel::SimFloat
 end
 
 """
-    Winch(idx, model, tether_idxs, tether_length; tether_vel=0.0)
+    Winch(idx, model, tether_idxs; tether_length=nothing, tether_vel=0.0)
 
 Constructs a Winch object that controls tether length through torque or speed regulation.
 
@@ -406,10 +406,10 @@ see the [WinchModels.jl documentation](https://github.com/aenarete/WinchModels.j
 - `idx::Int16`: Unique identifier for the winch.
 - `model::AbstractWinchModel`: The winch model (TorqueControlledMachine, AsyncMachine, etc.).
 - `tether_idxs::Vector{Int16}`: Vector containing the indices of the tethers connected to this winch.
-- `tether_length::SimFloat`: Initial tether length.
 
 # Keyword Arguments
 - `tether_vel::SimFloat=0.0`: Initial tether velocity (reel-out rate).
+- `tether_length::SimFloat`: Initial tether length.
 
 # Returns
 - `Winch`: A new Winch object.
@@ -420,7 +420,7 @@ To create a Winch:
     winch = Winch(1, TorqueControlledMachine(set), [1, 2], 100.0)
 ```
 """
-function Winch(idx, model, tether_idxs, tether_length; tether_vel=0.0)
+function Winch(idx, model, tether_idxs; tether_length=0.0, tether_vel=0.0)
     return Winch(idx, model, tether_idxs, tether_length, tether_vel)
 end
 
@@ -740,6 +740,11 @@ function SystemStructure(name, set;
     end
     for (i, winch) in enumerate(winches)
         @assert winch.idx == i
+        if iszero(winch.tether_length)
+            for segment_idx in winch.tethers[1].segment_idxs
+                winch.tether_length += segments[segment_idx].l0
+            end
+        end
         set.l_tethers[i]   = winch.tether_length
         set.v_reel_outs[i] = winch.tether_vel
     end

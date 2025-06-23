@@ -76,3 +76,93 @@ for i in 1:80
 end
 ```
 ![Tether during simulation](tether_during_sim.png)
+
+# Using a winch and a tether
+
+Let's try to adjust the length of the tether in the last example. To do this we first need to create a set of segments with a common changing `l0`, called a [`Tether`](@ref).
+```julia
+tethers = [Tether(1,[segment.idx for segment in segments])]
+```
+As you can see, we just add all of the segments from the simple tether to our [`Tether`](@ref) struct.
+The next step is to create a winch. Each winch can be connected to one or more tethers, so it is possible to connect multiple tethers to the same winch. We have to specify which kind of winch we want to use. For now, only the `TorqueControlledMachine` from `WinchModels.jl` is supported.
+
+```julia
+using WinchModels
+wm = TorqueControlledMachine(set)
+winches = [Winch(1, wm,[1])]
+```
+
+The 2d plot of the [`SystemStructure`](@ref) should still look the same, so we don't have to plot that. We can just create the system, and simulate it. We just need to be sure that we call plot with `t=0.0` to reset the plot.
+
+```julia
+sys_struct = SystemStructure("winch", set; points, segments, transforms)
+sam = SymbolicAWEModel(set, sys_struct)
+init_sim!(sam; remake=false)
+for i in 1:80
+    plot(sam, (i-1)/set.sample_freq)
+    next_step!(sam)
+end
+```
+
+# Using a pulley
+
+First, we need to update some settings. `l_tether` is specified such that the plot window is zoomed in correctly.
+
+```julia
+using KiteModels, VortexStepMethod, ControlPlots
+
+set = se("system_ram.yaml")
+set.v_wind = 10.0
+set.l_tether = 5.0
+set.abs_tol = 1e-4
+set.rel_tol = 1e-4
+dynamics_type = DYNAMIC
+```
+
+Now we create points and segments in a similar manner as in the last example. The `mass` keyword can be used to specify the mass of the point itself. When `mass=0.0` the mass of the point just consists of the tether/segment mass.
+
+```julia
+points = Point[]
+segments = Segment[]
+pulleys = Pulley[]
+
+push!(points, Point(1, [0.0, 0.0, 2.0], STATIC))
+push!(points, Point(2, [2.0, 0.0, 2.0], STATIC))
+push!(points, Point(3, [0.1, 0.0, 1.0], DYNAMIC))
+push!(points, Point(4, [0.1, 0.0, 0.0], DYNAMIC; mass=0.1))
+
+push!(segments, Segment(1, (3,1), BRIDLE))
+push!(segments, Segment(2, (3,2), BRIDLE))
+push!(segments, Segment(3, (3,4), BRIDLE))
+```
+
+Pulleys can be modeled when three or more [`Segment`](@ref)s are connected to a common [`Point`](@ref). When creating a pulley, only two segments are specified: these are the segments of the tether moving through the pulley.
+
+```julia
+push!(pulleys, Pulley(1, (1,2), DYNAMIC))
+```
+
+We can then use a [`Transform`](@ref) to describe the orientation of the initial system. 
+
+```julia
+transforms = [Transform(1, -deg2rad(0.0), 0.0, 0.0; base_pos=[1.0, 0.0, 4.0], base_point_idx=1, rot_point_idx=2)]
+sys_struct = KiteModels.SystemStructure("pulley", set; points, segments, pulleys, transforms)
+plot(sys_struct, 0.0; zoom=false, l_tether=set.l_tether)
+```
+
+If the plot of the [`SystemStructure`](@ref) looks good, we can continue by creating a [`SymbolicAWEModel`](@ref) and simulating through time.
+
+```julia
+sam = SymbolicAWEModel(set, sys_struct)
+init_sim!(sam; remake=false)
+for i in 1:100
+    plot(sam, i/set.sample_freq; zoom=false)
+    next_step!(sam)
+end
+```
+
+# Adding a wing
+
+Now we can finally start modeling a full kite system, with points, segments, pulleys, winches and a wing! For simplicity, we will create a kite with just one tether connected to a so-called KCU (Kite Control Unit). A KCU can be modeled as a point with extra mass and area, and with some winches connected to it.
+
+
