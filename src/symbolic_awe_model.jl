@@ -27,7 +27,7 @@
 
     set_psys::Union{Function, Nothing}             = nothing
     set_set_values::Union{Function, Nothing}       = nothing
-    set_wind::Union{Function, Nothing}             = nothing
+    set_set::Union{Function, Nothing}             = nothing
     set_vsm::Union{Function, Nothing}              = nothing
     set_unknowns::Union{Function, Nothing}         = nothing
     set_nonstiff::Union{Function, Nothing}         = nothing
@@ -531,8 +531,8 @@ function generate_getters!(s, sym_vec)
     
     set_psys = setp(sys, sys.psys)
     s.set_psys = (integ, val) -> set_psys(integ, val)
-    set_wind = setp(sys, [sys.wind_scale_gnd, sys.upwind_dir])
-    s.set_wind = (integ, val) -> set_wind(integ, val)
+    set_set = setp(sys, sys.pset)
+    s.set_set = (integ, val) -> set_set(integ, val)
     set_unknowns = setu(sys, sym_vec)
     s.set_unknowns = (integ, val) -> set_unknowns(integ, val)
     set_nonstiff = setu(sys, get_nonstiff_unknowns(s.sys_struct, s.sys))
@@ -833,7 +833,9 @@ Set ground wind speed (m/s) and upwind direction (radians). Direction: 0=north, 
 π=zouth, -π/2=west (default).
 """
 function set_v_wind_ground!(s::SymbolicAWEModel, v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2)
-    s.set_wind(s.integrator, [v_wind_gnd, upwind_dir])
+    s.set.v_wind = v_wind_gnd
+    s.set.upwind_dir = rad2deg(upwind_dir)
+    s.set_set(s.integrator, s.set)
     return nothing
 end
 

@@ -112,6 +112,26 @@ get_tether_length(sys_struct::SystemStructure, idx::Int16) = sys_struct.winches[
 get_tether_vel(sys_struct::SystemStructure, idx::Int16) = sys_struct.winches[idx].tether_vel
 @register_symbolic get_tether_vel(sys::SystemStructure, idx::Int16)
 
+get_mass(set) = set.mass
+@register_symbolic get_mass(set::Settings)
+get_rho_tether(set) = set.rho_tether
+@register_symbolic get_rho_tether(set::Settings)
+get_e_tether(set) = set.e_tether
+@register_symbolic get_e_tether(set::Settings)
+get_damping(set) = set.damping
+@register_symbolic get_damping(set::Settings)
+get_c_spring(set) = set.c_spring
+@register_symbolic get_c_spring(set::Settings)
+get_cd_tether(set) = set.cd_tether
+@register_symbolic get_cd_tether(set::Settings)
+
+
+get_v_wind(set::Settings) = set.v_wind
+@register_symbolic get_v_wind(set::Settings)
+get_upwind_dir(set::Settings) = set.upwind_dir
+@register_symbolic get_upwind_dir(set::Settings)
+
+
 """
     force_eqs!(s, system, eqs, defaults, guesses; kwargs...)
 
@@ -140,7 +160,7 @@ Tuple containing:
 - Tether forces on wing
 - Tether moments on wing
 """
-function force_eqs!(s, system, psys, eqs, defaults, guesses; 
+function force_eqs!(s, system, psys, pset, eqs, defaults, guesses; 
         R_b_w, wing_pos, wing_vel, wind_vec_gnd, group_aero_moment, twist_angle, twist_ω, stabilize, set_values, fix_nonstiff)
 
     @parameters acc_multiplier = 1
@@ -171,7 +191,7 @@ function force_eqs!(s, system, psys, eqs, defaults, guesses;
         in_bridle = false
         for segment in segments
             if point.idx in segment.point_idxs
-                mass_per_meter = s.set.rho_tether * π * (get_diameter(psys, segment.idx)/2)^2
+                mass_per_meter = get_rho_tether(pset) * π * (get_diameter(psys, segment.idx)/2)^2
                 inverted = segment.point_idxs[2] == point.idx
                 if inverted
                     F .-= spring_force_vec[:, segment.idx]
@@ -334,7 +354,7 @@ function force_eqs!(s, system, psys, eqs, defaults, guesses;
             ]
         end
         
-        inertia = 1/3 * (s.set.mass/length(groups)) * (norm(group.chord))^2 # plate inertia around leading edge
+        inertia = 1/3 * (get_mass(pset)/length(groups)) * (norm(group.chord))^2 # plate inertia around leading edge
         @assert !(inertia ≈ 0.0)
         @parameters twist_damp = 50
         @parameters max_twist = deg2rad(90)
@@ -458,11 +478,11 @@ function force_eqs!(s, system, psys, eqs, defaults, guesses;
             end
         end
 
-        stiffness_m = s.set.e_tether * (get_diameter(psys, segment.idx)/2)^2 * pi
+        stiffness_m = get_e_tether(pset) * (get_diameter(psys, segment.idx)/2)^2 * pi
         @parameters stiffness_frac = 0.01
         (segment.type == BRIDLE) && (stiffness_m = stiffness_frac * stiffness_m)
 
-        damping_m = (s.set.damping / s.set.c_spring) * stiffness_m
+        damping_m = (get_damping(pset) / get_c_spring(pset)) * stiffness_m
         
         eqs = [
             eqs
@@ -489,7 +509,7 @@ function force_eqs!(s, system, psys, eqs, defaults, guesses;
             area[segment.idx]            ~ len[segment.idx] * get_diameter(psys, segment.idx)
             app_perp_vel[:, segment.idx] ~ va[:, segment.idx] - 
                                         (va[:, segment.idx] ⋅ unit_vec[:, segment.idx]) * unit_vec[:, segment.idx]
-            drag_force[:, segment.idx]   ~ (0.5 * segment_rho[segment.idx] * s.set.cd_tether * norm(va[:, segment.idx]) * 
+            drag_force[:, segment.idx]   ~ (0.5 * segment_rho[segment.idx] * get_cd_tether(pset) * norm(va[:, segment.idx]) * 
                                         area[segment.idx]) * app_perp_vel[:, segment.idx]
         ]
     end
@@ -504,7 +524,7 @@ function force_eqs!(s, system, psys, eqs, defaults, guesses;
     @parameters pulley_damp = 5.0
     for pulley in pulleys
         segment = segments[pulley.segment_idxs[1]]
-        mass_per_meter = s.set.rho_tether * π * (get_diameter(psys, segment.idx)/2)^2
+        mass_per_meter = get_rho_tether(pset) * π * (get_diameter(psys, segment.idx)/2)^2
         mass = get_sum_length(psys, pulley.idx) * mass_per_meter
         eqs = [
             eqs
@@ -598,7 +618,7 @@ function force_eqs!(s, system, psys, eqs, defaults, guesses;
 end
 
 """
-    wing_eqs!(s, eqs, defaults; kwargs...)
+    wing_eqs!(s, eqs, pset, defaults; kwargs...)
 
 Generate the differential equations for wing dynamics including quaternion kinematics,
 angular velocities and accelerations, and forces/moments.
@@ -621,7 +641,7 @@ angular velocities and accelerations, and forces/moments.
 # Returns
 Tuple of updated equations and defaults
 """
-function wing_eqs!(s, eqs, psys, defaults; tether_wing_force, tether_wing_moment, aero_force_b, 
+function wing_eqs!(s, eqs, psys, pset, defaults; tether_wing_force, tether_wing_moment, aero_force_b, 
     aero_moment_b, ω_b, α_b, R_b_w, wing_pos, wing_vel, wing_acc, stabilize, fix_nonstiff
 )
     wings = s.sys_struct.wings
@@ -648,7 +668,6 @@ function wing_eqs!(s, eqs, psys, defaults; tether_wing_force, tether_wing_moment
     for wing in wings
         vsm_wing = s.vsm_wings[wing.idx]
         I_b = [vsm_wing.inertia_tensor[1,1], vsm_wing.inertia_tensor[2,2], vsm_wing.inertia_tensor[3,3]]
-        @assert !(s.set.mass ≈ 0)
         axis = sym_normalize(wing_pos[wing.idx, :])
         axis_b = R_b_w[wing.idx, :, :]' * axis
         eqs = [
@@ -692,7 +711,7 @@ function wing_eqs!(s, eqs, psys, defaults; tether_wing_force, tether_wing_moment
                     wing_acc[wing.idx, :]
                 )
             )
-            wing_acc[wing.idx, :] ~ (tether_wing_force[wing.idx, :] + R_b_w[wing.idx, :, :] * aero_force_b[wing.idx, :]) / s.set.mass
+            wing_acc[wing.idx, :] ~ (tether_wing_force[wing.idx, :] + R_b_w[wing.idx, :, :] * aero_force_b[wing.idx, :]) / get_mass(pset)
         ]
         defaults = [
             defaults
@@ -749,19 +768,20 @@ Generate equations for scalar quantities like elevation, azimuth, heading and co
     - Course angle
     - Angular velocities and accelerations
     """
-function scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_wing_b, wing_pos, wing_vel, wing_acc, twist_angle, twist_ω, ω_b, α_b)
+function scalar_eqs!(s, eqs, pset; R_b_w, wind_vec_gnd, va_wing_b, wing_pos, wing_vel, wing_acc, twist_angle, twist_ω, ω_b, α_b)
     @unpack wings = s.sys_struct
-    @parameters wind_scale_gnd = s.set.v_wind
-    @parameters upwind_dir = deg2rad(s.set.upwind_dir)
+    wind_scale_gnd = get_v_wind(pset)
     @variables begin
         e_x(t)[eachindex(wings), 1:3]
         e_y(t)[eachindex(wings), 1:3]
         e_z(t)[eachindex(wings), 1:3]
         wind_vel_wing(t)[eachindex(wings), 1:3]
         va_wing(t)[eachindex(wings), 1:3]
+        upwind_dir(t)
     end
     eqs = [
         eqs
+        upwind_dir ~ deg2rad(get_upwind_dir(pset))
         wind_vec_gnd ~ max(wind_scale_gnd, 1e-6) * rotate_around_z([0, -1, 0], -upwind_dir)
     ]
     for wing in wings
@@ -919,6 +939,7 @@ function create_sys!(s::SymbolicAWEModel, system::SystemStructure; init_va_b)
 
     @parameters begin
         psys::SystemStructure = system
+        pset::Settings = s.set
         stabilize = false
         fix_nonstiff = false
     end
@@ -945,14 +966,14 @@ function create_sys!(s::SymbolicAWEModel, system::SystemStructure; init_va_b)
     end
 
     eqs, defaults, guesses, tether_wing_force, tether_wing_moment = 
-        force_eqs!(s, system, psys, eqs, defaults, guesses; 
+        force_eqs!(s, system, psys, pset, eqs, defaults, guesses; 
             R_b_w, wing_pos, wing_vel, wind_vec_gnd, group_aero_moment, twist_angle, twist_ω, stabilize, set_values, fix_nonstiff)
     eqs, guesses = linear_vsm_eqs!(s, eqs, guesses; aero_force_b, aero_moment_b, group_aero_moment, init_va_b, twist_angle, va_wing_b, ω_b)
-    eqs, defaults = wing_eqs!(s, eqs, psys, defaults; tether_wing_force, tether_wing_moment, aero_force_b, aero_moment_b, 
+    eqs, defaults = wing_eqs!(s, eqs, psys, pset, defaults; tether_wing_force, tether_wing_moment, aero_force_b, aero_moment_b, 
         ω_b, α_b, R_b_w, wing_pos, wing_vel, wing_acc, stabilize, fix_nonstiff)
-    eqs = scalar_eqs!(s, eqs; R_b_w, wind_vec_gnd, va_wing_b, wing_pos, wing_vel, wing_acc, twist_angle, twist_ω, ω_b, α_b)
+    eqs = scalar_eqs!(s, eqs, pset; R_b_w, wind_vec_gnd, va_wing_b, wing_pos, wing_vel, wing_acc, twist_angle, twist_ω, ω_b, α_b)
     
-    # te_I = (1/3 * (s.set.mass/8) * te_length^2)
+    # te_I = (1/3 * (get_mass(pset)/8) * te_length^2)
     # # -damping / I * ω = α_damping
     # # solve for c: (c * (k*m/s^2) / (k*m^2)) * (m/s)=m/s^2 in wolframalpha
     # # damping should be in N*m*s
