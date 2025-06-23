@@ -73,7 +73,7 @@ try
         PLOT && plot(sam, t; zoom=false, front=false)
         
         # Calculate steering inputs based on cosine wave
-        steering = steering_magnitude * cos(2π * steering_freq * t + bias)-0.0035*t*t
+        steering = steering_magnitude * cos(2π * steering_freq * t + bias)-0.001*t*t
         set_values = -sam.set.drum_radius .* sam.integrator[sys.winch_force]
         _vsm_interval = 1
         if t > 1.0
