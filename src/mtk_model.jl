@@ -112,8 +112,8 @@ get_tether_length(sys_struct::SystemStructure, idx::Int16) = sys_struct.winches[
 get_tether_vel(sys_struct::SystemStructure, idx::Int16) = sys_struct.winches[idx].tether_vel
 @register_symbolic get_tether_vel(sys::SystemStructure, idx::Int16)
 
-get_mass(set) = set.mass
-@register_symbolic get_mass(set::Settings)
+get_set_mass(set) = set.mass
+@register_symbolic get_set_mass(set::Settings)
 get_rho_tether(set) = set.rho_tether
 @register_symbolic get_rho_tether(set::Settings)
 get_e_tether(set) = set.e_tether
@@ -354,7 +354,7 @@ function force_eqs!(s, system, psys, pset, eqs, defaults, guesses;
             ]
         end
         
-        inertia = 1/3 * (get_mass(pset)/length(groups)) * (norm(group.chord))^2 # plate inertia around leading edge
+        inertia = 1/3 * (get_set_mass(pset)/length(groups)) * (norm(group.chord))^2 # plate inertia around leading edge
         @parameters twist_damp = 50
         @parameters max_twist = deg2rad(90)
 
@@ -711,7 +711,7 @@ function wing_eqs!(s, eqs, psys, pset, defaults; tether_wing_force, tether_wing_
                     wing_acc[wing.idx, :]
                 )
             )
-            wing_mass[wing.idx] ~ get_mass(pset)
+            wing_mass[wing.idx] ~ get_set_mass(pset)
             wing_acc[wing.idx, :] ~ (tether_wing_force[wing.idx, :] + R_b_w[wing.idx, :, :] * aero_force_b[wing.idx, :]) / wing_mass[wing.idx]
         ]
         defaults = [
@@ -974,7 +974,7 @@ function create_sys!(s::SymbolicAWEModel, system::SystemStructure; init_va_b)
         ω_b, α_b, R_b_w, wing_pos, wing_vel, wing_acc, stabilize, fix_nonstiff)
     eqs = scalar_eqs!(s, eqs, pset; R_b_w, wind_vec_gnd, va_wing_b, wing_pos, wing_vel, wing_acc, twist_angle, twist_ω, ω_b, α_b)
     
-    # te_I = (1/3 * (get_mass(pset)/8) * te_length^2)
+    # te_I = (1/3 * (get_set_mass(pset)/8) * te_length^2)
     # # -damping / I * ω = α_damping
     # # solve for c: (c * (k*m/s^2) / (k*m^2)) * (m/s)=m/s^2 in wolframalpha
     # # damping should be in N*m*s
