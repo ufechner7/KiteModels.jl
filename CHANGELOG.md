@@ -3,6 +3,11 @@ SPDX-FileCopyrightText: 2025 Uwe Fechner, Bart van de Lint
 SPDX-License-Identifier: MIT
 -->
 
+### KiteModels v0.8.1
+#### CHANGED
+- renamed POWER to POWER_LINE and STEERING to STEERING_LINE
+- improved documentation, fixed example
+
 ### KiteModels v0.8.0
 #### Added
 - add a tutorial for custom system structures

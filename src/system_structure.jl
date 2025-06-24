@@ -12,18 +12,18 @@ function VortexStepMethod.RamAirWing(set::Settings; prn=true, kwargs...)
 end
 
 """
-    SegmentType `POWER` `STEERING` `BRIDLE`
+    SegmentType `POWER_LINE` `STEERING_LINE` `BRIDLE`
 
 Type of segment.
 
 # Elements
-- POWER: Belongs to a power line
-- STEERING: Belongs to a steering line
+- POWER_LINE: Belongs to a power line
+- STEERING_LINE: Belongs to a steering line
 - BRIDLE: Belongs to the bridle
 """
 @enum SegmentType begin
-    POWER
-    STEERING
+    POWER_LINE
+    STEERING_LINE
     BRIDLE
 end
 
@@ -238,7 +238,7 @@ where:
 # Arguments
 - `idx::Int16`: Unique identifier for the segment.
 - `point_idxs::Tuple{Int16, Int16}`: Tuple containing the indices of the two points connected by this segment.
-- `type::SegmentType`: Type of the segment (POWER, STEERING, BRIDLE).
+- `type::SegmentType`: Type of the segment (POWER_LINE, STEERING_LINE, BRIDLE).
 
 # Keyword Arguments
 - `l0::SimFloat=zero(SimFloat)`: Unstretched length of the segment. Calculated from point positions if zero.
@@ -980,10 +980,10 @@ function create_ram_sys_struct(set::Settings, vsm_wing::RamAirWing)
     create_bridle(bridle_top_left, gammas[[1,2]])
     create_bridle(bridle_top_right, gammas[[3,4]])
 
-    points, segments, tethers, left_power_idx = create_tether(1, set, points, segments, tethers, attach_points[1], POWER, dynamics_type, z)
-    points, segments, tethers, right_power_idx = create_tether(2, set, points, segments, tethers, attach_points[3], POWER, dynamics_type, z)
-    points, segments, tethers, left_steering_idx = create_tether(3, set, points, segments, tethers, attach_points[2], STEERING, dynamics_type, z)
-    points, segments, tethers, right_steering_idx = create_tether(4, set, points, segments, tethers, attach_points[4], STEERING, dynamics_type, z)
+    points, segments, tethers, left_power_idx = create_tether(1, set, points, segments, tethers, attach_points[1], POWER_LINE, dynamics_type, z)
+    points, segments, tethers, right_power_idx = create_tether(2, set, points, segments, tethers, attach_points[3], POWER_LINE, dynamics_type, z)
+    points, segments, tethers, left_steering_idx = create_tether(3, set, points, segments, tethers, attach_points[2], STEERING_LINE, dynamics_type, z)
+    points, segments, tethers, right_steering_idx = create_tether(4, set, points, segments, tethers, attach_points[4], STEERING_LINE, dynamics_type, z)
 
     winches = [winches; Winch(1, TorqueControlledMachine(set), [left_power_idx, right_power_idx])]
     winches = [winches; Winch(2, TorqueControlledMachine(set), [left_steering_idx])]
@@ -1042,10 +1042,10 @@ function create_simple_ram_sys_struct(set::Settings, wing::RamAirWing)
         Segment(4, (4, 8), BRIDLE)
     ]
 
-    points, segments, tethers, left_power_idx = create_tether(1, set, points, segments, tethers, points[5], POWER, dynamics_type)
-    points, segments, tethers, right_power_idx = create_tether(2, set, points, segments, tethers, points[7], POWER, dynamics_type)
-    points, segments, tethers, left_steering_idx = create_tether(3, set, points, segments, tethers, points[6], STEERING, dynamics_type)
-    points, segments, tethers, right_steering_idx = create_tether(4, set, points, segments, tethers, points[8], STEERING, dynamics_type)
+    points, segments, tethers, left_power_idx = create_tether(1, set, points, segments, tethers, points[5], POWER_LINE, dynamics_type)
+    points, segments, tethers, right_power_idx = create_tether(2, set, points, segments, tethers, points[7], POWER_LINE, dynamics_type)
+    points, segments, tethers, left_steering_idx = create_tether(3, set, points, segments, tethers, points[6], STEERING_LINE, dynamics_type)
+    points, segments, tethers, right_steering_idx = create_tether(4, set, points, segments, tethers, points[8], STEERING_LINE, dynamics_type)
 
     winches = [winches; Winch(1, TorqueControlledMachine(set), [left_power_idx, right_power_idx], set.l_tether)]
     winches = [winches; Winch(2, TorqueControlledMachine(set), [left_steering_idx], set.l_tether)]
@@ -1063,8 +1063,8 @@ function init!(sys_struct::SystemStructure, set::Settings)
 
     for segment in segments
         (segment.type === BRIDLE) && (segment.diameter = 0.001set.bridle_tether_diameter)
-        (segment.type === POWER) && (segment.diameter = 0.001set.power_tether_diameter)
-        (segment.type === STEERING) && (segment.diameter = 0.001set.steering_tether_diameter)
+        (segment.type === POWER_LINE) && (segment.diameter = 0.001set.power_tether_diameter)
+        (segment.type === STEERING_LINE) && (segment.diameter = 0.001set.steering_tether_diameter)
         @assert (0 < segment.diameter < 1)
     end
 

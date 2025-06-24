@@ -433,6 +433,7 @@ function force_eqs!(s, system, psys, pset, eqs, defaults, guesses;
                 ]
                 in_pulley += 1
             end
+<<<<<<< HEAD
             if segment.idx == pulley.segment_idxs[2]
                 eqs = [
                     eqs
@@ -446,6 +447,11 @@ function force_eqs!(s, system, psys, pset, eqs, defaults, guesses;
 
         #TODO: Segments cannot be part of a tether if they are part of a pulley.
         if in_pulley == 0
+=======
+            (in_pulley > 1) && error("Bridle segment number $(segment.idx) is part of
+                $in_pulley pulleys, and should be part of either 0 or 1 pulleys.")
+        elseif segment.type == POWER_LINE || segment.type == STEERING_LINE
+>>>>>>> main
             in_tether = 0
             for tether in tethers
                 if segment.idx in tether.segment_idxs # each tether segment has to be part of exactly one tether
