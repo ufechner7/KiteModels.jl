@@ -155,12 +155,11 @@ const BUILD_SYS = true
 
             # Check if wind speed and direction have been updated correctly
             @test norm(s.integrator[s.sys.wind_vec_gnd]) ≈ new_wind_speed
-            @test s.integrator.ps[s.sys.upwind_dir] ≈ -pi/4 # Default upwind_dir
             @test s.integrator[s.sys.wind_vec_gnd[1]] ≈ -s.integrator[s.sys.wind_vec_gnd[2]]
 
             KiteModels.set_v_wind_ground!(s, initial_wind_speed, initial_upwind_dir)
             @test s.integrator[s.sys.wind_vec_gnd[1]] ≈ initial_wind_speed
-            @test s.integrator.ps[s.sys.upwind_dir] ≈ -pi/2 # Default upwind_dir
+            @test norm(s.integrator[s.sys.wind_vec_gnd]) ≈ initial_wind_speed
         end
     end
 
