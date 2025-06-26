@@ -38,9 +38,6 @@ State of the kite power system, using a 4 point kite model. Parameters:
 - S: Scalar type, e.g. SimFloat
   In the documentation mentioned as Any, but when used in this module it is always SimFloat and not Any.
 - T: Vector type, e.g. MVector{3, SimFloat}
-- P: number of points of the system, segments+1
-- Q: number of springs in the system, P-1
-- SP: struct type, describing a spring
 Normally a user of this package will not have to access any of the members of this type directly,
 use the input and output functions instead.
 
@@ -57,6 +54,10 @@ $(TYPEDFIELDS)
     wm::AbstractWinchModel
     "Iterations, number of calls to the function residual!"
     iter:: Int64 = 0
+    "Function for calculation the lift coefficent, using a spline based on the provided value pairs."
+    calc_cl::Spline1D
+    "Function for calculation the drag coefficent, using a spline based on the provided value pairs."
+    calc_cd::Spline1D
     "x vector of kite reference frame"
     x::T =                 zeros(S, 3)
     "y vector of kite reference frame"
@@ -68,7 +69,18 @@ $(TYPEDFIELDS)
     #iter::Int64 = 0
     prob::Union{OrdinaryDiffEqCore.ODEProblem, Nothing} = nothing
     integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Nothing} = nothing
-    get_state::Function            = () -> nothing
+
+    #TODO: These are mostly duplicate with symbolic_awe_model, discuss on how to procede
+    get_control_input::Function       = (_) -> nothing  # TODO: No control input yet (I think?)
+    get_wing_orientation::Function       = (_) -> nothing
+    get_wing_state                 = (_) -> nothing
+    get_winch_state::Function      = (_) -> nothing 
+    get_unstretched_length::Function = (_) -> nothing
+    get_tether_length::Function    = (_) -> nothing
+    get_wing_pos::Function         = (_) -> nothing
+    get_winch_force::Function      = (_) -> nothing
+    get_spring_force::Function     = (_) -> nothing
+    get_pos::Function              = (_) -> nothing
 end
 function KPS5(kcu::KCU)
     if kcu.set.winch_model == "AsyncMachine"
@@ -78,7 +90,9 @@ function KPS5(kcu::KCU)
     end
     # wm.last_set_speed = kcu.set.v_reel_out
     s = KPS5{SimFloat, KVec3}(set=kcu.set, 
-             kcu=kcu, wm=wm)    
+             kcu=kcu, wm=wm, 
+             calc_cl = Spline1D(kcu.set.alpha_cl, kcu.set.cl_list), 
+             calc_cd = Spline1D(kcu.set.alpha_cd, kcu.set.cd_list))    
     return s
 end
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -96,27 +110,10 @@ function getconnections(s)
     conn = vcat(conn, [(6+s.set.segments-1, 1)])                                # connection final tether point to bridle point
     return conn  
 end   
-# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Interpolating polars using Dierckx
-# ------------------------------------
-alpha_cl = [-180.0, -160.0,  -90.0,  -20.0,  -10.0,  -5.0,  0.0, 20.0,  40.0,  90.0, 160.0, 180.0]
-cl_list  = [   0.0,    0.5,    0.0,   0.08,  0.125,  0.15,  0.2,  1.0,   1.0,   0.0,  -0.5,   0.0]
-alpha_cd = [-180.0, -170.0, -140.0,  -90.0,  -20.0,   0.0, 20.0, 90.0, 140.0, 170.0, 180.0]
-cd_list  = [   0.5,    0.5,    0.5,    1.0,    0.2,   0.1,  0.2,  1.0,   0.5,   0.5,   0.5] 
-function cl_interp(alpha)
-    cl_spline = Spline1D(alpha_cl, cl_list)
-    return cl_spline(alpha)
-end
-function cd_interp(alpha)
-    cd_spline = Spline1D(alpha_cd, cd_list)
-    return cd_spline(alpha)
-end
-@register_symbolic cl_interp(alpha)
-@register_symbolic cd_interp(alpha)
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Initialize the simulation
 # -----------------------------------------
-function init_sim!(s::KPS5)
+function clear!(s::KPS5)
     pos, vel = calc_initial_state(s)
     dt = 1/s.set.sample_freq
     simple_sys,  pos, vel, e_x, e_y, e_z, v_app_point, alpha1p, height, wind_vector  = model(s, pos, vel)
@@ -125,6 +122,7 @@ function init_sim!(s::KPS5)
     s.prob = ODEProblem(simple_sys, nothing, tspan)
     s.integrator = OrdinaryDiffEqCore.init(s.prob, FBDF(autodiff=false); dt, abstol=s.set.abs_tol, reltol = s.set.rel_tol, save_on=false)
     generate_getters!(s)
+    state = s.get_state(s.intergrator)
 end
 # ------------------------------
 # Calculate Initial State
@@ -216,6 +214,14 @@ function get_wind_vector(s::KPS5, v_wind_height)
     wind_vector = v_wind_magnitude*[-cos(wind_angle),-sin(wind_angle), 0.0]
     return wind_vector
 end
+#------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Symbolic definition of the 1 point AoA interpolation
+#------------------------------------------------------------------------------------------------------------------------------------------------------------
+function calc_coefficient(spline::Spline1D, alpha)
+    return spline(alpha)
+end
+
+@register_symbolic calc_coefficient(spline::Spline1D, alpha)
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Define the Model
@@ -323,9 +329,8 @@ function model(s::KPS5, pos, vel)
     alpha1p = compute_alpha1p(v_a_kite, e_z, e_x)   # Calculate Alpha1p at this time step
     eqs2 = vcat(eqs2, alpha1p[1] ~ alpha1p)  # Add the equation for Alpha1p for each of 4 kite points (first bering bridle so i-1)   
     # getting Cl and Cd
-    Cl = cl_interp(alpha1p)            
-    Cd = cd_interp(alpha1p)
-
+    cl = calc_coefficient(s.calc_cl, alpha1p[1])       
+    cd = calc_coefficient(s.calc_cd, alpha1p[1])    
     # -----------------------------
     # Force Balance at Each Point
     # -----------------------------
@@ -347,7 +352,7 @@ function model(s::KPS5, pos, vel)
 
             v_app_mag_squared = v_app_point[1, i]^2 + v_app_point[2, i]^2 + v_app_point[3, i]^2
             # # Lift calculation
-            L_perpoint = (1/4) * 0.5 * rho * Cl * S * (v_app_mag_squared)
+            L_perpoint = (1/4) * 0.5 * rho * cl * S * (v_app_mag_squared)
             # Cross product and normalization
             cross_vapp_X_e_y = cross(v_app_point[:, i], e_y)
             normcross_vapp_X_e_y = norm(cross_vapp_X_e_y)
@@ -356,7 +361,7 @@ function model(s::KPS5, pos, vel)
             L = L_perpoint * L_direction
 
             # Drag calculation
-            D_perpoint = (1/4) * 0.5 * rho * Cd * S * v_app_mag_squared
+            D_perpoint = (1/4) * 0.5 * rho * cd * S * v_app_mag_squared
             # # Create drag direction components
             D_direction = [v_app_point[1, i] / norm(v_app_point[:, i]), v_app_point[2, i] / norm(v_app_point[:, i]), v_app_point[3, i] / norm(v_app_point[:, i])]
             # # Final drag force vector components
@@ -381,10 +386,21 @@ end
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # next step function
 # -----------------------------
-function next_step!(s::KPS5; dt=(1/s.set.sample_freq))
+function next_step!(s::KPS5; set_speed = nothing, set_torque=nothing, set_force=nothing, bearing = nothing,
+                    attractor=nothing, v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2, dt=1/s.set.sample_freq)
+    KitePodModels.on_timer(s.kcu)
+    KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
+    s.sync_speed = set_speed
+    s.set_torque = set_torque
+  
+    s.t_0 = integrator.t
+    set_v_wind_ground!(s, calc_height(s), v_wind_gnd; upwind_dir)
+    s.iter = 0
+    
     s.t_0 = s.integrator.t
     steptime = @elapsed OrdinaryDiffEqCore.step!(s.integrator, dt, true)
     s.iter += 1
+    
     # Get the current state including wind vector
     state = s.get_state(s.integrator)
     if !successful_retcode(s.integrator.sol)
@@ -433,8 +449,18 @@ end
 function generate_getters!(s::KPS5)
     sys = s.sys
     c = collect
+
+    get_wing_orientation = ModelingToolkit.getu(sys, [sys.e_x, sys.e_y, sys.e_z])
+    s.get_wing_orientation = (integ) -> get_wing_orientation(integ)
+
+    get_winch_state = ModelingToolkit.getu(sys, [collect(sys.pos[:, 6]), collect(sys.vel[:, 6]), collect(sys.acc[:, 6]), collect(sys.total_force[:, 6])])
+    s.get_winch_state = (integ) -> get_winch_state(integ)
+
+    get_wing_state = ModelingToolkit.getu(sys, [collect(sys.pos[:, 2]), collect(sys.vel[:, 2]), collect(sys.acc[:, 2])]) # add AoA
+    s.get_wing_state = (integ) -> get_wing_state(integ)
+
     get_state = ModelingToolkit.getu(sys, 
-        [c(sys.pos), c(sys.height) , c(sys.wind_vector), c(sys.norm1)]
+        [c(sys.pos), c(sys.total_force)]
     )
     s.get_state = (integ) -> get_state(integ)
     return nothing
@@ -458,7 +484,7 @@ end
 Return the position of the kite (top particle).
 """
 function pos_kite(s::KPS5)
-    s.pos[end-2]
+    s.get_state(s.integrator)[1][:, 2]
 end
 
 """
@@ -466,15 +492,8 @@ end
 
 Returns a tuple of the x, y, and z vectors of the kite reference frame.
 """
-function kite_ref_frame(s::KPS5; one_point=false)
-    if one_point
-        c = s.z
-        y = normalize(s.v_apparent × c)
-        x = normalize(y × c)
-        return x, y, c
-    else
-        return s.x, s.y, s.z
-    end
+function kite_ref_frame(s::KPS5)
+    x, y, z = s.get_wing_orientation(s.integrator)
 end
 
 """
@@ -482,7 +501,7 @@ end
 
 Return the absolute value of the force at the winch as calculated during the last timestep. 
 """
-function winch_force(s::KPS5) norm(s.last_force) end
+function winch_force(s::KPS5) norm(s.get_winch_state(s.integrator)[4]) end
 
 """
     cl_cd(s::KPS5)
