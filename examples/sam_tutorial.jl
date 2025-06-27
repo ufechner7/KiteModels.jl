@@ -17,7 +17,7 @@ segment_idxs = Int[]
 for i in 1:set.segments
     global points, segments
     point_idx = i+1
-    pos = [0.0, 0.0, i * set.l_tether / set.segments]
+    pos = [0.0, 0.0, -i * set.l_tether / set.segments]
     if i < set.segments
         push!(points, Point(point_idx, pos, dynamics_type; wing_idx=0))
     else
@@ -65,5 +65,22 @@ end
 @show ss.l_tether[1]
 
 # ADDING A PULLEY
+last_pos = points[end].pos_cad
+@show last_pos
+push!(points, Point(22, last_pos + [0, 0, -5], DYNAMIC))
+push!(points, Point(23, last_pos + [0, 0, -5], STATIC))
+push!(segments, Segment(21, (21,22), BRIDLE))
+push!(segments, Segment(22, (21,23), BRIDLE))
+pulleys = [Pulley(1, (21,22), DYNAMIC)]
+transforms[1].elevation = deg2rad(-85.0)
+sys_struct = SystemStructure("pulley", set; points, segments, tethers, winches, pulleys, transforms)
+plot(sys_struct, 0.0)
 
+sam = SymbolicAWEModel(set, sys_struct)
+
+init_sim!(sam; remake=false)
+for i in 1:80
+    plot(sam, i/set.sample_freq)
+    next_step!(sam; set_values=[-10.0])
+end
 
