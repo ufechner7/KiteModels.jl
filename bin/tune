@@ -1,0 +1,34 @@
+#!/bin/bash -eu
+
+if [[ $(basename $(pwd)) == "bin" ]]; then
+    cd ..
+fi
+
+# check Julia version
+julia_version=$(julia --version | awk '{print($3)}')
+julia_major=${julia_version:0:3}
+if [[ $julia_major == "1.1" ]]; then
+    julia_major=${julia_version:0:4} 
+fi
+
+# check that the active manifest is the default manifest
+if [[ $julia_major == "1.10" ]]; then
+    file1="Manifest-v1.10.toml"
+    file2="Manifest-v1.10.toml.default"
+else
+    file1="Manifest-v1.11.toml"
+    file2="Manifest-v1.11.toml.default"
+fi
+
+if ! cmp -s "$file1" "$file2"; then
+    printf 'The file "%s" is different from "%s"\n' "$file1" "$file2"
+    echo "Aborting..."
+    exit
+fi
+
+# create new prob_xxx.bin file
+# copy it to the prob_xxx.bin.default file
+# run xz
+
+# delete the relevant compiled package folder
+# load the package
