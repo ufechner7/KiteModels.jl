@@ -52,19 +52,20 @@ A point mass.
 
 $(TYPEDFIELDS)
 """
-struct Point
-    idx::Int16
-    transform_idx::Int16 # idx of wing used for initial orientation
-    wing_idx::Int16
-    pos_cad::KVec3
-    pos_b::KVec3 # pos relative to wing COM in body frame
-    pos_w::KVec3 # pos in world frame
-    vel_w::KVec3 # vel in world frame
-    type::DynamicsType
+mutable struct Point
+    const idx::Int16
+    const transform_idx::Int16 # idx of wing used for initial orientation
+    const wing_idx::Int16
+    const pos_cad::KVec3
+    const pos_b::KVec3 # pos relative to wing COM in body frame
+    const pos_w::KVec3 # pos in world frame
+    const vel_w::KVec3 # vel in world frame
+    const type::DynamicsType
+    mass::SimFloat
 end
 
 """
-    Point(idx, pos_cad, type; wing_idx=1, vel_w=zeros(KVec3), transform_idx=1)
+    Point(idx, pos_cad, type; wing_idx=1, vel_w=zeros(KVec3), transform_idx=1, mass=0.0)
 
 Constructs a Point object. A point can be of four different [`DynamicsType`](@ref)s:
 - `STATIC`: the point doesn't move. ``\\ddot{\\mathbf{r}} = \\mathbf{0}``
@@ -100,8 +101,8 @@ To create a Point:
     point = Point(1, [1.0, 2.0, 3.0], DYNAMIC; wing_idx=1)
 ```
 """
-function Point(idx, pos_cad, type; wing_idx=1, vel_w=zeros(KVec3), transform_idx=1)
-    Point(idx, transform_idx, wing_idx, pos_cad, zeros(KVec3), zeros(KVec3), vel_w, type)
+function Point(idx, pos_cad, type; wing_idx=1, vel_w=zeros(KVec3), transform_idx=1, mass=0.0)
+    Point(idx, transform_idx, wing_idx, pos_cad, zeros(KVec3), zeros(KVec3), vel_w, type, mass)
 end
 
 """
@@ -139,7 +140,7 @@ The governing equation is:
 \\end{aligned}
 ```
 
-![System Overview](group-slice.svg)
+![System Overview](group_slice.svg)
 
 where:
 - ``\\tau`` is the total torque about the twist axis
@@ -374,12 +375,12 @@ mutable struct Winch
     const idx::Int16
     const model::AbstractWinchModel
     const tether_idxs::Vector{Int16}
-    tether_length::SimFloat
+    tether_length::Union{SimFloat, Nothing}
     tether_vel::SimFloat
 end
 
 """
-    Winch(idx, model, tether_idxs, tether_length; tether_vel=0.0)
+    Winch(idx, model, tether_idxs; tether_length=nothing, tether_vel=0.0)
 
 Constructs a Winch object that controls tether length through torque or speed regulation.
 
@@ -405,10 +406,10 @@ see the [WinchModels.jl documentation](https://github.com/aenarete/WinchModels.j
 - `idx::Int16`: Unique identifier for the winch.
 - `model::AbstractWinchModel`: The winch model (TorqueControlledMachine, AsyncMachine, etc.).
 - `tether_idxs::Vector{Int16}`: Vector containing the indices of the tethers connected to this winch.
-- `tether_length::SimFloat`: Initial tether length.
 
 # Keyword Arguments
 - `tether_vel::SimFloat=0.0`: Initial tether velocity (reel-out rate).
+- `tether_length::SimFloat`: Initial tether length.
 
 # Returns
 - `Winch`: A new Winch object.
@@ -419,7 +420,7 @@ To create a Winch:
     winch = Winch(1, TorqueControlledMachine(set), [1, 2], 100.0)
 ```
 """
-function Winch(idx, model, tether_idxs, tether_length; tether_vel=0.0)
+function Winch(idx, model, tether_idxs; tether_length=0.0, tether_vel=0.0)
     return Winch(idx, model, tether_idxs, tether_length, tether_vel)
 end
 
@@ -454,6 +455,7 @@ struct Wing
     group_idxs::Vector{Int16}
     transform_idx::Int16
     R_b_c::Matrix{SimFloat}
+    R_b_w::Matrix{SimFloat}
     angular_vel::KVec3
     pos_w::KVec3
     pos_cad::KVec3
@@ -461,7 +463,7 @@ struct Wing
 end
 function Base.getproperty(wing::Wing, sym::Symbol)
     if sym == :orient
-        return rotation_matrix_to_quaternion(wing.R_b_c)
+        return rotation_matrix_to_quaternion(wing.R_b_w)
     else
         return getfield(wing, sym)
     end
@@ -537,7 +539,7 @@ Create a wing with identity orientation and two attached groups:
 """
 function Wing(idx, group_idxs, R_b_c, pos_cad; transform_idx=1, angular_vel=zeros(KVec3), 
         pos_w=zeros(KVec3), vel_w=zeros(KVec3))
-    return Wing(idx, group_idxs, transform_idx, R_b_c, angular_vel, pos_w, pos_cad, vel_w)
+    return Wing(idx, group_idxs, transform_idx, R_b_c, zeros(3,3), angular_vel, pos_w, pos_cad, vel_w)
 end
 
 """
@@ -729,6 +731,7 @@ function SystemStructure(name, set;
     end
     for (i, segment) in enumerate(segments)
         @assert segment.idx == i
+        (segment.l0 ≈ 0) && (segment.l0 = norm(points[segment.point_idxs[1]].pos_cad - points[segment.point_idxs[2]].pos_cad))
     end
     for (i, pulley) in enumerate(pulleys)
         @assert pulley.idx == i
@@ -738,6 +741,11 @@ function SystemStructure(name, set;
     end
     for (i, winch) in enumerate(winches)
         @assert winch.idx == i
+        if iszero(winch.tether_length)
+            for segment_idx in tethers[winch.tether_idxs[1]].segment_idxs
+                winch.tether_length += segments[segment_idx].l0
+            end
+        end
         set.l_tethers[i]   = winch.tether_length
         set.v_reel_outs[i] = winch.tether_vel
     end
@@ -778,6 +786,11 @@ function SystemStructure(set::Settings, wing::RamAirWing)
     end
 end
 
+function apply_heading(vec, R_t_w, curr_R_t_w, heading)
+    vec_along_z = rotate_around_z(curr_R_t_w' * vec, heading)
+    return R_t_w * vec_along_z
+end
+
 function init!(transforms::Vector{Transform}, sys_struct::SystemStructure)
     @unpack points, wings = sys_struct
     for transform in transforms
@@ -805,8 +818,7 @@ function init!(transforms::Vector{Transform}, sys_struct::SystemStructure)
         for point in points
             if point.transform_idx == transform.idx
                 vec = point.pos_w - base_pos
-                vec_along_z = rotate_around_z(curr_R_t_w' * vec, transform.heading)
-                point.pos_w .= base_pos + R_t_w * vec_along_z
+                point.pos_w .= base_pos + apply_heading(vec, R_t_w, curr_R_t_w, transform.heading)
             end
             if point.type == WING
                 wing = wings[point.wing_idx]
@@ -816,10 +828,9 @@ function init!(transforms::Vector{Transform}, sys_struct::SystemStructure)
         for wing in wings
             if wing.transform_idx == transform.idx
                 vec = wing.pos_w - base_pos
-                vec_along_z = rotate_around_x(curr_R_t_w' * vec, transform.heading)
-                wing.pos_w .= base_pos + R_t_w * vec_along_z
+                wing.pos_w .= base_pos + apply_heading(vec, R_t_w, curr_R_t_w, transform.heading)
                 for i in 1:3
-                    wing.R_b_c[:, i] .= R_t_w * rotate_around_x(curr_R_t_w' * wing.R_b_c[:, i], transform.heading)
+                    wing.R_b_w[:, i] .= apply_heading(wing.R_b_c[:, i], R_t_w, curr_R_t_w, transform.heading)
                 end
             end
         end
@@ -974,9 +985,9 @@ function create_ram_sys_struct(set::Settings, vsm_wing::RamAirWing)
     points, segments, tethers, left_steering_idx = create_tether(3, set, points, segments, tethers, attach_points[2], STEERING_LINE, dynamics_type, z)
     points, segments, tethers, right_steering_idx = create_tether(4, set, points, segments, tethers, attach_points[4], STEERING_LINE, dynamics_type, z)
 
-    winches = [winches; Winch(1, TorqueControlledMachine(set), [left_power_idx, right_power_idx], set.l_tether)]
-    winches = [winches; Winch(2, TorqueControlledMachine(set), [left_steering_idx], set.l_tether)]
-    winches = [winches; Winch(3, TorqueControlledMachine(set), [right_steering_idx], set.l_tether)]
+    winches = [winches; Winch(1, TorqueControlledMachine(set), [left_power_idx, right_power_idx])]
+    winches = [winches; Winch(2, TorqueControlledMachine(set), [left_steering_idx])]
+    winches = [winches; Winch(3, TorqueControlledMachine(set), [right_steering_idx])]
 
     wings = [Wing(1, [1,2,3,4], I(3), zeros(3))]
     transforms = [Transform(1, deg2rad(set.elevation), deg2rad(set.azimuth), deg2rad(set.heading);

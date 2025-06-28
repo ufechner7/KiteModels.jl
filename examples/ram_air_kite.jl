@@ -5,7 +5,7 @@ using Timers
 tic()
 @info "Loading packages "
 
-PLOT = true
+PLOT = false
 using Pkg
 if ! ("LaTeXStrings" ∈ keys(Pkg.project().dependencies))
     using TestEnv; TestEnv.activate()
@@ -30,7 +30,7 @@ steering_freq = 1/2  # Hz - full left-right cycle frequency
 steering_magnitude = 10.0      # Magnitude of steering input [Nm]
 
 # Initialize model
-set = load_settings("system_ram.yaml")
+set = Settings("system_ram.yaml")
 set.segments = 3
 set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
 set.quasi_static = false
@@ -42,13 +42,9 @@ sam.set.abs_tol = 1e-2
 sam.set.rel_tol = 1e-2
 toc()
 
-# init_Q_b_w, R_b_w = KiteModelsam.initial_orient(sam.set)
-# init_kite_pos = init!(sam.sys_struct, sam.set, R_b_w, init_Q_b_w)
-# plot(sam.sys_struct, 0.0; zoom=false, front=false)
-
 # Initialize at elevation
-set.l_tethers[2] += 0.2
-set.l_tethers[3] += 0.2
+set.l_tethers[2] += 0.4
+set.l_tethers[3] += 0.4
 init_sim!(sam; remake=false, reload=false)
 sys = sam.sys
 
@@ -63,7 +59,7 @@ sys_state = SysState(sam)
 t = 0.0
 runtime = 0.0
 integ_runtime = 0.0
-bias = set.quasi_static ? 0.45 : 0.40
+bias = set.quasi_static ? 0.45 : 0.35
 t0 = sam.integrator.t
 
 try
@@ -149,3 +145,5 @@ display(p)
 @info "Performance:" times_realtime=(total_time/2)/runtime integrator_times_realtime=(total_time/2)/integ_runtime
 
 # 55x realtime (PLOT=false, CPU: Intel i9-9980HK (16) @ 5.000GHz)
+# 40-65x realtime (PLOT=false, CPU: Intel i9-9980HK (16) @ 5.000GHz) - commit 6620ed5d0a38e96930615aad9a66e4cd666955f2
+# 40x realtime (PLOT=false, CPU: Intel i9-9980HK (16) @ 5.000GHz) - commit 88a78894038d3cbd50fbff83dfbe5c26266b0637

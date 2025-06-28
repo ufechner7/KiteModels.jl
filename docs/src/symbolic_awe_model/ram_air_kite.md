@@ -35,7 +35,7 @@ Segment
 Pulley(idx, segment_idxs, type)
 Pulley
 Tether
-Winch(idx, model, tether_idxs, tether_length; tether_vel=0.0)
+Winch(idx, model, tether_idxs; tether_length=0.0, tether_vel=0.0)
 Winch
 Wing(idx, group_idxs, R_b_c, pos_cad)
 Wing
