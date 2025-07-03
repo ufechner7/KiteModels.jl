@@ -51,6 +51,8 @@ If possible, install [Julia 1.11](https://ufechner7.github.io/2024/08/09/install
 sudo apt install python3-matplotlib
 ```
 
+Make sure that `ControlPlots.jl` works as explained [here](https://github.com/aenarete/ControlPlots.jl?tab=readme-ov-file#installation).
+
 Before installing this software it is suggested to create a new project, for example like this:
 ```bash
 mkdir test
