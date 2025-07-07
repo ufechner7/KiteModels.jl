@@ -16,12 +16,12 @@ DocMeta.setdocmeta!(KiteModels, :DocTestSetup, :(using KiteModels); recursive=tr
 makedocs(;
     modules=[KiteModels],
     authors="Uwe Fechner <fechner@aenarete.eu>, Bart van de Lint <bart@vandelint.net> and contributors",
-    repo="https://github.com/ufechner7/KiteModels.jl/blob/{commit}{path}#{line}",
+    repo="https://github.com/OpenSourceAWE/KiteModels.jl/blob/{commit}{path}#{line}",
     sitename="KiteModels.jl",
     format=Documenter.HTML(;
-        repolink = "https://github.com/ufechner7/KiteModels.jl",
+        repolink = "https://github.com/OpenSourceAWE/KiteModels.jl",
         prettyurls=get(ENV, "CI", "false") == "true",
-        canonical="https://ufechner7.github.io/KiteModels.jl",
+        canonical="https://OpenSourceAWE.github.io/KiteModels.jl",
         assets=String[],
     ),
     pages=[
@@ -40,6 +40,6 @@ makedocs(;
 )
 
 deploydocs(;
-    repo="github.com/ufechner7/KiteModels.jl",
+    repo="github.com/OpenSourceAWE/KiteModels.jl",
     devbranch="main",
 )

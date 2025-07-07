@@ -1,15 +1,14 @@
 <!--
 SPDX-FileCopyrightText: 2025 Uwe Fechner
-
 SPDX-License-Identifier: MIT
 -->
 
 # KiteModels
 
-[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://ufechner7.github.io/KiteModels.jl/stable)
-[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://ufechner7.github.io/KiteModels.jl/dev)
-[![CI](https://github.com/ufechner7/KiteModels.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/ufechner7/KiteModels.jl/actions/workflows/CI.yml)
-[![Coverage](https://codecov.io/gh/ufechner7/KiteModels.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/ufechner7/KiteModels.jl)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://OpenSourceAWE.github.io/KiteModels.jl/stable)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://OpenSourceAWE.github.io/KiteModels.jl/dev)
+[![CI](https://github.com/OpenSourceAWE/KiteModels.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/OpenSourceAWE/KiteModels.jl/actions/workflows/CI.yml)
+[![Coverage](https://codecov.io/gh/OpenSourceAWE/KiteModels.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/OpenSourceAWE/KiteModels.jl)
 [![DOI](https://zenodo.org/badge/443855286.svg)](https://zenodo.org/doi/10.5281/zenodo.13310253)
 [![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
 
@@ -121,7 +120,7 @@ When combined with a controller for the turn rate it can be used to simulate a p
 
 ## Four point model
 This model assumes the kite to consist of four-point masses with aerodynamic forces acting on points B, C and D. It reacts much more realistically than the one-point model because it has rotational inertia in every axis.
-<p align="center"><img src="https://github.com/ufechner7/KiteModels.jl/raw/main/docs/src/4-point-kite.png" width="200" /></p>
+<p align="center"><img src="https://github.com/OpenSourceAWE/KiteModels.jl/raw/main/docs/src/4-point-kite.png" width="200" /></p>
 
 ## Ram air kite model
 This model represents the kite as a deforming rigid body, with orientation governed by quaternion dynamics. Aerodynamics are computed using the Vortex Step Method. The kite is controlled from the ground via four tethers.
@@ -153,9 +152,9 @@ If you like this software, please consider donating to [Flood in Kenya](https://
 ## See also
 - [Research Fechner](https://research.tudelft.nl/en/publications/?search=Fechner+wind&pageSize=50&ordering=rating&descending=true) for the scientic background of this code
 - The meta-package  [KiteSimulators](https://github.com/aenarete/KiteSimulators.jl)
-- the package [KiteUtils](https://github.com/ufechner7/KiteUtils.jl)
+- the package [KiteUtils](https://github.com/OpenSourceAWE/KiteUtils.jl)
 - the packages [WinchModels](https://github.com/aenarete/WinchModels.jl) and [KitePodModels](https://github.com/aenarete/KitePodModels.jl) and [AtmosphericModels](https://github.com/aenarete/AtmosphericModels.jl)
 - the packages [WinchControllers](https://github.com/OpenSourceAWE/WinchControllers.jl), [KiteControllers](https://github.com/aenarete/KiteControllers.jl) and [KiteViewers](https://github.com/aenarete/KiteViewers.jl)
 - the [VortexStepMethod](https://github.com/Albatross-Kite-Transport/VortexStepMethod.jl)
 
-**Documentation** [Stable Version](https://ufechner7.github.io/KiteModels.jl/stable) --- [Development Version](https://ufechner7.github.io/KiteModels.jl/dev)
+**Documentation** [Stable Version](https://OpenSourceAWE.github.io/KiteModels.jl/stable) --- [Development Version](https://OpenSourceAWE.github.io/KiteModels.jl/dev)
