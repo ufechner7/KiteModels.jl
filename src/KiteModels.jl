@@ -598,7 +598,7 @@ function init_sim!(s::AKM; stiffness_factor=0.5, delta=0.0001, upwind_dir=-pi/2,
         set_initial_velocity!(s)
     end
     s.v_reel_out = s.set.v_reel_out
-    return integrator
+    s.integrator = integrator
 end
 
 
