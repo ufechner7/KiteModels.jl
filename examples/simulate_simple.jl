@@ -62,8 +62,8 @@ function simulate(integrator, steps, plot=false)
     end
     iter / steps
 end
-
-integrator = KiteModels.init_sim!(kps4;  delta=0.0, stiffness_factor=1, upwind_dir=UPWIND_DIR, prn=STATISTIC)
+kps4.set.upwind_dir = rad2deg(UPWIND_DIR)
+integrator = KiteModels.init_sim!(kps4;  delta=0.0, stiffness_factor=1, prn=STATISTIC)
 
 if PLOT
     global flight_log

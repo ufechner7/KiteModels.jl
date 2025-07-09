@@ -538,7 +538,7 @@ function calc_pre_tension(s::AKM)
 end
 
 """
-    init_sim!(s::AKM; stiffness_factor=0.5, delta=0.0001, upwind_dir=-pi/2, 
+    init_sim!(s::AKM; stiffness_factor=0.5, delta=0.0001,
                       prn=false) -> OrdinaryDiffEqCore.ODEIntegrator
 
 Initializes the integrator of the model (KPS3 and KPS4 only).
@@ -547,15 +547,14 @@ Parameters:
 - s:     an instance of an abstract kite model
 - stiffness_factor: factor applied to the tether stiffness during initialization
 - delta: initial stretch of the tether during the steady state calculation
-- upwind_dir: upwind direction in radians, the direction the wind is coming from. Zero is at north; 
-              clockwise positive. Default: -pi/2, wind from west.
 - prn: if set to true, print the detailed solver results
 
 Returns:
 An instance of an `ODEIntegrator`.
 """
-function init_sim!(s::AKM; stiffness_factor=0.5, delta=0.0001, upwind_dir=-pi/2, prn=false)
+function init_sim!(s::AKM; stiffness_factor=0.5, delta=0.0001, prn=false)
     clear!(s)
+    upwind_dir = deg2rad(s.set.upwind_dir)
     s.stiffness_factor = stiffness_factor
     
     try
