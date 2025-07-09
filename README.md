@@ -126,7 +126,7 @@ This model assumes the kite to consist of four-point masses with aerodynamic for
 This model represents the kite as a deforming rigid body, with orientation governed by quaternion dynamics. Aerodynamics are computed using the Vortex Step Method. The kite is controlled from the ground via four tethers.
 
 ## Tether
-The tether is modeled as point masses, connected by spring-damper elements. Aerodynamic drag is modeled realistically. When reeling out or in the unstreched length of the spring-damper elements
+The tether is modeled as point masses, connected by spring-damper elements. Aerodynamic drag is modeled realistically. When reeling out or in the unstretched length of the spring-damper elements
 is varied. This does not translate into physics directly, but it avoids adding point masses at run-time, which would be even worse because it would introduce discontinuities. When using
 Dyneema or similar high-strength materials for the tether the resulting system is very stiff which is a challenge for the solver.
 
@@ -136,7 +136,7 @@ The models KPS3 and KPS4 are described in detail in [Dynamic Model of a Pumping 
 ## Replaying log files
 If you want to replay old flight log files in 2D and 3D to understand and explain better how kite power systems work, please have a look at [KiteViewer](https://github.com/ufechner7/KiteViewer) . How new log files can be created and replayed is explained in the documentation of [KiteSimulators](https://github.com/aenarete/KiteSimulators.jl) .
 
-## Licence
+## License
 This project is licensed under the MIT and the MPL-2.0 License. The documentation is licensed under the CC-BY-4.0 License. Please see the below `Copyright notice` in association with the licenses that can be found in the file [LICENSE](LICENSE) in this folder.
 
 ## Copyright notice
@@ -150,7 +150,7 @@ See the copyright notices in the source files, and the list of authors in [AUTHO
 If you like this software, please consider donating to [Flood in Kenya](https://www.gofundme.com/f/climate-refugees-in-kenya) .
 
 ## See also
-- [Research Fechner](https://research.tudelft.nl/en/publications/?search=Fechner+wind&pageSize=50&ordering=rating&descending=true) for the scientic background of this code
+- [Research Fechner](https://research.tudelft.nl/en/publications/?search=Fechner+wind&pageSize=50&ordering=rating&descending=true) for the scientific background of this code
 - The meta-package  [KiteSimulators](https://github.com/aenarete/KiteSimulators.jl)
 - the package [KiteUtils](https://github.com/OpenSourceAWE/KiteUtils.jl)
 - the packages [WinchModels](https://github.com/aenarete/WinchModels.jl) and [KitePodModels](https://github.com/aenarete/KitePodModels.jl) and [AtmosphericModels](https://github.com/aenarete/AtmosphericModels.jl)
