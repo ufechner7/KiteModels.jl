@@ -7,7 +7,7 @@ set = load_settings("system.yaml")
 kps3::KPS3 = KPS3(set)
 kps4::KPS4 = KPS4(set)
 set = load_settings("system_ram.yaml")
-saw::SymbolicAWEModel = SymbolicAWEModel(set)
+sam::SymbolicAWEModel = SymbolicAWEModel(set)
 
 @testset "KPS3 constructor interface" begin
     @test kps3 isa KiteUtils.AbstractKiteModel
@@ -24,10 +24,10 @@ end
     @test kps4.iter isa Int64
 end
 @testset "SymbolicAWEModel constructor interface" begin
-    @test saw isa KiteUtils.AbstractKiteModel
-    @test saw.set isa KiteUtils.Settings
-    @test isnothing(saw.integrator)
-    @test saw.am isa AtmosphericModel
-    @test saw.iter isa Int64
+    @test sam isa KiteUtils.AbstractKiteModel
+    @test sam.set isa KiteUtils.Settings
+    @test isnothing(sam.integrator)
+    @test sam.am isa AtmosphericModel
+    @test sam.iter isa Int64
 end
 nothing
