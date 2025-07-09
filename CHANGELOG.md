@@ -2,14 +2,18 @@
 SPDX-FileCopyrightText: 2025 Uwe Fechner, Bart van de Lint
 SPDX-License-Identifier: MIT
 -->
-### unreleased
-- rename init_sim! to init!
+### Unreleased
+#### Changed
+- rename `init_sim!` to `init!`
 - removed the parameter `upwind_dir!` from `init!`; use set.upwind_dir instead. Careful: This is in degrees.
+- the function `init!` accepts (and ignores) the parameters `delta` and `stiffnes_factor` if applied to a 
+  SymbolicAWEModel
+### Added
 - add the test script test_interface.jl
 - add the field `integrator` to KPS4 and KPS3 structs
 
 ### KiteModels v0.8.1 2025-06-20
-#### CHANGED
+#### Changed
 - renamed POWER to POWER_LINE and STEERING to STEERING_LINE
 - improved documentation, fixed example
 
