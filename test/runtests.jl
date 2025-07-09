@@ -37,5 +37,7 @@ KiteUtils.set_data_path("")
     println("--> 4")
     include("test_inertia_calculation.jl")
     println("--> 5")
+    include("test_interface.jl")
+    println("--> 6")
     include("aqua.jl")
 end
