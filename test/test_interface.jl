@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: MIT
 
 using KiteModels, KiteUtils, Test
-using KiteModels: init!
+# the following line is needed because VortexStepMethod also exports init!
+using KiteModels: init! 
 
 # set_data_path("data") 
 set = deepcopy(load_settings("system.yaml"))
