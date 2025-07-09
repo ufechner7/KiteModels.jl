@@ -82,14 +82,6 @@ Basic 3-dimensional vector, stack allocated, immutable.
 const SVec3    = SVector{3, SimFloat}  
 
 """
-    abstract type AbstractKiteModel
-
-All kite models must inherit from this type. All methods that are defined on this type must work
-with all kite models. All exported methods must work on this type. 
-"""
-abstract type AbstractKiteModel end
-
-"""
     const AKM = AbstractKiteModel
 
 Short alias for the AbstractKiteModel. 
