@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT
 #### Changed
 - rename `init_sim!` to `init!`
 - removed the parameter `upwind_dir!` from `init!`; use set.upwind_dir instead. Careful: This is in degrees.
-- the function `init!` accepts (and ignores) the parameters `delta` and `stiffnes_factor` if applied to a 
+- the function `init!` accepts (and ignores) the parameters `delta` and `stiffness_factor` if applied to a 
   SymbolicAWEModel
 ### Added
 - add the test script test_interface.jl
