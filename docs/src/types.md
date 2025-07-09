@@ -9,7 +9,6 @@ CurrentModule = KiteModels
 SimFloat
 KVec3
 SVec3
-AbstractKiteModel
 AKM
 ```
 
