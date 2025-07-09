@@ -288,6 +288,8 @@ and only update the state variables. Otherwise, it will create a new model from 
 # Keyword arguments
 - `solver`: Solver algorithm to use. If `nothing`, defaults to `FBDF()` or `QNDF()` based on `s.set.solver`.
 - `adaptive::Bool=true`: Whether to use adaptive time stepping.
+- `stiffness_factor=nothing`: ignored, for backwards compatibility
+- `delta=nothing`: ignored, for backwards compatibility
 - `prn::Bool=true`: Whether to print progress information.
 - `precompile::Bool=false`: Whether to build problem for precompilation.
 - `remake::Bool=false`: If true, forces the system to be rebuilt, even if a serialized model exists.
@@ -298,7 +300,7 @@ and only update the state variables. Otherwise, it will create a new model from 
 - `integrator::OrdinaryDiffEqCore.ODEIntegrator`: The initialized ODE integrator.
 """
 function init_sim!(s::SymbolicAWEModel; 
-    solver=nothing, adaptive=true, prn=true, 
+    solver=nothing, stiffness_factor = nothing, delta = nothing, adaptive=true, prn=true, 
     precompile=false, remake=false, reload=false, 
     lin_outputs=Num[]
 )
