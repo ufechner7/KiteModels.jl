@@ -83,7 +83,7 @@ times faster.
 - the documentation was improved
 
 ## Provides
-The type [`AbstractKiteModel`](@ref) with the implementation [`KPS3`](@ref), [`KPS4`](@ref) and [`SymbolicAWEModel`](@ref), representing the one point, the four point kite model and the ram air kite model, together with the high level simulation interface consisting of the functions [`init_sim!`](@ref) and [`next_step!`](@ref). Other kite models can be added inside or outside of this package by implementing the non-generic methods required for an AbstractKiteModel.
+The types [`KPS3`](@ref), [`KPS4`](@ref) and [`SymbolicAWEModel`](@ref), representing the one point, the four point kite model and the ram air kite model, together with the high level simulation interface consisting of the functions [`init_sim!`](@ref) and [`next_step!`](@ref). Other kite models can be added inside or outside of this package by implementing the non-generic methods required for an AbstractKiteModel.
 
 Additional functions to provide inputs and outputs of the model on each time step. In particular the constructor [`SysState`](@ref) can be called once per time step to create a SysState struct for
 logging or for displaying the state in a viewer. For the KPS3 and KPS4 model, once per time step the [`residual!`](@ref) function is called as many times as needed to find the solution at the end
