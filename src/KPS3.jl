@@ -190,6 +190,10 @@ function KPS3(kcu::KCU)
     clear!(s)
     return s
 end
+function KPS3(set::Settings)
+    kcu = KCU(set)
+    KPS3(kcu)
+end
 
 """
     calc_drag(s::KPS3, v_segment, unit_vector, rho, last_tether_drag, v_app_perp)

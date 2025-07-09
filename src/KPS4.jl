@@ -235,6 +235,10 @@ function KPS4(kcu::KCU)
     clear!(s)
     return s
 end
+function KPS4(set::Settings)
+    kcu = KCU(set)
+    KPS4(kcu)
+end
 
 """ 
     calc_particle_forces!(s::KPS4, pos1, pos2, vel1, vel2, spring, segments, d_tether, rho, i)
