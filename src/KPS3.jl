@@ -35,6 +35,8 @@ $(TYPEDFIELDS)
     am::AtmosphericModel = AtmosphericModel()
     "Reference to winch model as implemented in the package WinchModels"
     wm::Union{AbstractWinchModel, Nothing} = nothing
+    "Integrator, storing the current state"
+    integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Nothing} = nothing
     "Iterations, number of calls to the function residual!"
     iter:: Int64 = 0
     "Function for calculation the lift coefficent, using a spline based on the provided value pairs."
@@ -187,6 +189,10 @@ function KPS3(kcu::KCU)
     s.kcu = kcu  
     clear!(s)
     return s
+end
+function KPS3(set::Settings)
+    kcu = KCU(set)
+    KPS3(kcu)
 end
 
 """
