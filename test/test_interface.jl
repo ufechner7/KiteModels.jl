@@ -32,23 +32,23 @@ end
     @test sam.iter isa Int64
 end
 
-@testset "KPS3 init_sim! interface" begin
+@testset "KPS3 init! interface" begin
     kps4.set.upwind_dir = rad2deg(-pi/2)
-    integ = init_sim!(kps3; stiffness_factor=0.5, delta=0.0001, prn=false)
+    integ = init!(kps3; stiffness_factor=0.5, delta=0.0001, prn=false)
     @test integ isa KiteModels.OrdinaryDiffEqCore.ODEIntegrator
     @test kps3.integrator isa KiteModels.OrdinaryDiffEqCore.ODEIntegrator
 end
 
-@testset "KPS4 init_sim! interface" begin
+@testset "KPS4 init! interface" begin
     kps4.set.upwind_dir = rad2deg(-pi/2)
-    integ = init_sim!(kps4; stiffness_factor=0.5, delta=0.0001, prn=false)
+    integ = init!(kps4; stiffness_factor=0.5, delta=0.0001, prn=false)
     @test integ isa KiteModels.OrdinaryDiffEqCore.ODEIntegrator
     @test kps4.integrator isa KiteModels.OrdinaryDiffEqCore.ODEIntegrator
 end
 
-@testset "SymbolicAWEModel init_sim! interface" begin
+@testset "SymbolicAWEModel init! interface" begin
     sam.set.upwind_dir = rad2deg(-pi/2)
-    integ = init_sim!(sam; stiffness_factor=0.5, delta=0.0001, prn=false)
+    integ = init!(sam; stiffness_factor=0.5, delta=0.0001, prn=false)
     @test integ isa KiteModels.OrdinaryDiffEqCore.ODEIntegrator
     @test kps4.integrator isa KiteModels.OrdinaryDiffEqCore.ODEIntegrator
 end

@@ -518,7 +518,7 @@ println("--> test_simulate")
     STEPS = 500
     kps4.set.depower = 23.6
     kps4.set.solver = "IDA"
-    integrator = KiteModels.init_sim!(kps4; stiffness_factor=0.5, prn=false)
+    integrator = KiteModels.init!(kps4; stiffness_factor=0.5, prn=false)
     # println("\nStarting simulation...")
     simulate(integrator, 100)
     av_steps = simulate(integrator, STEPS-100)
@@ -548,7 +548,7 @@ println("<-- finished test_simulate")
 
 @testset "Raptures" begin
     kps4_ = KPS4(KCU(set))
-    integrator = KiteModels.init_sim!(kps4_; stiffness_factor=0.035, prn=false)
+    integrator = KiteModels.init!(kps4_; stiffness_factor=0.035, prn=false)
     kps4_.set.version = 2
     kps4_.stiffness_factor = 3
     @test maximum(spring_forces(kps4_; prn=false)) > 9000

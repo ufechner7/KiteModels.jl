@@ -113,7 +113,7 @@ The aerodynamic models provide forces and moments acting on wing components.
 - `vsm_solvers::Vector{<:VortexStepMethod.Solver}=VortexStepMethod.Solver[]`: VSM solvers for aerodynamic calculations
 
 # Returns
-- `SymbolicAWEModel`: Model ready for symbolic equation generation via [`init_sim!`](@ref)
+- `SymbolicAWEModel`: Model ready for symbolic equation generation via [`init!`](@ref)
 
 # Example
 ```julia
@@ -158,7 +158,7 @@ This convenience constructor creates a complete AWE model using default configur
 - `set::Settings`: Configuration parameters (see [KiteUtils.Settings](https://ufechner7.github.io/KiteUtils.jl/stable/types/#KiteUtils.Settings))
 
 # Returns
-- `SymbolicAWEModel`: Model ready for symbolic equation generation via [`init_sim!`](@ref)
+- `SymbolicAWEModel`: Model ready for symbolic equation generation via [`init!`](@ref)
 
 # Example
 ```julia
@@ -166,7 +166,7 @@ set = se()  # Load default settings
 model = SymbolicAWEModel(set)
 
 # Initialize and run simulation
-init_sim!(model)
+init!(model)
 for i in 1:1000
     next_step!(model)
 end
@@ -181,7 +181,7 @@ function SymbolicAWEModel(set::Settings)
 end
 
 function update_sys_state!(ss::SysState, s::SymbolicAWEModel, zoom=1.0)
-    isnothing(s.integrator) && error("run init_sim!(s) first")
+    isnothing(s.integrator) && error("run init!(s) first")
     ss.time = s.integrator.t # Use integrator time
 
     # Get the state vectors from the integrator
@@ -262,7 +262,7 @@ function SysState(s::SymbolicAWEModel, zoom=1.0)
 end
 
 """
-    init_sim!(s::SymbolicAWEModel; solver=nothing, adaptive=true, prn=true, 
+    init!(s::SymbolicAWEModel; solver=nothing, adaptive=true, prn=true, 
               precompile=false, remake=false, reload=false, 
               lin_outputs=Num[]) -> OrdinaryDiffEqCore.ODEIntegrator
 
@@ -299,7 +299,7 @@ and only update the state variables. Otherwise, it will create a new model from 
 # Returns
 - `integrator::OrdinaryDiffEqCore.ODEIntegrator`: The initialized ODE integrator.
 """
-function init_sim!(s::SymbolicAWEModel; 
+function init!(s::SymbolicAWEModel; 
     solver=nothing, stiffness_factor = nothing, delta = nothing, adaptive=true, prn=true, 
     precompile=false, remake=false, reload=false, 
     lin_outputs=Num[]
@@ -362,7 +362,7 @@ function init_sim!(s::SymbolicAWEModel;
 end
 
 function linearize(s::SymbolicAWEModel; set_values=s.get_set_values(s.integrator))
-    isnothing(s.lin_prob) && error("Run init_sim! with remake=true and lin_outputs=...")
+    isnothing(s.lin_prob) && error("Run init! with remake=true and lin_outputs=...")
     s.set_lin_vsm(s.lin_prob, s.get_vsm(s.integrator))
     s.set_lin_set_values(s.lin_prob, set_values)
     s.set_lin_unknowns(s.lin_prob, s.get_unknowns(s.integrator))
@@ -399,7 +399,7 @@ and only updates the state variables to match the current initial settings.
 - `Nothing`
 
 # Throws
-- `ArgumentError`: If no serialized problem exists (run `init_sim!` first)
+- `ArgumentError`: If no serialized problem exists (run `init!` first)
 """
 function reinit!(
     s::SymbolicAWEModel,
@@ -417,7 +417,7 @@ function reinit!(
     
     if isnothing(s.prob) || reload
         model_path = joinpath(KiteUtils.get_data_path(), get_model_name(s.set; precompile))
-        !ispath(model_path) && error("$model_path not found. Run init_sim!(s::SymbolicAWEModel) first.")
+        !ispath(model_path) && error("$model_path not found. Run init!(s::SymbolicAWEModel) first.")
         try
             s.serialized_model = deserialize(model_path)
         catch e
@@ -443,7 +443,7 @@ function reinit!(
                 adaptive, dt, abstol=s.set.abs_tol, reltol=s.set.rel_tol, save_on=false, save_everystep=false)
             !s.set.quasi_static && (length(s.unknowns_vec) != length(s.integrator.u)) &&
                 error("sam.integrator unknowns of length $(length(s.integrator.u)) should equal sam.unknowns_vec of length $(length(s.unknowns_vec)).
-                    Maybe you forgot to run init_sim!(model; remake=true)?")
+                    Maybe you forgot to run init!(model; remake=true)?")
         end
         prn && @info "Initialized integrator in $t seconds"
     end

@@ -34,7 +34,7 @@ function simulate(integrator, steps)
     iter / steps
 end
 
-integrator = KiteModels.init_sim!(kps4; delta=0, stiffness_factor=0.5, prn=STATISTIC)
+integrator = KiteModels.init!(kps4; delta=0, stiffness_factor=0.5, prn=STATISTIC)
 
 println("\nStarting simulation...")
 simulate(integrator, 100)

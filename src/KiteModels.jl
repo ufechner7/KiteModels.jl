@@ -39,7 +39,7 @@ import ModelingToolkit.SciMLBase: successful_retcode
 export KPS3, KPS4, SymbolicAWEModel, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG     # constants and types
 export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                            # helper functions
 export clear!, find_steady_state!, residual!                                                  # low level workers
-export init_sim!, init!, reinit!, next_step!, init_pos_vel                                    # high level workers
+export init!, init!, reinit!, next_step!, init_pos_vel                                    # high level workers
 export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, calc_orient_quat, calc_aoa  # getters
 export calc_azimuth_north, calc_azimuth_east
 export winch_force, lift_drag, cl_cd, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
@@ -538,7 +538,7 @@ function calc_pre_tension(s::AKM)
 end
 
 """
-    init_sim!(s::AKM; stiffness_factor=0.5, delta=0.0001,
+    init!(s::AKM; stiffness_factor=0.5, delta=0.0001,
                       prn=false) -> OrdinaryDiffEqCore.ODEIntegrator
 
 Initializes the integrator of the model (KPS3 and KPS4 only).
@@ -552,7 +552,7 @@ Parameters:
 Returns:
 An instance of an `ODEIntegrator`.
 """
-function init_sim!(s::AKM; stiffness_factor=0.5, delta=0.0001, prn=false)
+function init!(s::AKM; stiffness_factor=0.5, delta=0.0001, prn=false)
     clear!(s)
     upwind_dir = deg2rad(s.set.upwind_dir)
     s.stiffness_factor = stiffness_factor
@@ -562,7 +562,7 @@ function init_sim!(s::AKM; stiffness_factor=0.5, delta=0.0001, prn=false)
     catch e
         if e isa AssertionError
             println("ERROR: Failure to find initial steady state in find_steady_state! function!\n"*
-                    "Try to increase the delta parameter or to decrease the initial_stiffness of the init_sim! function.")
+                    "Try to increase the delta parameter or to decrease the initial_stiffness of the init! function.")
             return nothing
         else
             rethrow(e)
@@ -609,7 +609,7 @@ Calculates the next simulation step. Either `set_speed` or `set_torque` must be 
 
 Parameters:
 - s:            an instance of an abstract kite model
-- integrator:   an integrator instance as returned by the function [`init_sim!`](@ref)
+- integrator:   an integrator instance as returned by the function [`init!`](@ref)
 - set_speed:         set value of reel out speed in m/s or nothing
 - set_torque:   set value of the torque in Nm or nothing
 - set_force:    set value of the force in N or nothing (only for logging, not used otherwise)

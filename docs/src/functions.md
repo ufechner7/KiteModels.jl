@@ -55,7 +55,7 @@ SysState
 
 ## High level simulation interface
 ```@docs
-init_sim!
+init!
 next_step!
 ```
 

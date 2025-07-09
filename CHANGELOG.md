@@ -109,7 +109,7 @@ SPDX-License-Identifier: MIT
   in the function `update_sys_state!`
 - add the parameters `bearing` and `attractor` to the function `next_step!` for logging
 #### Fixed
-- fix #88: the function `init_sim!()` has the new parameter `upwind_dir` to define the
+- fix #88: the function `init!()` has the new parameter `upwind_dir` to define the
   initial wind direction 
 
 ### KiteModels v0.6.12 2024-12-01
@@ -194,9 +194,9 @@ to the settings become immediately effective.
 #### Changed
 - bump KiteUtils to 0.7.7
 - add new examples to menu
-- major change to the function that finds the initial equilibrium; the function `init_sim!` has the new
+- major change to the function that finds the initial equilibrium; the function `init!` has the new
   parameter `delta` which should be in the range of 0.01 to 0.03.
-- better error message if `init_sim!`, but no exception any more. I just returns `nothing`.
+- better error message if `init!`, but no exception any more. I just returns `nothing`.
 - remove dependency StatProfilerHTML
 #### Added
 - add KCU drag, based on kcu_diameter and cd_kcu
