@@ -27,7 +27,7 @@ const BUILD_SYS = true
     @info "Creating s:"
     @time s = SymbolicAWEModel(set)
 
-    s.set.abs_tol = 1e-2
+    s.set.abs_tol = 5e-2
     s.set.rel_tol = 1e-2
 
     # Initialize at elevation
