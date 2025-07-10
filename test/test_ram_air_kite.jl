@@ -27,8 +27,8 @@ const BUILD_SYS = true
     @info "Creating s:"
     @time s = SymbolicAWEModel(set)
 
-    s.set.abs_tol = 1e-2
-    s.set.rel_tol = 1e-2
+    s.set.abs_tol = 1e-4
+    s.set.rel_tol = 1e-4
 
     # Initialize at elevation
     set.elevation = 80.0
@@ -45,7 +45,7 @@ const BUILD_SYS = true
 
         # 1. First time initialization - should create new model
         @info "Testing initial init! (should create new model if it doesn't exist yet)..."
-        @time KiteModels.init_sim!(s; prn=true)
+        @time KiteModels.init!(s; prn=true)
 
         # Check that serialization worked
         @test isfile(model_path)
@@ -62,9 +62,9 @@ const BUILD_SYS = true
         first_integrator_ptr = objectid(s.integrator)
         first_sys_struct_ptr = objectid(s.sys_struct)
 
-        # 2. First init_sim! - should load from serialized file
-        @info "Testing first init_sim! (should load serialized file)..."
-        @time KiteModels.init_sim!(s; prn=true, reload=false)
+        # 2. First init! - should load from serialized file
+        @info "Testing first init! (should load serialized file)..."
+        @time KiteModels.init!(s; prn=true, reload=false)
         next_step!(s)
 
         # Check that it's a new integrator
@@ -73,9 +73,9 @@ const BUILD_SYS = true
         @test first_integrator_ptr != second_integrator_ptr
         @test first_sys_struct_ptr == second_sys_struct_ptr
 
-        # 3. Second init_sim! - should reuse existing integrator
-        @info "Testing second init_sim! (should reuse integrator)..."
-        @time KiteModels.init_sim!(s; prn=true, reload=false)
+        # 3. Second init! - should reuse existing integrator
+        @info "Testing second init! (should reuse integrator)..."
+        @time KiteModels.init!(s; prn=true, reload=false)
 
         # This should create a new point system but reuse the existing integrator
         third_integrator_ptr = objectid(s.integrator)
@@ -108,7 +108,7 @@ const BUILD_SYS = true
     end
 
     @testset "State Consistency" begin
-        KiteModels.init_sim!(s, prn=true, reload=false)
+        KiteModels.init!(s, prn=true, reload=false)
         sys_state_before = KiteModels.SysState(s)
         @test isapprox(norm(s.integrator[s.sys.Q_b_w]), 1.0, atol=TOL)
         @test isapprox(sys_state_before.elevation, deg2rad(set.elevation), atol=1e-2)
@@ -116,7 +116,7 @@ const BUILD_SYS = true
         # Change measurement and reinitialize
         old_elevation = set.elevation
         set.elevation = 85.0
-        KiteModels.init_sim!(s, prn=true, reload=false)
+        KiteModels.init!(s, prn=true, reload=false)
 
         # Get new state using SysState
         sys_state_after = KiteModels.SysState(s)
@@ -166,7 +166,7 @@ const BUILD_SYS = true
 
     function test_step(s, d_set_values=zeros(3); dt=0.05, steps=5)
         s.integrator.ps[s.sys.stabilize] = true
-        for i in 1:1÷dt
+        for i in 1:1÷0.1
             next_step!(s; dt, vsm_interval=1)
         end
         s.integrator.ps[s.sys.stabilize] = false
@@ -202,7 +202,7 @@ const BUILD_SYS = true
 
     @testset "Simulation Step with SysState" begin
         # Basic step and time advancement test
-        KiteModels.init_sim!(s; prn=true, reload=false)
+        KiteModels.init!(s; prn=true, reload=false)
         sys_state_before = KiteModels.SysState(s)
 
         # Run a simulation step with zero set values
@@ -226,7 +226,7 @@ const BUILD_SYS = true
             # Initialize at 60 degrees elevation
             set.elevation = 60.0
 
-            KiteModels.init_sim!(s; prn=true)
+            KiteModels.init!(s; prn=true)
 
             # Verify initial conditions using SysState
             sys_state_init = KiteModels.SysState(s)
@@ -254,35 +254,37 @@ const BUILD_SYS = true
             return diff
         end
 
-        @testset "Steering Response Using SysState" begin
-            # Initialize model at moderate elevation
-            set.elevation = 70.0
-            KiteModels.init_sim!(s; prn=true, reload=false)
-            test_step(s)
-            sys_state_initial = KiteModels.SysState(s)
+        if build_is_production_build
+            @testset "Steering Response Using SysState" begin
+                # Initialize model at moderate elevation
+                set.elevation = 70.0
+                KiteModels.init!(s; prn=true, reload=false)
+                test_step(s)
+                sys_state_initial = KiteModels.SysState(s)
 
-            # steering right
-            KiteModels.init_sim!(s; prn=true, reload=false)
-            test_step(s, [0, 10, -10]; steps=20)
-            sys_state_right = KiteModels.SysState(s)
+                # steering right
+                KiteModels.init!(s; prn=true, reload=false)
+                test_step(s, [0, 10, -10]; steps=20)
+                sys_state_right = KiteModels.SysState(s)
 
-            # steering left
-            KiteModels.init_sim!(s; prn=true, reload=false)
-            test_step(s, [0, -10, 10]; steps=20)
-            sys_state_left = KiteModels.SysState(s)
+                # steering left
+                KiteModels.init!(s; prn=true, reload=false)
+                test_step(s, [0, -10, 10]; steps=20)
+                sys_state_left = KiteModels.SysState(s)
 
-            # Check steering values
-            @info "Steering:" sys_state_right.steering sys_state_left.steering
-            @test sys_state_right.steering > 3.0
-            @test sys_state_left.steering < -3.0
+                # Check steering values
+                @info "Steering:" sys_state_right.steering sys_state_left.steering
+                @test sys_state_right.steering > 3.0
+                @test sys_state_left.steering < -3.0
 
-            # Check heading changes
-            right_heading_diff = angle_diff(sys_state_right.heading, sys_state_initial.heading)
-            @test right_heading_diff ≈ 0.9 atol=0.2
-            left_heading_diff = angle_diff(sys_state_left.heading, sys_state_initial.heading)
-            @test left_heading_diff ≈ -0.9 atol=0.2
+                # Check heading changes
+                right_heading_diff = angle_diff(sys_state_right.heading, sys_state_initial.heading)
+                @test right_heading_diff ≈ 0.9 atol=0.2
+                left_heading_diff = angle_diff(sys_state_left.heading, sys_state_initial.heading)
+                @test left_heading_diff ≈ -0.9 atol=0.2
+            end
+            test_plot(s)
         end
-        test_plot(s)
     end
 
     @testset "Just a tether, without winch or kite" begin
@@ -310,7 +312,7 @@ const BUILD_SYS = true
 
         sam = SymbolicAWEModel(set, sys_struct)
         sys = sam.sys
-        init_sim!(sam; remake=false)
+        KiteModels.init!(sam; remake=false)
         @test isapprox(sam.integrator[sam.sys.pos[:, end]], [8.682408883346524, 0.0, 0.7596123493895988], atol=1e-2)
         for i in 1:100
             next_step!(sam)

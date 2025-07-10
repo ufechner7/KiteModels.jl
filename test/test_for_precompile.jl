@@ -98,7 +98,7 @@ let
         end
         (integrator.p.iter - start) / steps
     end
-    integrator = KiteModels.init_sim!(kps4, prn=STATISTIC)
+    integrator = KiteModels.init!(kps4, prn=STATISTIC)
     kps4.stiffness_factor = 0.04
     simulate(integrator, 100, true)
 end
@@ -112,7 +112,7 @@ if ! haskey(ENV, "NO_MTK")
     s = SymbolicAWEModel(sam_set)
 
     # Initialize at elevation
-    KiteModels.init_sim!(s; prn=false, precompile=true)
+    KiteModels.init!(s; prn=false, precompile=true)
     find_steady_state!(s)
     steps = Int(round(10 / 0.05))
     logger = Logger(length(s.sys_struct.points), steps)

@@ -11,7 +11,7 @@ set.solver="DFBDF"
 kps4::KPS4 = KPS4(KCU(set))
 STEPS = 200
 
-integrator = KiteModels.init_sim!(kps4; stiffness_factor=0.035, prn=false)
+integrator = KiteModels.init!(kps4; stiffness_factor=0.035, prn=false)
 next_step!(kps4, integrator, set_speed = 0, dt=0.05)
 @timev next_step!(kps4, integrator; set_speed = 0, dt=0.05)
 function nsteps(kps4, integrator)

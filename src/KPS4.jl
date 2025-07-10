@@ -65,11 +65,11 @@ $(TYPEDFIELDS)
     "Reference to the KCU model (Kite Control Unit as implemented in the package KitePodModels"
     kcu::KCU
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
-    am::AtmosphericModel = AtmosphericModel()
+    am::AtmosphericModel = AtmosphericModel(set)
     "Reference to winch model as implemented in the package WinchModels"
     wm::AbstractWinchModel
     "Integrator, storing the current state"
-    integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Nothing} = nothing
+    integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Sundials.IDAIntegrator, Nothing} = nothing
     "Iterations, number of calls to the function residual!"
     iter:: Int64 = 0
     "Function for calculation the lift coefficient, using a spline based on the provided value pairs."
