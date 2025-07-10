@@ -254,35 +254,37 @@ const BUILD_SYS = true
             return diff
         end
 
-        @testset "Steering Response Using SysState" begin
-            # Initialize model at moderate elevation
-            set.elevation = 70.0
-            KiteModels.init!(s; prn=true, reload=false)
-            test_step(s)
-            sys_state_initial = KiteModels.SysState(s)
+        if build_is_production_build
+            @testset "Steering Response Using SysState" begin
+                # Initialize model at moderate elevation
+                set.elevation = 70.0
+                KiteModels.init!(s; prn=true, reload=false)
+                test_step(s)
+                sys_state_initial = KiteModels.SysState(s)
 
-            # steering right
-            KiteModels.init!(s; prn=true, reload=false)
-            test_step(s, [0, 10, -10]; steps=20)
-            sys_state_right = KiteModels.SysState(s)
+                # steering right
+                KiteModels.init!(s; prn=true, reload=false)
+                test_step(s, [0, 10, -10]; steps=20)
+                sys_state_right = KiteModels.SysState(s)
 
-            # steering left
-            KiteModels.init!(s; prn=true, reload=false)
-            test_step(s, [0, -10, 10]; steps=20)
-            sys_state_left = KiteModels.SysState(s)
+                # steering left
+                KiteModels.init!(s; prn=true, reload=false)
+                test_step(s, [0, -10, 10]; steps=20)
+                sys_state_left = KiteModels.SysState(s)
 
-            # Check steering values
-            @info "Steering:" sys_state_right.steering sys_state_left.steering
-            @test sys_state_right.steering > 3.0
-            @test sys_state_left.steering < -3.0
+                # Check steering values
+                @info "Steering:" sys_state_right.steering sys_state_left.steering
+                @test sys_state_right.steering > 3.0
+                @test sys_state_left.steering < -3.0
 
-            # Check heading changes
-            right_heading_diff = angle_diff(sys_state_right.heading, sys_state_initial.heading)
-            @test right_heading_diff ≈ 0.9 atol=0.2
-            left_heading_diff = angle_diff(sys_state_left.heading, sys_state_initial.heading)
-            @test left_heading_diff ≈ -0.9 atol=0.2
+                # Check heading changes
+                right_heading_diff = angle_diff(sys_state_right.heading, sys_state_initial.heading)
+                @test right_heading_diff ≈ 0.9 atol=0.2
+                left_heading_diff = angle_diff(sys_state_left.heading, sys_state_initial.heading)
+                @test left_heading_diff ≈ -0.9 atol=0.2
+            end
+            test_plot(s)
         end
-        test_plot(s)
     end
 
     @testset "Just a tether, without winch or kite" begin
