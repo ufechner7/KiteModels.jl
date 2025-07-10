@@ -25,6 +25,7 @@ using VortexStepMethod
 @reexport using AtmosphericModels
 using Rotations
 import Base.zero
+using KiteUtils
 import KiteUtils.calc_elevation
 import KiteUtils.calc_heading
 import KiteUtils.calc_course
@@ -552,7 +553,7 @@ Parameters:
 Returns:
 An instance of an `ODEIntegrator`.
 """
-function init!(s::AKM; stiffness_factor=0.5, delta=0.0001, prn=false)
+function KiteUtils.init!(s::AKM; stiffness_factor=0.5, delta=0.0001, prn=false)
     clear!(s)
     upwind_dir = deg2rad(s.set.upwind_dir)
     s.stiffness_factor = stiffness_factor
@@ -623,7 +624,7 @@ Parameters:
 Returns:
 `Nothing`
 """
-function next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, set_force=nothing, bearing = nothing,
+function KiteUtils.next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, set_force=nothing, bearing = nothing,
                     attractor=nothing, v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2, dt=1/s.set.sample_freq)
     KitePodModels.on_timer(s.kcu)
     KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
