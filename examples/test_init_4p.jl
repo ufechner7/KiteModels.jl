@@ -39,7 +39,7 @@ logger = Logger(set.segments + 5, STEPS)
 
 kcu::KCU = KCU(set)
 kps4::KPS4 = KPS4(kcu)
-integrator = KiteModels.init_sim!(kps4; delta=0.03, stiffness_factor=0.01, upwind_dir=UPWIND_DIR, prn=STATISTIC)
+integrator = KiteModels.init!(kps4; delta=0.03, stiffness_factor=0.01, upwind_dir=UPWIND_DIR, prn=STATISTIC)
 for i=1:80
     next_step!(kps4, integrator; set_speed=kps4.set.v_reel_out, dt)
 end

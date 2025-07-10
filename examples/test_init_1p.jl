@@ -38,7 +38,7 @@ logger = Logger(set.segments + 1, STEPS)
 
 kcu::KCU = KCU(set)
 kps3::KPS3 = KPS3(kcu)
-integrator = KiteModels.init_sim!(kps3; delta=0.03, stiffness_factor=0.1, prn=STATISTIC)
+integrator = KiteModels.init!(kps3; delta=0.03, stiffness_factor=0.1, prn=STATISTIC)
 lift, drag = lift_drag(kps3)
 sys_state = KiteModels.SysState(kps3)
 log!(logger, sys_state)

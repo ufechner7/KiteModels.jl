@@ -69,7 +69,7 @@ $(TYPEDFIELDS)
     "Reference to winch model as implemented in the package WinchModels"
     wm::AbstractWinchModel
     "Integrator, storing the current state"
-    integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Nothing} = nothing
+    integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Sundials.IDAIntegrator, Nothing} = nothing
     "Iterations, number of calls to the function residual!"
     iter:: Int64 = 0
     "Function for calculation the lift coefficient, using a spline based on the provided value pairs."

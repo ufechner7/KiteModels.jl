@@ -69,7 +69,7 @@ If the system looks good, we can easily model it, by first creating a [`Symbolic
 ```julia
 sam = SymbolicAWEModel(set, sys_struct)
 
-init_sim!(sam; remake=false)
+init!(sam; remake=false)
 for i in 1:80
     plot(sam, i/set.sample_freq)
     next_step!(sam)

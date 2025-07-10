@@ -97,7 +97,7 @@ for depower in DEPOWER
 
     kcu = KCU(set)
     kps4 = KPS4(kcu)
-    integrator = KiteModels.init_sim!(kps4; delta=0.03, stiffness_factor=0.05, prn=STATISTIC)
+    integrator = KiteModels.init!(kps4; delta=0.03, stiffness_factor=0.05, prn=STATISTIC)
     if ! isnothing(integrator)
         try
             cl, cd = simulate(kps4, integrator, logger, STEPS)

@@ -61,7 +61,7 @@ lin_outputs = @variables heading(t_nounits)[1]
 # Initialize at elevation with linearization outputs
 s.sys_struct.winches[2].tether_length += 0.2
 s.sys_struct.winches[3].tether_length += 0.2
-KiteModels.init_sim!(s; 
+KiteModels.init!(s; 
     remake=false,
     reload=true,
     lin_outputs  # Specify which outputs to track in linear model

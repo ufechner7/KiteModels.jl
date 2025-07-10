@@ -49,8 +49,8 @@ end
     @compile_workload begin
         # all calls in this block will be precompiled, regardless of whether(
         # they belong to your package or not (on Julia 1.8 and higher)
-        integrator = KiteModels.init_sim!(kps3_; stiffness_factor=0.035, prn=false)
-        integrator = KiteModels.init_sim!(kps4_; delta=0.03, stiffness_factor=0.05, prn=false)
+        integrator = KiteModels.init!(kps3_; stiffness_factor=0.035, prn=false)
+        integrator = KiteModels.init!(kps4_; delta=0.03, stiffness_factor=0.05, prn=false)
 
         sam_set = load_settings("system_ram.yaml")
         sam_set.segments = 3
@@ -87,7 +87,7 @@ end
             s = SymbolicAWEModel(sam_set)
 
             # Initialize at elevation
-            KiteModels.init_sim!(s; prn=false, precompile=true)
+            KiteModels.init!(s; prn=false, precompile=true)
             @info "Copying $output_file to $model_file !"
             cp(output_file, model_file; force=true)
             find_steady_state!(s)

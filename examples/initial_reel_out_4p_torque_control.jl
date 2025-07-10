@@ -89,7 +89,7 @@ end
 
 kps4.sync_speed = set.v_reel_out
 kps4.wm.last_set_speed = set.v_reel_out
-integrator = KiteModels.init_sim!(kps4; delta=0.00015, stiffness_factor=0.8, prn=STATISTIC)
+integrator = KiteModels.init!(kps4; delta=0.00015, stiffness_factor=0.8, prn=STATISTIC)
 
 if PLOT
     av_steps = simulate(integrator, STEPS, true)

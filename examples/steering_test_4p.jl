@@ -104,7 +104,7 @@ function simulate(integrator, steps; plot=false)
 end
 
 
-integrator = KiteModels.init_sim!(kps4;  delta=0.0, stiffness_factor=1, prn=STATISTIC)
+integrator = KiteModels.init!(kps4;  delta=0.0, stiffness_factor=1, prn=STATISTIC)
 simulate(integrator, STEPS; plot=true)
 
 function delay(x, y, t_max = 10)

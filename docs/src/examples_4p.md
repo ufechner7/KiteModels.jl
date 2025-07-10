@@ -30,7 +30,7 @@ Then we call the function `find_steady_state` which uses a non-linear solver to 
 find_steady_state!(kps, prn=true)
 ```
 Finding the steady state of the 4-point model is difficult and it only works when we artificially reduce the stiffness by a factor
-of 0.035. In the function [`init_sim!`](@ref) this factor is slowly increased to 1.0.
+of 0.035. In the function [`init!`](@ref) this factor is slowly increased to 1.0.
 
 To plot the result in 2D we extract the vectors of the x and z coordinates of the tether particles with a for loop:
 ```julia
