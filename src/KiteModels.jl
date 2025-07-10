@@ -19,6 +19,8 @@ using Dierckx, Interpolations, Serialization, StaticArrays, LinearAlgebra, Stati
 import Sundials
 using Reexport, Pkg
 using VortexStepMethod
+using SymbolicAWEModels
+@reexport import SymbolicAWEModels: init_sim!
 @reexport using VortexStepMethod: RamAirWing, BodyAerodynamics, Solver, NONLIN
 @reexport using KitePodModels
 @reexport using WinchModels
@@ -39,7 +41,7 @@ import ModelingToolkit.SciMLBase: successful_retcode
 export KPS3, KPS4, SymbolicAWEModel, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG     # constants and types
 export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                            # helper functions
 export clear!, find_steady_state!, residual!                                                  # low level workers
-export init_sim!, init!, reinit!, next_step!, init_pos_vel                                    # high level workers
+export init!, reinit!, next_step!, init_pos_vel                                    # high level workers
 export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, calc_orient_quat, calc_aoa  # getters
 export calc_azimuth_north, calc_azimuth_east
 export winch_force, lift_drag, cl_cd, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
@@ -98,9 +100,6 @@ function __init__()
 end
 
 include("KPS4.jl") # include code, specific for the four point kite model
-include("system_structure.jl")
-include("symbolic_awe_model.jl") # include code, specific for the ram air kite model
-include("mtk_model.jl")
 include("KPS3.jl") # include code, specific for the one point kite model
 include("init.jl") # functions to calculate the initial state vector, the initial masses and initial springs
 
