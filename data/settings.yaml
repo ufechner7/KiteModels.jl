@@ -18,9 +18,9 @@ initial:
     headings: [0.0]                  # initial heading angle     [deg]
     heading_rates: [0.0]             # initial heading rate    [deg/s]
     # three values are only needed for RamAirKite, for KPS3 and KPS4 use only the first value
-    l_tethers: [150.0, 0.0, 0.0]      # initial tether lengths      [m]
-    kite_distances: [51.0, 0.0, 0.0] # initial kite distances     [m]
-    v_reel_outs: [0.0, 0.0, 0.0]     # initial reel out speeds   [m/s]
+    l_tethers: [150.0]               # initial tether lengths      [m]
+    kite_distances: [51.0]           # initial kite distances     [m]
+    v_reel_outs: [0.0]               # initial reel out speeds   [m/s]
     depowers: [25.0]                 # initial depower settings    [%]
     steerings: [0.0]                 # initial steering settings   [%]
 
