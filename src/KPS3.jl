@@ -32,7 +32,7 @@ $(TYPEDFIELDS)
     "Reference to the KCU model (Kite Control Unit as implemented in the package KitePodModels"
     kcu::KCU
     "Reference to the atmospheric model as implemented in the package AtmosphericModels"
-    am::AtmosphericModel = AtmosphericModel()
+    am::AtmosphericModel = AtmosphericModel(set)
     "Reference to winch model as implemented in the package WinchModels"
     wm::Union{AbstractWinchModel, Nothing} = nothing
     "Integrator, storing the current state"
