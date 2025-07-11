@@ -17,23 +17,6 @@ kps4::KPS4 = KPS4(kcu)
 pos, vel = nothing, nothing
 poss, vels = nothing, nothing
 
-function struct_diff(a::T, b::T) where T
-    diff = false
-    for fname in fieldnames(T)
-        aval = getfield(a, fname)
-        bval = getfield(b, fname)
-        if aval != bval
-            diff = true
-            println("Field: $(fname)")
-            println("  Value in first : ", aval)
-            println("  Value in second: ", bval)
-        end
-    end
-    if !diff
-        println("Structs are identical!")
-    end
-end
-
 @testset verbose = true "KPS4 tests...." begin
 
 function set_defaults()
