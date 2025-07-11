@@ -10,8 +10,6 @@
     "Reference to the VSM aerodynamics solver"
     vsm_solvers::Vector{VortexStepMethod.Solver}
     sys_struct_hash::Vector{UInt8}
-    "Reference to the atmospheric model as implemented in the package AtmosphericModels"
-    am::AtmosphericModel = AtmosphericModel()
     "Simplified system of the mtk model"
     sys::Union{ModelingToolkit.ODESystem, Nothing} = nothing
     "Unsimplified system of the mtk model"
@@ -71,6 +69,8 @@ $(TYPEDFIELDS)
     "Reference to the point mass system with points, segments, pulleys and tethers"
     sys_struct::SystemStructure
     serialized_model::SerializedModel
+    "Reference to the atmospheric model as implemented in the package AtmosphericModels"
+    am::AtmosphericModel = AtmosphericModel(set)
     integrator::Union{OrdinaryDiffEqCore.ODEIntegrator, Nothing} = nothing
     "relative start time of the current time interval"
     t_0::SimFloat = 0.0
