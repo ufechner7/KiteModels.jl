@@ -59,7 +59,7 @@ msg = String[]
         kps4.set.alpha = 1.0/7.0
         init_150()
         kps4.set.elevation = 60.0
-        kps4.set.profile_law = Int(FAST_EXP)
+        kps4.set.profile_law = Int(EXP)
         pos, vel = KiteModels.init_inner(kps4)
         posd = copy(vel)
         veld = zero(vel)
@@ -85,7 +85,7 @@ msg = String[]
 
     # benchmark inner_loop!
     pos, vel = KiteModels.init_inner(kps4)
-    t = @benchmark KiteModels.inner_loop!(kps4, pos, vel, v_wind_gnd, segments, d_tether) setup=(kps4.set.elevation = 60.0; kps4.set.profile_law = Int(FAST_EXP);
+    t = @benchmark KiteModels.inner_loop!(kps4, pos, vel, v_wind_gnd, segments, d_tether) setup=(kps4.set.elevation = 60.0; kps4.set.profile_law = Int(EXP);
                                         kps4.set.alpha = 1.0/7.0; pos = $pos; vel=$vel;
                                         v_wind_gnd = KVec3(7.0, 0.1, 0.0); kps4.stiffness_factor = 0.5; segments = kps4.set.segments; d_tether = kps4.set.d_tether/1000.0)
     push!(msg, ("Mean time inner_loop!:          $(round(mean(t.times), digits=1)) ns"))
@@ -95,7 +95,7 @@ msg = String[]
     kps4.set.alpha = 1.0/7.0
     init_150()
     kps4.set.elevation = 60.0
-    kps4.set.profile_law = Int(FAST_EXP)
+    kps4.set.profile_law = Int(EXP)
     for i in 1:se().segments + KiteModels.KITE_PARTICLES + 1 
         kps4.forces[i] .= zeros(3)
     end

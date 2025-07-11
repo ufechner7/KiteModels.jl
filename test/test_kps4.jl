@@ -234,7 +234,9 @@ end
     kps4.set.alpha = 1.0/7.0
     init_150()
     kps4.set.elevation = 60.0
-    kps4.set.profile_law = Int(EXP)
+    kps4.set.profile_law = Int(EXPLOG)
+    kps4.set.alpha = 0.08163
+    # kps4.set.profile_low = se().profile_law
     for i in 1:set.segments + KiteModels.KITE_PARTICLES + 1 
         kps4.forces[i] .= zeros(3)
     end
@@ -319,6 +321,8 @@ end
 @testset "test_loop          " begin
     init2()
     pos, vel, posd, veld = init2()
+    kps4.set.profile_law = Int(EXPLOG)
+    kps4.set.alpha = 0.08163
     KiteModels.loop!(kps4, pos, vel, posd, veld)
     res1=[[-0.        0.000001 -0.      ]
           [ 0.        0.        0.      ]
@@ -451,7 +455,6 @@ end
             @test all(res2_[i, :] .≈ res2[i])
         end
     end
-
 end
 
 @testset "test_getters" begin
@@ -513,11 +516,13 @@ function simulate(integrator, steps)
     iter / steps
 end
 
-println("--> test_simulate")
 @testset "test_simulate        " begin
     STEPS = 500
     kps4.set.depower = 23.6
     kps4.set.solver = "IDA"
+    kps4.set.profile_law = Int(EXPLOG)
+    kps4.set.alpha = 0.08163
+    # struct_diff(kps4.set, se())
     integrator = KiteModels.init!(kps4; stiffness_factor=0.5, prn=false)
     # println("\nStarting simulation...")
     simulate(integrator, 100)
@@ -544,7 +549,6 @@ println("--> test_simulate")
     update_sys_state!(sys_state, kps4)
     # TODO Add testcase with varying reelout speed 
 end
-println("<-- finished test_simulate")
 
 @testset "Raptures" begin
     kps4_ = KPS4(KCU(set))
