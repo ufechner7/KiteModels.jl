@@ -19,6 +19,25 @@ println("$(set.v_wind)")
 pos, vel = nothing, nothing
 poss, vels = nothing, nothing
 
+function struct_diff(a::T, b::T) where T
+    diff = false
+    for fname in fieldnames(T)
+        aval = getfield(a, fname)
+        bval = getfield(b, fname)
+        if aval != bval
+            diff = true
+            println("Field: $(fname)")
+            println("  Value in first : ", aval)
+            println("  Value in second: ", bval)
+        end
+    end
+    if !diff
+        println("Structs are identical!")
+    end
+end
+
+struct_diff(set, se())
+
 @testset verbose = true "KPS4 tests...." begin
 
 function set_defaults()
@@ -236,7 +255,9 @@ end
     kps4.set.alpha = 1.0/7.0
     init_150()
     kps4.set.elevation = 60.0
-    kps4.set.profile_law = Int(EXP)
+    kps4.set.profile_law = Int(EXPLOG)
+    kps4.set.alpha = 0.08163
+    # kps4.set.profile_low = se().profile_law
     for i in 1:set.segments + KiteModels.KITE_PARTICLES + 1 
         kps4.forces[i] .= zeros(3)
     end
@@ -261,62 +282,63 @@ end
         @test isapprox(forces[i,:], kps4.forces[i], rtol=1e-4) 
     end
 end
+struct_diff(kps4.set, se())
 
-# @testset "calc_aero_forces!      " begin
-#     kps4.set.alpha = 1.0/7.0
-#     init_150()
-#     kps4.set.elevation = 60.0
-#     kps4.set.profile_law = Int(EXP)
-#     for i in 1:set.segments + KiteModels.KITE_PARTICLES + 1 
-#         kps4.forces[i] .= zeros(3)
-#     end
-#     pos, vel, acc = KiteModels.init_pos_vel_acc(kps4, old=true, delta = 1e-6)
-#     rho = 1.25
-#     kps4.v_wind .= KVec3(8.0, 0.2, 0.0)
-#     alpha_depower = 0.1
-#     rel_steering = +0.1
-#     kps4.set.alpha_zero = 5.0
-#     for i in 1:set.segments + KiteModels.KITE_PARTICLES + 1 
-#         kps4.forces[i] .= zeros(3)
-#     end
-#     KiteModels.calc_aero_forces!(kps4, pos, vel, rho, alpha_depower, rel_steering)
-#     forces=[[   0.                    0.                    0.                ]
-#             [   0.                    0.                    0.                ]
-#             [   0.                    0.                    0.                ]
-#             [   0.                    0.                    0.                ]
-#             [   0.                    0.                    0.                ]
-#             [   0.                    0.                    0.                ]
-#             [   0.                    0.                    0.                ]
-#             [   0.                    0.                    0.                ]
-#             [ -81.3257203383301146   -2.0331316776625457 -454.15328374043645  ]
-#             [  -9.9385080719600989  -68.915067335201357    -0.9904916722429121]
-#             [ -11.4093091631036021   53.2874848115847612    0.7727700100708267]]
-#     for i in 1:set.segments + KiteModels.KITE_PARTICLES + 1
-#         @test all(isapprox.(forces[i,:], kps4.forces[i], rtol=1e-4))
-#     end
-# end
+@testset "calc_aero_forces!      " begin
+    kps4.set.alpha = 1.0/7.0
+    init_150()
+    kps4.set.elevation = 60.0
+    kps4.set.profile_law = Int(EXP)
+    for i in 1:set.segments + KiteModels.KITE_PARTICLES + 1 
+        kps4.forces[i] .= zeros(3)
+    end
+    pos, vel, acc = KiteModels.init_pos_vel_acc(kps4, old=true, delta = 1e-6)
+    rho = 1.25
+    kps4.v_wind .= KVec3(8.0, 0.2, 0.0)
+    alpha_depower = 0.1
+    rel_steering = +0.1
+    kps4.set.alpha_zero = 5.0
+    for i in 1:set.segments + KiteModels.KITE_PARTICLES + 1 
+        kps4.forces[i] .= zeros(3)
+    end
+    KiteModels.calc_aero_forces!(kps4, pos, vel, rho, alpha_depower, rel_steering)
+    forces=[[   0.                    0.                    0.                ]
+            [   0.                    0.                    0.                ]
+            [   0.                    0.                    0.                ]
+            [   0.                    0.                    0.                ]
+            [   0.                    0.                    0.                ]
+            [   0.                    0.                    0.                ]
+            [   0.                    0.                    0.                ]
+            [   0.                    0.                    0.                ]
+            [ -81.3257203383301146   -2.0331316776625457 -454.15328374043645  ]
+            [  -9.9385080719600989  -68.915067335201357    -0.9904916722429121]
+            [ -11.4093091631036021   53.2874848115847612    0.7727700100708267]]
+    for i in 1:set.segments + KiteModels.KITE_PARTICLES + 1
+        @test all(isapprox.(forces[i,:], kps4.forces[i], rtol=1e-4))
+    end
+end
 
-# function init2()
-#     kps4.set.alpha = 1.0/7.0
-#     init_150()
-#     kps4.set.elevation = 60.0
-#     kps4.set.profile_law = Int(EXP)
-#     pos, vel, acc = KiteModels.init_pos_vel_acc(kps4,old=true, delta = 1e-6)
-#     posd = copy(vel)
-#     veld = zero(vel)
-#     kps4.v_wind_gnd .= [7.0, 0.1, 0.0]
-#     height = 134.14733504839947
-#     kps4.v_wind .= kps4.v_wind_gnd * calc_wind_factor(kps4.am, height)
-#     kps4.stiffness_factor = 0.5
-#     kps4.set.alpha = 1.0/7.0
-#     length = 150.0
-#     kps4.segment_length = length/set.segments
-#     for i in 1:set.segments + KiteModels.KITE_PARTICLES + 1 
-#         kps4.forces[i] .= zeros(3)
-#     end
-#     KiteModels.init_springs!(kps4)
-#     return pos, vel, posd, veld
-# end
+function init2()
+    kps4.set.alpha = 1.0/7.0
+    init_150()
+    kps4.set.elevation = 60.0
+    kps4.set.profile_law = Int(EXP)
+    pos, vel, acc = KiteModels.init_pos_vel_acc(kps4,old=true, delta = 1e-6)
+    posd = copy(vel)
+    veld = zero(vel)
+    kps4.v_wind_gnd .= [7.0, 0.1, 0.0]
+    height = 134.14733504839947
+    kps4.v_wind .= kps4.v_wind_gnd * calc_wind_factor(kps4.am, height)
+    kps4.stiffness_factor = 0.5
+    kps4.set.alpha = 1.0/7.0
+    length = 150.0
+    kps4.segment_length = length/set.segments
+    for i in 1:set.segments + KiteModels.KITE_PARTICLES + 1 
+        kps4.forces[i] .= zeros(3)
+    end
+    KiteModels.init_springs!(kps4)
+    return pos, vel, posd, veld
+end
 
 # @testset "test_loop          " begin
 #     init2()
