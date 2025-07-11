@@ -26,18 +26,18 @@ KiteUtils.set_data_path("")
     println("--> 2")
     include("test_kps4.jl")
     println("--> 3")
-    # if build_is_production_build
-    #     include("bench3.jl")
-    #     include("bench4.jl")
-    # end
-    # if ! haskey(ENV, "NO_MTK")  
-    #     include("test_ram_air_kite.jl")
-    # end
-    # include("test_helpers.jl")
-    # println("--> 4")
-    # include("test_inertia_calculation.jl")
-    # println("--> 5")
-    # include("test_interface.jl")
-    # println("--> 6")
-    # include("aqua.jl")
+    if build_is_production_build
+        include("bench3.jl")
+        include("bench4.jl")
+    end
+    if ! haskey(ENV, "NO_MTK")  
+        include("test_ram_air_kite.jl")
+    end
+    include("test_helpers.jl")
+    println("--> 4")
+    include("test_inertia_calculation.jl")
+    println("--> 5")
+    include("test_interface.jl")
+    println("--> 6")
+    include("aqua.jl")
 end
