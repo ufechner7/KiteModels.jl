@@ -19,18 +19,15 @@ using Dierckx, Interpolations, Serialization, StaticArrays, LinearAlgebra, Stati
 import Sundials
 using Reexport, Pkg
 using VortexStepMethod
-using SymbolicAWEModels
-@reexport import SymbolicAWEModels: init_sim!
+using KiteUtils
+import KiteUtils: init!, next_step!, update_sys_state!
+import KiteUtils: calc_elevation, calc_heading, calc_course, SysState
 @reexport using VortexStepMethod: RamAirWing, BodyAerodynamics, Solver, NONLIN
 @reexport using KitePodModels
 @reexport using WinchModels
 @reexport using AtmosphericModels
 using Rotations
 import Base.zero
-import KiteUtils.calc_elevation
-import KiteUtils.calc_heading
-import KiteUtils.calc_course
-import KiteUtils.SysState
 import OrdinaryDiffEqCore.init
 import OrdinaryDiffEqCore.step!
 using ModelingToolkit, SymbolicIndexingInterface
@@ -445,7 +442,7 @@ end
 #     var_16::MyFloat
 # end 
 
-function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
+function KiteUtils.update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
     ss.time = s.t_0
     pos = s.pos
     P = length(pos)
@@ -551,7 +548,7 @@ Parameters:
 Returns:
 An instance of an `ODEIntegrator`.
 """
-function init!(s::AKM; stiffness_factor=0.5, delta=0.0001, prn=false)
+function KiteUtils.init!(s::AKM; stiffness_factor=0.5, delta=0.0001, prn=false)
     clear!(s)
     upwind_dir = deg2rad(s.set.upwind_dir)
     s.stiffness_factor = stiffness_factor
@@ -622,7 +619,7 @@ Parameters:
 Returns:
 `Nothing`
 """
-function next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, set_force=nothing, bearing = nothing,
+function KiteUtils.next_step!(s::AKM, integrator; set_speed = nothing, set_torque=nothing, set_force=nothing, bearing = nothing,
                     attractor=nothing, v_wind_gnd=s.set.v_wind, upwind_dir=-pi/2, dt=1/s.set.sample_freq)
     KitePodModels.on_timer(s.kcu)
     KiteModels.set_depower_steering!(s, get_depower(s.kcu), get_steering(s.kcu))
