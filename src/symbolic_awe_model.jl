@@ -180,7 +180,7 @@ function SymbolicAWEModel(set::Settings)
     return SymbolicAWEModel(set, sys_struct, [aero], [vsm_solver])
 end
 
-function update_sys_state!(ss::SysState, s::SymbolicAWEModel, zoom=1.0)
+function KiteUtils.update_sys_state!(ss::SysState, s::SymbolicAWEModel, zoom=1.0)
     isnothing(s.integrator) && error("run init!(s) first")
     ss.time = s.integrator.t # Use integrator time
 
@@ -299,7 +299,7 @@ and only update the state variables. Otherwise, it will create a new model from 
 # Returns
 - `integrator::OrdinaryDiffEqCore.ODEIntegrator`: The initialized ODE integrator.
 """
-function init!(s::SymbolicAWEModel; 
+function KiteUtils.init!(s::SymbolicAWEModel; 
     solver=nothing, stiffness_factor = nothing, delta = nothing, adaptive=true, prn=true, 
     precompile=false, remake=false, reload=false, 
     lin_outputs=Num[]
@@ -609,7 +609,7 @@ This function performs the following steps:
 # Returns
 - `Nothing`
 """
-function next_step!(s::SymbolicAWEModel, integrator::OrdinaryDiffEqCore.ODEIntegrator; set_values=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
+function KiteUtils.next_step!(s::SymbolicAWEModel, integrator::OrdinaryDiffEqCore.ODEIntegrator; set_values=nothing, dt=1/s.set.sample_freq, vsm_interval=1)
     !(s.integrator === integrator) && error("The ODEIntegrator doesn't belong to the SymbolicAWEModel")
     next_step!(s; set_values, upwind_dir, dt, vsm_interval)
 end
