@@ -194,11 +194,25 @@ Set the vector of the wind-velocity at the height of the kite. As parameter the 
 the ground wind speed [m/s] and the upwind direction [radians] are needed.
 Is called by the function next_step!.
 """
-function set_v_wind_ground!(s::AKM, height, v_wind_gnd=s.set.v_wind; upwind_dir=-pi/2)
+function set_v_wind_ground!(s::KPS4, height, v_wind_gnd=s.set.v_wind; upwind_dir=-pi/2)
+    if height < 6.0
+        height = 6.0
+    end
+    @assert !isnothing(s)
+    pos = pos_kite(s)
+    s.set.upwind_dir = rad2deg(upwind_dir)
+    s.v_wind .= get_wind(s.am, pos[1], pos[2], pos[3], s.t_0)
+    s.v_wind_gnd .= get_wind(s.am, pos[1], pos[2], s.set.h_ref, s.t_0)
+    s.v_wind_tether .= get_wind(s.am, pos[1], pos[2], pos[3]/2, s.t_0)
+    s.rho = calc_rho(s.am, height)
+    nothing
+end
+function set_v_wind_ground!(s::KPS3, height, v_wind_gnd=s.set.v_wind; upwind_dir=-pi/2)
     if height < 6.0
         height = 6.0
     end
     wind_dir = -upwind_dir - pi/2
+    s.set.upwind_dir = rad2deg(upwind_dir)
     s.v_wind .= v_wind_gnd * calc_wind_factor(s.am, height) .* [cos(wind_dir), sin(wind_dir), 0]
     s.v_wind_gnd .= [v_wind_gnd * cos(wind_dir), v_wind_gnd * sin(wind_dir), 0.0]
     s.v_wind_tether .= s.v_wind_gnd * calc_wind_factor(s.am, height / 2.0)
