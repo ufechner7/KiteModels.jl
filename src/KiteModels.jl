@@ -23,7 +23,6 @@ using KiteUtils
 import KiteUtils: init!, next_step!, update_sys_state!
 import KiteUtils: calc_elevation, calc_heading, calc_course, SysState
 @reexport using SymbolicAWEModels
-@reexport using SymbolicAWEModels: find_steady_state!
 @reexport using VortexStepMethod: RamAirWing, BodyAerodynamics, Solver, NONLIN
 @reexport using KitePodModels
 @reexport using WinchModels

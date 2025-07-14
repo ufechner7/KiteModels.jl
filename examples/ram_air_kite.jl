@@ -56,7 +56,7 @@ sys = sam.sys
 toc()
 
 # Stabilize system
-find_steady_state!(sam)
+SymbolicAWEModels.find_steady_state!(sam)
 
 logger = Logger(length(sam.sys_struct.points), steps)
 sys_state = SysState(sam)
