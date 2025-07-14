@@ -10,7 +10,7 @@ SPDX-License-Identifier: MIT
   SymbolicAWEModel
 - bump `KiteUtils.jl` to v0.10.15
 - bump `AtmosphericModels` to v0.3.0, the first version that supports turbulent wind fields
-### Added
+#### Added
 - add the test script test_interface.jl
 - add the field `integrator` to KPS4 and KPS3 structs
 
