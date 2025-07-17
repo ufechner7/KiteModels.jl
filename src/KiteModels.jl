@@ -31,10 +31,6 @@ using Rotations
 import Base.zero
 import OrdinaryDiffEqCore.init
 import OrdinaryDiffEqCore.step!
-using ModelingToolkit, SymbolicIndexingInterface
-using ModelingToolkit: t_nounits as t, D_nounits as D
-using ADTypes: AutoFiniteDiff
-import ModelingToolkit.SciMLBase: successful_retcode
 
 export KPS3, KPS4, SymbolicAWEModel, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG     # constants and types
 export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                     # helper functions
@@ -47,9 +43,6 @@ export calculate_rotational_inertia!
 export kite_ref_frame, orient_euler, spring_forces, upwind_dir, copy_model_settings, menu2
 export create_ram_sys_struct, create_simple_ram_sys_struct
 import LinearAlgebra: norm
-export SystemStructure, Point, Group, Segment, Pulley, Tether, Winch, Wing, Transform
-export DynamicsType, DYNAMIC, QUASI_STATIC, WING, STATIC
-export SegmentType, POWER_LINE, STEERING_LINE, BRIDLE
 
 set_zero_subnormals(true)       # required to avoid drastic slow down on Intel CPUs when numbers become very small
 
