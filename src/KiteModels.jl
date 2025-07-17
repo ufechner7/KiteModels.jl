@@ -207,7 +207,6 @@ function upwind_dir(v_wind_gnd)
     wind_dir = atan(v_wind_gnd[2], v_wind_gnd[1])
     -(wind_dir + π/2)
 end
-@register_symbolic upwind_dir(v_wind_gnd)
 
 """
     tether_length(s::AKM)
