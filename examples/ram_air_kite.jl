@@ -5,13 +5,14 @@ using Timers
 tic()
 @info "Loading packages "
 
-PLOT = true
+PLOT = false
 using Pkg
 if ! ("LaTeXStrings" ∈ keys(Pkg.project().dependencies))
     using TestEnv; TestEnv.activate()
 end
 using ControlPlots, LaTeXStrings
 using KiteModels, LinearAlgebra, Statistics
+using KiteModels.SymbolicAWEModels: find_steady_state!
 
 if ! @isdefined SIMPLE
     SIMPLE = false
@@ -30,25 +31,16 @@ steering_freq = 1/2  # Hz - full left-right cycle frequency
 steering_magnitude = 10.0      # Magnitude of steering input [Nm]
 
 # Initialize model
-set = load_settings("system_ram.yaml")
-set.segments = 3
+set = Settings("system_ram.yaml")
 set_values = [-50, 0.0, 0.0]  # Set values of the torques of the three winches. [Nm]
 set.quasi_static = false
 set.physical_model = SIMPLE ? "simple_ram" : "ram"
 
-@info "Creating wing, aero, vsm_solver, sys_struct and symbolic_awe_model:"
+@info "Creating SymbolicAWEModel:"
 sam = SymbolicAWEModel(set)
-sam.set.abs_tol = 1e-2
-sam.set.rel_tol = 1e-2
 toc()
 
-# init_Q_b_w, R_b_w = KiteModelsam.initial_orient(sam.set)
-# init_kite_pos = init!(sam.sys_struct, sam.set, R_b_w, init_Q_b_w)
-# plot(sam.sys_struct, 0.0; zoom=false, front=false)
-
 # Initialize at elevation
-set.l_tethers[2] += 0.2
-set.l_tethers[3] += 0.2
 init!(sam; remake=false, reload=false)
 sys = sam.sys
 
@@ -63,7 +55,7 @@ sys_state = SysState(sam)
 t = 0.0
 runtime = 0.0
 integ_runtime = 0.0
-bias = set.quasi_static ? 0.45 : 0.40
+bias = set.quasi_static ? 0.45 : 0.35
 t0 = sam.integrator.t
 
 try
@@ -73,14 +65,13 @@ try
         PLOT && plot(sam, t; zoom=false, front=false)
         
         # Calculate steering inputs based on cosine wave
-        steering = steering_magnitude * cos(2π * steering_freq * t + bias)-0.001*t*t
+        steering = steering_magnitude * cos(2π * steering_freq * t + bias)
         set_values = -sam.set.drum_radius .* sam.integrator[sys.winch_force]
         _vsm_interval = 1
         if t > 1.0
             set_values .+= [0.0, steering, -steering]  # Opposite steering for left/right
             _vsm_interval = vsm_interval
         end
-
         # Step simulation
         steptime = @elapsed next_step!(sam; set_values, dt, vsm_interval=vsm_interval)
         t_new = sam.integrator.t
@@ -149,3 +140,5 @@ display(p)
 @info "Performance:" times_realtime=(total_time/2)/runtime integrator_times_realtime=(total_time/2)/integ_runtime
 
 # 55x realtime (PLOT=false, CPU: Intel i9-9980HK (16) @ 5.000GHz)
+# 40-65x realtime (PLOT=false, CPU: Intel i9-9980HK (16) @ 5.000GHz) - commit 6620ed5d0a38e96930615aad9a66e4cd666955f2
+# 40x realtime (PLOT=false, CPU: Intel i9-9980HK (16) @ 5.000GHz) - commit 88a78894038d3cbd50fbff83dfbe5c26266b0637

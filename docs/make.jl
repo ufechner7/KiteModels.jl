@@ -28,7 +28,6 @@ makedocs(;
         "Home" => "index.md",
         "Types" => "types.md",
         "Functions" => "functions.md",
-        "SymbolicAWEModel" => "ram_air_kite.md",
         "Parameters" => "parameters.md",
         "Examples 1p" => "examples.md",
         "Examples 4p" => "examples_4p.md",

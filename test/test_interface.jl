@@ -9,8 +9,6 @@ using KiteModels: init!
 set = deepcopy(load_settings("system.yaml"))
 kps3::KPS3 = KPS3(set)
 kps4::KPS4 = KPS4(set)
-set_ram = deepcopy(load_settings("system_ram.yaml"))
-sam::SymbolicAWEModel = SymbolicAWEModel(set_ram)
 
 @testset "KPS3 constructor interface" begin
     @test kps3 isa KiteUtils.AbstractKiteModel
@@ -25,13 +23,6 @@ end
     @test isnothing(kps4.integrator)
     @test kps4.am isa AtmosphericModel
     @test kps4.iter isa Int64
-end
-@testset "SymbolicAWEModel constructor interface" begin
-    @test sam isa KiteUtils.AbstractKiteModel
-    @test sam.set isa KiteUtils.Settings
-    @test isnothing(sam.integrator)
-    @test sam.am isa AtmosphericModel
-    @test sam.iter isa Int64
 end
 
 @testset "KPS3 init! interface" begin
@@ -48,10 +39,4 @@ end
     @test kps4.integrator isa KiteModels.OrdinaryDiffEqCore.ODEIntegrator
 end
 
-@testset "SymbolicAWEModel init! interface" begin
-    sam.set.upwind_dir = rad2deg(-pi/2)
-    integ = init!(sam; stiffness_factor=0.5, delta=0.0001, prn=false)
-    @test integ isa KiteModels.OrdinaryDiffEqCore.ODEIntegrator
-    @test kps4.integrator isa KiteModels.OrdinaryDiffEqCore.ODEIntegrator
-end
 nothing
