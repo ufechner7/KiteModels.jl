@@ -57,28 +57,39 @@ using AtmosphericModels
 import Base.zero
 import LinearAlgebra: norm
 import OrdinaryDiffEqCore: init, step!
-import KiteUtils: init!, next_step!, update_sys_state!, calc_elevation, 
-                    calc_heading, calc_course
+import KiteUtils: init!, next_step!, update_sys_state!, calc_heading, calc_elevation,
+                    calc_course
+import AtmosphericModels: upwind_dir
 
-# --- Types, Structs, and Constants ---
-export KPS3, KPS4, SymbolicAWEModel, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG
+# --- KiteUtils ---
+export init!, next_step!, update_sys_state!, load_settings, se, calc_heading, 
+        calc_orient_quat
+export SysState, Settings
+
+# --- KitePodModels ---
 export KCU
-export SysState, Settings, Logger
 
-# --- High-Level API: Core Simulation and Utility Functions ---
-export init!, next_step!, init_pos_vel, update_sys_state!
-export log!, save_log, load_log, load_settings, se
+# --- Types ---
+export SimFloat, KVec3, SVec3, AbstractKiteModel, AKM
 
-# --- Getters: Functions to Query System State ---
-export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course
-export calc_azimuth_north, calc_azimuth_east, calc_orient_quat
-export winch_force, lift_drag, cl_cd, lift_over_drag, unstretched_length, tether_length
-export v_wind_kite, kite_ref_frame, orient_euler, spring_forces, upwind_dir
+# --- Kite models ---
+export KPS3, KPS4
 
-# --- Low-Level Workers & Utility Functions ---
-export residual!, clear!, find_steady_state!
-export calc_set_cl_cd!, calculate_rotational_inertia!
-export copy_examples, copy_bin, copy_model_settings, menu2
+# --- Input functions ---
+export set_depower_steering!, set_v_wind_ground!
+
+# --- Output functions ---
+export unstretched_length, tether_length, pos_kite, calc_aoa, calc_height, calc_elevation,
+        calc_azimuth, calc_azimuth_east, calc_azimuth_north, calc_heading, calc_course, 
+        cl_cd, winch_force, spring_forces, lift_drag, lift_over_drag, v_wind_kite, 
+        kite_ref_frame, orient_euler
+
+# --- Low level simulation interface ---
+export clear!, find_steady_state!, residual!
+
+# --- Helper functions ---
+export copy_examples, copy_bin, calc_drag, calculate_rotational_inertia!, calc_set_cl_cd!,
+        calc_aero_forces!, calc_particle_forces!, inner_loop!, loop!
 
 set_zero_subnormals(true)       # required to avoid drastic slow down on Intel CPUs when numbers become very small
 

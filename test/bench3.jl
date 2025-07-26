@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils
-using KiteModels, KitePodModels
+using KiteModels, KitePodModels, AtmosphericModels
 
 if ! @isdefined SEGMENTS
     const SEGMENTS = se().segments
