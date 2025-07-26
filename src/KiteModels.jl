@@ -57,10 +57,15 @@ using AtmosphericModels
 import Base.zero
 import LinearAlgebra: norm
 import OrdinaryDiffEqCore: init, step!
-import KiteUtils: init!, next_step!, update_sys_state!, calc_heading, calc_elevation,
-                    calc_course
+
+# --- SymbolicAWEModels ---
+export SymbolicAWEModel, linearize!
+export SystemStructure, Point, Segment, Pulley, Winch, Wing, Transform
+export DynamicsType, DYNAMIC, STATIC, BRIDLE, QUASI_STATIC
 
 # --- KiteUtils ---
+import KiteUtils: init!, next_step!, update_sys_state!, calc_heading, calc_elevation,
+                    calc_course
 export init!, next_step!, update_sys_state!, load_settings, se, calc_heading, 
         calc_orient_quat
 export SysState, Settings
@@ -81,10 +86,10 @@ export KPS3, KPS4
 export set_depower_steering!, set_v_wind_ground!
 
 # --- Output functions ---
-export unstretched_length, tether_length, pos_kite, calc_aoa, calc_height, calc_elevation,
+export unstretched_length, tether_length, pos_kite, calc_height, calc_elevation,
         calc_azimuth, calc_azimuth_east, calc_azimuth_north, calc_heading, calc_course, 
         cl_cd, winch_force, spring_forces, lift_drag, lift_over_drag, v_wind_kite, 
-        kite_ref_frame, orient_euler
+        kite_ref_frame, orient_euler, upwind_dir
 
 # --- Low level simulation interface ---
 export clear!, find_steady_state!, residual!
