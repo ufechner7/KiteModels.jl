@@ -11,7 +11,8 @@ if ! ("LaTeXStrings" ∈ keys(Pkg.project().dependencies))
     using TestEnv; TestEnv.activate()
 end
 using ControlPlots, LaTeXStrings
-using SymbolicAWEModels, KiteUtils, LinearAlgebra, Statistics
+using KiteModels, LinearAlgebra, Statistics
+using KiteModels.SymbolicAWEModels: find_steady_state!
 
 if ! @isdefined SIMPLE
     SIMPLE = false
@@ -40,14 +41,14 @@ sam = SymbolicAWEModel(set)
 toc()
 
 # Initialize at elevation
-SymbolicAWEModels.init!(sam; remake=false, reload=false)
+init!(sam; remake=false, reload=false)
 sys = sam.sys
 
 @info "System initialized at:"
 toc()
 
 # Stabilize system
-SymbolicAWEModels.find_steady_state!(sam)
+find_steady_state!(sam)
 
 logger = Logger(length(sam.sys_struct.points), steps)
 sys_state = SysState(sam)

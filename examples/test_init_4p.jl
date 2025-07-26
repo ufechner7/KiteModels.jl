@@ -6,7 +6,7 @@ using Printf
 using Pkg
 using KiteModels, KitePodModels, KiteUtils, LinearAlgebra, Rotations
 
-set = deepcopy(load_settings("system.yaml"))
+set = Settings("system.yaml")
 
 using Pkg
 if ! ("ControlPlots" ∈ keys(Pkg.project().dependencies))
@@ -39,7 +39,8 @@ logger = Logger(set.segments + 5, STEPS)
 
 kcu::KCU = KCU(set)
 kps4::KPS4 = KPS4(kcu)
-integrator = KiteModels.init!(kps4; delta=0.03, stiffness_factor=0.01, upwind_dir=UPWIND_DIR, prn=STATISTIC)
+set.upwind_dir = UPWIND_DIR
+integrator = KiteModels.init!(kps4; delta=0.03, stiffness_factor=0.01, prn=STATISTIC)
 for i=1:80
     next_step!(kps4, integrator; set_speed=kps4.set.v_reel_out, dt)
 end

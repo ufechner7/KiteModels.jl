@@ -12,36 +12,73 @@ Scientific background: http://arxiv.org/abs/1406.6218 =#
 
 module KiteModels
 
+#======================================================================#
+#                           DEPENDENCIES
+#======================================================================#
+
+# --- Julia Standard Library & General Utilities ---
 using PrecompileTools: @setup_workload, @compile_workload 
-using Dierckx, Interpolations, Serialization, StaticArrays, LinearAlgebra, Statistics, Parameters, NLsolve,
-      DocStringExtensions, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqNonlinearSolve,
-      NonlinearSolve, SHA
+using DocStringExtensions
+using Pkg
+using SHA
+using Serialization
+using Statistics
+using LinearAlgebra
+
+# --- Numerical & Scientific Computing ---
+using Dierckx
+using Interpolations
+using StaticArrays
+using Parameters
+using Rotations
+
+# --- Solvers (Nonlinear, Differential Equations) ---
+using NLsolve
+using NonlinearSolve
+using OrdinaryDiffEqCore
+using OrdinaryDiffEqBDF
+using OrdinaryDiffEqNonlinearSolve
 import Sundials
-using Reexport, Pkg
+
+# --- Open Source AWE Packages ---
 using VortexStepMethod
 using KiteUtils
-import KiteUtils: init!, next_step!, update_sys_state!
-import KiteUtils: calc_elevation, calc_heading, calc_course, SysState
-@reexport using SymbolicAWEModels
-@reexport using VortexStepMethod: RamAirWing, BodyAerodynamics, Solver, NONLIN
-@reexport using KitePodModels
-@reexport using WinchModels
-@reexport using AtmosphericModels
-using Rotations
-import Base.zero
-import OrdinaryDiffEqCore.init
-import OrdinaryDiffEqCore.step!
+using SymbolicAWEModels
+using KitePodModels
+using WinchModels
+using AtmosphericModels
 
-export KPS3, KPS4, SymbolicAWEModel, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG     # constants and types
-export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                     # helper functions
-export clear!, find_steady_state!, residual!                                           # low level workers
-export init!, next_step!, init_pos_vel                                        # high level workers
-export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, calc_orient_quat # getters
-export calc_azimuth_north, calc_azimuth_east
-export winch_force, lift_drag, cl_cd, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
-export calculate_rotational_inertia!
-export kite_ref_frame, orient_euler, spring_forces, upwind_dir, copy_model_settings, menu2
+#======================================================================#
+#                              EXPORTS
+#                 (The Public API of this Module)
+#======================================================================#
+
+# --- Importing functions to be extended or exported ---
+import Base.zero
 import LinearAlgebra: norm
+import OrdinaryDiffEqCore: init, step!
+import KiteUtils: init!, next_step!, update_sys_state!, calc_elevation, 
+                    calc_heading, calc_course
+
+# --- Types, Structs, and Constants ---
+export KPS3, KPS4, SymbolicAWEModel, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG
+export KCU
+export SysState, Settings, Logger
+
+# --- High-Level API: Core Simulation and Utility Functions ---
+export init!, next_step!, init_pos_vel, update_sys_state!
+export log!, save_log, load_log, load_settings, se
+
+# --- Getters: Functions to Query System State ---
+export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course
+export calc_azimuth_north, calc_azimuth_east, calc_orient_quat
+export winch_force, lift_drag, cl_cd, lift_over_drag, unstretched_length, tether_length
+export v_wind_kite, kite_ref_frame, orient_euler, spring_forces, upwind_dir
+
+# --- Low-Level Workers & Utility Functions ---
+export residual!, clear!, find_steady_state!
+export calc_set_cl_cd!, calculate_rotational_inertia!
+export copy_examples, copy_bin, copy_model_settings, menu2
 
 set_zero_subnormals(true)       # required to avoid drastic slow down on Intel CPUs when numbers become very small
 
