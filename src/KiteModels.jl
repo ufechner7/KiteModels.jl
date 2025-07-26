@@ -59,7 +59,7 @@ import LinearAlgebra: norm
 import OrdinaryDiffEqCore: init, step!
 
 # --- SymbolicAWEModels ---
-import SymbolicAWEModel: Wing
+import SymbolicAWEModels: Wing
 export SymbolicAWEModel, linearize!
 export SystemStructure, Point, Segment, Pulley, Winch, Wing, Transform
 export DynamicsType, DYNAMIC, STATIC, BRIDLE, QUASI_STATIC
