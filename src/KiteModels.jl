@@ -59,7 +59,6 @@ import LinearAlgebra: norm
 import OrdinaryDiffEqCore: init, step!
 import KiteUtils: init!, next_step!, update_sys_state!, calc_heading, calc_elevation,
                     calc_course
-import AtmosphericModels: upwind_dir
 
 # --- KiteUtils ---
 export init!, next_step!, update_sys_state!, load_settings, se, calc_heading, 
@@ -68,6 +67,9 @@ export SysState, Settings
 
 # --- KitePodModels ---
 export KCU
+
+# --- AtmosphericModels ---
+export AtmosphericModel
 
 # --- Types ---
 export SimFloat, KVec3, SVec3, AbstractKiteModel, AKM
