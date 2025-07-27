@@ -59,3 +59,4 @@ data/prob_dynamic_1.10_3_seg.bin.default
 docs/src/.$kite_power_tools.drawio.bkp
 data/linear_model.arrow
 data/nonlinear_model.arrow
+coverage/lcov.info
