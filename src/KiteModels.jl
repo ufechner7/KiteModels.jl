@@ -12,43 +12,92 @@ Scientific background: http://arxiv.org/abs/1406.6218 =#
 
 module KiteModels
 
+#======================================================================#
+#                           DEPENDENCIES
+#======================================================================#
+
+# --- Julia Standard Library & General Utilities ---
 using PrecompileTools: @setup_workload, @compile_workload 
-using Dierckx, Interpolations, Serialization, StaticArrays, LinearAlgebra, Statistics, Parameters, NLsolve,
-      DocStringExtensions, OrdinaryDiffEqCore, OrdinaryDiffEqBDF, OrdinaryDiffEqNonlinearSolve,
-      NonlinearSolve, SHA
+using DocStringExtensions
+using Pkg
+using SHA
+using Serialization
+using Statistics
+using LinearAlgebra
+
+# --- Numerical & Scientific Computing ---
+using Dierckx
+using Interpolations
+using StaticArrays
+using Parameters
+using Rotations
+
+# --- Solvers (Nonlinear, Differential Equations) ---
+using NLsolve
+using NonlinearSolve
+using OrdinaryDiffEqCore
+using OrdinaryDiffEqBDF
+using OrdinaryDiffEqNonlinearSolve
 import Sundials
-using Reexport, Pkg
+
+# --- Open Source AWE Packages ---
 using VortexStepMethod
 using KiteUtils
-import KiteUtils: init!, next_step!, update_sys_state!
-import KiteUtils: calc_elevation, calc_heading, calc_course, SysState
-@reexport using VortexStepMethod: RamAirWing, BodyAerodynamics, Solver, NONLIN
-@reexport using KitePodModels
-@reexport using WinchModels
-@reexport using AtmosphericModels
-using Rotations
-import Base.zero
-import OrdinaryDiffEqCore.init
-import OrdinaryDiffEqCore.step!
-using ModelingToolkit, SymbolicIndexingInterface
-using ModelingToolkit: t_nounits as t, D_nounits as D
-using ADTypes: AutoFiniteDiff
-import ModelingToolkit.SciMLBase: successful_retcode
+using SymbolicAWEModels
+using KitePodModels
+using WinchModels
+using AtmosphericModels
 
-export KPS3, KPS4, SymbolicAWEModel, KVec3, SimFloat, ProfileLaw, EXP, LOG, EXPLOG     # constants and types
-export calc_set_cl_cd!, copy_examples, copy_bin, update_sys_state!                     # helper functions
-export clear!, find_steady_state!, residual!                                           # low level workers
-export init!, reinit!, next_step!, init_pos_vel                                        # high level workers
-export pos_kite, calc_height, calc_elevation, calc_azimuth, calc_heading, calc_course, calc_orient_quat, calc_aoa  # getters
-export calc_azimuth_north, calc_azimuth_east
-export winch_force, lift_drag, cl_cd, lift_over_drag, unstretched_length, tether_length, v_wind_kite     # getters
-export calculate_rotational_inertia!
-export kite_ref_frame, orient_euler, spring_forces, upwind_dir, copy_model_settings, menu2
-export create_ram_sys_struct, create_simple_ram_sys_struct
+#======================================================================#
+#                              EXPORTS
+#                 (The Public API of this Module)
+#======================================================================#
+
+# --- Importing functions to be extended or exported ---
+import Base.zero
 import LinearAlgebra: norm
-export SystemStructure, Point, Group, Segment, Pulley, Tether, Winch, Wing, Transform
-export DynamicsType, DYNAMIC, QUASI_STATIC, WING, STATIC
-export SegmentType, POWER_LINE, STEERING_LINE, BRIDLE
+import OrdinaryDiffEqCore: init, step!
+
+# --- SymbolicAWEModels ---
+import SymbolicAWEModels: Wing
+export SymbolicAWEModel, linearize!
+export SystemStructure, Point, Segment, Pulley, Winch, Wing, Transform
+export DynamicsType, DYNAMIC, STATIC, BRIDLE, QUASI_STATIC
+
+# --- KiteUtils ---
+import KiteUtils: init!, next_step!, update_sys_state!, calc_heading, calc_elevation,
+                    calc_course
+export init!, next_step!, update_sys_state!, load_settings, se, calc_heading, 
+        calc_orient_quat
+export SysState, Settings
+
+# --- KitePodModels ---
+export KCU
+
+# --- AtmosphericModels ---
+export AtmosphericModel
+
+# --- Types ---
+export SimFloat, KVec3, SVec3, AbstractKiteModel, AKM
+
+# --- Kite models ---
+export KPS3, KPS4
+
+# --- Input functions ---
+export set_depower_steering!, set_v_wind_ground!
+
+# --- Output functions ---
+export unstretched_length, tether_length, pos_kite, calc_height, calc_elevation,
+        calc_azimuth, calc_azimuth_east, calc_azimuth_north, calc_heading, calc_course, 
+        cl_cd, winch_force, spring_forces, lift_drag, lift_over_drag, v_wind_kite, 
+        kite_ref_frame, orient_euler, upwind_dir
+
+# --- Low level simulation interface ---
+export clear!, find_steady_state!, residual!
+
+# --- Helper functions ---
+export copy_examples, copy_bin, calc_drag, calculate_rotational_inertia!, calc_set_cl_cd!,
+        calc_aero_forces!, calc_particle_forces!, inner_loop!, loop!
 
 set_zero_subnormals(true)       # required to avoid drastic slow down on Intel CPUs when numbers become very small
 
@@ -97,9 +146,6 @@ function __init__()
 end
 
 include("KPS4.jl") # include code, specific for the four point kite model
-include("system_structure.jl")
-include("symbolic_awe_model.jl") # include code, specific for the ram air kite model
-include("mtk_model.jl")
 include("KPS3.jl") # include code, specific for the one point kite model
 include("init.jl") # functions to calculate the initial state vector, the initial masses and initial springs
 
@@ -216,7 +262,6 @@ function upwind_dir(v_wind_gnd)
     wind_dir = atan(v_wind_gnd[2], v_wind_gnd[1])
     -(wind_dir + π/2)
 end
-@register_symbolic upwind_dir(v_wind_gnd)
 
 """
     tether_length(s::AKM)
@@ -445,7 +490,7 @@ end
 #     var_16::MyFloat
 # end 
 
-function update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
+function KiteUtils.update_sys_state!(ss::SysState, s::AKM, zoom=1.0)
     ss.time = s.t_0
     pos = s.pos
     P = length(pos)

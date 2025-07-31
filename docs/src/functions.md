@@ -34,7 +34,6 @@ set_v_wind_ground!
 unstretched_length
 tether_length
 pos_kite
-calc_aoa
 calc_height
 calc_elevation
 calc_azimuth

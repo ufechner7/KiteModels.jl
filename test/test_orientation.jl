@@ -4,6 +4,7 @@
 using KiteUtils
 using KiteModels
 using KitePodModels
+using AtmosphericModels
 
 using LinearAlgebra
 using StaticArrays

@@ -3,7 +3,7 @@
 
 using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils
 
-using KiteModels, KitePodModels
+using KiteModels, KitePodModels, AtmosphericModels
 
 const SEGMENTS = se().segments
 kcu::KCU = KCU(se())

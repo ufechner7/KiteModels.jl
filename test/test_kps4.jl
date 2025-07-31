@@ -7,7 +7,7 @@ if ! ("PackageCompiler" ∈ keys(Pkg.project().dependencies))
     Pkg.update()
 end
 using Test, BenchmarkTools, StaticArrays, LinearAlgebra, KiteUtils
-using KiteModels, KitePodModels
+using KiteModels, KitePodModels, AtmosphericModels
 
 set_data_path(joinpath(dirname(dirname(pathof(KiteModels))), "data"))
 set = deepcopy(load_settings("system.yaml"))

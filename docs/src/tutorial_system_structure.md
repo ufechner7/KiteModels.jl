@@ -35,7 +35,7 @@ segments = Segment[]
 points = push!(points, Point(1, zeros(3), STATIC; wing_idx=0))
 ```
 
-The first point we add is a static point. There are four different [`DynamicsType`](@ref)s to choose from: `STATIC`, `QUASI_STATIC`, `DYNAMIC` and `WING`. `STATIC` just means that the point doesn't move. `DYNAMIC` is a point modeled with acceleration, while `QUASI_STATIC` constrains this acceleration to be zero at all times. A `WING` point is connected to a wing body.
+The first point we add is a static point. There are four different `DynamicsType`s to choose from: `STATIC`, `QUASI_STATIC`, `DYNAMIC` and `WING`. `STATIC` just means that the point doesn't move. `DYNAMIC` is a point modeled with acceleration, while `QUASI_STATIC` constrains this acceleration to be zero at all times. A `WING` point is connected to a wing body.
 
 Now we can add `DYNAMIC` points and connect them to each other with segments. `BRIDLE` segments don't need to have a tether, because they have a constant unstretched length.
 ```julia
@@ -51,21 +51,21 @@ for i in 1:set.segments
 end
 ```
 
-In order to describe the initial orientation of the structure, we define a [`Transform(idx, elevation, azimuth, heading)`](@ref) with an elevation (-80 degrees), azimuth and heading, and a base position `[0.0, 0.0, 50.0]`.
+In order to describe the initial orientation of the structure, we define a `Transform` with an elevation (-80 degrees), azimuth and heading, and a base position `[0.0, 0.0, 50.0]`.
 ```julia
 transforms = [Transform(1, deg2rad(-80), 0.0, 0.0; 
               base_pos = [0.0, 0.0, 50.0], base_point_idx=points[1].idx,
               rot_point_idx=points[end].idx)]
 ```
 
-From the points, segments and transform we create a [`SystemStructure(name, set)`](@ref), which can be plotted in 2d to quickly investigate if the model is correct.
+From the points, segments and transform we create a `SystemStructure`, which can be plotted in 2d to quickly investigate if the model is correct.
 ```julia
 sys_struct = SystemStructure("tether", set; points, segments, transforms)
 plot(sys_struct, 0.0)
 ```
 ![SystemStructure visualization](tether_sys_struct.png)
 
-If the system looks good, we can easily model it, by first creating a [`SymbolicAWEModel`](@ref), initializing it and stepping through time.
+If the system looks good, we can easily model it, by first creating a `SymbolicAWEModel`, initializing it and stepping through time.
 ```julia
 sam = SymbolicAWEModel(set, sys_struct)
 

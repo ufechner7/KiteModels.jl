@@ -144,14 +144,14 @@ function init(s::KPS4, X=zeros(2 * (s.set.segments+KITE_PARTICLES-1)+1); old=fal
     MVector{6*(s.set.segments+KITE_PARTICLES)+2, SimFloat}(res1), MVector{6*(s.set.segments+KITE_PARTICLES)+2, SimFloat}(res2)
 end
 
-# rotate a 3d vector around the x axis in the yz plane - following the right hand rule
-function rotate_around_x(vec, angle::T) where T
-    result = zeros(T, 3)
-    result[1] = vec[1]
-    result[2] = cos(angle) * vec[2] - sin(angle) * vec[3]
-    result[3] = sin(angle) * vec[2] + cos(angle) * vec[3]
-    result
-end
+# # rotate a 3d vector around the x axis in the yz plane - following the right hand rule
+# function rotate_around_x(vec, angle::T) where T
+#     result = zeros(T, 3)
+#     result[1] = vec[1]
+#     result[2] = cos(angle) * vec[2] - sin(angle) * vec[3]
+#     result[3] = sin(angle) * vec[2] + cos(angle) * vec[3]
+#     result
+# end
 
 # rotate a 3d vector around the y axis in the xz plane - following the right hand rule
 function rotate_around_y(vec, angle::T) where T
@@ -162,11 +162,11 @@ function rotate_around_y(vec, angle::T) where T
     result
 end
 
-# rotate a 3d vector around the z axis in the yx plane - following the right hand rule
-function rotate_around_z(vec, angle::T) where T
-    result = zeros(T, 3)
-    result[1] = cos(angle) * vec[1] - sin(angle) * vec[2]
-    result[2] = sin(angle) * vec[1] + cos(angle) * vec[2]
-    result[3] = vec[3]
-    result
-end
+# # rotate a 3d vector around the z axis in the yx plane - following the right hand rule
+# function rotate_around_z(vec, angle::T) where T
+#     result = zeros(T, 3)
+#     result[1] = cos(angle) * vec[1] - sin(angle) * vec[2]
+#     result[2] = sin(angle) * vec[1] + cos(angle) * vec[2]
+#     result[3] = vec[3]
+#     result
+# end
